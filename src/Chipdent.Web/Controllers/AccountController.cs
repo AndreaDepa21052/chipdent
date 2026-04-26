@@ -129,6 +129,141 @@ public class AccountController : Controller
         });
     }
 
+    [Microsoft.AspNetCore.Authorization.Authorize]
+    [HttpGet("profilo")]
+    public async Task<IActionResult> Profile()
+    {
+        var userId = User.FindFirst(ClaimTypes.NameIdentifier)?.Value ?? string.Empty;
+        var u = await _mongo.Users.Find(x => x.Id == userId).FirstOrDefaultAsync();
+        if (u is null) return RedirectToAction(nameof(Login));
+
+        string? linkedName = null;
+        if (!string.IsNullOrEmpty(u.LinkedPersonId))
+        {
+            if (u.LinkedPersonType == Chipdent.Web.Domain.Entities.LinkedPersonType.Dottore)
+            {
+                var d = await _mongo.Dottori.Find(x => x.Id == u.LinkedPersonId).FirstOrDefaultAsync();
+                linkedName = d?.NomeCompleto;
+            }
+            else if (u.LinkedPersonType == Chipdent.Web.Domain.Entities.LinkedPersonType.Dipendente)
+            {
+                var p = await _mongo.Dipendenti.Find(x => x.Id == u.LinkedPersonId).FirstOrDefaultAsync();
+                linkedName = p?.NomeCompleto;
+            }
+        }
+
+        return View(new MyProfileViewModel
+        {
+            Id = u.Id, Email = u.Email, FullName = u.FullName, Phone = u.Phone,
+            Role = u.Role, LinkedPersonType = u.LinkedPersonType, LinkedPersonId = u.LinkedPersonId,
+            LinkedPersonName = linkedName, CreatedAt = u.CreatedAt, LastLoginAt = u.LastLoginAt
+        });
+    }
+
+    [Microsoft.AspNetCore.Authorization.Authorize]
+    [HttpPost("profilo")]
+    [ValidateAntiForgeryToken]
+    public async Task<IActionResult> Profile(MyProfileViewModel vm)
+    {
+        var userId = User.FindFirst(ClaimTypes.NameIdentifier)?.Value ?? string.Empty;
+        var u = await _mongo.Users.Find(x => x.Id == userId).FirstOrDefaultAsync();
+        if (u is null) return RedirectToAction(nameof(Login));
+
+        if (!ModelState.IsValid)
+        {
+            vm.Id = u.Id; vm.Email = u.Email; vm.Role = u.Role;
+            vm.CreatedAt = u.CreatedAt; vm.LastLoginAt = u.LastLoginAt;
+            vm.LinkedPersonType = u.LinkedPersonType; vm.LinkedPersonId = u.LinkedPersonId;
+            return View(vm);
+        }
+
+        await _mongo.Users.UpdateOneAsync(
+            x => x.Id == userId,
+            Builders<Chipdent.Web.Domain.Entities.User>.Update
+                .Set(x => x.FullName, vm.FullName.Trim())
+                .Set(x => x.Phone, string.IsNullOrWhiteSpace(vm.Phone) ? null : vm.Phone.Trim())
+                .Set(x => x.UpdatedAt, DateTime.UtcNow));
+
+        TempData["flash"] = "Profilo aggiornato. Esci e rientra per vedere il nome aggiornato in tutto il portale.";
+        return RedirectToAction(nameof(Profile));
+    }
+
+    [Microsoft.AspNetCore.Authorization.Authorize]
+    [HttpPost("password")]
+    [ValidateAntiForgeryToken]
+    public async Task<IActionResult> ChangePassword(ChangePasswordViewModel vm)
+    {
+        var userId = User.FindFirst(ClaimTypes.NameIdentifier)?.Value ?? string.Empty;
+        var u = await _mongo.Users.Find(x => x.Id == userId).FirstOrDefaultAsync();
+        if (u is null) return RedirectToAction(nameof(Login));
+
+        if (!ModelState.IsValid || !_hasher.Verify(vm.CurrentPassword, u.PasswordHash))
+        {
+            if (ModelState.IsValid) ModelState.AddModelError(nameof(vm.CurrentPassword), "Password attuale errata.");
+            // re-render Profile with the password section showing the error
+            TempData["pwdErrors"] = string.Join("|", ModelState
+                .Where(s => s.Value!.Errors.Count > 0)
+                .SelectMany(s => s.Value!.Errors.Select(e => $"{s.Key}::{e.ErrorMessage}")));
+            return RedirectToAction(nameof(Profile));
+        }
+
+        await _mongo.Users.UpdateOneAsync(
+            x => x.Id == userId,
+            Builders<Chipdent.Web.Domain.Entities.User>.Update
+                .Set(x => x.PasswordHash, _hasher.Hash(vm.NewPassword))
+                .Set(x => x.UpdatedAt, DateTime.UtcNow));
+
+        TempData["flash"] = "Password aggiornata.";
+        return RedirectToAction(nameof(Profile));
+    }
+
+    [Microsoft.AspNetCore.Authorization.Authorize]
+    [HttpGet("preferenze")]
+    public async Task<IActionResult> Preferences()
+    {
+        var userId = User.FindFirst(ClaimTypes.NameIdentifier)?.Value ?? string.Empty;
+        var u = await _mongo.Users.Find(x => x.Id == userId).FirstOrDefaultAsync();
+        if (u is null) return RedirectToAction(nameof(Login));
+
+        var p = u.Preferences ?? new Chipdent.Web.Domain.Entities.UserPreferences();
+        return View(new PreferencesViewModel
+        {
+            NotificheInApp = p.NotificheInApp,
+            MostraToast = p.MostraToast,
+            SuoniNotifiche = p.SuoniNotifiche,
+            DigestEmail = p.DigestEmail,
+            Lingua = p.Lingua,
+            Densita = p.Densita
+        });
+    }
+
+    [Microsoft.AspNetCore.Authorization.Authorize]
+    [HttpPost("preferenze")]
+    [ValidateAntiForgeryToken]
+    public async Task<IActionResult> Preferences(PreferencesViewModel vm)
+    {
+        var userId = User.FindFirst(ClaimTypes.NameIdentifier)?.Value ?? string.Empty;
+        if (!ModelState.IsValid) return View(vm);
+
+        var prefs = new Chipdent.Web.Domain.Entities.UserPreferences
+        {
+            NotificheInApp = vm.NotificheInApp,
+            MostraToast = vm.MostraToast,
+            SuoniNotifiche = vm.SuoniNotifiche,
+            DigestEmail = vm.DigestEmail,
+            Lingua = string.IsNullOrEmpty(vm.Lingua) ? "it" : vm.Lingua,
+            Densita = string.IsNullOrEmpty(vm.Densita) ? "comoda" : vm.Densita
+        };
+        await _mongo.Users.UpdateOneAsync(
+            x => x.Id == userId,
+            Builders<Chipdent.Web.Domain.Entities.User>.Update
+                .Set(x => x.Preferences, prefs)
+                .Set(x => x.UpdatedAt, DateTime.UtcNow));
+
+        TempData["flash"] = "Preferenze salvate.";
+        return RedirectToAction(nameof(Preferences));
+    }
+
     [HttpPost("invito")]
     [ValidateAntiForgeryToken]
     public async Task<IActionResult> Accept(AcceptInviteViewModel vm)

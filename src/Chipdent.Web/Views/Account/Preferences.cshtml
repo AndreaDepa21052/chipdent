@@ -1,0 +1,79 @@
+@model Chipdent.Web.Models.PreferencesViewModel
+@{
+    ViewData["Title"] = "Preferenze";
+}
+
+<partial name="_Flash" />
+
+<div class="page-head">
+    <div>
+        <h2>Preferenze</h2>
+        <p class="page-head__sub">Personalizza notifiche e visualizzazione del portale.</p>
+    </div>
+    <div class="page-head__actions">
+        <a class="btn btn--ghost" asp-action="Profile">← Profilo</a>
+    </div>
+</div>
+
+<form asp-action="Preferences" method="post">
+    @Html.AntiForgeryToken()
+
+    <div class="card form-section">
+        <div class="card__header"><h3 class="card__title">Notifiche</h3></div>
+        <div class="prefs-list">
+            <label class="pref-row">
+                <div>
+                    <strong>Notifiche in-app</strong>
+                    <p class="muted">Ricevi notifiche live mentre usi il portale (badge sulla campanella, voci nel feed).</p>
+                </div>
+                <input class="switch" type="checkbox" asp-for="NotificheInApp" />
+            </label>
+            <label class="pref-row">
+                <div>
+                    <strong>Toast in tempo reale</strong>
+                    <p class="muted">Mostra un mini-popup sulla parte alta dello schermo per ogni nuovo evento.</p>
+                </div>
+                <input class="switch" type="checkbox" asp-for="MostraToast" />
+            </label>
+            <label class="pref-row">
+                <div>
+                    <strong>Suoni di notifica</strong>
+                    <p class="muted">Riproduci un breve suono per ogni notifica importante.</p>
+                </div>
+                <input class="switch" type="checkbox" asp-for="SuoniNotifiche" />
+            </label>
+            <label class="pref-row">
+                <div>
+                    <strong>Digest email giornaliero</strong>
+                    <p class="muted">Email riassuntiva con le attività della giornata, recapitata alle 19:00.</p>
+                </div>
+                <input class="switch" type="checkbox" asp-for="DigestEmail" />
+            </label>
+        </div>
+    </div>
+
+    <div class="card form-section">
+        <div class="card__header"><h3 class="card__title">Visualizzazione</h3></div>
+        <div class="form-grid">
+            <div class="form-group">
+                <label class="form-label" asp-for="Lingua">Lingua</label>
+                <select class="form-control" asp-for="Lingua">
+                    <option value="it" selected="@(Model.Lingua == "it")">Italiano</option>
+                    <option value="en" selected="@(Model.Lingua == "en")">English (in arrivo)</option>
+                </select>
+            </div>
+            <div class="form-group">
+                <label class="form-label" asp-for="Densita">Densità interfaccia</label>
+                <select class="form-control" asp-for="Densita">
+                    <option value="comoda" selected="@(Model.Densita == "comoda")">Comoda</option>
+                    <option value="compatta" selected="@(Model.Densita == "compatta")">Compatta</option>
+                </select>
+            </div>
+        </div>
+    </div>
+
+    <div class="form-actions" style="margin-top: var(--s-6);">
+        <a class="btn btn--ghost" asp-action="Profile">Annulla</a>
+        <button type="submit" class="btn btn--primary">Salva preferenze</button>
+    </div>
+</form>

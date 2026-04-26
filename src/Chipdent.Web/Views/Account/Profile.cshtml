@@ -1,0 +1,116 @@
+@model Chipdent.Web.Models.MyProfileViewModel
+@{
+    ViewData["Title"] = "Il mio profilo";
+    var initials = string.Concat(Model.FullName.Split(' ', StringSplitOptions.RemoveEmptyEntries).Take(2).Select(p => char.ToUpper(p[0])));
+    var pwdErrors = TempData["pwdErrors"] as string;
+}
+
+<partial name="_Flash" />
+
+<div class="profile">
+    <div class="profile__header">
+        <div class="profile__avatar">@initials</div>
+        <div class="profile__head-text">
+            <h2>@Model.FullName</h2>
+            <div class="profile__sub">
+                <span>@Model.Email</span>
+                <span>·</span><span>@Model.Role</span>
+                @if (Model.LinkedPersonName is not null)
+                {
+                    <span>·</span><span>👤 @Model.LinkedPersonName (@Model.LinkedPersonType)</span>
+                }
+            </div>
+            <div class="profile__chips">
+                <span class="badge">membro dal @Model.CreatedAt.ToString("MM/yyyy")</span>
+                @if (Model.LastLoginAt is not null)
+                {
+                    <span class="badge">ultimo accesso @Model.LastLoginAt.Value.ToLocalTime().ToString("dd/MM HH:mm")</span>
+                }
+            </div>
+        </div>
+        <div class="profile__actions">
+            <a class="btn btn--ghost" asp-action="Preferences">⚙ Preferenze</a>
+        </div>
+    </div>
+
+    <div class="profile__grid">
+        <div class="card">
+            <div class="card__header"><h3 class="card__title">Dati personali</h3></div>
+            <form asp-action="Profile" method="post">
+                @Html.AntiForgeryToken()
+                <input type="hidden" asp-for="Id" />
+                <div class="form-grid">
+                    <div class="form-group">
+                        <label class="form-label">Email</label>
+                        <input class="form-control" value="@Model.Email" disabled />
+                        <span class="muted" style="font-size:.75rem;">L'email è gestita dall'amministratore.</span>
+                    </div>
+                    <div class="form-group">
+                        <label class="form-label" asp-for="FullName">Nome completo</label>
+                        <input class="form-control" asp-for="FullName" required />
+                        <span class="text-danger" asp-validation-for="FullName"></span>
+                    </div>
+                    <div class="form-group full">
+                        <label class="form-label" asp-for="Phone">Telefono</label>
+                        <input class="form-control" asp-for="Phone" placeholder="+39 …" />
+                    </div>
+                </div>
+                <div class="form-actions">
+                    <button type="submit" class="btn btn--primary">Salva</button>
+                </div>
+            </form>
+        </div>
+
+        <div class="card">
+            <div class="card__header"><h3 class="card__title">Cambia password</h3></div>
+            @if (!string.IsNullOrEmpty(pwdErrors))
+            {
+                <div class="alert alert--danger">
+                    @foreach (var e in pwdErrors.Split('|'))
+                    {
+                        var parts = e.Split("::");
+                        <div>@(parts.Length > 1 ? parts[1] : e)</div>
+                    }
+                </div>
+            }
+            <form asp-action="ChangePassword" method="post">
+                @Html.AntiForgeryToken()
+                <div class="form-group">
+                    <label class="form-label">Password attuale</label>
+                    <input class="form-control" name="CurrentPassword" type="password" autocomplete="current-password" required />
+                </div>
+                <div class="form-group">
+                    <label class="form-label">Nuova password</label>
+                    <input class="form-control" name="NewPassword" type="password" autocomplete="new-password" minlength="8" required />
+                </div>
+                <div class="form-group">
+                    <label class="form-label">Conferma nuova password</label>
+                    <input class="form-control" name="ConfirmPassword" type="password" autocomplete="new-password" minlength="8" required />
+                </div>
+                <div class="form-actions">
+                    <button type="submit" class="btn btn--primary">Aggiorna password</button>
+                </div>
+            </form>
+        </div>
+
+        <div class="card">
+            <div class="card__header"><h3 class="card__title">Identità nel workspace</h3></div>
+            <dl class="kv">
+                <dt>Ruolo</dt><dd><span class="badge @(Model.Role == Chipdent.Web.Domain.Entities.UserRole.Owner ? "badge--accent" : "")">@Model.Role</span></dd>
+                <dt>Persona collegata</dt>
+                <dd>
+                    @if (Model.LinkedPersonName is not null)
+                    {
+                        @Model.LinkedPersonName <span class="muted">(@Model.LinkedPersonType)</span>
+                    }
+                    else
+                    {
+                        <span class="muted">—</span>
+                    }
+                </dd>
+                <dt>Membro dal</dt><dd>@Model.CreatedAt.ToString("dd MMMM yyyy", new System.Globalization.CultureInfo("it-IT"))</dd>
+                <dt>Ultimo accesso</dt><dd>@(Model.LastLoginAt?.ToLocalTime().ToString("dd/MM/yyyy HH:mm") ?? "—")</dd>
+            </dl>
+        </div>
+    </div>
+</div>

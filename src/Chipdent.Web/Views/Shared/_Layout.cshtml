@@ -179,11 +179,11 @@
                         }
                     </div>
                     <hr/>
-                    <a class="user-bar__item" href="#">
+                    <a class="user-bar__item" asp-controller="Account" asp-action="Profile">
                         <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="8" r="4"/><path d="M4 21a8 8 0 0 1 16 0"/></svg>
                         Il mio profilo
                     </a>
-                    <a class="user-bar__item" href="#">
+                    <a class="user-bar__item" asp-controller="Account" asp-action="Preferences">
                         <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="3"/><path d="M12 1v6M12 17v6M4.22 4.22l4.24 4.24M15.54 15.54l4.24 4.24M1 12h6M17 12h6M4.22 19.78l4.24-4.24M15.54 8.46l4.24-4.24"/></svg>
                         Preferenze
                     </a>
@@ -234,10 +234,28 @@
                         <span class="dot"></span>
                         <span class="label">connessione…</span>
                     </span>
-                    <button class="icon-btn icon-btn--sm" title="Notifiche">
-                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M6 8a6 6 0 0 1 12 0c0 7 3 9 3 9H3s3-2 3-9"/><path d="M10 21a2 2 0 0 0 4 0"/></svg>
-                        <span class="dot"></span>
-                    </button>
+                    <details class="bell">
+                        <summary class="icon-btn icon-btn--sm" title="Notifiche" aria-label="Notifiche">
+                            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M6 8a6 6 0 0 1 12 0c0 7 3 9 3 9H3s3-2 3-9"/><path d="M10 21a2 2 0 0 0 4 0"/></svg>
+                            <span class="dot" data-bell-dot hidden></span>
+                        </summary>
+                        <div class="bell__panel" role="dialog" aria-label="Notifiche">
+                            <div class="bell__head">
+                                <strong>Notifiche</strong>
+                                <button type="button" class="bell__mark" data-bell-mark>Segna come lette</button>
+                            </div>
+                            <div class="bell__body" data-bell-body>
+                                <div class="bell__empty" data-bell-empty>
+                                    <svg width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" style="color: var(--c-ink-soft); margin-bottom: 8px;"><path d="M6 8a6 6 0 0 1 12 0c0 7 3 9 3 9H3s3-2 3-9"/><path d="M10 21a2 2 0 0 0 4 0"/></svg>
+                                    <p>Nessuna notifica ancora.</p>
+                                    <p class="muted">Le novità del workspace appariranno qui in tempo reale.</p>
+                                </div>
+                            </div>
+                            <div class="bell__foot">
+                                <a asp-controller="Audit" asp-action="Index">Vedi tutto l'audit log →</a>
+                            </div>
+                        </div>
+                    </details>
                 </div>
             </header>
 
