@@ -1,0 +1,285 @@
+@{
+    Layout = null;
+    var next = ViewData["Next"] as string ?? "/dashboard";
+    ViewData["Title"] = "Caricamento";
+}
+<!DOCTYPE html>
+<html lang="it">
+<head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Chipdent · Caricamento</title>
+    <link rel="icon" type="image/svg+xml" href="~/img/logo.svg" />
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Playfair+Display:wght@500;600;700&display=swap">
+    <style>
+        *, *::before, *::after { box-sizing: border-box; }
+        html, body { margin: 0; padding: 0; height: 100%; overflow: hidden; font-family: 'Inter', system-ui, sans-serif; }
+
+        .space {
+            position: fixed; inset: 0;
+            background:
+                radial-gradient(ellipse at 20% 20%, rgba(196, 120, 48, 0.18) 0%, transparent 45%),
+                radial-gradient(ellipse at 80% 70%, rgba(122, 169, 201, 0.18) 0%, transparent 50%),
+                radial-gradient(ellipse at 50% 50%, #0a1230 0%, #050818 60%, #02030a 100%);
+            overflow: hidden;
+            color: #f0d5a8;
+        }
+
+        .stars, .stars::before, .stars::after {
+            content: ""; position: absolute; inset: -50%;
+            background-repeat: repeat;
+            background-image:
+                radial-gradient(1px 1px at 20px 30px, #ffffff 50%, transparent 51%),
+                radial-gradient(1px 1px at 60px 110px, #faf3e8 50%, transparent 51%),
+                radial-gradient(2px 2px at 130px 80px, #ffffff 50%, transparent 51%),
+                radial-gradient(1px 1px at 200px 50px, #d9943a 50%, transparent 51%),
+                radial-gradient(1px 1px at 240px 160px, #ffffff 50%, transparent 51%),
+                radial-gradient(1px 1px at 320px 200px, #faf3e8 50%, transparent 51%),
+                radial-gradient(2px 2px at 90px 220px, #ffffff 50%, transparent 51%),
+                radial-gradient(1px 1px at 170px 260px, #c47830 50%, transparent 51%),
+                radial-gradient(1px 1px at 280px 300px, #ffffff 50%, transparent 51%),
+                radial-gradient(1px 1px at 360px 90px, #ffffff 50%, transparent 51%);
+            background-size: 400px 360px;
+            animation: drift 60s linear infinite;
+            opacity: 0.85;
+        }
+        .stars::before {
+            background-position: 200px 100px;
+            animation-duration: 90s;
+            animation-direction: reverse;
+            opacity: 0.55;
+            filter: blur(0.4px);
+        }
+        .stars::after {
+            background-size: 600px 540px;
+            background-image:
+                radial-gradient(2px 2px at 100px 80px, #ffffff 50%, transparent 51%),
+                radial-gradient(1px 1px at 350px 240px, #faf3e8 50%, transparent 51%),
+                radial-gradient(2px 2px at 480px 420px, #ffffff 50%, transparent 51%),
+                radial-gradient(1px 1px at 540px 120px, #d9943a 50%, transparent 51%);
+            animation-duration: 140s;
+            opacity: 0.7;
+        }
+
+        .twinkle { position: absolute; inset: 0; pointer-events: none; }
+        .twinkle span {
+            position: absolute; width: 3px; height: 3px; border-radius: 50%;
+            background: #faf3e8;
+            box-shadow: 0 0 8px 2px rgba(255, 255, 255, 0.8);
+            animation: twinkle 3s ease-in-out infinite;
+        }
+        .twinkle span:nth-child(1) { top: 12%; left: 18%; animation-delay: 0s; }
+        .twinkle span:nth-child(2) { top: 22%; left: 78%; animation-delay: 0.7s; }
+        .twinkle span:nth-child(3) { top: 70%; left: 14%; animation-delay: 1.4s; }
+        .twinkle span:nth-child(4) { top: 80%; left: 82%; animation-delay: 2.1s; }
+        .twinkle span:nth-child(5) { top: 35%; left: 50%; animation-delay: 0.4s; width:2px; height:2px; }
+        .twinkle span:nth-child(6) { top: 55%; left: 88%; animation-delay: 1.8s; }
+        .twinkle span:nth-child(7) { top: 88%; left: 38%; animation-delay: 2.5s; }
+        .twinkle span:nth-child(8) { top: 8%;  left: 60%; animation-delay: 1.1s; }
+
+        @@keyframes drift {
+            from { transform: translate3d(0, 0, 0); }
+            to   { transform: translate3d(-400px, -200px, 0); }
+        }
+        @@keyframes twinkle {
+            0%, 100% { opacity: 0.2; transform: scale(0.8); }
+            50%      { opacity: 1;   transform: scale(1.4); }
+        }
+
+        .stage {
+            position: relative; height: 100%;
+            display: flex; flex-direction: column; align-items: center; justify-content: center;
+            gap: 36px;
+        }
+
+        .orbit {
+            position: relative;
+            width: min(62vmin, 520px);
+            height: min(62vmin, 520px);
+            display: grid; place-items: center;
+            animation: float 6s ease-in-out infinite;
+        }
+        .orbit::before, .orbit::after {
+            content: ""; position: absolute; inset: 0; border-radius: 50%;
+            border: 1px dashed rgba(217, 148, 58, 0.35);
+        }
+        .orbit::before { transform: rotate(-12deg) scale(1.06); animation: spin 18s linear infinite; }
+        .orbit::after  { transform: rotate(28deg)  scale(0.78); border-color: rgba(122, 169, 201, 0.28); animation: spin 26s linear infinite reverse; }
+
+        .orbit .ring {
+            position: absolute; inset: 6%; border-radius: 50%;
+            border: 1px solid rgba(240, 213, 168, 0.18);
+            box-shadow:
+                0 0 60px 4px rgba(217, 148, 58, 0.18) inset,
+                0 0 120px 10px rgba(122, 169, 201, 0.12) inset;
+        }
+
+        .planet {
+            position: absolute; width: 18px; height: 18px; border-radius: 50%;
+            background: radial-gradient(circle at 30% 30%, #faf3e8, #d9943a 60%, #7d4a23);
+            box-shadow: 0 0 12px 2px rgba(217, 148, 58, 0.6);
+        }
+        .planet.p1 { top: -2%; left: 50%; transform: translateX(-50%); }
+        .planet.p2 { bottom: 8%; right: 4%; width: 12px; height: 12px;
+            background: radial-gradient(circle at 30% 30%, #cfe7ff, #7aa9c9 60%, #2c4a66); }
+        .planet.p3 { top: 40%; left: -2%; width: 8px; height: 8px;
+            background: radial-gradient(circle at 30% 30%, #ffe1c2, #c47830 60%, #5a2f10); }
+
+        .logo-wrap {
+            position: relative; width: 70%; height: 70%;
+            display: grid; place-items: center;
+            filter: drop-shadow(0 0 30px rgba(217, 148, 58, 0.55))
+                    drop-shadow(0 0 80px rgba(122, 169, 201, 0.35));
+            animation: pulse 2.6s ease-in-out infinite;
+        }
+        .logo-wrap img {
+            width: 100%; height: 100%;
+            transform: translateZ(0);
+            animation: bob 4.2s ease-in-out infinite;
+        }
+        .halo {
+            position: absolute; inset: -8%;
+            border-radius: 50%;
+            background: radial-gradient(circle, rgba(217, 148, 58, 0.35) 0%, rgba(217, 148, 58, 0) 60%);
+            animation: halo 3s ease-in-out infinite;
+            pointer-events: none;
+        }
+
+        @@keyframes spin   { to { transform: rotate(360deg); } }
+        @@keyframes float  {
+            0%, 100% { transform: translateY(0); }
+            50%      { transform: translateY(-12px); }
+        }
+        @@keyframes bob {
+            0%, 100% { transform: scale(1)    rotate(0deg); }
+            50%      { transform: scale(1.02) rotate(-1.2deg); }
+        }
+        @@keyframes pulse {
+            0%, 100% { filter: drop-shadow(0 0 30px rgba(217, 148, 58, 0.55)) drop-shadow(0 0 80px rgba(122, 169, 201, 0.35)); }
+            50%      { filter: drop-shadow(0 0 50px rgba(217, 148, 58, 0.85)) drop-shadow(0 0 120px rgba(122, 169, 201, 0.5)); }
+        }
+        @@keyframes halo {
+            0%, 100% { opacity: 0.6; transform: scale(1); }
+            50%      { opacity: 1;   transform: scale(1.08); }
+        }
+
+        .info { text-align: center; position: relative; }
+        .brand-name {
+            font-family: 'Playfair Display', serif;
+            font-weight: 700;
+            font-size: clamp(36px, 6vmin, 64px);
+            letter-spacing: 0.04em;
+            background: linear-gradient(180deg, #faf3e8 0%, #d9943a 100%);
+            -webkit-background-clip: text; background-clip: text;
+            -webkit-text-fill-color: transparent;
+            margin: 0 0 6px;
+            text-shadow: 0 0 40px rgba(217, 148, 58, 0.35);
+        }
+        .brand-tag {
+            text-transform: uppercase;
+            letter-spacing: 0.42em;
+            font-size: 12px;
+            color: rgba(240, 213, 168, 0.7);
+        }
+
+        .progress {
+            position: relative;
+            width: min(60vmin, 360px);
+            height: 4px;
+            background: rgba(240, 213, 168, 0.1);
+            border-radius: 999px;
+            overflow: hidden;
+            margin: 28px auto 12px;
+        }
+        .progress__bar {
+            position: absolute; inset: 0;
+            background: linear-gradient(90deg, #c47830, #d9943a, #faf3e8, #7aa9c9, #c47830);
+            background-size: 300% 100%;
+            transform: translateX(-100%);
+            animation: load 2.4s cubic-bezier(.4,.05,.2,1) forwards, shimmer 3s linear infinite;
+        }
+        @@keyframes load    { to { transform: translateX(0); } }
+        @@keyframes shimmer { to { background-position: -300% 0; } }
+
+        .status {
+            font-size: 13px;
+            letter-spacing: 0.18em;
+            text-transform: uppercase;
+            color: rgba(240, 213, 168, 0.7);
+        }
+        .status .dot {
+            display: inline-block; width: 6px; height: 6px; border-radius: 50%;
+            background: #d9943a; margin: 0 2px;
+            animation: blink 1.2s infinite ease-in-out;
+        }
+        .status .dot:nth-child(2) { animation-delay: 0.2s; }
+        .status .dot:nth-child(3) { animation-delay: 0.4s; }
+        @@keyframes blink {
+            0%, 100% { opacity: 0.25; transform: scale(0.8); }
+            50%      { opacity: 1;    transform: scale(1.2); }
+        }
+
+        .skip {
+            position: absolute; bottom: 24px; right: 28px;
+            font-size: 12px; letter-spacing: 0.12em; text-transform: uppercase;
+            color: rgba(240, 213, 168, 0.55); text-decoration: none;
+            border: 1px solid rgba(240, 213, 168, 0.2);
+            padding: 8px 14px; border-radius: 999px;
+            transition: all 0.2s ease;
+        }
+        .skip:hover { color: #faf3e8; border-color: rgba(240, 213, 168, 0.5); }
+
+        @@media (prefers-reduced-motion: reduce) {
+            .stars, .stars::before, .stars::after, .orbit, .orbit::before, .orbit::after,
+            .logo-wrap, .logo-wrap img, .halo, .twinkle span, .progress__bar, .status .dot {
+                animation: none !important;
+            }
+            .progress__bar { transform: translateX(0); }
+        }
+    </style>
+</head>
+<body>
+    <div class="space" aria-hidden="true">
+        <div class="stars"></div>
+        <div class="twinkle">
+            <span></span><span></span><span></span><span></span>
+            <span></span><span></span><span></span><span></span>
+        </div>
+
+        <div class="stage">
+            <div class="orbit">
+                <div class="ring"></div>
+                <span class="planet p1"></span>
+                <span class="planet p2"></span>
+                <span class="planet p3"></span>
+                <div class="logo-wrap">
+                    <div class="halo"></div>
+                    <img src="~/img/logo.svg" alt="Chipdent" />
+                </div>
+            </div>
+
+            <div class="info">
+                <h1 class="brand-name">Chipdent</h1>
+                <div class="brand-tag">Dental Suite</div>
+                <div class="progress" role="progressbar" aria-label="Caricamento del portale"><div class="progress__bar"></div></div>
+                <div class="status">
+                    Caricamento del portale
+                    <span class="dot"></span><span class="dot"></span><span class="dot"></span>
+                </div>
+            </div>
+        </div>
+
+        <a href="@next" class="skip">Entra ora</a>
+    </div>
+
+    <script>
+        (function () {
+            var dest = @Html.Raw(System.Text.Json.JsonSerializer.Serialize(next));
+            var DELAY = 2600;
+            setTimeout(function () { window.location.replace(dest); }, DELAY);
+        })();
+    </script>
+</body>
+</html>
