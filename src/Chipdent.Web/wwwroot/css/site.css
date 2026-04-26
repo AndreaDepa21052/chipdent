@@ -1361,6 +1361,7 @@ input[type="datetime-local"].form-control { color-scheme: light; }
    Command palette (⌘K)
    ========================================================================== */
 
+.cmdk[hidden] { display: none !important; }
 .cmdk {
     position: fixed; inset: 0;
     background: rgba(31, 20, 8, 0.5);

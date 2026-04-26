@@ -65,7 +65,9 @@ public class AccountController : Controller
             new(ClaimTypes.Email, user.Email),
             new(ClaimTypes.Role, user.Role.ToString()),
             new(TenantResolverMiddleware.TenantIdClaim, tenant.Id),
-            new(TenantResolverMiddleware.TenantSlugClaim, tenant.Slug)
+            new(TenantResolverMiddleware.TenantSlugClaim, tenant.Slug),
+            new(TenantResolverMiddleware.LinkedPersonTypeClaim, user.LinkedPersonType.ToString()),
+            new(TenantResolverMiddleware.LinkedPersonIdClaim, user.LinkedPersonId ?? string.Empty)
         };
 
         var identity = new ClaimsIdentity(claims, CookieAuthenticationDefaults.AuthenticationScheme);

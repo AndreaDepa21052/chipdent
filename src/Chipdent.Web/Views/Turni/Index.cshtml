@@ -5,9 +5,24 @@
     var today = DateTime.Today;
     var prevWeek = Model.WeekStart.AddDays(-7);
     var nextWeek = Model.WeekStart.AddDays(7);
+    var restricted = (bool)(ViewData["RestrictedView"] ?? false);
+    var noLink = (bool)(ViewData["NoLinkedPerson"] ?? false);
 }
 
 <partial name="_Flash" />
+
+@if (restricted)
+{
+    <div class="alert alert--info" style="margin-bottom: var(--s-4);">
+        Stai vedendo solo i tuoi turni. Per la pianificazione completa contatta il responsabile.
+    </div>
+}
+@if (noLink)
+{
+    <div class="alert alert--info" style="margin-bottom: var(--s-4);">
+        Il tuo account non è ancora collegato a un dottore o dipendente — chiedi all'amministratore di completare il collegamento per vedere i tuoi turni.
+    </div>
+}
 
 <div class="page-head">
     <div>

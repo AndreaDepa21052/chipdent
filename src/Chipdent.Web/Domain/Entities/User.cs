@@ -10,6 +10,8 @@ public class User : TenantEntity
     public UserRole Role { get; set; } = UserRole.Operatore;
     public bool IsActive { get; set; } = true;
     public DateTime? LastLoginAt { get; set; }
+    public LinkedPersonType LinkedPersonType { get; set; } = LinkedPersonType.None;
+    public string? LinkedPersonId { get; set; }
 }
 
 public enum UserRole
@@ -19,4 +21,11 @@ public enum UserRole
     Manager = 20,
     Admin = 30,
     Owner = 99
+}
+
+public enum LinkedPersonType
+{
+    None,
+    Dottore,
+    Dipendente
 }

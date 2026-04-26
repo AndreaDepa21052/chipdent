@@ -43,19 +43,30 @@ public class TurniController : Controller
         var cliniche = (await _mongo.Cliniche.Find(c => c.TenantId == _tenant.TenantId).ToListAsync())
             .ToDictionary(c => c.Id, c => c.Nome);
 
+        var linkedPersonId = User.LinkedPersonId();
+        var linkedPersonType = User.LinkedPersonType();
+        var restrictToSelf = !User.IsFullAccess()
+                             && !User.IsInRole("Manager")
+                             && !User.IsInRole("HR")
+                             && linkedPersonId is not null;
+
         var righe = new List<PersonaRow>();
         foreach (var d in dottori)
         {
+            if (restrictToSelf && (linkedPersonType != "Dottore" || d.Id != linkedPersonId)) continue;
             var miei = turni.Where(t => t.TipoPersona == TipoPersona.Dottore && t.PersonaId == d.Id).ToList();
             righe.Add(new PersonaRow(d.Id, TipoPersona.Dottore, d.NomeCompleto, d.Specializzazione, miei));
         }
         foreach (var p in dipendenti)
         {
+            if (restrictToSelf && (linkedPersonType != "Dipendente" || p.Id != linkedPersonId)) continue;
             var miei = turni.Where(t => t.TipoPersona == TipoPersona.Dipendente && t.PersonaId == p.Id).ToList();
             righe.Add(new PersonaRow(p.Id, TipoPersona.Dipendente, p.NomeCompleto, p.Ruolo.ToString(), miei));
         }
 
         ViewData["Section"] = "turni";
+        ViewData["RestrictedView"] = restrictToSelf;
+        ViewData["NoLinkedPerson"] = !User.IsFullAccess() && !User.IsInRole("Manager") && !User.IsInRole("HR") && linkedPersonId is null;
         return View(new TurniWeekViewModel
         {
             WeekStart = weekStart,

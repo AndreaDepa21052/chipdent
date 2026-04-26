@@ -8,6 +8,8 @@ public class TenantResolverMiddleware
 {
     public const string TenantIdClaim = "tenant_id";
     public const string TenantSlugClaim = "tenant_slug";
+    public const string LinkedPersonTypeClaim = "linked_person_type";
+    public const string LinkedPersonIdClaim = "linked_person_id";
 
     private readonly RequestDelegate _next;
 

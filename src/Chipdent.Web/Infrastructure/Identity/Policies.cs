@@ -40,4 +40,16 @@ public static class UserAccess
     public static bool CanApprove(this ClaimsPrincipal? user) =>
         user is not null && (user.IsInRole("Owner") || user.IsInRole("Admin")
                              || user.IsInRole("Manager"));
+
+    public static string? LinkedPersonId(this ClaimsPrincipal? user)
+    {
+        var v = user?.FindFirst("linked_person_id")?.Value;
+        return string.IsNullOrEmpty(v) ? null : v;
+    }
+
+    public static string? LinkedPersonType(this ClaimsPrincipal? user)
+    {
+        var v = user?.FindFirst("linked_person_type")?.Value;
+        return string.IsNullOrEmpty(v) || v == "None" ? null : v;
+    }
 }
