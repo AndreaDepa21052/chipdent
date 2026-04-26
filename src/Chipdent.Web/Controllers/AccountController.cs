@@ -84,12 +84,21 @@ public class AccountController : Controller
             u => u.Id == user.Id,
             Builders<Chipdent.Web.Domain.Entities.User>.Update.Set(u => u.LastLoginAt, DateTime.UtcNow));
 
-        if (!string.IsNullOrEmpty(vm.ReturnUrl) && Url.IsLocalUrl(vm.ReturnUrl))
-        {
-            return Redirect(vm.ReturnUrl);
-        }
+        var destination = (!string.IsNullOrEmpty(vm.ReturnUrl) && Url.IsLocalUrl(vm.ReturnUrl))
+            ? vm.ReturnUrl
+            : Url.Action("Index", "Dashboard")!;
 
-        return RedirectToAction("Index", "Dashboard");
+        return RedirectToAction(nameof(Loading), new { next = destination });
+    }
+
+    [HttpGet("loading")]
+    public IActionResult Loading(string? next = null)
+    {
+        var target = (!string.IsNullOrEmpty(next) && Url.IsLocalUrl(next))
+            ? next
+            : Url.Action("Index", "Dashboard")!;
+        ViewData["Next"] = target;
+        return View();
     }
 
     [HttpPost("logout")]
