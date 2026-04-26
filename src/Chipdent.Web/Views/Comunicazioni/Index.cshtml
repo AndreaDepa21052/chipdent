@@ -1,0 +1,148 @@
+@model Chipdent.Web.Models.ComunicazioniInboxViewModel
+@{
+    ViewData["Title"] = "Comunicazioni";
+    var currentCategoria = ViewData["Categoria"] as Chipdent.Web.Domain.Entities.CategoriaComunicazione?;
+}
+
+<partial name="_Flash" />
+
+<div class="page-head">
+    <div>
+        <h2>Comunicazioni</h2>
+        <p class="page-head__sub">Inbox interna · aggiornamenti in tempo reale</p>
+    </div>
+    <div class="page-head__actions">
+        <a class="btn btn--primary" asp-action="Create">+ Nuova comunicazione</a>
+    </div>
+</div>
+
+<div class="toolbar">
+    <a class="badge @(currentCategoria is null ? "badge--accent" : "")" asp-action="Index">Tutte</a>
+    @foreach (var cat in Enum.GetValues<Chipdent.Web.Domain.Entities.CategoriaComunicazione>())
+    {
+        <a class="badge @(currentCategoria == cat ? "badge--accent" : "")" asp-action="Index" asp-route-categoria="@cat">@cat</a>
+    }
+</div>
+
+<div class="inbox">
+    <div class="inbox__list" data-inbox-list>
+        @if (Model.Lista.Count == 0)
+        {
+            <div class="inbox__empty">
+                <p>Nessuna comunicazione.</p>
+            </div>
+        }
+        else
+        {
+            @foreach (var c in Model.Lista)
+            {
+                var unread = !c.LettaDaUserIds.Contains(Model.CurrentUserId);
+                var active = Model.Selezionata?.Id == c.Id;
+                <a class="inbox__item @(active ? "is-active" : "") @(unread ? "is-unread" : "")"
+                   asp-action="Index" asp-route-id="@c.Id" asp-route-categoria="@currentCategoria"
+                   data-id="@c.Id">
+                    <div class="inbox__cat">@c.Categoria · @c.MittenteNome</div>
+                    <div class="inbox__head">
+                        <strong>@c.Oggetto</strong>
+                        <time>@c.CreatedAt.ToLocalTime().ToString("dd/MM HH:mm")</time>
+                    </div>
+                    <div class="inbox__sub">@c.Corpo</div>
+                </a>
+            }
+        }
+    </div>
+
+    <div class="inbox__detail" data-inbox-detail>
+        @if (Model.Selezionata is null)
+        {
+            <div class="inbox__empty">
+                <p>Seleziona una comunicazione per leggerla.</p>
+            </div>
+        }
+        else
+        {
+            var c = Model.Selezionata;
+            var clinica = c.ClinicaId is not null && Model.ClinicheLookup.TryGetValue(c.ClinicaId, out var n) ? n : null;
+            <div>
+                <div class="meta">
+                    <span class="badge">@c.Categoria</span>
+                    @if (clinica is not null) { <span style="color:var(--c-ink-muted);">📍 @clinica</span> }
+                    <span style="color:var(--c-ink-muted);">da <strong style="color:var(--c-ink);">@c.MittenteNome</strong></span>
+                    <span style="color:var(--c-ink-soft);">@c.CreatedAt.ToLocalTime().ToString("dddd dd MMMM yyyy · HH:mm", new System.Globalization.CultureInfo("it-IT"))</span>
+                    @switch (c.Stato)
+                    {
+                        case Chipdent.Web.Domain.Entities.StatoRichiesta.InAttesa:
+                            <span class="badge badge--warning"><span class="dot"></span>in attesa</span>
+                            break;
+                        case Chipdent.Web.Domain.Entities.StatoRichiesta.Approvata:
+                            <span class="badge badge--success"><span class="dot"></span>approvata</span>
+                            break;
+                        case Chipdent.Web.Domain.Entities.StatoRichiesta.Rifiutata:
+                            <span class="badge badge--danger"><span class="dot"></span>rifiutata</span>
+                            break;
+                    }
+                </div>
+                <h3 style="margin-bottom: var(--s-4);">@c.Oggetto</h3>
+                <div class="body">@c.Corpo</div>
+
+                @if (c.Stato == Chipdent.Web.Domain.Entities.StatoRichiesta.InAttesa &&
+                     (User.IsInRole("Owner") || User.IsInRole("Admin") || User.IsInRole("Manager")))
+                {
+                    <div class="actions-row">
+                        <form asp-action="Approva" asp-route-id="@c.Id" method="post" style="display:inline;">
+                            @Html.AntiForgeryToken()
+                            <button type="submit" class="btn btn--primary">✓ Approva</button>
+                        </form>
+                        <form asp-action="Rifiuta" asp-route-id="@c.Id" method="post" style="display:inline;">
+                            @Html.AntiForgeryToken()
+                            <button type="submit" class="btn btn--ghost" style="border-color: rgba(217, 107, 94, 0.4); color: var(--c-danger);">✕ Rifiuta</button>
+                        </form>
+                    </div>
+                }
+            </div>
+        }
+    </div>
+</div>
+
+@section Scripts {
+<script>
+    (function () {
+        if (!window.Chipdent || !Chipdent.connection) return;
+
+        Chipdent.connection.on('comunicazione', function (m) {
+            var list = document.querySelector('[data-inbox-list]');
+            if (!list) return;
+
+            var existing = list.querySelector('[data-id="' + m.id + '"]');
+            if (existing) return;
+
+            var item = document.createElement('a');
+            item.className = 'inbox__item is-unread feed-enter';
+            item.dataset.id = m.id;
+            item.href = '/comunicazioni?id=' + m.id;
+            item.innerHTML =
+                '<div class="inbox__cat"></div>' +
+                '<div class="inbox__head"><strong></strong><time>ora</time></div>' +
+                '<div class="inbox__sub"></div>';
+            item.querySelector('.inbox__cat').textContent = (m.categoria || '') + ' · ' + (m.mittente || '');
+            item.querySelector('strong').textContent = m.oggetto || '';
+            item.querySelector('.inbox__sub').textContent = m.corpo || '';
+
+            var empty = list.querySelector('.inbox__empty');
+            if (empty) empty.remove();
+            list.insertBefore(item, list.firstChild);
+        });
+
+        Chipdent.connection.on('comunicazione-update', function (u) {
+            var item = document.querySelector('[data-inbox-list] [data-id="' + u.id + '"]');
+            if (item) item.classList.add('feed-enter');
+            // se sto leggendo proprio questa, mostro un toast
+            var detail = document.querySelector('[data-inbox-detail]');
+            if (detail && location.search.indexOf('id=' + u.id) !== -1) {
+                Chipdent.toast('Stato aggiornato', 'Ora: ' + u.stato + ' (da ' + u.gestitaDa + ')');
+                setTimeout(function () { location.reload(); }, 800);
+            }
+        });
+    })();
+</script>
+}

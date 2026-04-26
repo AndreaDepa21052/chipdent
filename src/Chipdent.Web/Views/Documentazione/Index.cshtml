@@ -1,0 +1,89 @@
+@model Chipdent.Web.Models.DocumentazioneIndexViewModel
+@{
+    ViewData["Title"] = "Documentazione";
+}
+
+<partial name="_Flash" />
+
+<div class="page-head">
+    <div>
+        <h2>Documentazione</h2>
+        <p class="page-head__sub">Archivio dei documenti per ogni clinica con alert su scadenze.</p>
+    </div>
+    <div class="page-head__actions">
+        <a class="btn btn--primary" asp-action="Create">+ Nuovo documento</a>
+    </div>
+</div>
+
+<div class="toolbar">
+    <span style="color: var(--c-ink-muted); font-size:.85rem;">Filtra per clinica:</span>
+    <a class="badge @(string.IsNullOrEmpty(Model.FilterClinicaId) ? "badge--accent" : "")" asp-action="Index">Tutte</a>
+    @foreach (var c in Model.Cliniche)
+    {
+        <a class="badge @(c.Id == Model.FilterClinicaId ? "badge--accent" : "")" asp-action="Index" asp-route-clinicaId="@c.Id">@c.Nome</a>
+    }
+</div>
+
+@foreach (var g in Model.Gruppi)
+{
+    <div class="card" style="margin-bottom: var(--s-5);">
+        <div class="card__header">
+            <h3 class="card__title">@g.ClinicaNome</h3>
+            <div style="display:flex; gap:var(--s-2); align-items:center;">
+                @{
+                    var scaduti = g.Documenti.Count(d => d.StatoCalcolato == Chipdent.Web.Domain.Entities.StatoDocumento.Scaduto);
+                    var inScad = g.Documenti.Count(d => d.StatoCalcolato == Chipdent.Web.Domain.Entities.StatoDocumento.InScadenza);
+                }
+                @if (scaduti > 0) { <span class="badge badge--danger"><span class="dot"></span>@scaduti scaduti</span> }
+                @if (inScad > 0) { <span class="badge badge--warning"><span class="dot"></span>@inScad in scadenza</span> }
+                @if (scaduti == 0 && inScad == 0 && g.Documenti.Count > 0) { <span class="badge badge--success"><span class="dot"></span>tutto valido</span> }
+                <a class="card__action" asp-action="Create" asp-route-clinicaId="@g.ClinicaId">+ aggiungi</a>
+            </div>
+        </div>
+        @if (g.Documenti.Count == 0)
+        {
+            <p style="color: var(--c-ink-soft); margin:0;">Nessun documento per questa sede.</p>
+        }
+        else
+        {
+            <div class="table-wrap" style="border:0; box-shadow:none; background:transparent;">
+                <table class="table">
+                    <thead>
+                        <tr><th>Tipo</th><th>Titolo</th><th>Numero</th><th>Emissione</th><th>Scadenza</th><th>Stato</th><th></th></tr>
+                    </thead>
+                    <tbody>
+                        @foreach (var d in g.Documenti.OrderBy(x => x.DataScadenza))
+                        {
+                            <tr>
+                                <td><span class="badge">@d.Tipo</span></td>
+                                <td><div class="strong">@d.Titolo</div>@if (!string.IsNullOrEmpty(d.EnteEmittente)) { <div class="muted">@d.EnteEmittente</div> }</td>
+                                <td>@(d.Numero ?? "—")</td>
+                                <td>@(d.DataEmissione?.ToString("dd/MM/yyyy") ?? "—")</td>
+                                <td>@(d.DataScadenza?.ToString("dd/MM/yyyy") ?? "—")</td>
+                                <td>
+                                    @switch (d.StatoCalcolato)
+                                    {
+                                        case Chipdent.Web.Domain.Entities.StatoDocumento.Valido:
+                                            <span class="badge badge--success"><span class="dot"></span>valido</span>
+                                            break;
+                                        case Chipdent.Web.Domain.Entities.StatoDocumento.InScadenza:
+                                            <span class="badge badge--warning"><span class="dot"></span>in scadenza</span>
+                                            break;
+                                        case Chipdent.Web.Domain.Entities.StatoDocumento.Scaduto:
+                                            <span class="badge badge--danger"><span class="dot"></span>scaduto</span>
+                                            break;
+                                    }
+                                </td>
+                                <td class="actions">
+                                    <a class="ibtn" asp-action="Edit" asp-route-id="@d.Id" title="Modifica">
+                                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>
+                                    </a>
+                                </td>
+                            </tr>
+                        }
+                    </tbody>
+                </table>
+            </div>
+        }
+    </div>
+}

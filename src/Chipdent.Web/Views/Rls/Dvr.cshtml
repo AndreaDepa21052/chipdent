@@ -1,0 +1,80 @@
+@model IReadOnlyList<Chipdent.Web.Domain.Entities.DVR>
+@{
+    ViewData["Title"] = "DVR";
+    var cliniche = (Dictionary<string, string>?)ViewData["Cliniche"] ?? new();
+}
+
+<partial name="_Flash" />
+
+<div class="page-head">
+    <div>
+        <h2>RLS / Sicurezza</h2>
+        <p class="page-head__sub">Documenti di Valutazione dei Rischi per clinica</p>
+    </div>
+    <div class="page-head__actions">
+        <a class="btn btn--primary" asp-action="CreateDvr">+ Nuovo DVR</a>
+    </div>
+</div>
+
+<partial name="_Tabs" />
+
+@if (Model.Count == 0)
+{
+    <div class="card">
+        <div class="empty">
+            <div class="empty__icon">
+                <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg>
+            </div>
+            <h3>Nessun DVR</h3>
+            <p>Crea il primo Documento di Valutazione dei Rischi.</p>
+        </div>
+    </div>
+}
+else
+{
+    <div class="table-wrap">
+        <table class="table">
+            <thead>
+                <tr><th>Clinica</th><th>Versione</th><th>Approvato</th><th>Prossima revisione</th><th>Stato</th><th></th></tr>
+            </thead>
+            <tbody>
+                @foreach (var d in Model)
+                {
+                    var nome = cliniche.GetValueOrDefault(d.ClinicaId, "—");
+                    var inScad = d.ProssimaRevisione is not null && d.ProssimaRevisione < DateTime.UtcNow.AddMonths(3);
+                    <tr>
+                        <td><div class="strong">@nome</div></td>
+                        <td>v@d.Versione</td>
+                        <td>@d.DataApprovazione.ToString("dd/MM/yyyy")</td>
+                        <td>
+                            @(d.ProssimaRevisione?.ToString("dd/MM/yyyy") ?? "—")
+                            @if (inScad) { <span class="badge badge--warning" style="margin-left:6px;"><span class="dot"></span>imminente</span> }
+                        </td>
+                        <td>
+                            @switch (d.Stato)
+                            {
+                                case Chipdent.Web.Domain.Entities.StatoDVR.Approvato:
+                                    <span class="badge badge--success"><span class="dot"></span>approvato</span>
+                                    break;
+                                case Chipdent.Web.Domain.Entities.StatoDVR.Bozza:
+                                    <span class="badge badge--info"><span class="dot"></span>bozza</span>
+                                    break;
+                                case Chipdent.Web.Domain.Entities.StatoDVR.DaRivedere:
+                                    <span class="badge badge--warning"><span class="dot"></span>da rivedere</span>
+                                    break;
+                                default:
+                                    <span class="badge badge--danger"><span class="dot"></span>scaduto</span>
+                                    break;
+                            }
+                        </td>
+                        <td class="actions">
+                            <a class="ibtn" asp-action="EditDvr" asp-route-id="@d.Id" title="Modifica">
+                                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>
+                            </a>
+                        </td>
+                    </tr>
+                }
+            </tbody>
+        </table>
+    </div>
+}

@@ -1,0 +1,9 @@
+@{
+    var tab = ViewData["Tab"] as string ?? "overview";
+}
+<div class="tabs">
+    <a class="tab @(tab == "overview" ? "is-active" : "")" asp-action="Index">Panoramica</a>
+    <a class="tab @(tab == "visite" ? "is-active" : "")" asp-action="Visite">Visite mediche</a>
+    <a class="tab @(tab == "corsi" ? "is-active" : "")" asp-action="Corsi">Corsi</a>
+    <a class="tab @(tab == "dvr" ? "is-active" : "")" asp-action="Dvr">DVR</a>
+</div>

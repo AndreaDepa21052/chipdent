@@ -35,4 +35,9 @@ public class MongoContext
     public IMongoCollection<Dipendente> Dipendenti => Database.GetCollection<Dipendente>("dipendenti");
     public IMongoCollection<Turno> Turni => Database.GetCollection<Turno>("turni");
     public IMongoCollection<Invito> Inviti => Database.GetCollection<Invito>("inviti");
+    public IMongoCollection<VisitaMedica> VisiteMediche => Database.GetCollection<VisitaMedica>("visiteMediche");
+    public IMongoCollection<Corso> Corsi => Database.GetCollection<Corso>("corsi");
+    public IMongoCollection<DVR> DVRs => Database.GetCollection<DVR>("dvrs");
+    public IMongoCollection<DocumentoClinica> DocumentiClinica => Database.GetCollection<DocumentoClinica>("documentiClinica");
+    public IMongoCollection<Comunicazione> Comunicazioni => Database.GetCollection<Comunicazione>("comunicazioni");
 }

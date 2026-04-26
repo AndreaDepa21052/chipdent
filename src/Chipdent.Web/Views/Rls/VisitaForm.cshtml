@@ -1,0 +1,67 @@
+@model Chipdent.Web.Models.VisitaFormViewModel
+@{
+    var isNew = (bool)(ViewData["IsNew"] ?? false);
+    ViewData["Title"] = isNew ? "Nuova visita" : "Modifica visita";
+}
+
+<partial name="_Flash" />
+
+<div class="page-head">
+    <div>
+        <h2>@(isNew ? "Nuova visita medica" : "Modifica visita medica")</h2>
+        <p class="page-head__sub">Registra l'esito e l'idoneità.</p>
+    </div>
+    <div class="page-head__actions">
+        <a class="btn btn--ghost" asp-action="Visite">← Visite</a>
+    </div>
+</div>
+
+<div class="card" style="max-width: 720px;">
+    <form asp-action="@(isNew ? "CreateVisita" : "EditVisita")" asp-route-id="@(isNew ? null : Model.Id)" method="post">
+        @Html.AntiForgeryToken()
+        <input type="hidden" asp-for="Id" />
+
+        <div class="form-grid">
+            <div class="form-group full">
+                <label class="form-label" asp-for="DipendenteId">Dipendente</label>
+                <select class="form-control" asp-for="DipendenteId" required>
+                    <option value="">— seleziona —</option>
+                    @foreach (var d in Model.Dipendenti)
+                    {
+                        <option value="@d.Id" selected="@(d.Id == Model.DipendenteId)">@d.NomeCompleto · @d.Ruolo</option>
+                    }
+                </select>
+            </div>
+            <div class="form-group">
+                <label class="form-label" asp-for="Data">Data visita</label>
+                <input class="form-control" asp-for="Data" type="date" required />
+            </div>
+            <div class="form-group">
+                <label class="form-label" asp-for="Esito">Esito</label>
+                <select class="form-control" asp-for="Esito" asp-items="Html.GetEnumSelectList<Chipdent.Web.Domain.Entities.EsitoVisita>()"></select>
+            </div>
+            <div class="form-group full">
+                <label class="form-label" asp-for="ScadenzaIdoneita">Scadenza idoneità</label>
+                <input class="form-control" asp-for="ScadenzaIdoneita" type="date" />
+            </div>
+            <div class="form-group full">
+                <label class="form-label" asp-for="Note">Note</label>
+                <textarea class="form-control" asp-for="Note"></textarea>
+            </div>
+        </div>
+
+        <div class="form-actions">
+            <a class="btn btn--ghost" asp-action="Visite">Annulla</a>
+            <button type="submit" class="btn btn--primary">@(isNew ? "Registra" : "Salva")</button>
+        </div>
+    </form>
+</div>
+
+@if (!isNew)
+{
+    <form asp-action="DeleteVisita" asp-route-id="@Model.Id" method="post" style="margin-top: var(--s-5); max-width:720px; text-align:right;"
+          onsubmit="return confirm('Eliminare questa visita?');">
+        @Html.AntiForgeryToken()
+        <button type="submit" class="btn btn--ghost" style="border-color: rgba(217, 107, 94, 0.4); color: var(--c-danger);">Elimina visita</button>
+    </form>
+}
