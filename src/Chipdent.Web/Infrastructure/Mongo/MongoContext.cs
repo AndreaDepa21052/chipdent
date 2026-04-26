@@ -40,4 +40,6 @@ public class MongoContext
     public IMongoCollection<DVR> DVRs => Database.GetCollection<DVR>("dvrs");
     public IMongoCollection<DocumentoClinica> DocumentiClinica => Database.GetCollection<DocumentoClinica>("documentiClinica");
     public IMongoCollection<Comunicazione> Comunicazioni => Database.GetCollection<Comunicazione>("comunicazioni");
+    public IMongoCollection<Trasferimento> Trasferimenti => Database.GetCollection<Trasferimento>("trasferimenti");
+    public IMongoCollection<AuditEntry> Audit => Database.GetCollection<AuditEntry>("audit");
 }

@@ -3,6 +3,7 @@
     var isNew = (bool)(ViewData["IsNew"] ?? false);
     var cliniche = (List<Chipdent.Web.Domain.Entities.Clinica>?)ViewData["Cliniche"] ?? new();
     ViewData["Title"] = isNew ? "Nuovo dottore" : Model.NomeCompleto;
+    ViewData["Crumb"] = "Dottori";
 }
 
 <partial name="_Flash" />
@@ -10,18 +11,26 @@
 <div class="page-head">
     <div>
         <h2>@(isNew ? "Nuovo dottore" : Model.NomeCompleto)</h2>
-        <p class="page-head__sub">@(isNew ? "Aggiungi un professionista alla catena." : "Aggiorna l'anagrafica del dottore.")</p>
+        <p class="page-head__sub">@(isNew ? "Compila l'anagrafica del professionista." : "Aggiorna i dati del professionista.")</p>
     </div>
     <div class="page-head__actions">
-        <a class="btn btn--ghost" asp-action="Index">← Torna all'elenco</a>
+        @if (!isNew)
+        {
+            <a class="btn btn--ghost" asp-action="Details" asp-route-id="@Model.Id">← Profilo</a>
+        }
+        else
+        {
+            <a class="btn btn--ghost" asp-action="Index">← Lista</a>
+        }
     </div>
 </div>
 
-<div class="card">
-    <form asp-action="@(isNew ? "Create" : "Edit")" asp-route-id="@(isNew ? null : Model.Id)" method="post">
-        @Html.AntiForgeryToken()
-        <input type="hidden" asp-for="Id" />
+<form asp-action="@(isNew ? "Create" : "Edit")" asp-route-id="@(isNew ? null : Model.Id)" method="post">
+    @Html.AntiForgeryToken()
+    <input type="hidden" asp-for="Id" />
 
+    <div class="card form-section">
+        <div class="card__header"><h3 class="card__title">Identità</h3></div>
         <div class="form-grid">
             <div class="form-group">
                 <label class="form-label" asp-for="Nome">Nome</label>
@@ -32,20 +41,60 @@
                 <input class="form-control" asp-for="Cognome" required />
             </div>
             <div class="form-group">
-                <label class="form-label" asp-for="Email">Email</label>
+                <label class="form-label" asp-for="DataNascita">Data di nascita</label>
+                <input class="form-control" asp-for="DataNascita" type="date" />
+            </div>
+            <div class="form-group">
+                <label class="form-label" asp-for="LuogoNascita">Luogo di nascita</label>
+                <input class="form-control" asp-for="LuogoNascita" />
+            </div>
+            <div class="form-group">
+                <label class="form-label" asp-for="CodiceFiscale">Codice fiscale</label>
+                <input class="form-control" asp-for="CodiceFiscale" maxlength="16" style="text-transform: uppercase; font-family: monospace;" />
+            </div>
+            <div class="form-group">
+                <label class="form-label" asp-for="PartitaIVA">Partita IVA</label>
+                <input class="form-control" asp-for="PartitaIVA" maxlength="11" style="font-family: monospace;" />
+            </div>
+        </div>
+    </div>
+
+    <div class="card form-section">
+        <div class="card__header"><h3 class="card__title">Contatti</h3></div>
+        <div class="form-grid">
+            <div class="form-group">
+                <label class="form-label" asp-for="Email">Email lavoro</label>
                 <input class="form-control" asp-for="Email" type="email" required />
+            </div>
+            <div class="form-group">
+                <label class="form-label" asp-for="EmailPersonale">Email personale</label>
+                <input class="form-control" asp-for="EmailPersonale" type="email" />
             </div>
             <div class="form-group">
                 <label class="form-label" asp-for="Telefono">Telefono</label>
                 <input class="form-control" asp-for="Telefono" />
             </div>
             <div class="form-group">
+                <label class="form-label" asp-for="Cellulare">Cellulare</label>
+                <input class="form-control" asp-for="Cellulare" />
+            </div>
+            <div class="form-group full">
+                <label class="form-label" asp-for="IndirizzoResidenza">Indirizzo di residenza</label>
+                <input class="form-control" asp-for="IndirizzoResidenza" />
+            </div>
+        </div>
+    </div>
+
+    <div class="card form-section">
+        <div class="card__header"><h3 class="card__title">Professione</h3></div>
+        <div class="form-grid">
+            <div class="form-group">
                 <label class="form-label" asp-for="Specializzazione">Specializzazione</label>
                 <input class="form-control" asp-for="Specializzazione" required placeholder="Es. Implantologia" />
             </div>
             <div class="form-group">
-                <label class="form-label" asp-for="TipoContratto">Tipo contratto</label>
-                <select class="form-control" asp-for="TipoContratto" asp-items="Html.GetEnumSelectList<Chipdent.Web.Domain.Entities.TipoContratto>()"></select>
+                <label class="form-label" asp-for="AnniEsperienza">Anni di esperienza</label>
+                <input class="form-control" asp-for="AnniEsperienza" type="number" min="0" max="60" />
             </div>
             <div class="form-group">
                 <label class="form-label" asp-for="NumeroAlbo">Numero albo</label>
@@ -55,7 +104,17 @@
                 <label class="form-label" asp-for="ScadenzaAlbo">Scadenza albo</label>
                 <input class="form-control" asp-for="ScadenzaAlbo" type="date" />
             </div>
-            <div class="form-group full">
+        </div>
+    </div>
+
+    <div class="card form-section">
+        <div class="card__header"><h3 class="card__title">Contratto</h3></div>
+        <div class="form-grid">
+            <div class="form-group">
+                <label class="form-label" asp-for="TipoContratto">Tipo contratto</label>
+                <select class="form-control" asp-for="TipoContratto" asp-items="Html.GetEnumSelectList<Chipdent.Web.Domain.Entities.TipoContratto>()"></select>
+            </div>
+            <div class="form-group">
                 <label class="form-label" asp-for="ClinicaPrincipaleId">Sede principale</label>
                 <select class="form-control" asp-for="ClinicaPrincipaleId">
                     <option value="">— nessuna —</option>
@@ -65,25 +124,68 @@
                     }
                 </select>
             </div>
+            <div class="form-group">
+                <label class="form-label" asp-for="DataAssunzione">Data assunzione</label>
+                <input class="form-control" asp-for="DataAssunzione" type="date" required />
+            </div>
+            <div class="form-group">
+                <label class="form-label" asp-for="DataDimissioni">Data dimissioni (opzionale)</label>
+                <input class="form-control" asp-for="DataDimissioni" type="date" />
+            </div>
+            <div class="form-group full">
+                <label class="form-label" asp-for="IBAN">IBAN</label>
+                <input class="form-control" asp-for="IBAN" maxlength="34" style="font-family: monospace;" placeholder="IT60 X054 2811 1010 0000 0123 456" />
+            </div>
             <div class="form-group full">
                 <label class="form-check">
                     <input asp-for="Attivo" type="checkbox" />
-                    Dottore attivo
+                    Profilo attivo
                 </label>
             </div>
         </div>
+    </div>
 
-        <div class="form-actions">
-            <a class="btn btn--ghost" asp-action="Index">Annulla</a>
-            <button type="submit" class="btn btn--primary">@(isNew ? "Crea dottore" : "Salva modifiche")</button>
+    <div class="card form-section">
+        <div class="card__header"><h3 class="card__title">Documento d'identità</h3></div>
+        <div class="form-grid">
+            <div class="form-group">
+                <label class="form-label" asp-for="DocumentoNumero">Numero documento</label>
+                <input class="form-control" asp-for="DocumentoNumero" />
+            </div>
+            <div class="form-group">
+                <label class="form-label" asp-for="DocumentoScadenza">Scadenza documento</label>
+                <input class="form-control" asp-for="DocumentoScadenza" type="date" />
+            </div>
         </div>
-    </form>
-</div>
+    </div>
+
+    <div class="card form-section">
+        <div class="card__header"><h3 class="card__title">Note</h3></div>
+        <div class="form-grid">
+            <div class="form-group full">
+                <label class="form-label" asp-for="Note">Note interne</label>
+                <textarea class="form-control" asp-for="Note" rows="4"></textarea>
+            </div>
+        </div>
+    </div>
+
+    <div class="form-actions" style="margin-top: var(--s-6);">
+        @if (isNew)
+        {
+            <a class="btn btn--ghost" asp-action="Index">Annulla</a>
+        }
+        else
+        {
+            <a class="btn btn--ghost" asp-action="Details" asp-route-id="@Model.Id">Annulla</a>
+        }
+        <button type="submit" class="btn btn--primary">@(isNew ? "Crea dottore" : "Salva modifiche")</button>
+    </div>
+</form>
 
 @if (!isNew)
 {
     <form asp-action="Delete" asp-route-id="@Model.Id" method="post" style="margin-top: var(--s-5); text-align:right;"
-          onsubmit="return confirm('Eliminare definitivamente questo dottore?');">
+          onsubmit="return confirm('Eliminare definitivamente questo dottore? L\'azione non si può annullare.');">
         @Html.AntiForgeryToken()
         <button type="submit" class="btn btn--ghost" style="border-color: rgba(217, 107, 94, 0.4); color: var(--c-danger);">
             Elimina dottore

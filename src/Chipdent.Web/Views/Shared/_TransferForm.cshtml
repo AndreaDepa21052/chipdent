@@ -1,0 +1,64 @@
+@model Chipdent.Web.Models.TransferViewModel
+@{
+    var actionRoute = ViewContext.RouteData.Values["controller"]?.ToString();
+}
+
+<div class="page-head">
+    <div>
+        <h2>Trasferisci @Model.PersonaNome</h2>
+        <p class="page-head__sub">
+            @if (Model.ClinicaAttualeNome is not null)
+            {
+                <span>Sede attuale: <strong style="color:var(--c-ink-strong);">@Model.ClinicaAttualeNome</strong></span>
+            }
+            else
+            {
+                <span>Nessuna sede attualmente assegnata.</span>
+            }
+        </p>
+    </div>
+    <div class="page-head__actions">
+        <a class="btn btn--ghost" asp-action="Details" asp-route-id="@Model.PersonaId">← Torna al profilo</a>
+    </div>
+</div>
+
+<div class="card" style="max-width: 720px;">
+    <form asp-action="Transfer" asp-route-id="@Model.PersonaId" method="post">
+        @Html.AntiForgeryToken()
+        <input type="hidden" asp-for="PersonaId" />
+        <input type="hidden" asp-for="PersonaTipo" />
+
+        <div asp-validation-summary="ModelOnly" class="alert alert--danger" style="display:@(ViewData.ModelState.ErrorCount > 0 ? "block" : "none");"></div>
+
+        <div class="form-grid">
+            <div class="form-group full">
+                <label class="form-label" asp-for="ClinicaAId">Nuova sede</label>
+                <select class="form-control" asp-for="ClinicaAId" required>
+                    <option value="">— seleziona —</option>
+                    @foreach (var c in Model.Cliniche.Where(c => c.Id != Model.ClinicaAttualeId))
+                    {
+                        <option value="@c.Id">@c.Nome (@c.Citta)</option>
+                    }
+                </select>
+                <span class="text-danger" asp-validation-for="ClinicaAId"></span>
+            </div>
+            <div class="form-group">
+                <label class="form-label" asp-for="DataEffetto">Data di effetto</label>
+                <input class="form-control" asp-for="DataEffetto" type="date" required />
+            </div>
+            <div class="form-group">
+                <label class="form-label" asp-for="Motivo">Motivo</label>
+                <select class="form-control" asp-for="Motivo" asp-items="Html.GetEnumSelectList<Chipdent.Web.Domain.Entities.MotivoTrasferimento>()"></select>
+            </div>
+            <div class="form-group full">
+                <label class="form-label" asp-for="Note">Note interne</label>
+                <textarea class="form-control" asp-for="Note" placeholder="Eventuali dettagli sul trasferimento…"></textarea>
+            </div>
+        </div>
+
+        <div class="form-actions">
+            <a class="btn btn--ghost" asp-action="Details" asp-route-id="@Model.PersonaId">Annulla</a>
+            <button type="submit" class="btn btn--primary">Conferma trasferimento</button>
+        </div>
+    </form>
+</div>

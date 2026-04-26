@@ -1,0 +1,9 @@
+@model Chipdent.Web.Models.DismissViewModel
+@{
+    ViewData["Title"] = $"Dimetti {Model.PersonaNome}";
+    ViewData["Crumb"] = "Dipendenti";
+    ViewData["Section"] = "dipendenti";
+}
+
+<partial name="_Flash" />
+<partial name="_DismissForm" model="Model" />

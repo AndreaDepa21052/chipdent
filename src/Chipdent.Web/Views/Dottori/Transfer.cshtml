@@ -1,0 +1,9 @@
+@model Chipdent.Web.Models.TransferViewModel
+@{
+    ViewData["Title"] = $"Trasferisci {Model.PersonaNome}";
+    ViewData["Crumb"] = "Dottori";
+    ViewData["Section"] = "dottori";
+}
+
+<partial name="_Flash" />
+<partial name="_TransferForm" model="Model" />

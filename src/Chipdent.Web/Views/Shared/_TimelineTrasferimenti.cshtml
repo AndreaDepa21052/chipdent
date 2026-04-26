@@ -1,0 +1,53 @@
+@model IReadOnlyList<Chipdent.Web.Domain.Entities.Trasferimento>
+
+@if (Model.Count == 0)
+{
+    <div class="card">
+        <div class="empty">
+            <div class="empty__icon">
+                <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M5 12h14M13 5l7 7-7 7"/></svg>
+            </div>
+            <h3>Nessun trasferimento registrato</h3>
+            <p>I trasferimenti tra cliniche compariranno qui automaticamente.</p>
+        </div>
+    </div>
+}
+else
+{
+    <div class="timeline">
+        @foreach (var t in Model)
+        {
+            <div class="timeline__item">
+                <div class="timeline__dot"></div>
+                <div class="timeline__content card">
+                    <div class="timeline__head">
+                        <div>
+                            <strong>
+                                @if (t.ClinicaDaNome is null)
+                                {
+                                    <span style="color: var(--c-ink-soft);">— Assegnazione iniziale →</span> @t.ClinicaANome
+                                }
+                                else
+                                {
+                                    <span>@t.ClinicaDaNome</span>
+                                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="color:var(--c-accent); vertical-align: middle; margin: 0 6px;"><path d="M5 12h14M13 5l7 7-7 7"/></svg>
+                                    <span>@t.ClinicaANome</span>
+                                }
+                            </strong>
+                        </div>
+                        <span class="badge">@t.Motivo</span>
+                    </div>
+                    <div class="timeline__meta">
+                        <span>@t.DataEffetto.ToString("dddd dd MMMM yyyy", new System.Globalization.CultureInfo("it-IT"))</span>
+                        <span>·</span>
+                        <span>deciso da <strong style="color:var(--c-ink);">@t.DecisoDaNome</strong></span>
+                    </div>
+                    @if (!string.IsNullOrWhiteSpace(t.Note))
+                    {
+                        <p class="timeline__note">@t.Note</p>
+                    }
+                </div>
+            </div>
+        }
+    </div>
+}

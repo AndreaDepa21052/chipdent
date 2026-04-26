@@ -12,6 +12,7 @@ builder.Services.AddSingleton<IPasswordHasher, BCryptPasswordHasher>();
 
 builder.Services.AddScoped<ITenantContext, TenantContext>();
 builder.Services.AddSingleton<INotificationPublisher, NotificationPublisher>();
+builder.Services.AddScoped<Chipdent.Web.Infrastructure.Audit.IAuditService, Chipdent.Web.Infrastructure.Audit.AuditService>();
 
 builder.Services
     .AddAuthentication(CookieAuthenticationDefaults.AuthenticationScheme)

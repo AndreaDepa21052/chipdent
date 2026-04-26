@@ -1,0 +1,161 @@
+@model IReadOnlyList<Chipdent.Web.Domain.Entities.AuditEntry>
+@{
+    ViewData["Title"] = "Audit log";
+    var total = (long)(ViewData["Total"] ?? 0L);
+    var page = (int)(ViewData["Page"] ?? 1);
+    var pageSize = (int)(ViewData["PageSize"] ?? 50);
+    var entityType = ViewData["EntityType"] as string;
+    var userFilter = ViewData["UserFilter"] as string;
+    var actionFilter = ViewData["ActionFilter"] as Chipdent.Web.Domain.Entities.AuditAction?;
+    var totalPages = (int)Math.Ceiling((double)total / pageSize);
+}
+
+<partial name="_Flash" />
+
+<div class="page-head">
+    <div>
+        <h2>Audit log</h2>
+        <p class="page-head__sub">@total eventi · ogni modifica alle anagrafiche viene tracciata qui in tempo reale.</p>
+    </div>
+    <div class="page-head__actions">
+        <span class="badge badge--accent"><span class="dot"></span>live</span>
+    </div>
+</div>
+
+<form method="get" class="card" style="margin-bottom: var(--s-5);">
+    <div class="form-grid" style="grid-template-columns: repeat(4, 1fr);">
+        <div class="form-group">
+            <label class="form-label">Entità</label>
+            <select class="form-control" name="entityType">
+                <option value="">— tutte —</option>
+                <option value="Dottore" selected="@(entityType == "Dottore")">Dottore</option>
+                <option value="Dipendente" selected="@(entityType == "Dipendente")">Dipendente</option>
+                <option value="Clinica" selected="@(entityType == "Clinica")">Clinica</option>
+            </select>
+        </div>
+        <div class="form-group">
+            <label class="form-label">Azione</label>
+            <select class="form-control" name="action">
+                <option value="">— tutte —</option>
+                @foreach (var a in Enum.GetValues<Chipdent.Web.Domain.Entities.AuditAction>())
+                {
+                    <option value="@a" selected="@(actionFilter == a)">@a</option>
+                }
+            </select>
+        </div>
+        <div class="form-group">
+            <label class="form-label">Utente</label>
+            <input class="form-control" name="user" value="@userFilter" placeholder="Cerca per nome…" />
+        </div>
+        <div class="form-group" style="display:flex; align-items:flex-end; gap: var(--s-2);">
+            <button type="submit" class="btn btn--primary">Filtra</button>
+            <a class="btn btn--ghost" asp-action="Index">Reset</a>
+        </div>
+    </div>
+</form>
+
+<div data-audit-feed>
+    @if (Model.Count == 0)
+    {
+        <div class="card">
+            <div class="empty">
+                <div class="empty__icon">
+                    <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M9 11l3 3L22 4"/><path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11"/></svg>
+                </div>
+                <h3>Nessun evento</h3>
+                <p>Nessuna voce di audit per i filtri selezionati.</p>
+            </div>
+        </div>
+    }
+    else
+    {
+        <div class="audit-feed">
+            @foreach (var a in Model)
+            {
+                <div class="audit-event audit-event--rich">
+                    <div class="audit-event__head">
+                        <span class="audit-event__action audit-event__action--@a.Action.ToString().ToLowerInvariant()">@a.Action</span>
+                        <span class="audit-event__entity">
+                            <span class="audit-event__type">@a.EntityType</span>
+                            <strong>@a.EntityLabel</strong>
+                        </span>
+                        <span class="audit-event__user">
+                            <span class="audit-event__avatar">@(string.IsNullOrEmpty(a.UserName) ? "?" : a.UserName[..1].ToUpperInvariant())</span>
+                            <strong>@a.UserName</strong>
+                        </span>
+                        <time>@a.CreatedAt.ToLocalTime().ToString("dd MMM · HH:mm:ss", new System.Globalization.CultureInfo("it-IT"))</time>
+                    </div>
+                    @if (a.Changes.Count > 0)
+                    {
+                        <table class="audit-event__diff">
+                            <thead>
+                                <tr><th>Campo</th><th>Prima</th><th>Dopo</th></tr>
+                            </thead>
+                            <tbody>
+                                @foreach (var c in a.Changes)
+                                {
+                                    <tr>
+                                        <td><code>@c.Field</code></td>
+                                        <td><span class="diff-old">@(c.OldValue ?? "—")</span></td>
+                                        <td><span class="diff-new">@(c.NewValue ?? "—")</span></td>
+                                    </tr>
+                                }
+                            </tbody>
+                        </table>
+                    }
+                    @if (!string.IsNullOrWhiteSpace(a.Note))
+                    {
+                        <p class="audit-event__note">📝 @a.Note</p>
+                    }
+                </div>
+            }
+        </div>
+    }
+</div>
+
+@if (totalPages > 1)
+{
+    <div class="pagination">
+        @if (page > 1)
+        {
+            <a class="btn btn--ghost" asp-action="Index"
+               asp-route-page="@(page - 1)" asp-route-entityType="@entityType"
+               asp-route-action="@actionFilter" asp-route-user="@userFilter">← precedente</a>
+        }
+        <span style="color: var(--c-ink-muted); padding: 0 var(--s-3);">Pagina @(page) di @totalPages</span>
+        @if (page < totalPages)
+        {
+            <a class="btn btn--ghost" asp-action="Index"
+               asp-route-page="@(page + 1)" asp-route-entityType="@entityType"
+               asp-route-action="@actionFilter" asp-route-user="@userFilter">successiva →</a>
+        }
+    </div>
+}
+
+@section Scripts {
+<script>
+    (function () {
+        if (!window.Chipdent || !Chipdent.connection) return;
+        Chipdent.connection.on('audit', function (e) {
+            // toast for everyone watching
+            Chipdent.toast(e.action + ' · ' + e.entityLabel, 'da ' + e.user);
+            // if no filters and on first page, prepend a lightweight live row
+            var feed = document.querySelector('[data-audit-feed] .audit-feed');
+            if (!feed) return;
+            var item = document.createElement('div');
+            item.className = 'audit-event audit-event--rich feed-enter';
+            item.innerHTML =
+                '<div class="audit-event__head">' +
+                '  <span class="audit-event__action audit-event__action--' + (e.action || '').toLowerCase() + '">' + (e.action || '') + '</span>' +
+                '  <span class="audit-event__entity"><span class="audit-event__type">' + (e.entityType || '') + '</span><strong></strong></span>' +
+                '  <span class="audit-event__user"><span class="audit-event__avatar"></span><strong></strong></span>' +
+                '  <time>ora</time>' +
+                '</div>';
+            item.querySelector('.audit-event__entity strong').textContent = e.entityLabel || '';
+            item.querySelector('.audit-event__avatar').textContent = (e.user || '?').substring(0,1).toUpperCase();
+            item.querySelector('.audit-event__user strong').textContent = e.user || '';
+            feed.insertBefore(item, feed.firstChild);
+        });
+    })();
+</script>
+}

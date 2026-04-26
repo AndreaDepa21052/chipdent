@@ -1,0 +1,54 @@
+@model IReadOnlyList<Chipdent.Web.Domain.Entities.AuditEntry>
+
+@if (Model.Count == 0)
+{
+    <div class="card">
+        <div class="empty">
+            <div class="empty__icon">
+                <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M9 11l3 3L22 4"/><path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11"/></svg>
+            </div>
+            <h3>Nessun evento registrato</h3>
+            <p>Tutte le modifiche future saranno tracciate qui.</p>
+        </div>
+    </div>
+}
+else
+{
+    <div class="audit-feed">
+        @foreach (var a in Model)
+        {
+            <div class="audit-event">
+                <div class="audit-event__head">
+                    <span class="audit-event__action audit-event__action--@a.Action.ToString().ToLowerInvariant()">@a.Action</span>
+                    <span class="audit-event__user">
+                        <span class="audit-event__avatar">@(string.IsNullOrEmpty(a.UserName) ? "?" : a.UserName[..1].ToUpperInvariant())</span>
+                        <strong>@a.UserName</strong>
+                    </span>
+                    <time>@a.CreatedAt.ToLocalTime().ToString("dd MMM yyyy · HH:mm:ss", new System.Globalization.CultureInfo("it-IT"))</time>
+                </div>
+                @if (a.Changes.Count > 0)
+                {
+                    <table class="audit-event__diff">
+                        <thead>
+                            <tr><th>Campo</th><th>Prima</th><th>Dopo</th></tr>
+                        </thead>
+                        <tbody>
+                            @foreach (var c in a.Changes)
+                            {
+                                <tr>
+                                    <td><code>@c.Field</code></td>
+                                    <td><span class="diff-old">@(c.OldValue ?? "—")</span></td>
+                                    <td><span class="diff-new">@(c.NewValue ?? "—")</span></td>
+                                </tr>
+                            }
+                        </tbody>
+                    </table>
+                }
+                @if (!string.IsNullOrWhiteSpace(a.Note))
+                {
+                    <p class="audit-event__note">📝 @a.Note</p>
+                }
+            </div>
+        }
+    </div>
+}

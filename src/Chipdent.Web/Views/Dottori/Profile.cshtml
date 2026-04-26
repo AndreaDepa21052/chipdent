@@ -1,0 +1,157 @@
+@model Chipdent.Web.Models.DottoreProfileViewModel
+@{
+    ViewData["Title"] = Model.Dottore.NomeCompleto;
+    ViewData["Crumb"] = "Dottori";
+    var d = Model.Dottore;
+    var tab = Model.Tab;
+    var alboInScad = d.ScadenzaAlbo is not null && d.ScadenzaAlbo < DateTime.UtcNow.AddMonths(3);
+}
+
+<partial name="_Flash" />
+
+<div class="profile">
+    <div class="profile__header">
+        <div class="profile__avatar">@d.Iniziali</div>
+        <div class="profile__head-text">
+            <h2>@d.NomeCompleto</h2>
+            <div class="profile__sub">
+                <span>@d.Specializzazione</span>
+                <span>·</span>
+                <span>@d.TipoContratto</span>
+                @if (Model.ClinicaPrincipaleNome is not null)
+                {
+                    <span>·</span>
+                    <span>📍 @Model.ClinicaPrincipaleNome</span>
+                }
+            </div>
+            <div class="profile__chips">
+                @if (d.IsCessato)
+                {
+                    <span class="badge badge--danger"><span class="dot"></span>cessato</span>
+                    @if (d.DataDimissioni is not null)
+                    {
+                        <span class="badge">dimissione @d.DataDimissioni.Value.ToString("dd/MM/yyyy")</span>
+                    }
+                }
+                else
+                {
+                    <span class="badge badge--success"><span class="dot"></span>attivo</span>
+                }
+                @if (d.AnniServizio is not null)
+                {
+                    <span class="badge">@d.AnniServizio @(d.AnniServizio == 1 ? "anno" : "anni") · dal @d.DataAssunzione.ToString("MM/yyyy")</span>
+                }
+                @if (alboInScad)
+                {
+                    <span class="badge badge--warning"><span class="dot"></span>albo in scadenza</span>
+                }
+            </div>
+        </div>
+        <div class="profile__actions">
+            <a class="btn btn--ghost" asp-action="Index">← Lista</a>
+            @if (!d.IsCessato)
+            {
+                <a class="btn btn--ghost" asp-action="Transfer" asp-route-id="@d.Id">↗ Trasferisci</a>
+                <a class="btn btn--ghost" asp-action="Dismiss" asp-route-id="@d.Id" style="border-color: rgba(196, 88, 75, 0.4); color: var(--c-danger);">Dimetti</a>
+            }
+            else
+            {
+                <form asp-action="Reactivate" asp-route-id="@d.Id" method="post" style="display:inline;">
+                    @Html.AntiForgeryToken()
+                    <button type="submit" class="btn btn--ghost">↺ Riattiva</button>
+                </form>
+            }
+            <a class="btn btn--primary" asp-action="Edit" asp-route-id="@d.Id">Modifica</a>
+        </div>
+    </div>
+
+    <div class="tabs">
+        <a class="tab @(tab == "anagrafica" ? "is-active" : "")" asp-action="Details" asp-route-id="@d.Id" asp-route-tab="anagrafica">Anagrafica</a>
+        <a class="tab @(tab == "storico" ? "is-active" : "")" asp-action="Details" asp-route-id="@d.Id" asp-route-tab="storico">
+            Storico cliniche <span class="tab__count">@Model.Storico.Count</span>
+        </a>
+        <a class="tab @(tab == "audit" ? "is-active" : "")" asp-action="Details" asp-route-id="@d.Id" asp-route-tab="audit">
+            Audit log <span class="tab__count">@Model.Audit.Count</span>
+        </a>
+    </div>
+
+    @if (tab == "anagrafica")
+    {
+        <div class="profile__grid">
+            <div class="card">
+                <div class="card__header"><h3 class="card__title">Identità</h3></div>
+                <dl class="kv">
+                    <dt>Nome</dt><dd>@d.Nome @d.Cognome</dd>
+                    <dt>Nato il</dt><dd>@(d.DataNascita?.ToString("dd/MM/yyyy") ?? "—")</dd>
+                    <dt>Luogo</dt><dd>@(d.LuogoNascita ?? "—")</dd>
+                    <dt>Codice fiscale</dt><dd>@(d.CodiceFiscale ?? "—")</dd>
+                    <dt>P. IVA</dt><dd>@(d.PartitaIVA ?? "—")</dd>
+                </dl>
+            </div>
+
+            <div class="card">
+                <div class="card__header"><h3 class="card__title">Contatti</h3></div>
+                <dl class="kv">
+                    <dt>Email lavoro</dt><dd>@d.Email</dd>
+                    <dt>Email personale</dt><dd>@(d.EmailPersonale ?? "—")</dd>
+                    <dt>Telefono</dt><dd>@(d.Telefono ?? "—")</dd>
+                    <dt>Cellulare</dt><dd>@(d.Cellulare ?? "—")</dd>
+                    <dt>Residenza</dt><dd>@(d.IndirizzoResidenza ?? "—")</dd>
+                </dl>
+            </div>
+
+            <div class="card">
+                <div class="card__header"><h3 class="card__title">Professione</h3></div>
+                <dl class="kv">
+                    <dt>Specializzazione</dt><dd>@d.Specializzazione</dd>
+                    <dt>N. albo</dt><dd>@d.NumeroAlbo</dd>
+                    <dt>Scadenza albo</dt>
+                    <dd>
+                        @(d.ScadenzaAlbo?.ToString("dd/MM/yyyy") ?? "—")
+                        @if (alboInScad) { <span class="badge badge--warning" style="margin-left:6px;"><span class="dot"></span>in scadenza</span> }
+                    </dd>
+                    <dt>Esperienza</dt><dd>@(d.AnniEsperienza is not null ? $"{d.AnniEsperienza} anni" : "—")</dd>
+                </dl>
+            </div>
+
+            <div class="card">
+                <div class="card__header"><h3 class="card__title">Contratto</h3></div>
+                <dl class="kv">
+                    <dt>Tipo</dt><dd>@d.TipoContratto</dd>
+                    <dt>Sede principale</dt><dd>@(Model.ClinicaPrincipaleNome ?? "—")</dd>
+                    <dt>Assunto il</dt><dd>@d.DataAssunzione.ToString("dd/MM/yyyy")</dd>
+                    <dt>Dimesso il</dt><dd>@(d.DataDimissioni?.ToString("dd/MM/yyyy") ?? "—")</dd>
+                    @if (d.MotivoDimissioni is not null)
+                    {
+                        <dt>Motivo</dt><dd>@d.MotivoDimissioni</dd>
+                    }
+                    <dt>IBAN</dt><dd style="font-family: monospace;">@(d.IBAN ?? "—")</dd>
+                </dl>
+            </div>
+
+            <div class="card">
+                <div class="card__header"><h3 class="card__title">Documenti</h3></div>
+                <dl class="kv">
+                    <dt>N. documento</dt><dd>@(d.DocumentoNumero ?? "—")</dd>
+                    <dt>Scadenza</dt><dd>@(d.DocumentoScadenza?.ToString("dd/MM/yyyy") ?? "—")</dd>
+                </dl>
+            </div>
+
+            @if (!string.IsNullOrWhiteSpace(d.Note))
+            {
+                <div class="card" style="grid-column: 1 / -1;">
+                    <div class="card__header"><h3 class="card__title">Note</h3></div>
+                    <p style="white-space: pre-wrap; margin:0;">@d.Note</p>
+                </div>
+            }
+        </div>
+    }
+    else if (tab == "storico")
+    {
+        <partial name="_TimelineTrasferimenti" model="Model.Storico" />
+    }
+    else if (tab == "audit")
+    {
+        <partial name="_AuditFeed" model="Model.Audit" />
+    }
+</div>

@@ -1,0 +1,41 @@
+@model Chipdent.Web.Models.DismissViewModel
+
+<div class="page-head">
+    <div>
+        <h2>Dimetti @Model.PersonaNome</h2>
+        <p class="page-head__sub">L'azione marca la persona come cessata e mantiene lo storico per audit/compliance.</p>
+    </div>
+    <div class="page-head__actions">
+        <a class="btn btn--ghost" asp-action="Details" asp-route-id="@Model.PersonaId">← Torna al profilo</a>
+    </div>
+</div>
+
+<div class="card" style="max-width: 640px;">
+    <div class="alert alert--danger">
+        Stai per registrare la cessazione del rapporto. La persona resterà visibile nello storico ma non comparirà più nelle liste attive.
+    </div>
+
+    <form asp-action="Dismiss" asp-route-id="@Model.PersonaId" method="post">
+        @Html.AntiForgeryToken()
+        <input type="hidden" asp-for="PersonaId" />
+        <input type="hidden" asp-for="PersonaTipo" />
+
+        <div class="form-grid">
+            <div class="form-group">
+                <label class="form-label" asp-for="DataDimissioni">Data dimissioni</label>
+                <input class="form-control" asp-for="DataDimissioni" type="date" required />
+            </div>
+            <div class="form-group full">
+                <label class="form-label" asp-for="Motivo">Motivo (opzionale)</label>
+                <textarea class="form-control" asp-for="Motivo" placeholder="Dimissioni volontarie, fine contratto, mancato superamento periodo di prova…"></textarea>
+            </div>
+        </div>
+
+        <div class="form-actions">
+            <a class="btn btn--ghost" asp-action="Details" asp-route-id="@Model.PersonaId">Annulla</a>
+            <button type="submit" class="btn btn--primary" style="background: linear-gradient(135deg, #d96b5e, #c4584b);">
+                Conferma dimissione
+            </button>
+        </div>
+    </form>
+</div>
