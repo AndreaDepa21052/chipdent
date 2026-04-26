@@ -1,0 +1,54 @@
+@model Chipdent.Web.Models.ComunicazioneFormViewModel
+@{
+    ViewData["Title"] = "Nuova comunicazione";
+}
+
+<partial name="_Flash" />
+
+<div class="page-head">
+    <div>
+        <h2>Nuova comunicazione</h2>
+        <p class="page-head__sub">Sarà recapitata a tutti gli utenti del tenant in tempo reale.</p>
+    </div>
+    <div class="page-head__actions">
+        <a class="btn btn--ghost" asp-action="Index">← Inbox</a>
+    </div>
+</div>
+
+<div class="card" style="max-width: 760px;">
+    <form asp-action="Create" method="post" class="composer">
+        @Html.AntiForgeryToken()
+
+        <div class="form-grid">
+            <div class="form-group">
+                <label class="form-label" asp-for="Categoria">Categoria</label>
+                <select class="form-control" asp-for="Categoria" asp-items="Html.GetEnumSelectList<Chipdent.Web.Domain.Entities.CategoriaComunicazione>()"></select>
+            </div>
+            <div class="form-group">
+                <label class="form-label" asp-for="ClinicaId">Riferita a clinica</label>
+                <select class="form-control" asp-for="ClinicaId">
+                    <option value="">— tutte le sedi —</option>
+                    @foreach (var c in Model.Cliniche)
+                    {
+                        <option value="@c.Id" selected="@(c.Id == Model.ClinicaId)">@c.Nome</option>
+                    }
+                </select>
+            </div>
+            <div class="form-group full">
+                <label class="form-label" asp-for="Oggetto">Oggetto</label>
+                <input class="form-control" asp-for="Oggetto" required maxlength="150" />
+                <span class="text-danger" asp-validation-for="Oggetto"></span>
+            </div>
+            <div class="form-group full">
+                <label class="form-label" asp-for="Corpo">Messaggio</label>
+                <textarea class="form-control" asp-for="Corpo" required rows="8" maxlength="2000" placeholder="Scrivi il messaggio…"></textarea>
+                <span class="text-danger" asp-validation-for="Corpo"></span>
+            </div>
+        </div>
+
+        <div class="form-actions">
+            <a class="btn btn--ghost" asp-action="Index">Annulla</a>
+            <button type="submit" class="btn btn--primary">Pubblica</button>
+        </div>
+    </form>
+</div>

@@ -81,6 +81,73 @@ public static class MongoSeeder
                 await ctx.Dipendenti.InsertManyAsync(dipendenti, cancellationToken: ct);
                 logger.LogInformation("Seeded {Count} dipendenti", dipendenti.Length);
             }
+
+            if (!await ctx.DocumentiClinica.Find(d => d.TenantId == tenant.Id).AnyAsync(ct))
+            {
+                var docs = new List<DocumentoClinica>();
+                foreach (var c in cliniche)
+                {
+                    docs.Add(new DocumentoClinica { TenantId = tenant.Id, ClinicaId = c.Id, Tipo = TipoDocumento.AutorizzazioneSanitaria, Titolo = $"Autorizzazione sanitaria {c.Citta}", Numero = $"AS-{c.Citta[..3].ToUpper()}-2024", DataEmissione = DateTime.UtcNow.AddYears(-2), DataScadenza = DateTime.UtcNow.AddMonths(8), EnteEmittente = $"ATS {c.Citta}" });
+                    docs.Add(new DocumentoClinica { TenantId = tenant.Id, ClinicaId = c.Id, Tipo = TipoDocumento.CPI, Titolo = "Certificato Prevenzione Incendi", Numero = $"CPI-{c.Citta[..3].ToUpper()}-2023", DataEmissione = DateTime.UtcNow.AddYears(-1), DataScadenza = DateTime.UtcNow.AddMonths(2), EnteEmittente = "VV.F." });
+                    docs.Add(new DocumentoClinica { TenantId = tenant.Id, ClinicaId = c.Id, Tipo = TipoDocumento.ContrattoAffitto, Titolo = $"Contratto locazione {c.Indirizzo}", DataEmissione = DateTime.UtcNow.AddYears(-3), DataScadenza = DateTime.UtcNow.AddYears(3) });
+                }
+                await ctx.DocumentiClinica.InsertManyAsync(docs, cancellationToken: ct);
+                logger.LogInformation("Seeded {Count} documenti", docs.Count);
+            }
+
+            if (!await ctx.Corsi.Find(c => c.TenantId == tenant.Id).AnyAsync(ct))
+            {
+                var dipsList = await ctx.Dipendenti.Find(d => d.TenantId == tenant.Id).ToListAsync(ct);
+                var corsi = new List<Corso>();
+                foreach (var d in dipsList)
+                {
+                    corsi.Add(new Corso { TenantId = tenant.Id, DestinatarioId = d.Id, DestinatarioTipo = DestinatarioCorso.Dipendente, Tipo = TipoCorso.Antincendio, DataConseguimento = DateTime.UtcNow.AddYears(-2), Scadenza = DateTime.UtcNow.AddMonths(4) });
+                    corsi.Add(new Corso { TenantId = tenant.Id, DestinatarioId = d.Id, DestinatarioTipo = DestinatarioCorso.Dipendente, Tipo = TipoCorso.PrimoSoccorso, DataConseguimento = DateTime.UtcNow.AddYears(-1), Scadenza = DateTime.UtcNow.AddMonths(15) });
+                }
+                await ctx.Corsi.InsertManyAsync(corsi, cancellationToken: ct);
+                logger.LogInformation("Seeded {Count} corsi", corsi.Count);
+            }
+
+            if (!await ctx.VisiteMediche.Find(v => v.TenantId == tenant.Id).AnyAsync(ct))
+            {
+                var dipsList = await ctx.Dipendenti.Find(d => d.TenantId == tenant.Id).ToListAsync(ct);
+                var visite = dipsList.Select(d => new VisitaMedica
+                {
+                    TenantId = tenant.Id,
+                    DipendenteId = d.Id,
+                    Data = DateTime.UtcNow.AddMonths(-6),
+                    Esito = EsitoVisita.Idoneo,
+                    ScadenzaIdoneita = DateTime.UtcNow.AddMonths(6)
+                }).ToList();
+                await ctx.VisiteMediche.InsertManyAsync(visite, cancellationToken: ct);
+                logger.LogInformation("Seeded {Count} visite mediche", visite.Count);
+            }
+
+            if (!await ctx.DVRs.Find(d => d.TenantId == tenant.Id).AnyAsync(ct))
+            {
+                var dvrs = cliniche.Select(c => new DVR
+                {
+                    TenantId = tenant.Id,
+                    ClinicaId = c.Id,
+                    Versione = "3.2",
+                    DataApprovazione = DateTime.UtcNow.AddMonths(-4),
+                    ProssimaRevisione = DateTime.UtcNow.AddMonths(8),
+                    Stato = StatoDVR.Approvato
+                }).ToList();
+                await ctx.DVRs.InsertManyAsync(dvrs, cancellationToken: ct);
+                logger.LogInformation("Seeded {Count} DVR", dvrs.Count);
+            }
+
+            if (!await ctx.Comunicazioni.Find(c => c.TenantId == tenant.Id).AnyAsync(ct))
+            {
+                var comm = new[]
+                {
+                    new Comunicazione { TenantId = tenant.Id, MittenteUserId = owner.Id, MittenteNome = owner.FullName, Categoria = CategoriaComunicazione.Annuncio, Oggetto = "Benvenuti su Chipdent!", Corpo = "Da oggi tutta la catena gestisce turni, RLS e documenti da un'unica piattaforma. Buon lavoro!", CreatedAt = DateTime.UtcNow.AddDays(-2) },
+                    new Comunicazione { TenantId = tenant.Id, MittenteUserId = owner.Id, MittenteNome = owner.FullName, Categoria = CategoriaComunicazione.UrgenzaOperativa, Oggetto = "Manutenzione riunito 3 — Milano", Corpo = "Domani mattina dalle 7 alle 9 il riunito 3 sarà fuori uso per manutenzione programmata.", CreatedAt = DateTime.UtcNow.AddHours(-5) }
+                };
+                await ctx.Comunicazioni.InsertManyAsync(comm, cancellationToken: ct);
+                logger.LogInformation("Seeded {Count} comunicazioni", comm.Length);
+            }
         }
         catch (Exception ex)
         {

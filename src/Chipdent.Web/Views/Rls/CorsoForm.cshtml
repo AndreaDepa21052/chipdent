@@ -1,0 +1,111 @@
+@model Chipdent.Web.Models.CorsoFormViewModel
+@{
+    var isNew = (bool)(ViewData["IsNew"] ?? false);
+    ViewData["Title"] = isNew ? "Nuovo corso" : "Modifica corso";
+}
+
+<partial name="_Flash" />
+
+<div class="page-head">
+    <div>
+        <h2>@(isNew ? "Nuovo corso" : "Modifica corso")</h2>
+        <p class="page-head__sub">Registra un corso obbligatorio o di formazione.</p>
+    </div>
+    <div class="page-head__actions">
+        <a class="btn btn--ghost" asp-action="Corsi">← Corsi</a>
+    </div>
+</div>
+
+<div class="card" style="max-width: 720px;">
+    <form asp-action="@(isNew ? "CreateCorso" : "EditCorso")" asp-route-id="@(isNew ? null : Model.Id)" method="post">
+        @Html.AntiForgeryToken()
+        <input type="hidden" asp-for="Id" />
+
+        <div class="form-grid">
+            <div class="form-group">
+                <label class="form-label" asp-for="Tipo">Tipo corso</label>
+                <select class="form-control" asp-for="Tipo" asp-items="Html.GetEnumSelectList<Chipdent.Web.Domain.Entities.TipoCorso>()"></select>
+            </div>
+            <div class="form-group">
+                <label class="form-label" asp-for="DestinatarioTipo">Destinatario</label>
+                <select class="form-control" asp-for="DestinatarioTipo" id="destTipo">
+                    <option value="Dottore" selected="@(Model.DestinatarioTipo == Chipdent.Web.Domain.Entities.DestinatarioCorso.Dottore)">Dottore</option>
+                    <option value="Dipendente" selected="@(Model.DestinatarioTipo == Chipdent.Web.Domain.Entities.DestinatarioCorso.Dipendente)">Dipendente</option>
+                    <option value="Clinica" selected="@(Model.DestinatarioTipo == Chipdent.Web.Domain.Entities.DestinatarioCorso.Clinica)">Clinica</option>
+                </select>
+            </div>
+            <div class="form-group full">
+                <label class="form-label" asp-for="DestinatarioId">Persona / sede</label>
+                <select class="form-control" asp-for="DestinatarioId" id="destId" required>
+                    <option value="">— seleziona —</option>
+                    <optgroup label="Dottori" data-tipo="Dottore">
+                        @foreach (var d in Model.Dottori)
+                        {
+                            <option value="@d.Id" data-tipo="Dottore" selected="@(d.Id == Model.DestinatarioId && Model.DestinatarioTipo == Chipdent.Web.Domain.Entities.DestinatarioCorso.Dottore)">@d.NomeCompleto</option>
+                        }
+                    </optgroup>
+                    <optgroup label="Dipendenti" data-tipo="Dipendente">
+                        @foreach (var p in Model.Dipendenti)
+                        {
+                            <option value="@p.Id" data-tipo="Dipendente" selected="@(p.Id == Model.DestinatarioId && Model.DestinatarioTipo == Chipdent.Web.Domain.Entities.DestinatarioCorso.Dipendente)">@p.NomeCompleto</option>
+                        }
+                    </optgroup>
+                    <optgroup label="Cliniche" data-tipo="Clinica">
+                        @foreach (var c in Model.Cliniche)
+                        {
+                            <option value="@c.Id" data-tipo="Clinica" selected="@(c.Id == Model.DestinatarioId && Model.DestinatarioTipo == Chipdent.Web.Domain.Entities.DestinatarioCorso.Clinica)">@c.Nome</option>
+                        }
+                    </optgroup>
+                </select>
+            </div>
+            <div class="form-group">
+                <label class="form-label" asp-for="DataConseguimento">Data conseguimento</label>
+                <input class="form-control" asp-for="DataConseguimento" type="date" required />
+            </div>
+            <div class="form-group">
+                <label class="form-label" asp-for="Scadenza">Scadenza</label>
+                <input class="form-control" asp-for="Scadenza" type="date" />
+            </div>
+            <div class="form-group full">
+                <label class="form-label" asp-for="Note">Note</label>
+                <textarea class="form-control" asp-for="Note"></textarea>
+            </div>
+        </div>
+
+        <div class="form-actions">
+            <a class="btn btn--ghost" asp-action="Corsi">Annulla</a>
+            <button type="submit" class="btn btn--primary">@(isNew ? "Registra" : "Salva")</button>
+        </div>
+    </form>
+</div>
+
+@if (!isNew)
+{
+    <form asp-action="DeleteCorso" asp-route-id="@Model.Id" method="post" style="margin-top: var(--s-5); max-width:720px; text-align:right;"
+          onsubmit="return confirm('Eliminare questo corso?');">
+        @Html.AntiForgeryToken()
+        <button type="submit" class="btn btn--ghost" style="border-color: rgba(217, 107, 94, 0.4); color: var(--c-danger);">Elimina corso</button>
+    </form>
+}
+
+@section Scripts {
+<script>
+    (function () {
+        var tipo = document.getElementById('destTipo');
+        var dest = document.getElementById('destId');
+        function filter() {
+            var current = tipo.value;
+            Array.prototype.forEach.call(dest.querySelectorAll('optgroup'), function (g) {
+                g.style.display = g.dataset.tipo === current ? '' : 'none';
+            });
+            Array.prototype.forEach.call(dest.querySelectorAll('option[data-tipo]'), function (o) {
+                o.disabled = o.dataset.tipo !== current;
+            });
+            var sel = dest.options[dest.selectedIndex];
+            if (sel && sel.dataset.tipo && sel.dataset.tipo !== current) dest.value = '';
+        }
+        tipo.addEventListener('change', filter);
+        filter();
+    })();
+</script>
+}

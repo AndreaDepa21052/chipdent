@@ -1,0 +1,101 @@
+@model Chipdent.Web.Models.RlsOverviewViewModel
+@{
+    ViewData["Title"] = "RLS / Sicurezza";
+    ViewData["Tab"] = "overview";
+}
+
+<partial name="_Flash" />
+
+<div class="page-head">
+    <div>
+        <h2>RLS / Sicurezza</h2>
+        <p class="page-head__sub">Visite mediche, corsi obbligatori e DVR per ogni clinica.</p>
+    </div>
+</div>
+
+<partial name="_Tabs" />
+
+<div class="grid grid--stats" style="margin-bottom: var(--s-6);">
+    <div class="stat">
+        <div class="stat__label">Visite mediche</div>
+        <div class="stat__value">@Model.VisiteScadenzaVicina</div>
+        <div class="stat__hint">
+            in scadenza entro 3 mesi
+            @if (Model.VisiteScadute > 0)
+            {
+                <span class="badge badge--danger" style="margin-left:6px;"><span class="dot"></span>@Model.VisiteScadute scadute</span>
+            }
+        </div>
+    </div>
+    <div class="stat">
+        <div class="stat__label">Corsi obbligatori</div>
+        <div class="stat__value">@Model.CorsiScadenzaVicina</div>
+        <div class="stat__hint">
+            in scadenza entro 3 mesi
+            @if (Model.CorsiScaduti > 0)
+            {
+                <span class="badge badge--danger" style="margin-left:6px;"><span class="dot"></span>@Model.CorsiScaduti scaduti</span>
+            }
+        </div>
+    </div>
+    <div class="stat">
+        <div class="stat__label">DVR</div>
+        <div class="stat__value">@Model.DvrInScadenza</div>
+        <div class="stat__hint">
+            da rivedere entro 3 mesi
+            @if (Model.DvrDaApprovare > 0)
+            {
+                <span class="badge badge--warning" style="margin-left:6px;"><span class="dot"></span>@Model.DvrDaApprovare da approvare</span>
+            }
+        </div>
+    </div>
+</div>
+
+<div class="card">
+    <div class="card__header">
+        <h3 class="card__title">Alert</h3>
+        <span class="badge badge--accent">@Model.Alerts.Count totali</span>
+    </div>
+    @if (Model.Alerts.Count == 0)
+    {
+        <p style="color: var(--c-ink-soft); margin:0;">Tutto in regola, nessuna scadenza imminente. 🎯</p>
+    }
+    else
+    {
+        <ul class="list">
+            @foreach (var a in Model.Alerts)
+            {
+                <li class="list__item">
+                    <div class="list__icon">
+                        @if (a.Kind == "visita")
+                        {
+                            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M22 12h-4l-3 9L9 3l-3 9H2"/></svg>
+                        }
+                        else if (a.Kind == "corso")
+                        {
+                            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M22 10v6M2 10l10-5 10 5-10 5z"/><path d="M6 12v5c3 3 9 3 12 0v-5"/></svg>
+                        }
+                        else
+                        {
+                            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg>
+                        }
+                    </div>
+                    <div>
+                        <div class="list__title">@a.Title</div>
+                        <div class="list__meta">@a.Subtitle</div>
+                    </div>
+                    <div class="list__when">
+                        @if (a.Severity == "danger")
+                        {
+                            <span class="badge badge--danger"><span class="dot"></span>scaduto</span>
+                        }
+                        else
+                        {
+                            <span class="badge badge--warning"><span class="dot"></span>in scadenza</span>
+                        }
+                    </div>
+                </li>
+            }
+        </ul>
+    }
+</div>
