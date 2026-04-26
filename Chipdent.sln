@@ -7,6 +7,10 @@ Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "src", "src", "{8590071B-96F
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Chipdent.Web", "src\Chipdent.Web\Chipdent.Web.csproj", "{5BB7CDA9-D000-4E0A-BD74-CE7AE4FD1C92}"
 EndProject
+Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "tests", "tests", "{5514FF45-1678-4C2C-AFFD-4D9ADAE2C83E}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Chipdent.Web.Tests", "tests\Chipdent.Web.Tests\Chipdent.Web.Tests.csproj", "{53EDDB86-352B-4D25-926D-7E8392ECFD1E}"
+EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|Any CPU = Debug|Any CPU
@@ -20,8 +24,13 @@ Global
 		{5BB7CDA9-D000-4E0A-BD74-CE7AE4FD1C92}.Debug|Any CPU.Build.0 = Debug|Any CPU
 		{5BB7CDA9-D000-4E0A-BD74-CE7AE4FD1C92}.Release|Any CPU.ActiveCfg = Release|Any CPU
 		{5BB7CDA9-D000-4E0A-BD74-CE7AE4FD1C92}.Release|Any CPU.Build.0 = Release|Any CPU
+		{53EDDB86-352B-4D25-926D-7E8392ECFD1E}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{53EDDB86-352B-4D25-926D-7E8392ECFD1E}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{53EDDB86-352B-4D25-926D-7E8392ECFD1E}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{53EDDB86-352B-4D25-926D-7E8392ECFD1E}.Release|Any CPU.Build.0 = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(NestedProjects) = preSolution
 		{5BB7CDA9-D000-4E0A-BD74-CE7AE4FD1C92} = {8590071B-96FA-49A5-87EF-99CD286568CF}
+		{53EDDB86-352B-4D25-926D-7E8392ECFD1E} = {5514FF45-1678-4C2C-AFFD-4D9ADAE2C83E}
 	EndGlobalSection
 EndGlobal

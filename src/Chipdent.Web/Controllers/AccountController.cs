@@ -99,4 +99,56 @@ public class AccountController : Controller
         await HttpContext.SignOutAsync(CookieAuthenticationDefaults.AuthenticationScheme);
         return RedirectToAction("Index", "Home");
     }
+
+    [HttpGet("invito/{token}")]
+    public async Task<IActionResult> Accept(string token)
+    {
+        var invito = await _mongo.Inviti.Find(i => i.Token == token).FirstOrDefaultAsync();
+        if (invito is null || !invito.IsValido)
+        {
+            return View("AcceptInvalid");
+        }
+        var tenant = await _mongo.Tenants.Find(t => t.Id == invito.TenantId).FirstOrDefaultAsync();
+        return View(new AcceptInviteViewModel
+        {
+            Token = invito.Token,
+            Email = invito.Email,
+            FullName = invito.FullName,
+            TenantName = tenant?.DisplayName ?? "Chipdent"
+        });
+    }
+
+    [HttpPost("invito")]
+    [ValidateAntiForgeryToken]
+    public async Task<IActionResult> Accept(AcceptInviteViewModel vm)
+    {
+        var invito = await _mongo.Inviti.Find(i => i.Token == vm.Token).FirstOrDefaultAsync();
+        if (invito is null || !invito.IsValido) return View("AcceptInvalid");
+
+        if (!ModelState.IsValid)
+        {
+            var tenantR = await _mongo.Tenants.Find(t => t.Id == invito.TenantId).FirstOrDefaultAsync();
+            vm.Email = invito.Email;
+            vm.FullName = invito.FullName;
+            vm.TenantName = tenantR?.DisplayName ?? "Chipdent";
+            return View(vm);
+        }
+
+        var user = new Chipdent.Web.Domain.Entities.User
+        {
+            TenantId = invito.TenantId,
+            Email = invito.Email,
+            FullName = invito.FullName,
+            PasswordHash = _hasher.Hash(vm.Password),
+            Role = invito.Ruolo,
+            IsActive = true
+        };
+        await _mongo.Users.InsertOneAsync(user);
+        await _mongo.Inviti.UpdateOneAsync(
+            i => i.Id == invito.Id,
+            Builders<Chipdent.Web.Domain.Entities.Invito>.Update.Set(i => i.UsatoIl, DateTime.UtcNow));
+
+        TempData["flash"] = "Account creato. Effettua il login.";
+        return RedirectToAction(nameof(Login));
+    }
 }

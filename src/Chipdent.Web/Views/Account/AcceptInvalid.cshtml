@@ -1,0 +1,13 @@
+@{
+    Layout = "_AuthLayout";
+    ViewData["Title"] = "Invito non valido";
+}
+
+<div class="auth__form" style="text-align:center;">
+    <div style="width:64px; height:64px; border-radius:var(--r-lg); background:var(--c-bg-elevated); border:1px solid var(--c-border-2); display:inline-grid; place-items:center; color:var(--c-danger); margin-bottom:var(--s-4);">
+        <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><path d="M15 9l-6 6M9 9l6 6"/></svg>
+    </div>
+    <h2>Invito non valido</h2>
+    <p class="lead">Il link è scaduto, è già stato usato o non esiste.<br/>Chiedi al tuo amministratore di generare un nuovo invito.</p>
+    <a class="btn btn--ghost btn--block" asp-controller="Account" asp-action="Login" style="margin-top:var(--s-4);">Vai al login</a>
+</div>

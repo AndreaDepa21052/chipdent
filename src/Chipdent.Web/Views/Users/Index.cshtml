@@ -1,0 +1,120 @@
+@model Chipdent.Web.Models.UsersIndexViewModel
+@{
+    ViewData["Title"] = "Utenti";
+}
+
+<partial name="_Flash" />
+
+<div class="page-head">
+    <div>
+        <h2>Utenti</h2>
+        <p class="page-head__sub">@Model.Users.Count utenti · @Model.InvitiAttivi.Count inviti pendenti</p>
+    </div>
+    <div class="page-head__actions">
+        <a class="btn btn--primary" asp-action="Invite">+ Invita utente</a>
+    </div>
+</div>
+
+<div class="card" style="margin-bottom: var(--s-6);">
+    <div class="card__header">
+        <h3 class="card__title">Utenti attivi</h3>
+    </div>
+    <div class="table-wrap" style="border:0; box-shadow:none; background:transparent;">
+        <table class="table">
+            <thead>
+                <tr>
+                    <th>Nome</th>
+                    <th>Email</th>
+                    <th>Ruolo</th>
+                    <th>Ultimo accesso</th>
+                    <th>Stato</th>
+                    <th></th>
+                </tr>
+            </thead>
+            <tbody>
+                @foreach (var u in Model.Users)
+                {
+                    <tr>
+                        <td><div class="strong">@u.FullName</div></td>
+                        <td>@u.Email</td>
+                        <td><span class="badge">@u.Role</span></td>
+                        <td>@(u.LastLoginAt?.ToLocalTime().ToString("dd/MM/yyyy HH:mm") ?? "—")</td>
+                        <td>
+                            @if (u.IsActive)
+                            {
+                                <span class="badge badge--success"><span class="dot"></span>attivo</span>
+                            }
+                            else
+                            {
+                                <span class="badge badge--danger"><span class="dot"></span>disattivato</span>
+                            }
+                        </td>
+                        <td class="actions">
+                            <form asp-action="Toggle" asp-route-id="@u.Id" method="post" style="display:inline;"
+                                  onsubmit="return confirm('Cambiare lo stato di questo utente?');">
+                                @Html.AntiForgeryToken()
+                                <button type="submit" class="ibtn @(u.IsActive ? "ibtn--danger" : "")" title="@(u.IsActive ? "Disattiva" : "Riattiva")">
+                                    @if (u.IsActive)
+                                    {
+                                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><path d="m16 17 5-5-5-5"/><path d="M21 12H9"/></svg>
+                                    }
+                                    else
+                                    {
+                                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M20 6L9 17l-5-5"/></svg>
+                                    }
+                                </button>
+                            </form>
+                        </td>
+                    </tr>
+                }
+            </tbody>
+        </table>
+    </div>
+</div>
+
+@if (Model.InvitiAttivi.Count > 0)
+{
+    <div class="card">
+        <div class="card__header">
+            <h3 class="card__title">Inviti pendenti</h3>
+        </div>
+        <div class="table-wrap" style="border:0; box-shadow:none; background:transparent;">
+            <table class="table">
+                <thead>
+                    <tr>
+                        <th>Nome</th>
+                        <th>Email</th>
+                        <th>Ruolo</th>
+                        <th>Scade</th>
+                        <th>Link</th>
+                        <th></th>
+                    </tr>
+                </thead>
+                <tbody>
+                    @foreach (var i in Model.InvitiAttivi)
+                    {
+                        var url = Url.Action("Accept", "Account", new { token = i.Token }, Context.Request.Scheme);
+                        <tr>
+                            <td><div class="strong">@i.FullName</div></td>
+                            <td>@i.Email</td>
+                            <td><span class="badge">@i.Ruolo</span></td>
+                            <td>@i.ScadeIl.ToLocalTime().ToString("dd/MM/yyyy")</td>
+                            <td>
+                                <input class="form-control" readonly value="@url" onclick="this.select();" style="font-size:.78rem; padding:6px 10px;" />
+                            </td>
+                            <td class="actions">
+                                <form asp-action="RevokeInvite" asp-route-id="@i.Id" method="post" style="display:inline;"
+                                      onsubmit="return confirm('Revocare questo invito?');">
+                                    @Html.AntiForgeryToken()
+                                    <button type="submit" class="ibtn ibtn--danger" title="Revoca">
+                                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 6h18M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/></svg>
+                                    </button>
+                                </form>
+                            </td>
+                        </tr>
+                    }
+                </tbody>
+            </table>
+        </div>
+    </div>
+}

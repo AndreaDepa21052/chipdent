@@ -1,0 +1,98 @@
+@model Chipdent.Web.Domain.Entities.Clinica
+@{
+    ViewData["Title"] = Model.Nome;
+    var dottori = (List<Chipdent.Web.Domain.Entities.Dottore>?)ViewData["Dottori"] ?? new();
+    var dipendenti = (List<Chipdent.Web.Domain.Entities.Dipendente>?)ViewData["Dipendenti"] ?? new();
+}
+
+<partial name="_Flash" />
+
+<div class="page-head">
+    <div>
+        <h2>@Model.Nome</h2>
+        <p class="page-head__sub">@Model.Indirizzo · @Model.Citta</p>
+    </div>
+    <div class="page-head__actions">
+        <a class="btn btn--ghost" asp-action="Index">← Cliniche</a>
+        <a class="btn btn--primary" asp-action="Edit" asp-route-id="@Model.Id">Modifica</a>
+    </div>
+</div>
+
+<div class="detail-grid">
+    <div class="card">
+        <div class="card__header">
+            <h3 class="card__title">Anagrafica</h3>
+            @switch (Model.Stato)
+            {
+                case Chipdent.Web.Domain.Entities.ClinicaStato.Operativa:
+                    <span class="badge badge--success"><span class="dot"></span>operativa</span>
+                    break;
+                case Chipdent.Web.Domain.Entities.ClinicaStato.InApertura:
+                    <span class="badge badge--warning"><span class="dot"></span>in apertura</span>
+                    break;
+                default:
+                    <span class="badge badge--danger"><span class="dot"></span>chiusa</span>
+                    break;
+            }
+        </div>
+        <dl class="kv">
+            <dt>Indirizzo</dt><dd>@Model.Indirizzo, @Model.Citta</dd>
+            <dt>Telefono</dt><dd>@(Model.Telefono ?? "—")</dd>
+            <dt>Email</dt><dd>@(Model.Email ?? "—")</dd>
+            <dt>Riuniti</dt><dd>@Model.NumeroRiuniti</dd>
+            <dt>Creata</dt><dd>@Model.CreatedAt.ToLocalTime().ToString("dd MMM yyyy")</dd>
+        </dl>
+    </div>
+
+    <div style="display:flex; flex-direction:column; gap: var(--s-5);">
+        <div class="stat">
+            <div class="stat__label">Dottori assegnati</div>
+            <div class="stat__value">@dottori.Count</div>
+            <div class="stat__hint">come sede principale</div>
+        </div>
+        <div class="stat">
+            <div class="stat__label">Dipendenti</div>
+            <div class="stat__value">@dipendenti.Count</div>
+            <div class="stat__hint">@dipendenti.Count(d => d.Stato == Chipdent.Web.Domain.Entities.StatoDipendente.Attivo) attivi</div>
+        </div>
+    </div>
+</div>
+
+<div style="margin-top: var(--s-6);">
+    <div class="card">
+        <div class="card__header">
+            <h3 class="card__title">Team della sede</h3>
+        </div>
+        @if (dottori.Count == 0 && dipendenti.Count == 0)
+        {
+            <p style="color: var(--c-ink-soft); margin:0;">Nessun membro assegnato a questa clinica.</p>
+        }
+        else
+        {
+            <ul class="list">
+                @foreach (var d in dottori)
+                {
+                    <li class="list__item">
+                        <div class="list__icon">D</div>
+                        <div>
+                            <div class="list__title">@d.NomeCompleto <span class="badge" style="margin-left:6px;">@d.Specializzazione</span></div>
+                            <div class="list__meta">@d.TipoContratto · Albo @d.NumeroAlbo</div>
+                        </div>
+                        <a class="list__when" asp-controller="Dottori" asp-action="Details" asp-route-id="@d.Id">apri →</a>
+                    </li>
+                }
+                @foreach (var p in dipendenti)
+                {
+                    <li class="list__item">
+                        <div class="list__icon">@p.Nome[0]</div>
+                        <div>
+                            <div class="list__title">@p.NomeCompleto <span class="badge" style="margin-left:6px;">@p.Ruolo</span></div>
+                            <div class="list__meta">@p.TipoContratto · @p.Stato</div>
+                        </div>
+                        <a class="list__when" asp-controller="Dipendenti" asp-action="Details" asp-route-id="@p.Id">apri →</a>
+                    </li>
+                }
+            </ul>
+        }
+    </div>
+</div>

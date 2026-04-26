@@ -1,0 +1,85 @@
+@model IReadOnlyList<Chipdent.Web.Domain.Entities.Dottore>
+@{
+    ViewData["Title"] = "Dottori";
+    var cliniche = (Dictionary<string, string>?)ViewData["Cliniche"] ?? new();
+}
+
+<partial name="_Flash" />
+
+<div class="page-head">
+    <div>
+        <h2>Dottori</h2>
+        <p class="page-head__sub">@Model.Count professionisti · @Model.Count(d => d.Attivo) attivi</p>
+    </div>
+    <div class="page-head__actions">
+        <a class="btn btn--primary" asp-action="Create">+ Nuovo dottore</a>
+    </div>
+</div>
+
+@if (Model.Count == 0)
+{
+    <div class="card">
+        <div class="empty">
+            <div class="empty__icon">
+                <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="8" r="4"/><path d="M4 21a8 8 0 0 1 16 0"/></svg>
+            </div>
+            <h3>Nessun dottore</h3>
+            <p>Inserisci il primo professionista della catena.</p>
+        </div>
+    </div>
+}
+else
+{
+    <div class="table-wrap">
+        <table class="table">
+            <thead>
+                <tr>
+                    <th>Nome</th>
+                    <th>Specializzazione</th>
+                    <th>Albo</th>
+                    <th>Contratto</th>
+                    <th>Sede principale</th>
+                    <th></th>
+                </tr>
+            </thead>
+            <tbody>
+                @foreach (var d in Model)
+                {
+                    var alboInScadenza = d.ScadenzaAlbo is not null && d.ScadenzaAlbo < DateTime.UtcNow.AddMonths(3);
+                    <tr>
+                        <td>
+                            <div class="strong">@d.NomeCompleto</div>
+                            <div class="muted">@d.Email</div>
+                        </td>
+                        <td>@d.Specializzazione</td>
+                        <td>
+                            @d.NumeroAlbo
+                            @if (d.ScadenzaAlbo is not null)
+                            {
+                                <div class="muted">
+                                    scade @d.ScadenzaAlbo.Value.ToString("MM/yyyy")
+                                    @if (alboInScadenza)
+                                    {
+                                        <span class="badge badge--warning" style="margin-left:6px;"><span class="dot"></span>in scadenza</span>
+                                    }
+                                </div>
+                            }
+                        </td>
+                        <td>@d.TipoContratto</td>
+                        <td>@(d.ClinicaPrincipaleId is not null && cliniche.TryGetValue(d.ClinicaPrincipaleId, out var n) ? n : "—")</td>
+                        <td>
+                            <div class="actions">
+                                <a class="ibtn" asp-action="Details" asp-route-id="@d.Id" title="Dettagli">
+                                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M5 12h14M13 5l7 7-7 7"/></svg>
+                                </a>
+                                <a class="ibtn" asp-action="Edit" asp-route-id="@d.Id" title="Modifica">
+                                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>
+                                </a>
+                            </div>
+                        </td>
+                    </tr>
+                }
+            </tbody>
+        </table>
+    </div>
+}

@@ -1,0 +1,123 @@
+@model Chipdent.Web.Models.TurnoFormViewModel
+@{
+    var isNew = (bool)(ViewData["IsNew"] ?? false);
+    ViewData["Title"] = isNew ? "Nuovo turno" : "Modifica turno";
+}
+
+<partial name="_Flash" />
+
+<div class="page-head">
+    <div>
+        <h2>@(isNew ? "Nuovo turno" : "Modifica turno")</h2>
+        <p class="page-head__sub">Pianifica un turno per dottore o dipendente.</p>
+    </div>
+    <div class="page-head__actions">
+        <a class="btn btn--ghost" asp-action="Index" asp-route-week="@Model.ReturnWeek.ToString("yyyy-MM-dd")">← Torna ai turni</a>
+    </div>
+</div>
+
+<div class="card" style="max-width: 720px;">
+    <form asp-action="@(isNew ? "Create" : "Edit")" asp-route-id="@(isNew ? null : Model.Id)" method="post">
+        @Html.AntiForgeryToken()
+        <input type="hidden" asp-for="Id" />
+        <input type="hidden" asp-for="ReturnWeek" />
+
+        <div asp-validation-summary="ModelOnly" class="alert alert--danger" style="display:@(ViewData.ModelState.ErrorCount > 0 ? "block" : "none");"></div>
+
+        <div class="form-grid">
+            <div class="form-group">
+                <label class="form-label" asp-for="Data">Data</label>
+                <input class="form-control" asp-for="Data" type="date" required />
+            </div>
+            <div class="form-group">
+                <label class="form-label" asp-for="ClinicaId">Clinica</label>
+                <select class="form-control" asp-for="ClinicaId" required>
+                    <option value="">— seleziona —</option>
+                    @foreach (var c in Model.Cliniche)
+                    {
+                        <option value="@c.Id" selected="@(c.Id == Model.ClinicaId)">@c.Nome</option>
+                    }
+                </select>
+            </div>
+
+            <div class="form-group">
+                <label class="form-label" asp-for="OraInizio">Inizio</label>
+                <input class="form-control" asp-for="OraInizio" type="time" required />
+            </div>
+            <div class="form-group">
+                <label class="form-label" asp-for="OraFine">Fine</label>
+                <input class="form-control" asp-for="OraFine" type="time" required />
+            </div>
+
+            <div class="form-group">
+                <label class="form-label" asp-for="TipoPersona">Tipo</label>
+                <select class="form-control" asp-for="TipoPersona" id="tipoPersona"
+                        asp-items="Html.GetEnumSelectList<Chipdent.Web.Domain.Entities.TipoPersona>()"></select>
+            </div>
+            <div class="form-group">
+                <label class="form-label" asp-for="PersonaId">Persona</label>
+                <select class="form-control" asp-for="PersonaId" id="personaId" required>
+                    <option value="">— seleziona —</option>
+                    <optgroup label="Dottori" data-tipo="Dottore">
+                        @foreach (var d in Model.Dottori)
+                        {
+                            <option value="@d.Id" data-tipo="Dottore" selected="@(d.Id == Model.PersonaId && Model.TipoPersona == Chipdent.Web.Domain.Entities.TipoPersona.Dottore)">@d.NomeCompleto · @d.Specializzazione</option>
+                        }
+                    </optgroup>
+                    <optgroup label="Dipendenti" data-tipo="Dipendente">
+                        @foreach (var p in Model.Dipendenti)
+                        {
+                            <option value="@p.Id" data-tipo="Dipendente" selected="@(p.Id == Model.PersonaId && Model.TipoPersona == Chipdent.Web.Domain.Entities.TipoPersona.Dipendente)">@p.NomeCompleto · @p.Ruolo</option>
+                        }
+                    </optgroup>
+                </select>
+            </div>
+
+            <div class="form-group full">
+                <label class="form-label" asp-for="Note">Note</label>
+                <textarea class="form-control" asp-for="Note" placeholder="Eventuali note operative…"></textarea>
+            </div>
+        </div>
+
+        <div class="form-actions">
+            <a class="btn btn--ghost" asp-action="Index" asp-route-week="@Model.ReturnWeek.ToString("yyyy-MM-dd")">Annulla</a>
+            <button type="submit" class="btn btn--primary">@(isNew ? "Crea turno" : "Salva")</button>
+        </div>
+    </form>
+</div>
+
+@if (!isNew)
+{
+    <form asp-action="Delete" asp-route-id="@Model.Id" asp-route-week="@Model.ReturnWeek.ToString("yyyy-MM-dd")"
+          method="post" style="margin-top: var(--s-5); max-width: 720px; text-align:right;"
+          onsubmit="return confirm('Eliminare questo turno?');">
+        @Html.AntiForgeryToken()
+        <button type="submit" class="btn btn--ghost" style="border-color: rgba(217, 107, 94, 0.4); color: var(--c-danger);">
+            Elimina turno
+        </button>
+    </form>
+}
+
+@section Scripts {
+<script>
+    (function () {
+        var tipo = document.getElementById('tipoPersona');
+        var persona = document.getElementById('personaId');
+        function filter() {
+            var current = tipo.value;
+            Array.prototype.forEach.call(persona.querySelectorAll('optgroup'), function (g) {
+                g.style.display = g.dataset.tipo === current ? '' : 'none';
+            });
+            Array.prototype.forEach.call(persona.querySelectorAll('option[data-tipo]'), function (o) {
+                o.disabled = o.dataset.tipo !== current;
+            });
+            var sel = persona.options[persona.selectedIndex];
+            if (sel && sel.dataset.tipo && sel.dataset.tipo !== current) {
+                persona.value = '';
+            }
+        }
+        tipo.addEventListener('change', filter);
+        filter();
+    })();
+</script>
+}

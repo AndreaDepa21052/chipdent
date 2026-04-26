@@ -1,0 +1,7 @@
+@{
+    var flash = TempData["flash"] as string;
+}
+@if (!string.IsNullOrEmpty(flash))
+{
+    <div class="alert alert--info" data-auto-dismiss="4000">@flash</div>
+}

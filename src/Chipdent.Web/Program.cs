@@ -27,7 +27,7 @@ builder.Services
         options.Cookie.SameSite = SameSiteMode.Lax;
     });
 
-builder.Services.AddAuthorization();
+builder.Services.AddAuthorization(Chipdent.Web.Infrastructure.Identity.Policies.Configure);
 builder.Services.AddControllersWithViews();
 builder.Services.AddSignalR();
 builder.Services.AddHttpContextAccessor();

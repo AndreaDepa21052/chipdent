@@ -1,0 +1,97 @@
+@model IReadOnlyList<Chipdent.Web.Domain.Entities.Dipendente>
+@{
+    ViewData["Title"] = "Dipendenti";
+    var cliniche = (Dictionary<string, string>?)ViewData["Cliniche"] ?? new();
+}
+
+<partial name="_Flash" />
+
+<div class="page-head">
+    <div>
+        <h2>Dipendenti</h2>
+        <p class="page-head__sub">@Model.Count membri · @Model.Count(d => d.Stato == Chipdent.Web.Domain.Entities.StatoDipendente.Attivo) attivi</p>
+    </div>
+    <div class="page-head__actions">
+        <a class="btn btn--primary" asp-action="Create">+ Nuovo dipendente</a>
+    </div>
+</div>
+
+@if (Model.Count == 0)
+{
+    <div class="card">
+        <div class="empty">
+            <div class="empty__icon">
+                <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="9" cy="8" r="4"/><path d="M2 21a7 7 0 0 1 14 0"/><circle cx="17" cy="9" r="3"/></svg>
+            </div>
+            <h3>Nessun dipendente</h3>
+            <p>Aggiungi il primo membro dello staff.</p>
+        </div>
+    </div>
+}
+else
+{
+    <div class="table-wrap">
+        <table class="table">
+            <thead>
+                <tr>
+                    <th>Nome</th>
+                    <th>Ruolo</th>
+                    <th>Sede</th>
+                    <th>Contratto</th>
+                    <th>Ferie</th>
+                    <th>Stato</th>
+                    <th></th>
+                </tr>
+            </thead>
+            <tbody>
+                @foreach (var d in Model)
+                {
+                    <tr>
+                        <td>
+                            <div class="strong">@d.NomeCompleto</div>
+                            <div class="muted">@d.Email</div>
+                        </td>
+                        <td>@d.Ruolo</td>
+                        <td>@(cliniche.TryGetValue(d.ClinicaId, out var n) ? n : "—")</td>
+                        <td>@d.TipoContratto</td>
+                        <td>
+                            @d.GiorniFerieResidui gg
+                            @if (d.GiorniFerieResidui <= 5)
+                            {
+                                <span class="badge badge--warning" style="margin-left:6px;"><span class="dot"></span>basse</span>
+                            }
+                        </td>
+                        <td>
+                            @switch (d.Stato)
+                            {
+                                case Chipdent.Web.Domain.Entities.StatoDipendente.Attivo:
+                                    <span class="badge badge--success"><span class="dot"></span>attivo</span>
+                                    break;
+                                case Chipdent.Web.Domain.Entities.StatoDipendente.Onboarding:
+                                    <span class="badge badge--info"><span class="dot"></span>onboarding</span>
+                                    break;
+                                case Chipdent.Web.Domain.Entities.StatoDipendente.InMalattia:
+                                case Chipdent.Web.Domain.Entities.StatoDipendente.InFerie:
+                                    <span class="badge badge--warning"><span class="dot"></span>@d.Stato</span>
+                                    break;
+                                default:
+                                    <span class="badge badge--danger"><span class="dot"></span>@d.Stato</span>
+                                    break;
+                            }
+                        </td>
+                        <td>
+                            <div class="actions">
+                                <a class="ibtn" asp-action="Details" asp-route-id="@d.Id" title="Dettagli">
+                                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M5 12h14M13 5l7 7-7 7"/></svg>
+                                </a>
+                                <a class="ibtn" asp-action="Edit" asp-route-id="@d.Id" title="Modifica">
+                                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>
+                                </a>
+                            </div>
+                        </td>
+                    </tr>
+                }
+            </tbody>
+        </table>
+    </div>
+}

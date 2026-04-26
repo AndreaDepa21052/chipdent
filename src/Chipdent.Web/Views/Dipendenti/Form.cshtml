@@ -1,0 +1,90 @@
+@model Chipdent.Web.Domain.Entities.Dipendente
+@{
+    var isNew = (bool)(ViewData["IsNew"] ?? false);
+    var cliniche = (List<Chipdent.Web.Domain.Entities.Clinica>?)ViewData["Cliniche"] ?? new();
+    ViewData["Title"] = isNew ? "Nuovo dipendente" : Model.NomeCompleto;
+}
+
+<partial name="_Flash" />
+
+<div class="page-head">
+    <div>
+        <h2>@(isNew ? "Nuovo dipendente" : Model.NomeCompleto)</h2>
+        <p class="page-head__sub">@(isNew ? "Inserisci un nuovo membro dello staff." : "Aggiorna l'anagrafica del dipendente.")</p>
+    </div>
+    <div class="page-head__actions">
+        <a class="btn btn--ghost" asp-action="Index">← Torna all'elenco</a>
+    </div>
+</div>
+
+<div class="card">
+    <form asp-action="@(isNew ? "Create" : "Edit")" asp-route-id="@(isNew ? null : Model.Id)" method="post">
+        @Html.AntiForgeryToken()
+        <input type="hidden" asp-for="Id" />
+
+        <div class="form-grid">
+            <div class="form-group">
+                <label class="form-label" asp-for="Nome">Nome</label>
+                <input class="form-control" asp-for="Nome" required />
+            </div>
+            <div class="form-group">
+                <label class="form-label" asp-for="Cognome">Cognome</label>
+                <input class="form-control" asp-for="Cognome" required />
+            </div>
+            <div class="form-group">
+                <label class="form-label" asp-for="Email">Email</label>
+                <input class="form-control" asp-for="Email" type="email" required />
+            </div>
+            <div class="form-group">
+                <label class="form-label" asp-for="Telefono">Telefono</label>
+                <input class="form-control" asp-for="Telefono" />
+            </div>
+            <div class="form-group">
+                <label class="form-label" asp-for="Ruolo">Ruolo</label>
+                <select class="form-control" asp-for="Ruolo" asp-items="Html.GetEnumSelectList<Chipdent.Web.Domain.Entities.RuoloDipendente>()"></select>
+            </div>
+            <div class="form-group">
+                <label class="form-label" asp-for="TipoContratto">Tipo contratto</label>
+                <select class="form-control" asp-for="TipoContratto" asp-items="Html.GetEnumSelectList<Chipdent.Web.Domain.Entities.TipoContratto>()"></select>
+            </div>
+            <div class="form-group">
+                <label class="form-label" asp-for="ClinicaId">Sede</label>
+                <select class="form-control" asp-for="ClinicaId" required>
+                    <option value="">— seleziona —</option>
+                    @foreach (var c in cliniche)
+                    {
+                        <option value="@c.Id" selected="@(c.Id == Model.ClinicaId)">@c.Nome (@c.Citta)</option>
+                    }
+                </select>
+            </div>
+            <div class="form-group">
+                <label class="form-label" asp-for="DataAssunzione">Data assunzione</label>
+                <input class="form-control" asp-for="DataAssunzione" type="date" required />
+            </div>
+            <div class="form-group">
+                <label class="form-label" asp-for="GiorniFerieResidui">Giorni ferie residui</label>
+                <input class="form-control" asp-for="GiorniFerieResidui" type="number" min="0" />
+            </div>
+            <div class="form-group">
+                <label class="form-label" asp-for="Stato">Stato</label>
+                <select class="form-control" asp-for="Stato" asp-items="Html.GetEnumSelectList<Chipdent.Web.Domain.Entities.StatoDipendente>()"></select>
+            </div>
+        </div>
+
+        <div class="form-actions">
+            <a class="btn btn--ghost" asp-action="Index">Annulla</a>
+            <button type="submit" class="btn btn--primary">@(isNew ? "Crea dipendente" : "Salva modifiche")</button>
+        </div>
+    </form>
+</div>
+
+@if (!isNew)
+{
+    <form asp-action="Delete" asp-route-id="@Model.Id" method="post" style="margin-top: var(--s-5); text-align:right;"
+          onsubmit="return confirm('Eliminare definitivamente questo dipendente?');">
+        @Html.AntiForgeryToken()
+        <button type="submit" class="btn btn--ghost" style="border-color: rgba(217, 107, 94, 0.4); color: var(--c-danger);">
+            Elimina dipendente
+        </button>
+    </form>
+}

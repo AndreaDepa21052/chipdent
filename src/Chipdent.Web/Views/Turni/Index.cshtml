@@ -1,0 +1,93 @@
+@model Chipdent.Web.Models.TurniWeekViewModel
+@{
+    ViewData["Title"] = "Turni";
+    var culture = new System.Globalization.CultureInfo("it-IT");
+    var today = DateTime.Today;
+    var prevWeek = Model.WeekStart.AddDays(-7);
+    var nextWeek = Model.WeekStart.AddDays(7);
+}
+
+<partial name="_Flash" />
+
+<div class="page-head">
+    <div>
+        <h2>Turni</h2>
+        <p class="page-head__sub">
+            Settimana dal @Model.WeekStart.ToString("dd MMM", culture) al @Model.WeekEnd.ToString("dd MMM yyyy", culture)
+        </p>
+    </div>
+    <div class="page-head__actions cal-nav">
+        <a class="ibtn" asp-action="Index" asp-route-week="@prevWeek.ToString("yyyy-MM-dd")" title="Settimana precedente">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M15 18l-6-6 6-6"/></svg>
+        </a>
+        <a class="ibtn" asp-action="Index" asp-route-week="@today.ToString("yyyy-MM-dd")" title="Oggi" style="width:auto; padding: 0 12px;">Oggi</a>
+        <a class="ibtn" asp-action="Index" asp-route-week="@nextWeek.ToString("yyyy-MM-dd")" title="Settimana successiva">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M9 18l6-6-6-6"/></svg>
+        </a>
+        <a class="btn btn--primary" asp-action="Create" asp-route-week="@Model.WeekStart.ToString("yyyy-MM-dd")" style="margin-left: var(--s-3);">+ Nuovo turno</a>
+    </div>
+</div>
+
+@if (Model.Righe.Count == 0)
+{
+    <div class="card">
+        <div class="empty">
+            <div class="empty__icon">
+                <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="4" width="18" height="18" rx="2"/><path d="M16 2v4M8 2v4M3 10h18"/></svg>
+            </div>
+            <h3>Nessuna persona attiva</h3>
+            <p>Aggiungi dottori o dipendenti per pianificare i turni.</p>
+        </div>
+    </div>
+}
+else
+{
+    <div class="cal">
+        <div class="cal__head">
+            <div>Persona</div>
+            @foreach (var d in Model.Days)
+            {
+                var isToday = d.Date == today;
+                <div class="@(isToday ? "today" : "")">
+                    @d.ToString("ddd", culture)
+                    <span class="day-num">@d.Day</span>
+                </div>
+            }
+        </div>
+        @foreach (var riga in Model.Righe)
+        {
+            <div class="cal__row">
+                <div class="cal__person">
+                    <div class="name">@riga.Nome</div>
+                    <div class="meta">@riga.Sotto</div>
+                </div>
+                @foreach (var d in Model.Days)
+                {
+                    var turniDelGiorno = riga.Turni.Where(t => t.Data.Date == d.Date).OrderBy(t => t.OraInizio).ToList();
+                    var createUrl = Url.Action("Create", "Turni", new {
+                        data = d.ToString("yyyy-MM-dd"),
+                        personaId = riga.Id,
+                        tipo = riga.Tipo,
+                        week = Model.WeekStart.ToString("yyyy-MM-dd")
+                    });
+                    <div class="cal__cell"
+                         data-href="@createUrl"
+                         onclick="if(!event.target.closest('.cal__shift')) location.href=this.dataset.href;"
+                         title="Aggiungi turno">
+                        @foreach (var t in turniDelGiorno)
+                        {
+                            var clinicaNome = Model.ClinicheLookup.TryGetValue(t.ClinicaId, out var n) ? n : "";
+                            <a class="cal__shift @(riga.Tipo == Chipdent.Web.Domain.Entities.TipoPersona.Dipendente ? "cal__shift--alt" : "")"
+                               asp-action="Edit"
+                               asp-route-id="@t.Id"
+                               asp-route-week="@Model.WeekStart.ToString("yyyy-MM-dd")">
+                                @t.OraInizio.ToString(@"hh\:mm")–@t.OraFine.ToString(@"hh\:mm")
+                                <small>@clinicaNome</small>
+                            </a>
+                        }
+                    </div>
+                }
+            </div>
+        }
+    </div>
+}

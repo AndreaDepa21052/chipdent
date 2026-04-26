@@ -1,0 +1,78 @@
+@model Chipdent.Web.Domain.Entities.Clinica
+@{
+    var isNew = (bool)(ViewData["IsNew"] ?? false);
+    ViewData["Title"] = isNew ? "Nuova clinica" : "Modifica clinica";
+}
+
+<partial name="_Flash" />
+
+<div class="page-head">
+    <div>
+        <h2>@(isNew ? "Nuova clinica" : Model.Nome)</h2>
+        <p class="page-head__sub">@(isNew ? "Aggiungi una nuova sede alla catena." : "Aggiorna i dati della sede.")</p>
+    </div>
+    <div class="page-head__actions">
+        <a class="btn btn--ghost" asp-action="Index">← Torna all'elenco</a>
+    </div>
+</div>
+
+<div class="card">
+    <form asp-action="@(isNew ? "Create" : "Edit")" asp-route-id="@(isNew ? null : Model.Id)" method="post">
+        @Html.AntiForgeryToken()
+        <input type="hidden" asp-for="Id" />
+
+        <div class="form-grid">
+            <div class="form-group full">
+                <label class="form-label" asp-for="Nome">Nome clinica</label>
+                <input class="form-control" asp-for="Nome" required placeholder="Es. Confident Bologna" />
+                <span class="text-danger" asp-validation-for="Nome"></span>
+            </div>
+
+            <div class="form-group">
+                <label class="form-label" asp-for="Citta">Città</label>
+                <input class="form-control" asp-for="Citta" required />
+            </div>
+
+            <div class="form-group">
+                <label class="form-label" asp-for="Indirizzo">Indirizzo</label>
+                <input class="form-control" asp-for="Indirizzo" required />
+            </div>
+
+            <div class="form-group">
+                <label class="form-label" asp-for="Telefono">Telefono</label>
+                <input class="form-control" asp-for="Telefono" placeholder="+39 …" />
+            </div>
+
+            <div class="form-group">
+                <label class="form-label" asp-for="Email">Email</label>
+                <input class="form-control" asp-for="Email" type="email" />
+            </div>
+
+            <div class="form-group">
+                <label class="form-label" asp-for="NumeroRiuniti">Numero riuniti</label>
+                <input class="form-control" asp-for="NumeroRiuniti" type="number" min="0" />
+            </div>
+
+            <div class="form-group">
+                <label class="form-label" asp-for="Stato">Stato</label>
+                <select class="form-control" asp-for="Stato" asp-items="Html.GetEnumSelectList<Chipdent.Web.Domain.Entities.ClinicaStato>()"></select>
+            </div>
+        </div>
+
+        <div class="form-actions">
+            <a class="btn btn--ghost" asp-action="Index">Annulla</a>
+            <button type="submit" class="btn btn--primary">@(isNew ? "Crea clinica" : "Salva modifiche")</button>
+        </div>
+    </form>
+</div>
+
+@if (!isNew)
+{
+    <form asp-action="Delete" asp-route-id="@Model.Id" method="post" style="margin-top: var(--s-5); text-align:right;"
+          onsubmit="return confirm('Eliminare definitivamente questa clinica?');">
+        @Html.AntiForgeryToken()
+        <button type="submit" class="btn btn--ghost" style="border-color: rgba(217, 107, 94, 0.4); color: var(--c-danger);">
+            Elimina clinica
+        </button>
+    </form>
+}
