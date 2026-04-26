@@ -1,19 +1,78 @@
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" width="64" height="64" aria-hidden="true">
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 200 200" width="200" height="200" aria-hidden="true">
   <defs>
-    <radialGradient id="g" cx="40%" cy="35%" r="65%">
-      <stop offset="0%" stop-color="#f0d5a8"/>
-      <stop offset="60%" stop-color="#d9943a"/>
-      <stop offset="100%" stop-color="#c47830"/>
+    <radialGradient id="bg" cx="50%" cy="50%" r="50%">
+      <stop offset="0%" stop-color="#f4dcb3"/>
+      <stop offset="85%" stop-color="#ecd0a0"/>
+      <stop offset="100%" stop-color="#e0bf85"/>
     </radialGradient>
+    <radialGradient id="furTop" cx="50%" cy="40%" r="55%">
+      <stop offset="0%" stop-color="#a06535"/>
+      <stop offset="60%" stop-color="#8a4f24"/>
+      <stop offset="100%" stop-color="#5d3514"/>
+    </radialGradient>
+    <radialGradient id="cheek" cx="50%" cy="50%" r="55%">
+      <stop offset="0%" stop-color="#fbeed0"/>
+      <stop offset="60%" stop-color="#f1dbb0"/>
+      <stop offset="100%" stop-color="#dcbe85"/>
+    </radialGradient>
+    <linearGradient id="ring" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0%" stop-color="#5b3315"/>
+      <stop offset="100%" stop-color="#3a1d09"/>
+    </linearGradient>
   </defs>
-  <circle cx="32" cy="32" r="30" fill="#1c0e05" stroke="#3b1e0c" stroke-width="2"/>
-  <circle cx="32" cy="34" r="22" fill="url(#g)"/>
-  <ellipse cx="22" cy="40" rx="6" ry="5" fill="#f0d5a8" opacity="0.85"/>
-  <ellipse cx="42" cy="40" rx="6" ry="5" fill="#f0d5a8" opacity="0.85"/>
-  <circle cx="25" cy="29" r="2.4" fill="#1c0e05"/>
-  <circle cx="39" cy="29" r="2.4" fill="#1c0e05"/>
-  <ellipse cx="32" cy="35.5" rx="3" ry="2.2" fill="#e8857a"/>
-  <path d="M28 38 Q32 41 36 38" stroke="#1c0e05" stroke-width="1.4" fill="none" stroke-linecap="round"/>
-  <rect x="29.5" y="39.5" width="2" height="3" fill="#faf3e8" rx="0.5"/>
-  <rect x="32.5" y="39.5" width="2" height="3" fill="#faf3e8" rx="0.5"/>
+
+  <!-- outer ring -->
+  <circle cx="100" cy="100" r="96" fill="url(#bg)" stroke="url(#ring)" stroke-width="8"/>
+
+  <!-- ears -->
+  <ellipse cx="62" cy="58" rx="14" ry="18" fill="#8a4f24" transform="rotate(-18 62 58)"/>
+  <ellipse cx="62" cy="60" rx="8" ry="12" fill="#c47830" transform="rotate(-18 62 60)"/>
+  <ellipse cx="138" cy="58" rx="14" ry="18" fill="#8a4f24" transform="rotate(18 138 58)"/>
+  <ellipse cx="138" cy="60" rx="8" ry="12" fill="#c47830" transform="rotate(18 138 60)"/>
+
+  <!-- top fur (head) -->
+  <path d="M55 95 Q60 55 100 50 Q140 55 145 95 Q145 110 130 115 L70 115 Q55 110 55 95 Z" fill="url(#furTop)"/>
+
+  <!-- amber side fur stripes -->
+  <path d="M62 95 Q70 75 88 75 L88 110 Q72 112 62 105 Z" fill="#c47830" opacity="0.85"/>
+  <path d="M138 95 Q130 75 112 75 L112 110 Q128 112 138 105 Z" fill="#c47830" opacity="0.85"/>
+
+  <!-- cheeks -->
+  <ellipse cx="55" cy="138" rx="34" ry="28" fill="url(#cheek)"/>
+  <ellipse cx="145" cy="138" rx="34" ry="28" fill="url(#cheek)"/>
+
+  <!-- chest cream -->
+  <ellipse cx="100" cy="170" rx="32" ry="22" fill="#fbeed0"/>
+
+  <!-- eye whites -->
+  <ellipse cx="78" cy="105" rx="11" ry="13" fill="#1c0e05"/>
+  <ellipse cx="122" cy="105" rx="11" ry="13" fill="#1c0e05"/>
+  <!-- pupils highlight -->
+  <circle cx="81" cy="100" r="3.5" fill="#faf3e8"/>
+  <circle cx="125" cy="100" r="3.5" fill="#faf3e8"/>
+  <circle cx="76" cy="110" r="1.6" fill="#faf3e8" opacity="0.7"/>
+  <circle cx="120" cy="110" r="1.6" fill="#faf3e8" opacity="0.7"/>
+
+  <!-- nose -->
+  <path d="M93 122 Q100 117 107 122 Q108 130 100 132 Q92 130 93 122 Z" fill="#e8857a"/>
+  <ellipse cx="100" cy="124" rx="2.5" ry="1.5" fill="#c66258" opacity="0.6"/>
+
+  <!-- mouth -->
+  <path d="M100 132 L100 138 Q97 142 93 142" stroke="#3a1d09" stroke-width="1.6" fill="none" stroke-linecap="round"/>
+  <path d="M100 138 Q103 142 107 142" stroke="#3a1d09" stroke-width="1.6" fill="none" stroke-linecap="round"/>
+  <path d="M93 142 Q97 146 100 145 Q103 146 107 142" fill="#e8857a" opacity="0.55"/>
+
+  <!-- whisker dots -->
+  <g fill="#3a1d09" opacity="0.6">
+    <circle cx="86" cy="135" r="0.8"/>
+    <circle cx="84" cy="139" r="0.8"/>
+    <circle cx="86" cy="143" r="0.8"/>
+    <circle cx="114" cy="135" r="0.8"/>
+    <circle cx="116" cy="139" r="0.8"/>
+    <circle cx="114" cy="143" r="0.8"/>
+  </g>
+
+  <!-- teeth -->
+  <rect x="96" y="143" width="3.5" height="6" rx="0.8" fill="#faf3e8"/>
+  <rect x="100.5" y="143" width="3.5" height="6" rx="0.8" fill="#faf3e8"/>
 </svg>

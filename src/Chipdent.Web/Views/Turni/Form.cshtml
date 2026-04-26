@@ -51,8 +51,10 @@
 
             <div class="form-group">
                 <label class="form-label" asp-for="TipoPersona">Tipo</label>
-                <select class="form-control" asp-for="TipoPersona" id="tipoPersona"
-                        asp-items="Html.GetEnumSelectList<Chipdent.Web.Domain.Entities.TipoPersona>()"></select>
+                <select class="form-control" asp-for="TipoPersona" id="tipoPersona">
+                    <option value="Dottore" selected="@(Model.TipoPersona == Chipdent.Web.Domain.Entities.TipoPersona.Dottore)">Dottore</option>
+                    <option value="Dipendente" selected="@(Model.TipoPersona == Chipdent.Web.Domain.Entities.TipoPersona.Dipendente)">Dipendente</option>
+                </select>
             </div>
             <div class="form-group">
                 <label class="form-label" asp-for="PersonaId">Persona</label>
