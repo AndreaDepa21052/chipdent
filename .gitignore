@@ -1,0 +1,51 @@
+## .NET
+bin/
+obj/
+out/
+*.user
+*.suo
+*.userosscache
+*.sln.docstates
+*.userprefs
+.vs/
+.vscode/
+.idea/
+*.swp
+
+## Build outputs
+artifacts/
+publish/
+PublishProfiles/
+*.binlog
+
+## Test
+TestResults/
+coverage/
+*.coverage
+*.trx
+
+## Rider
+*.DotSettings.user
+
+## Secrets / config
+appsettings.Development.json
+appsettings.Local.json
+secrets.json
+.env
+.env.local
+.env.*.local
+
+## Logs
+*.log
+logs/
+
+## OS
+.DS_Store
+Thumbs.db
+
+## Node (for any future client tooling)
+node_modules/
+npm-debug.log
+
+## Mongo
+mongo-data/

@@ -1,0 +1,27 @@
+services:
+  mongo:
+    image: mongo:7
+    container_name: chipdent-mongo
+    restart: unless-stopped
+    ports:
+      - "27017:27017"
+    environment:
+      MONGO_INITDB_ROOT_USERNAME: chipdent
+      MONGO_INITDB_ROOT_PASSWORD: chipdent
+      MONGO_INITDB_DATABASE: chipdent
+    volumes:
+      - ./mongo-data:/data/db
+
+  mongo-express:
+    image: mongo-express:1.0
+    container_name: chipdent-mongo-express
+    restart: unless-stopped
+    depends_on:
+      - mongo
+    ports:
+      - "8081:8081"
+    environment:
+      ME_CONFIG_MONGODB_ADMINUSERNAME: chipdent
+      ME_CONFIG_MONGODB_ADMINPASSWORD: chipdent
+      ME_CONFIG_MONGODB_URL: mongodb://chipdent:chipdent@mongo:27017/
+      ME_CONFIG_BASICAUTH: false

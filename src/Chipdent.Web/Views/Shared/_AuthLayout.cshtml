@@ -1,0 +1,64 @@
+@{
+    var title = ViewData["Title"] as string ?? "Accedi";
+}
+<!DOCTYPE html>
+<html lang="it">
+<head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>@title · Chipdent</title>
+    <link rel="icon" type="image/svg+xml" href="~/img/logo.svg" />
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Playfair+Display:wght@500;600;700&display=swap">
+    <link rel="stylesheet" href="~/css/site.css" asp-append-version="true" />
+</head>
+<body>
+    <div class="auth">
+        <aside class="auth__hero">
+            <div class="auth__brand-row">
+                <span class="brand__mark"><img src="~/img/logo.svg" alt="" width="36" height="36"/></span>
+                <span class="brand__text">
+                    <span class="brand__name">Chipdent</span>
+                    <span class="brand__tag">Dental Suite</span>
+                </span>
+            </div>
+
+            <div style="position:relative;">
+                <h1 class="auth__headline">Una sola <span>casa</span> per la tua catena dentale.</h1>
+                <p class="auth__sub">
+                    Turni, RLS, documentazione, comunicazioni. Tutto sotto controllo,
+                    in tempo reale, da una piattaforma pensata per le cliniche italiane.
+                </p>
+
+                <div class="auth__features">
+                    <div class="auth__feature">
+                        <h4>Turni in tempo reale</h4>
+                        <p>Pianificazione settimanale per dottori e staff, con notifiche live.</p>
+                    </div>
+                    <div class="auth__feature">
+                        <h4>RLS senza sorprese</h4>
+                        <p>Scadenze visite mediche, corsi e DVR sempre sotto la tua mano.</p>
+                    </div>
+                    <div class="auth__feature">
+                        <h4>Documenti per sede</h4>
+                        <p>CPI, contratti, autorizzazioni: archivio versionato per ogni clinica.</p>
+                    </div>
+                    <div class="auth__feature">
+                        <h4>Comunicazioni interne</h4>
+                        <p>Messaggi, richieste e approvazioni in un'unica inbox aziendale.</p>
+                    </div>
+                </div>
+            </div>
+
+            <small style="position:relative; color:var(--c-ink-soft);">© <span data-year></span> Chipdent · Made with care</small>
+        </aside>
+
+        <section class="auth__panel">
+            @RenderBody()
+        </section>
+    </div>
+
+    <script src="~/js/site.js" asp-append-version="true"></script>
+</body>
+</html>

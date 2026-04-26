@@ -1,0 +1,45 @@
+@model LoginViewModel
+@{
+    Layout = "_AuthLayout";
+    ViewData["Title"] = "Accedi";
+}
+
+<div class="auth__form">
+    <h2>Bentornato</h2>
+    <p class="lead">Accedi al tuo workspace Chipdent.</p>
+
+    @if (!string.IsNullOrEmpty(Model.Error))
+    {
+        <div class="alert alert--danger">@Model.Error</div>
+    }
+
+    <form asp-action="Login" method="post" novalidate>
+        <input type="hidden" asp-for="ReturnUrl" />
+
+        <div class="form-group">
+            <label class="form-label" asp-for="Email"></label>
+            <input class="form-control" asp-for="Email" autocomplete="email" placeholder="nome@chipdent.it" />
+            <span class="text-danger" asp-validation-for="Email"></span>
+        </div>
+
+        <div class="form-group">
+            <label class="form-label" asp-for="Password"></label>
+            <input class="form-control" asp-for="Password" autocomplete="current-password" placeholder="••••••••" />
+            <span class="text-danger" asp-validation-for="Password"></span>
+        </div>
+
+        <div class="form-group" style="display:flex; justify-content:space-between; align-items:center;">
+            <label class="form-check">
+                <input asp-for="RememberMe" type="checkbox" />
+                Ricordami
+            </label>
+            <a href="#" style="font-size:.85rem;">Password dimenticata?</a>
+        </div>
+
+        <button type="submit" class="btn btn--primary btn--block">Accedi</button>
+    </form>
+
+    <div class="auth__hint">
+        Demo: <code>owner@chipdent.it</code> · password <code>chipdent</code>
+    </div>
+</div>
