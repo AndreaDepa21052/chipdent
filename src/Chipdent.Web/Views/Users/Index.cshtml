@@ -1,6 +1,13 @@
 @model Chipdent.Web.Models.UsersIndexViewModel
 @{
     ViewData["Title"] = "Utenti";
+
+    string RoleClass(Chipdent.Web.Domain.Entities.UserRole r) => r switch
+    {
+        Chipdent.Web.Domain.Entities.UserRole.Owner => "role-badge--owner",
+        Chipdent.Web.Domain.Entities.UserRole.Admin => "role-badge--admin",
+        _ => ""
+    };
 }
 
 <partial name="_Flash" />
@@ -11,13 +18,17 @@
         <p class="page-head__sub">@Model.Users.Count utenti · @Model.InvitiAttivi.Count inviti pendenti</p>
     </div>
     <div class="page-head__actions">
+        <a class="btn btn--ghost" asp-action="Permissions">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg>
+            Matrice permessi
+        </a>
         <a class="btn btn--primary" asp-action="Invite">+ Invita utente</a>
     </div>
 </div>
 
 <div class="card" style="margin-bottom: var(--s-6);">
     <div class="card__header">
-        <h3 class="card__title">Utenti attivi</h3>
+        <h3 class="card__title">Utenti</h3>
     </div>
     <div class="table-wrap" style="border:0; box-shadow:none; background:transparent;">
         <table class="table">
@@ -26,6 +37,7 @@
                     <th>Nome</th>
                     <th>Email</th>
                     <th>Ruolo</th>
+                    <th>Persona collegata</th>
                     <th>Ultimo accesso</th>
                     <th>Stato</th>
                     <th></th>
@@ -34,10 +46,36 @@
             <tbody>
                 @foreach (var u in Model.Users)
                 {
+                    var isCurrent = u.Id == Model.CurrentUserId;
+                    var personaName = u.LinkedPersonId is not null && Model.PersonaLookup.TryGetValue(u.LinkedPersonId, out var n) ? n : null;
                     <tr>
-                        <td><div class="strong">@u.FullName</div></td>
+                        <td>
+                            <div class="strong">@u.FullName @(isCurrent ? "(tu)" : "")</div>
+                        </td>
                         <td>@u.Email</td>
-                        <td><span class="badge">@u.Role</span></td>
+                        <td>
+                            <form asp-action="ChangeRole" asp-route-id="@u.Id" method="post" class="role-cell">
+                                @Html.AntiForgeryToken()
+                                <span class="role-badge @RoleClass(u.Role)">@u.Role</span>
+                                <select name="role" onchange="if(confirm('Cambiare il ruolo di ' + @Json.Serialize(u.FullName) + ' in ' + this.value + '?')) this.form.submit(); else this.value=@Json.Serialize(u.Role.ToString());">
+                                    @foreach (var r in Enum.GetValues<Chipdent.Web.Domain.Entities.UserRole>())
+                                    {
+                                        <option value="@r" selected="@(r == u.Role)">@r</option>
+                                    }
+                                </select>
+                            </form>
+                        </td>
+                        <td>
+                            @if (personaName is not null)
+                            {
+                                <div class="strong">@personaName</div>
+                                <div class="muted">@u.LinkedPersonType</div>
+                            }
+                            else
+                            {
+                                <span class="muted">—</span>
+                            }
+                        </td>
                         <td>@(u.LastLoginAt?.ToLocalTime().ToString("dd/MM/yyyy HH:mm") ?? "—")</td>
                         <td>
                             @if (u.IsActive)
@@ -50,10 +88,13 @@
                             }
                         </td>
                         <td class="actions">
+                            <a class="ibtn" asp-action="Edit" asp-route-id="@u.Id" title="Modifica">
+                                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>
+                            </a>
                             <form asp-action="Toggle" asp-route-id="@u.Id" method="post" style="display:inline;"
                                   onsubmit="return confirm('Cambiare lo stato di questo utente?');">
                                 @Html.AntiForgeryToken()
-                                <button type="submit" class="ibtn @(u.IsActive ? "ibtn--danger" : "")" title="@(u.IsActive ? "Disattiva" : "Riattiva")">
+                                <button type="submit" class="ibtn @(u.IsActive ? "ibtn--danger" : "")" title="@(u.IsActive ? "Disattiva" : "Riattiva")" @(isCurrent ? "disabled" : "")>
                                     @if (u.IsActive)
                                     {
                                         <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><path d="m16 17 5-5-5-5"/><path d="M21 12H9"/></svg>

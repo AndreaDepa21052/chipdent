@@ -1502,4 +1502,42 @@ h3 { font-size: 1.15rem; }
 }
 .access-pill strong { display: block; }
 
+/* Permissions matrix */
+.perm-matrix tbody tr.perm-matrix__group td:first-child {
+    color: var(--c-ink-strong);
+    font-weight: 600;
+}
+.perm-matrix tbody tr.perm-matrix__group { border-top: 1px solid var(--c-divider); }
+.perm-yes {
+    display: inline-grid; place-items: center;
+    width: 22px; height: 22px;
+    border-radius: 50%;
+    background: rgba(79, 158, 88, 0.14);
+    color: var(--c-success);
+}
+.perm-no {
+    color: var(--c-ink-soft);
+    opacity: 0.5;
+}
+
+/* Inline role-change form */
+.role-cell {
+    display: inline-flex; align-items: center; gap: 6px;
+}
+.role-cell select {
+    background: transparent;
+    border: 1px dashed transparent;
+    border-radius: var(--r-xs);
+    color: inherit;
+    font: inherit;
+    padding: 2px 22px 2px 6px;
+    cursor: pointer;
+    appearance: none;
+    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='10' height='6' viewBox='0 0 12 8' fill='none' stroke='%237d6647' stroke-width='2'%3E%3Cpath d='M1 1l5 5 5-5'/%3E%3C/svg%3E");
+    background-repeat: no-repeat;
+    background-position: right 6px center;
+}
+.role-cell select:hover { border-color: var(--c-border-2); background-color: var(--c-bg-elevated); }
+.role-cell select:focus { outline: 0; border-color: var(--c-accent); }
+
 

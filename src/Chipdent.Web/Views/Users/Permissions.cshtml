@@ -1,0 +1,92 @@
+@model Chipdent.Web.Models.PermissionsMatrixViewModel
+@{
+    ViewData["Title"] = "Matrice permessi";
+    ViewData["Crumb"] = "Utenti";
+
+    string RoleClass(Chipdent.Web.Domain.Entities.UserRole r) => r switch
+    {
+        Chipdent.Web.Domain.Entities.UserRole.Owner => "role-badge--owner",
+        Chipdent.Web.Domain.Entities.UserRole.Admin => "role-badge--admin",
+        _ => ""
+    };
+}
+
+<partial name="_Flash" />
+
+<div class="page-head">
+    <div>
+        <h2>Matrice permessi</h2>
+        <p class="page-head__sub">Cosa può fare ciascun ruolo all'interno del workspace.</p>
+    </div>
+    <div class="page-head__actions">
+        <a class="btn btn--ghost" asp-action="Index">← Utenti</a>
+    </div>
+</div>
+
+<div class="card">
+    <div class="table-wrap" style="border:0; box-shadow:none; background:transparent;">
+        <table class="table perm-matrix">
+            <thead>
+                <tr>
+                    <th style="width: 30%;">Modulo</th>
+                    <th style="width: 22%;">Azione</th>
+                    @foreach (var r in Model.Roles)
+                    {
+                        <th style="text-align:center;"><span class="role-badge @RoleClass(r)">@r</span></th>
+                    }
+                </tr>
+            </thead>
+            <tbody>
+                @{ string? lastModule = null; }
+                @foreach (var row in Model.Rows)
+                {
+                    var newGroup = row.Modulo != lastModule;
+                    lastModule = row.Modulo;
+                    <tr class="@(newGroup ? "perm-matrix__group" : "")">
+                        <td>@(newGroup ? row.Modulo : "")</td>
+                        <td class="muted">@row.Azione</td>
+                        @foreach (var r in Model.Roles)
+                        {
+                            var allowed = row.Allowed.TryGetValue(r, out var v) && v;
+                            <td style="text-align:center;">
+                                @if (allowed)
+                                {
+                                    <span class="perm-yes" title="consentito">
+                                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3"><polyline points="20 6 9 17 4 12"/></svg>
+                                    </span>
+                                }
+                                else
+                                {
+                                    <span class="perm-no" title="non consentito">—</span>
+                                }
+                            </td>
+                        }
+                    </tr>
+                }
+            </tbody>
+        </table>
+    </div>
+</div>
+
+<div class="grid grid--stats" style="margin-top: var(--s-6);">
+    <div class="stat">
+        <div class="stat__label">Owner</div>
+        <div class="stat__value" style="font-size: 1rem; color: var(--c-ink); margin-top: var(--s-2);">Accesso completo · gestione workspace</div>
+    </div>
+    <div class="stat">
+        <div class="stat__label">Admin</div>
+        <div class="stat__value" style="font-size: 1rem; color: var(--c-ink); margin-top: var(--s-2);">Accesso completo · gestione utenti e ruoli</div>
+    </div>
+    <div class="stat">
+        <div class="stat__label">Manager</div>
+        <div class="stat__value" style="font-size: 1rem; color: var(--c-ink); margin-top: var(--s-2);">Operatività completa · approvazioni</div>
+    </div>
+    <div class="stat">
+        <div class="stat__label">HR</div>
+        <div class="stat__value" style="font-size: 1rem; color: var(--c-ink); margin-top: var(--s-2);">Anagrafiche persone · RLS / formazione</div>
+    </div>
+    <div class="stat">
+        <div class="stat__label">Operatore</div>
+        <div class="stat__value" style="font-size: 1rem; color: var(--c-ink); margin-top: var(--s-2);">Dashboard · turni propri · comunicazioni</div>
+    </div>
+</div>

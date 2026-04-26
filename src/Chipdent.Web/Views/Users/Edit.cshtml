@@ -1,0 +1,128 @@
+@model Chipdent.Web.Models.UserEditViewModel
+@{
+    ViewData["Title"] = Model.FullName;
+    ViewData["Crumb"] = "Utenti";
+}
+
+<partial name="_Flash" />
+
+<div class="page-head">
+    <div>
+        <h2>@Model.FullName</h2>
+        <p class="page-head__sub">@Model.Email</p>
+    </div>
+    <div class="page-head__actions">
+        <a class="btn btn--ghost" asp-action="Index">← Utenti</a>
+        <a class="btn btn--ghost" asp-action="Permissions">Vedi matrice permessi →</a>
+    </div>
+</div>
+
+@if (Model.IsCurrent)
+{
+    <div class="alert alert--info" style="margin-bottom: var(--s-4);">
+        Stai modificando il <strong>tuo</strong> account. Per sicurezza non puoi declassarti da Owner né disattivarti.
+    </div>
+}
+
+<div class="card" style="max-width: 760px;">
+    <form asp-action="Edit" asp-route-id="@Model.Id" method="post">
+        @Html.AntiForgeryToken()
+        <input type="hidden" asp-for="Id" />
+
+        <div asp-validation-summary="ModelOnly" class="alert alert--danger" style="display:@(ViewData.ModelState.ErrorCount > 0 ? "block" : "none");"></div>
+
+        <div class="form-grid">
+            <div class="form-group">
+                <label class="form-label">Email</label>
+                <input class="form-control" value="@Model.Email" disabled />
+            </div>
+            <div class="form-group">
+                <label class="form-label" asp-for="FullName">Nome completo</label>
+                <input class="form-control" asp-for="FullName" required />
+                <span class="text-danger" asp-validation-for="FullName"></span>
+            </div>
+            <div class="form-group">
+                <label class="form-label" asp-for="Role">Ruolo</label>
+                <select class="form-control" asp-for="Role" asp-items="Html.GetEnumSelectList<Chipdent.Web.Domain.Entities.UserRole>()"></select>
+                <span class="text-danger" asp-validation-for="Role"></span>
+            </div>
+            <div class="form-group">
+                <label class="form-check" style="margin-top: var(--s-6);">
+                    @if (Model.IsCurrent)
+                    {
+                        <input asp-for="IsActive" type="checkbox" disabled />
+                    }
+                    else
+                    {
+                        <input asp-for="IsActive" type="checkbox" />
+                    }
+                    Account attivo
+                </label>
+            </div>
+
+            <div class="form-group">
+                <label class="form-label" asp-for="LinkedPersonType">Collegamento a persona</label>
+                <select class="form-control" asp-for="LinkedPersonType" id="linkedTipo">
+                    <option value="None" selected="@(Model.LinkedPersonType == Chipdent.Web.Domain.Entities.LinkedPersonType.None)">— nessuno —</option>
+                    <option value="Dottore" selected="@(Model.LinkedPersonType == Chipdent.Web.Domain.Entities.LinkedPersonType.Dottore)">Dottore</option>
+                    <option value="Dipendente" selected="@(Model.LinkedPersonType == Chipdent.Web.Domain.Entities.LinkedPersonType.Dipendente)">Dipendente</option>
+                </select>
+            </div>
+            <div class="form-group">
+                <label class="form-label" asp-for="LinkedPersonId">Persona</label>
+                <select class="form-control" asp-for="LinkedPersonId" id="linkedId">
+                    <option value="">— seleziona —</option>
+                    <optgroup label="Dottori" data-tipo="Dottore">
+                        @foreach (var d in Model.Dottori)
+                        {
+                            <option value="@d.Id" data-tipo="Dottore" selected="@(d.Id == Model.LinkedPersonId && Model.LinkedPersonType == Chipdent.Web.Domain.Entities.LinkedPersonType.Dottore)">@d.NomeCompleto · @d.Specializzazione</option>
+                        }
+                    </optgroup>
+                    <optgroup label="Dipendenti" data-tipo="Dipendente">
+                        @foreach (var p in Model.Dipendenti)
+                        {
+                            <option value="@p.Id" data-tipo="Dipendente" selected="@(p.Id == Model.LinkedPersonId && Model.LinkedPersonType == Chipdent.Web.Domain.Entities.LinkedPersonType.Dipendente)">@p.NomeCompleto · @p.Ruolo</option>
+                        }
+                    </optgroup>
+                </select>
+                <span class="text-danger" asp-validation-for="LinkedPersonId"></span>
+            </div>
+            <div class="form-group full" style="margin-top: -8px;">
+                <p style="color: var(--c-ink-soft); font-size:.82rem; margin:0;">
+                    Collegando l'account a una persona, l'utente vedrà solo i dati relativi al proprio profilo
+                    (es. solo i propri turni nel calendario). Non si applica a Manager/Admin/Owner che hanno comunque visibilità completa.
+                </p>
+            </div>
+        </div>
+
+        <div class="form-actions">
+            <a class="btn btn--ghost" asp-action="Index">Annulla</a>
+            <button type="submit" class="btn btn--primary">Salva modifiche</button>
+        </div>
+    </form>
+</div>
+
+@section Scripts {
+<script>
+    (function () {
+        var tipo = document.getElementById('linkedTipo');
+        var dest = document.getElementById('linkedId');
+        function filter() {
+            var current = tipo.value;
+            var noLink = current === 'None';
+            dest.disabled = noLink;
+            if (noLink) { dest.value = ''; }
+            Array.prototype.forEach.call(dest.querySelectorAll('optgroup'), function (g) {
+                g.style.display = g.dataset.tipo === current ? '' : 'none';
+            });
+            Array.prototype.forEach.call(dest.querySelectorAll('option[data-tipo]'), function (o) {
+                o.disabled = o.dataset.tipo !== current;
+            });
+            var sel = dest.options[dest.selectedIndex];
+            if (sel && sel.dataset.tipo && sel.dataset.tipo !== current) dest.value = '';
+        }
+        tipo.addEventListener('change', filter);
+        filter();
+    })();
+</script>
+}
