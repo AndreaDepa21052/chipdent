@@ -8,7 +8,7 @@ using MongoDB.Driver;
 
 namespace Chipdent.Web.Controllers;
 
-[Authorize]
+[Authorize(Roles = Policies.StaffRoles)]
 [Route("dottori")]
 public class DottoriController : Controller
 {

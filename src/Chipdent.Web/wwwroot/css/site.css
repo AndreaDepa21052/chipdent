@@ -1478,4 +1478,27 @@ h3 { font-size: 1.15rem; }
 .role-badge--owner { background: var(--c-accent-soft); color: var(--c-accent-strong); border-color: rgba(196, 120, 48, 0.4); }
 .role-badge--admin { background: rgba(74, 130, 163, 0.12); color: var(--c-info); border-color: rgba(74, 130, 163, 0.4); }
 
+.access-pill {
+    display: flex;
+    align-items: flex-start;
+    gap: 8px;
+    margin: 4px 4px 6px;
+    padding: 8px 10px;
+    border-radius: var(--r-sm);
+    font-size: 0.75rem;
+    line-height: 1.35;
+}
+.access-pill svg { flex-shrink: 0; margin-top: 1px; }
+.access-pill--full {
+    background: rgba(79, 158, 88, 0.1);
+    color: #2f6f37;
+    border: 1px solid rgba(79, 158, 88, 0.3);
+}
+.access-pill--limited {
+    background: rgba(201, 132, 36, 0.1);
+    color: #8a5a14;
+    border: 1px solid rgba(201, 132, 36, 0.3);
+}
+.access-pill strong { display: block; }
+
 

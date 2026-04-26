@@ -9,7 +9,7 @@ using MongoDB.Driver;
 
 namespace Chipdent.Web.Controllers;
 
-[Authorize]
+[Authorize(Roles = Policies.StaffRoles)]
 [Route("rls")]
 public class RlsController : Controller
 {
