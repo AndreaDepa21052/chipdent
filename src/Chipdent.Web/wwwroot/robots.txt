@@ -1,0 +1,33 @@
+# Chipdent — robots.txt
+# Public landing + login are crawlable. Tutto il resto dell'app è dietro auth.
+
+User-agent: *
+Allow: /
+Allow: /account/login
+Disallow: /account/loading
+Disallow: /account/invito/
+Disallow: /account/profilo
+Disallow: /account/preferenze
+Disallow: /account/password
+Disallow: /dashboard
+Disallow: /turni
+Disallow: /comunicazioni
+Disallow: /cliniche
+Disallow: /dottori
+Disallow: /dipendenti
+Disallow: /rls
+Disallow: /documentazione
+Disallow: /utenti
+Disallow: /audit
+Disallow: /hubs/
+
+# AI crawlers (decommentare per bloccare il training su contenuti del sito)
+# User-agent: GPTBot
+# Disallow: /
+# User-agent: ClaudeBot
+# Disallow: /
+# User-agent: CCBot
+# Disallow: /
+
+# Aggiorna l'host se diverso da chipdent.it prima del deploy
+Sitemap: https://chipdent.it/sitemap.xml

@@ -42,7 +42,27 @@ if (!app.Environment.IsDevelopment())
 }
 
 app.UseHttpsRedirection();
-app.UseStaticFiles();
+
+var staticOptions = new Microsoft.AspNetCore.Builder.StaticFileOptions
+{
+    ContentTypeProvider = new Microsoft.AspNetCore.StaticFiles.FileExtensionContentTypeProvider
+    {
+        Mappings =
+        {
+            [".webmanifest"] = "application/manifest+json"
+        }
+    },
+    OnPrepareResponse = ctx =>
+    {
+        var path = ctx.File.Name;
+        if (path.Equals("robots.txt", StringComparison.OrdinalIgnoreCase) ||
+            path.Equals("sitemap.xml", StringComparison.OrdinalIgnoreCase))
+        {
+            ctx.Context.Response.Headers["Cache-Control"] = "public, max-age=3600";
+        }
+    }
+};
+app.UseStaticFiles(staticOptions);
 
 app.UseRouting();
 

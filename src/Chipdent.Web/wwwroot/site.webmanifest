@@ -1,0 +1,16 @@
+{
+  "name": "Chipdent — Dental Suite",
+  "short_name": "Chipdent",
+  "description": "Gestionale per catene di studi dentistici. Turni, RLS, documenti, comunicazioni in tempo reale.",
+  "start_url": "/",
+  "scope": "/",
+  "display": "standalone",
+  "background_color": "#fbf6ec",
+  "theme_color": "#c47830",
+  "lang": "it-IT",
+  "icons": [
+    { "src": "/img/logo.png", "sizes": "192x192", "type": "image/png", "purpose": "any" },
+    { "src": "/img/logo.png", "sizes": "512x512", "type": "image/png", "purpose": "any maskable" },
+    { "src": "/img/logo.svg", "sizes": "any", "type": "image/svg+xml", "purpose": "any" }
+  ]
+}

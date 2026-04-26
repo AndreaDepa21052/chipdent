@@ -2,29 +2,33 @@
 @{
     Layout = "_AuthLayout";
     ViewData["Title"] = "Accedi";
+    ViewData["MetaDescription"] = "Accedi a Chipdent, la dental suite italiana per gestire turni, RLS, documentazione e comunicazioni di catene di studi dentistici multi-sede in tempo reale.";
 }
 
-<div class="auth__form">
+<div class="auth__form" itemscope itemtype="https://schema.org/WebPage">
+    <meta itemprop="name" content="Accedi a Chipdent" />
+    <meta itemprop="description" content="Pagina di accesso al gestionale Chipdent per cliniche dentali multi-sede." />
+
     <h2>Bentornato</h2>
     <p class="lead">Accedi al tuo workspace Chipdent.</p>
 
     @if (!string.IsNullOrEmpty(Model.Error))
     {
-        <div class="alert alert--danger">@Model.Error</div>
+        <div class="alert alert--danger" role="alert">@Model.Error</div>
     }
 
-    <form asp-action="Login" method="post" novalidate>
+    <form asp-action="Login" method="post" novalidate aria-label="Modulo di accesso">
         <input type="hidden" asp-for="ReturnUrl" />
 
         <div class="form-group">
-            <label class="form-label" asp-for="Email"></label>
-            <input class="form-control" asp-for="Email" autocomplete="email" placeholder="nome@chipdent.it" />
+            <label class="form-label" asp-for="Email">Email</label>
+            <input class="form-control" asp-for="Email" type="email" autocomplete="email" inputmode="email" placeholder="nome@chipdent.it" required />
             <span class="text-danger" asp-validation-for="Email"></span>
         </div>
 
         <div class="form-group">
-            <label class="form-label" asp-for="Password"></label>
-            <input class="form-control" asp-for="Password" autocomplete="current-password" placeholder="••••••••" />
+            <label class="form-label" asp-for="Password">Password</label>
+            <input class="form-control" asp-for="Password" type="password" autocomplete="current-password" placeholder="••••••••" required />
             <span class="text-danger" asp-validation-for="Password"></span>
         </div>
 
@@ -43,3 +47,44 @@
         Demo: <code>owner@chipdent.it</code> · password <code>chipdent</code>
     </div>
 </div>
+
+<script type="application/ld+json">
+{
+    "@@context": "https://schema.org",
+    "@@type": "FAQPage",
+    "mainEntity": [
+        {
+            "@@type": "Question",
+            "name": "Cos'è Chipdent?",
+            "acceptedAnswer": {
+                "@@type": "Answer",
+                "text": "Chipdent è una dental suite italiana per la gestione operativa di catene di studi dentistici multi-sede: turni di dottori e dipendenti, RLS, documenti, comunicazioni interne e audit completo."
+            }
+        },
+        {
+            "@@type": "Question",
+            "name": "Per chi è pensato Chipdent?",
+            "acceptedAnswer": {
+                "@@type": "Answer",
+                "text": "Per cliniche dentali con più sedi che vogliono governare turni, RLS, documenti e comunicazioni interne da un'unica piattaforma in tempo reale, con permessi differenziati per Owner, Admin, Manager, HR e Operatore."
+            }
+        },
+        {
+            "@@type": "Question",
+            "name": "Posso vedere chi modifica i dati delle persone?",
+            "acceptedAnswer": {
+                "@@type": "Answer",
+                "text": "Sì. Ogni modifica all'anagrafica di dottori e dipendenti viene tracciata in un audit log con diff campo per campo, l'utente che ha effettuato l'operazione e una notifica live a tutti gli amministratori del workspace."
+            }
+        },
+        {
+            "@@type": "Question",
+            "name": "Chipdent supporta i trasferimenti tra cliniche?",
+            "acceptedAnswer": {
+                "@@type": "Answer",
+                "text": "Sì. Ogni cambio di sede principale viene registrato come trasferimento con data di effetto, motivo e responsabile della decisione, e visualizzato come timeline storica sul profilo della persona."
+            }
+        }
+    ]
+}
+</script>

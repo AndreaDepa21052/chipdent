@@ -1,23 +1,117 @@
 @{
     var title = ViewData["Title"] as string ?? "Accedi";
+    var pageDescription = ViewData["MetaDescription"] as string
+        ?? "Chipdent è la dental suite italiana per gestire turni, RLS, documenti e comunicazioni di catene di studi dentistici multi-sede. Tutto in tempo reale, con audit completo e accesso per ruolo.";
+    var fullTitle = $"{title} · Chipdent — Gestionale per catene dentali";
+
+    var request = Context.Request;
+    var canonical = $"{request.Scheme}://{request.Host}{request.Path}";
+    var origin = $"{request.Scheme}://{request.Host}";
+    var ogImage = $"{origin}/img/logo.png";
 }
 <!DOCTYPE html>
 <html lang="it">
 <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>@title · Chipdent</title>
+    <title>@fullTitle</title>
+
+    <meta name="description" content="@pageDescription" />
+    <meta name="keywords" content="gestionale dentistico, gestionale studio dentistico, software cliniche dentali, gestione turni dentista, RLS studio dentistico, DVR clinica dentale, multi-sede dental, dental suite italia, ASO turni, agenda dottori, software dentisti italiano" />
+    <meta name="author" content="Chipdent" />
+    <meta name="robots" content="index, follow, max-snippet:-1, max-image-preview:large, max-video-preview:-1" />
+    <meta name="theme-color" content="#c47830" />
+    <meta name="application-name" content="Chipdent" />
+    <meta name="apple-mobile-web-app-title" content="Chipdent" />
+    <meta name="format-detection" content="telephone=no" />
+
+    <link rel="canonical" href="@canonical" />
+    <link rel="alternate" hreflang="it" href="@canonical" />
+    <link rel="alternate" hreflang="x-default" href="@canonical" />
+
+    <!-- Open Graph -->
+    <meta property="og:site_name" content="Chipdent" />
+    <meta property="og:type" content="website" />
+    <meta property="og:locale" content="it_IT" />
+    <meta property="og:url" content="@canonical" />
+    <meta property="og:title" content="@fullTitle" />
+    <meta property="og:description" content="@pageDescription" />
+    <meta property="og:image" content="@ogImage" />
+    <meta property="og:image:width" content="1200" />
+    <meta property="og:image:height" content="1200" />
+    <meta property="og:image:alt" content="Logo Chipdent — uno scoiattolo che simboleggia la dental suite" />
+
+    <!-- Twitter -->
+    <meta name="twitter:card" content="summary_large_image" />
+    <meta name="twitter:title" content="@fullTitle" />
+    <meta name="twitter:description" content="@pageDescription" />
+    <meta name="twitter:image" content="@ogImage" />
+    <meta name="twitter:image:alt" content="Logo Chipdent" />
+
+    <!-- Icons / manifest -->
     <link rel="icon" type="image/png" href="~/img/logo.png" />
+    <link rel="icon" type="image/svg+xml" href="~/img/logo.svg" />
+    <link rel="apple-touch-icon" href="~/img/logo.png" />
+    <link rel="manifest" href="~/site.webmanifest" />
+
+    <!-- Performance hints -->
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link rel="dns-prefetch" href="https://fonts.googleapis.com">
+
     <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Playfair+Display:wght@500;600;700&display=swap">
     <link rel="stylesheet" href="~/css/site.css" asp-append-version="true" />
+
+    <!-- Structured data: Organization + SoftwareApplication -->
+    <script type="application/ld+json">
+    {
+        "@@context": "https://schema.org",
+        "@@graph": [
+            {
+                "@@type": "Organization",
+                "@@id": "@(origin)/#organization",
+                "name": "Chipdent",
+                "url": "@origin",
+                "logo": "@ogImage",
+                "description": "Dental suite italiana per la gestione di catene di studi dentistici."
+            },
+            {
+                "@@type": "WebSite",
+                "@@id": "@(origin)/#website",
+                "url": "@origin",
+                "name": "Chipdent",
+                "publisher": { "@@id": "@(origin)/#organization" },
+                "inLanguage": "it-IT"
+            },
+            {
+                "@@type": "SoftwareApplication",
+                "name": "Chipdent",
+                "applicationCategory": "BusinessApplication",
+                "applicationSubCategory": "Dental practice management",
+                "operatingSystem": "Web",
+                "url": "@origin",
+                "image": "@ogImage",
+                "description": "@pageDescription",
+                "publisher": { "@@id": "@(origin)/#organization" },
+                "featureList": [
+                    "Pianificazione turni multi-sede in tempo reale",
+                    "Anagrafica dottori e dipendenti con storico trasferimenti",
+                    "Audit log completo con diff campo per campo",
+                    "Gestione RLS: visite mediche, corsi obbligatori, DVR",
+                    "Documentazione per clinica con alert scadenze",
+                    "Comunicazioni interne live via SignalR",
+                    "Permessi granulari per ruolo (Owner, Admin, Manager, HR, Operatore)"
+                ]
+            }
+        ]
+    }
+    </script>
 </head>
 <body>
     <div class="auth">
         <aside class="auth__hero">
             <div class="auth__brand-row">
-                <span class="brand__mark"><img src="~/img/logo.png" alt="" width="44" height="44"/></span>
+                <span class="brand__mark"><img src="~/img/logo.png" alt="Logo Chipdent" width="44" height="44"/></span>
                 <span class="brand__text">
                     <span class="brand__name">Chipdent</span>
                     <span class="brand__tag">Dental Suite</span>
@@ -28,33 +122,33 @@
                 <h1 class="auth__headline">Una sola <span>casa</span> per la tua catena dentale.</h1>
                 <p class="auth__sub">
                     Turni, RLS, documentazione, comunicazioni. Tutto sotto controllo,
-                    in tempo reale, da una piattaforma pensata per le cliniche italiane.
+                    in tempo reale, da una piattaforma pensata per le cliniche italiane multi-sede.
                 </p>
 
                 <div class="auth__features">
-                    <div class="auth__feature">
-                        <h4>Turni in tempo reale</h4>
-                        <p>Pianificazione settimanale per dottori e staff, con notifiche live.</p>
-                    </div>
-                    <div class="auth__feature">
-                        <h4>RLS senza sorprese</h4>
-                        <p>Scadenze visite mediche, corsi e DVR sempre sotto la tua mano.</p>
-                    </div>
-                    <div class="auth__feature">
-                        <h4>Documenti per sede</h4>
-                        <p>CPI, contratti, autorizzazioni: archivio versionato per ogni clinica.</p>
-                    </div>
-                    <div class="auth__feature">
-                        <h4>Comunicazioni interne</h4>
-                        <p>Messaggi, richieste e approvazioni in un'unica inbox aziendale.</p>
-                    </div>
+                    <article class="auth__feature">
+                        <h2>Turni in tempo reale</h2>
+                        <p>Pianificazione settimanale per dottori e staff, con notifiche live ai cambi.</p>
+                    </article>
+                    <article class="auth__feature">
+                        <h2>RLS senza sorprese</h2>
+                        <p>Scadenze visite mediche, corsi obbligatori e DVR sempre sotto controllo.</p>
+                    </article>
+                    <article class="auth__feature">
+                        <h2>Documenti per sede</h2>
+                        <p>CPI, contratti, autorizzazioni sanitarie: archivio versionato per ogni clinica.</p>
+                    </article>
+                    <article class="auth__feature">
+                        <h2>Comunicazioni interne</h2>
+                        <p>Messaggi, richieste ferie e approvazioni in un'unica inbox aziendale.</p>
+                    </article>
                 </div>
             </div>
 
-            <small style="position:relative; color:var(--c-ink-soft);">© <span data-year></span> Chipdent · Made with care</small>
+            <small style="position:relative; color:var(--c-ink-soft);">© <span data-year></span> Chipdent · Dental suite per cliniche italiane</small>
         </aside>
 
-        <section class="auth__panel">
+        <section class="auth__panel" aria-label="Area di accesso">
             @RenderBody()
         </section>
     </div>
