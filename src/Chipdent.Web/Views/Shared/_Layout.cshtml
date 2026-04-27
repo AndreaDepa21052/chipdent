@@ -53,13 +53,14 @@
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Playfair+Display:wght@500;600;700&display=swap">
     <link rel="stylesheet" href="~/css/site.css" asp-append-version="true" />
+    <link rel="stylesheet" href="~/css/tour.css" asp-append-version="true" />
     <link rel="stylesheet" href="~/Chipdent.Web.styles.css" asp-append-version="true" />
 </head>
 <body>
     <div class="app">
         <aside class="app__sidebar">
 
-            <details class="ws">
+            <details class="ws" data-tour="workspace">
                 <summary class="ws__chip" aria-label="Workspace switcher">
                     <span class="ws__mark"><img src="~/img/logo.png" alt="" width="32" height="32" /></span>
                     <span class="ws__text">
@@ -87,23 +88,23 @@
                 </div>
             </details>
 
-            <button class="ws-search" data-search-trigger type="button">
+            <button class="ws-search" data-search-trigger data-tour="search" type="button">
                 <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="7"/><path d="m21 21-4.3-4.3"/></svg>
                 <span>Cerca…</span>
                 <kbd>⌘K</kbd>
             </button>
 
-            <nav class="nav">
+            <nav class="nav" data-tour="sidebar-nav">
                 <div class="nav__group-title">Operatività</div>
-                <a class="nav__item @(section == "dashboard" ? "is-active" : "")" asp-controller="Dashboard" asp-action="Index">
+                <a class="nav__item @(section == "dashboard" ? "is-active" : "")" data-tour="nav-dashboard" asp-controller="Dashboard" asp-action="Index">
                     <svg class="nav__icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="7" height="9" rx="1.5"/><rect x="14" y="3" width="7" height="5" rx="1.5"/><rect x="14" y="12" width="7" height="9" rx="1.5"/><rect x="3" y="16" width="7" height="5" rx="1.5"/></svg>
                     Dashboard
                 </a>
-                <a class="nav__item @(section == "turni" ? "is-active" : "")" asp-controller="Turni" asp-action="Index">
+                <a class="nav__item @(section == "turni" ? "is-active" : "")" data-tour="nav-turni" asp-controller="Turni" asp-action="Index">
                     <svg class="nav__icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="4" width="18" height="18" rx="2"/><path d="M16 2v4M8 2v4M3 10h18"/></svg>
                     Turni
                 </a>
-                <a class="nav__item @(section == "comunicazioni" ? "is-active" : "")" asp-controller="Comunicazioni" asp-action="Index">
+                <a class="nav__item @(section == "comunicazioni" ? "is-active" : "")" data-tour="nav-comunicazioni" asp-controller="Comunicazioni" asp-action="Index">
                     <svg class="nav__icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg>
                     Comunicazioni
                 </a>
@@ -111,25 +112,25 @@
                 @if (canSeeAnagrafiche)
                 {
                     <div class="nav__group-title">Anagrafiche</div>
-                    <a class="nav__item @(section == "cliniche" ? "is-active" : "")" asp-controller="Cliniche" asp-action="Index">
+                    <a class="nav__item @(section == "cliniche" ? "is-active" : "")" data-tour="nav-cliniche" asp-controller="Cliniche" asp-action="Index">
                         <svg class="nav__icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 21V8l9-5 9 5v13"/><path d="M9 21V12h6v9"/></svg>
                         Cliniche
                     </a>
-                    <a class="nav__item @(section == "dottori" ? "is-active" : "")" asp-controller="Dottori" asp-action="Index">
+                    <a class="nav__item @(section == "dottori" ? "is-active" : "")" data-tour="nav-dottori" asp-controller="Dottori" asp-action="Index">
                         <svg class="nav__icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="8" r="4"/><path d="M4 21a8 8 0 0 1 16 0"/></svg>
                         Dottori
                     </a>
-                    <a class="nav__item @(section == "dipendenti" ? "is-active" : "")" asp-controller="Dipendenti" asp-action="Index">
+                    <a class="nav__item @(section == "dipendenti" ? "is-active" : "")" data-tour="nav-dipendenti" asp-controller="Dipendenti" asp-action="Index">
                         <svg class="nav__icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="9" cy="8" r="4"/><path d="M2 21a7 7 0 0 1 14 0"/><circle cx="17" cy="9" r="3"/><path d="M22 20a5 5 0 0 0-5-5"/></svg>
                         Dipendenti
                     </a>
 
                     <div class="nav__group-title">Compliance</div>
-                    <a class="nav__item @(section == "rls" ? "is-active" : "")" asp-controller="Rls" asp-action="Index">
+                    <a class="nav__item @(section == "rls" ? "is-active" : "")" data-tour="nav-rls" asp-controller="Rls" asp-action="Index">
                         <svg class="nav__icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg>
                         RLS / Sicurezza
                     </a>
-                    <a class="nav__item @(section == "documentazione" ? "is-active" : "")" asp-controller="Documentazione" asp-action="Index">
+                    <a class="nav__item @(section == "documentazione" ? "is-active" : "")" data-tour="nav-documentazione" asp-controller="Documentazione" asp-action="Index">
                         <svg class="nav__icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><path d="M14 2v6h6"/></svg>
                         Documentazione
                     </a>
@@ -137,7 +138,7 @@
 
                 @if (canSeeAnagrafiche)
                 {
-                    <a class="nav__item @(section == "audit" ? "is-active" : "")" asp-controller="Audit" asp-action="Index">
+                    <a class="nav__item @(section == "audit" ? "is-active" : "")" data-tour="nav-audit" asp-controller="Audit" asp-action="Index">
                         <svg class="nav__icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M9 11l3 3L22 4"/><path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11"/></svg>
                         Audit log
                     </a>
@@ -146,14 +147,14 @@
                 @if (canSeeUsers)
                 {
                     <div class="nav__group-title">Amministrazione</div>
-                    <a class="nav__item @(section == "users" ? "is-active" : "")" asp-controller="Users" asp-action="Index">
+                    <a class="nav__item @(section == "users" ? "is-active" : "")" data-tour="nav-users" asp-controller="Users" asp-action="Index">
                         <svg class="nav__icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M16 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="8.5" cy="7" r="4"/><path d="M20 8v6M23 11h-6"/></svg>
                         Utenti
                     </a>
                 }
             </nav>
 
-            <details class="user-bar">
+            <details class="user-bar" data-tour="user-menu">
                 <summary class="user-bar__chip" aria-label="Menu utente">
                     <span class="avatar">@initials</span>
                     <span class="user-bar__text">
@@ -190,6 +191,10 @@
                         <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="3"/><path d="M12 1v6M12 17v6M4.22 4.22l4.24 4.24M15.54 15.54l4.24 4.24M1 12h6M17 12h6M4.22 19.78l4.24-4.24M15.54 8.46l4.24-4.24"/></svg>
                         Preferenze
                     </a>
+                    <button type="button" class="user-bar__item" data-tour-launcher>
+                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><path d="M9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3"/><path d="M12 17h.01"/></svg>
+                        Tour guidato
+                    </button>
                     <hr/>
                     <form asp-controller="Account" asp-action="Logout" method="post">
                         @Html.AntiForgeryToken()
@@ -237,7 +242,7 @@
                         <span class="dot"></span>
                         <span class="label">connessione…</span>
                     </span>
-                    <details class="bell">
+                    <details class="bell" data-tour="bell">
                         <summary class="icon-btn icon-btn--sm" title="Notifiche" aria-label="Notifiche">
                             <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M6 8a6 6 0 0 1 12 0c0 7 3 9 3 9H3s3-2 3-9"/><path d="M10 21a2 2 0 0 0 4 0"/></svg>
                             <span class="dot" data-bell-dot hidden></span>
@@ -295,6 +300,7 @@
     <script src="~/js/site.js" asp-append-version="true"></script>
     <script src="~/js/notifications.js" asp-append-version="true"></script>
     <script src="~/js/cmdk.js" asp-append-version="true"></script>
+    <script src="~/js/tour.js" asp-append-version="true"></script>
     @await RenderSectionAsync("Scripts", required: false)
 </body>
 </html>
