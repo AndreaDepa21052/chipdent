@@ -84,10 +84,14 @@
 
 html, body { height: 100%; }
 
+/* Scala globalmente del 10% (equivalente a zoom Chrome 90%): tutti i valori in rem
+   ereditano questa base, gli elementi in px qui sotto sono già adeguati. */
+html { font-size: 14.4px; }
+
 body {
     margin: 0;
     font-family: var(--f-sans);
-    font-size: 15px;
+    font-size: 13.5px;
     line-height: 1.55;
     color: var(--c-ink);
     background:
@@ -1519,7 +1523,7 @@ input[type="datetime-local"].form-control { color-scheme: light; }
    Density tweaks for SaaS pro look
    ========================================================================== */
 
-body { font-size: 14px; }
+body { font-size: 12.6px; }
 
 h1 { font-size: 1.75rem; }
 h2 { font-size: 1.4rem; }
