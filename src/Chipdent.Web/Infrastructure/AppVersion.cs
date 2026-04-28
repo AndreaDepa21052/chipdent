@@ -6,15 +6,15 @@ namespace Chipdent.Web.Infrastructure;
 /// </summary>
 public static class AppVersion
 {
-    /// <summary>Versione corrente, es. "v1.100.0".</summary>
-    public const string Number = "v1.100.0";
+    /// <summary>Versione corrente, es. "v1.200.0".</summary>
+    public const string Number = "v1.200.0";
 
-    /// <summary>Codename della release, es. "Tornavento — Management".</summary>
-    public const string Codename = "Tornavento+Management";
+    /// <summary>Codename della release.</summary>
+    public const string Codename = "Tornavento+Staff";
 
     /// <summary>True quando l'MVP è chiuso (la versione raggiunge 1.000.0).</summary>
     public static bool IsMvpReleased => Number.StartsWith("v1.");
 
-    /// <summary>Stringa pronta per la UI: "v1.100.0 · Tornavento+Management".</summary>
+    /// <summary>Stringa pronta per la UI: "v1.200.0 · Tornavento+Staff".</summary>
     public static string Display => $"{Number} · {Codename}";
 }

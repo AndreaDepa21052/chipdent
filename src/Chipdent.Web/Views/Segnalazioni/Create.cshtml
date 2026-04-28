@@ -1,0 +1,81 @@
+@model Chipdent.Web.Models.NuovaSegnalazioneViewModel
+@{
+    ViewData["Title"] = "Nuova segnalazione";
+    ViewData["Crumb"] = "Segnalazioni";
+}
+
+<partial name="_Flash" />
+
+<div class="page-head">
+    <div>
+        <h2>Nuova segnalazione</h2>
+        <p class="page-head__sub">Descrivi il problema con dettagli utili per la risoluzione.</p>
+    </div>
+    <div class="page-head__actions">
+        <a class="btn btn--ghost" asp-action="Index">← Indietro</a>
+    </div>
+</div>
+
+<div class="card" style="max-width: 760px;">
+    <form asp-action="Create" method="post" enctype="multipart/form-data">
+        @Html.AntiForgeryToken()
+
+        <div asp-validation-summary="ModelOnly" class="alert alert--danger" style="display:@(ViewData.ModelState.ErrorCount > 0 ? "block" : "none");"></div>
+
+        <div class="form-grid">
+            <div class="form-group">
+                <label class="form-label" asp-for="Tipo">Tipo</label>
+                <select class="form-control" asp-for="Tipo" asp-items="Html.GetEnumSelectList<Chipdent.Web.Domain.Entities.TipoSegnalazione>()"></select>
+            </div>
+
+            <div class="form-group">
+                <label class="form-label" asp-for="Priorita">Priorità</label>
+                <select class="form-control" asp-for="Priorita" asp-items="Html.GetEnumSelectList<Chipdent.Web.Domain.Entities.PrioritaSegnalazione>()"></select>
+            </div>
+
+            <div class="form-group full">
+                <label class="form-label" asp-for="ClinicaId">Sede</label>
+                @if (Model.LockedClinica)
+                {
+                    var c = Model.Cliniche.FirstOrDefault(x => x.Id == Model.ClinicaId);
+                    <input type="hidden" asp-for="ClinicaId" />
+                    <input class="form-control" value="@(c?.Nome ?? "")" disabled />
+                }
+                else
+                {
+                    <select class="form-control" asp-for="ClinicaId" required>
+                        <option value="">— seleziona —</option>
+                        @foreach (var c in Model.Cliniche)
+                        {
+                            <option value="@c.Id" selected="@(c.Id == Model.ClinicaId)">@c.Nome</option>
+                        }
+                    </select>
+                }
+                <span class="text-danger" asp-validation-for="ClinicaId"></span>
+            </div>
+
+            <div class="form-group full">
+                <label class="form-label" asp-for="Titolo">Titolo</label>
+                <input class="form-control" asp-for="Titolo" required maxlength="200" placeholder="Es. Compressore riunito 3 fuori uso" />
+                <span class="text-danger" asp-validation-for="Titolo"></span>
+            </div>
+
+            <div class="form-group full">
+                <label class="form-label" asp-for="Descrizione">Descrizione</label>
+                <textarea class="form-control" asp-for="Descrizione" rows="6" required maxlength="2000" placeholder="Quando si è verificato, quali sintomi, quali turni impatta..."></textarea>
+                <span class="text-danger" asp-validation-for="Descrizione"></span>
+            </div>
+
+            <div class="form-group full">
+                <label class="form-label" asp-for="Allegato">Foto / video / documento (opzionale, max 50MB)</label>
+                <input class="form-control" asp-for="Allegato" type="file" accept=".pdf,.png,.jpg,.jpeg,.gif,.webp,.heic,.mp4,.mov,.doc,.docx,.txt" />
+                <span class="text-danger" asp-validation-for="Allegato"></span>
+            </div>
+        </div>
+
+        <div class="form-actions">
+            <a class="btn btn--ghost" asp-action="Index">Annulla</a>
+            <button type="submit" class="btn btn--primary">Invia segnalazione</button>
+        </div>
+    </form>
+</div>

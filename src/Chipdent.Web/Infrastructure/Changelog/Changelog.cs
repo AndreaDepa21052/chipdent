@@ -9,6 +9,41 @@ public static class Changelog
     public static readonly IReadOnlyList<ChangelogEntry> Entries = new List<ChangelogEntry>
     {
         // ───────────────────────────────────────────────────────────────────
+        // 👥 v1.200.0 — Tornavento+Staff
+        // ───────────────────────────────────────────────────────────────────
+        new(
+            Version: "v1.200.0",
+            Codename: "Tornavento+Staff",
+            Date: new DateTime(2026, 4, 28),
+            Category: ChangelogCategory.Foundation,
+            Title: "👥 v1.200.0 «Tornavento+Staff» — chiusura del livello Staff",
+            Description: "Completati gli ultimi tre moduli Staff della mappa funzionale: cambio turno con workflow Staff↔collega↔Direttore, fascicolo personale «I miei documenti», segnalazioni operative con ticket di sede."),
+
+        new(
+            Version: "v1.200.0",
+            Codename: "Tornavento+Staff",
+            Date: new DateTime(2026, 4, 28),
+            Category: ChangelogCategory.Turni,
+            Title: "Cambio turno con scambio fra colleghi",
+            Description: "Lo Staff cede un turno a un collega specifico o in broadcast; quando un collega accetta, il Direttore approva e il sistema esegue lo swap del PersonaId del turno. Vista a tre sezioni (mie / in arrivo / da approvare) con pulsanti contestuali, dal calendario è disponibile un'azione ↔ direttamente sul turno proprio."),
+
+        new(
+            Version: "v1.200.0",
+            Codename: "Tornavento+Staff",
+            Date: new DateTime(2026, 4, 28),
+            Category: ChangelogCategory.Documenti,
+            Title: "Fascicolo personale «I miei documenti»",
+            Description: "Pagina personale dove ogni dipendente trova il proprio contratto attuale (e lo storico), gli attestati dei corsi obbligatori, le idoneità mediche con stato di scadenza. Download scoped al LinkedPersonId — un dipendente non può accedere agli allegati di un collega. VisitaMedica e Corso ricevono campi allegato dedicati."),
+
+        new(
+            Version: "v1.200.0",
+            Codename: "Tornavento+Staff",
+            Date: new DateTime(2026, 4, 28),
+            Category: ChangelogCategory.Comunicazioni,
+            Title: "Segnalazioni operative con workflow di sede",
+            Description: "Ticket di sede per guasti attrezzatura, problemi sicurezza, IT, approvvigionamento, igiene. Priorità Bassa→Urgente, allegato (foto/video/doc). Workflow: Aperta → InLavorazione (Direttore prende in carico) → Risolta (con nota di chiusura). Filtri stato e tipologia, contatori urgenti in evidenza."),
+
+        // ───────────────────────────────────────────────────────────────────
         // 🏢 v1.100.0 — Tornavento+Management
         // ───────────────────────────────────────────────────────────────────
         new(

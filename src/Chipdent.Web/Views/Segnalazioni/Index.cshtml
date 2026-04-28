@@ -1,0 +1,151 @@
+@model Chipdent.Web.Models.SegnalazioniIndexViewModel
+@{
+    ViewData["Title"] = "Segnalazioni";
+
+    string StatoBadge(StatoSegnalazione s) => s switch
+    {
+        StatoSegnalazione.Aperta        => "<span class='badge badge--warning'><span class='dot'></span>aperta</span>",
+        StatoSegnalazione.InLavorazione => "<span class='badge'><span class='dot'></span>in lavorazione</span>",
+        StatoSegnalazione.Risolta       => "<span class='badge badge--success'><span class='dot'></span>risolta</span>",
+        StatoSegnalazione.Annullata     => "<span class='badge'><span class='dot'></span>annullata</span>",
+        _ => "—"
+    };
+
+    string PrioritaBadge(PrioritaSegnalazione p) => p switch
+    {
+        PrioritaSegnalazione.Urgente => "<span class='badge badge--danger'>🚨 urgente</span>",
+        PrioritaSegnalazione.Alta    => "<span class='badge badge--warning'>↑ alta</span>",
+        PrioritaSegnalazione.Media   => "<span class='badge'>media</span>",
+        _ => "<span class='badge'>bassa</span>"
+    };
+
+    string TipoIcon(TipoSegnalazione t) => t switch
+    {
+        TipoSegnalazione.GuastoAttrezzatura => "🔧",
+        TipoSegnalazione.ProblemaSicurezza  => "⚠️",
+        TipoSegnalazione.Approvvigionamento => "📦",
+        TipoSegnalazione.PuliziaIgiene      => "🧼",
+        TipoSegnalazione.InfrastrutturaIT   => "💻",
+        _ => "📋"
+    };
+}
+
+<partial name="_Flash" />
+
+<div class="page-head">
+    <div>
+        <h2>Segnalazioni operative</h2>
+        <p class="page-head__sub">Guasti, problemi di sicurezza e ticket di sede.</p>
+    </div>
+    <div class="page-head__actions">
+        <a class="btn btn--primary" asp-action="Create">+ Nuova segnalazione</a>
+    </div>
+</div>
+
+<div class="grid grid--stats" style="margin-bottom: var(--s-4);">
+    <div class="stat">
+        <div class="stat__label">Aperte</div>
+        <div class="stat__value">@Model.Aperte</div>
+    </div>
+    <div class="stat">
+        <div class="stat__label">In lavorazione</div>
+        <div class="stat__value">@Model.InLavorazione</div>
+    </div>
+    <div class="stat">
+        <div class="stat__label">Urgenti</div>
+        <div class="stat__value" style="color: @(Model.Urgenti > 0 ? "#a83a3a" : "inherit");">@Model.Urgenti</div>
+    </div>
+</div>
+
+<div class="seg" style="display:inline-flex; gap:0; border:1px solid var(--c-border, #e9e1d3); border-radius: 8px; overflow:hidden; margin-bottom: var(--s-4); flex-wrap:wrap;">
+    <a class="btn @(Model.Filter == null ? "btn--primary" : "btn--ghost")" asp-action="Index" style="border-radius:0;">Tutte</a>
+    <a class="btn @(Model.Filter == StatoSegnalazione.Aperta ? "btn--primary" : "btn--ghost")" asp-action="Index" asp-route-filter="@StatoSegnalazione.Aperta" style="border-radius:0;">Aperte</a>
+    <a class="btn @(Model.Filter == StatoSegnalazione.InLavorazione ? "btn--primary" : "btn--ghost")" asp-action="Index" asp-route-filter="@StatoSegnalazione.InLavorazione" style="border-radius:0;">In lavorazione</a>
+    <a class="btn @(Model.Filter == StatoSegnalazione.Risolta ? "btn--primary" : "btn--ghost")" asp-action="Index" asp-route-filter="@StatoSegnalazione.Risolta" style="border-radius:0;">Risolte</a>
+</div>
+
+@if (!Model.Segnalazioni.Any())
+{
+    <div class="card">
+        <div class="empty">
+            <div class="empty__icon">🔧</div>
+            <h3>Nessuna segnalazione</h3>
+            <p>Apri una segnalazione per problemi di attrezzatura, sicurezza o operatività.</p>
+            <a class="btn btn--primary" asp-action="Create" style="margin-top: var(--s-3);">+ Nuova segnalazione</a>
+        </div>
+    </div>
+}
+else
+{
+    <div style="display:flex; flex-direction:column; gap: var(--s-3);">
+        @foreach (var row in Model.Segnalazioni)
+        {
+            var s = row.Segnalazione;
+            <div class="card" style="padding: var(--s-3); border-left: 4px solid @(s.Priorita switch {
+                PrioritaSegnalazione.Urgente => "#a83a3a",
+                PrioritaSegnalazione.Alta    => "#c47830",
+                _ => "#ddd0b8" });">
+                <div style="display:flex; justify-content:space-between; align-items:flex-start; gap: var(--s-3); flex-wrap: wrap;">
+                    <div style="flex:1; min-width: 240px;">
+                        <div style="font-weight:700; font-size:1.05rem; margin-bottom: 4px;">
+                            <span style="margin-right:6px;">@TipoIcon(s.Tipo)</span>
+                            @s.Titolo
+                        </div>
+                        <div class="muted" style="font-size:.82rem; margin-bottom:8px;">
+                            da <strong>@s.MittenteNome</strong> · @row.ClinicaNome · @s.CreatedAt.ToLocalTime().ToString("dd MMM HH:mm", new System.Globalization.CultureInfo("it-IT"))
+                            @if (!string.IsNullOrEmpty(s.AssegnatoANome))
+                            {
+                                <text> · 👤 @s.AssegnatoANome</text>
+                            }
+                        </div>
+                        <p style="margin: 0 0 8px; white-space: pre-wrap;">@s.Descrizione</p>
+                        @if (!string.IsNullOrEmpty(s.NoteRisoluzione))
+                        {
+                            <div style="background: var(--c-bg-soft, #faf6f0); padding: 8px 12px; border-radius: 6px; margin-top: 8px; font-size:.85rem;">
+                                <strong>Risoluzione:</strong> @s.NoteRisoluzione
+                                @if (s.DataRisoluzione is not null) { <span class="muted"> · @s.DataRisoluzione?.ToString("dd/MM HH:mm")</span> }
+                            </div>
+                        }
+                    </div>
+                    <div style="display:flex; flex-direction:column; gap:6px; align-items:flex-end;">
+                        @Html.Raw(StatoBadge(s.Stato))
+                        @Html.Raw(PrioritaBadge(s.Priorita))
+                        @if (!string.IsNullOrEmpty(s.AllegatoPath))
+                        {
+                            <a class="btn btn--ghost" asp-action="Allegato" asp-route-id="@s.Id" target="_blank" style="padding: 4px 10px; font-size:.78rem;">⬇ allegato</a>
+                        }
+                    </div>
+                </div>
+
+                <div style="display:flex; gap:8px; margin-top: var(--s-2); justify-content:flex-end; flex-wrap:wrap;">
+                    @if (Model.CanResolve)
+                    {
+                        if (s.Stato == StatoSegnalazione.Aperta)
+                        {
+                            <form asp-action="Take" asp-route-id="@s.Id" method="post" style="display:inline;">
+                                @Html.AntiForgeryToken()
+                                <button type="submit" class="btn btn--ghost" style="padding:4px 10px; font-size:.78rem;">📌 Prendi in carico</button>
+                            </form>
+                        }
+                        if (s.Stato == StatoSegnalazione.Aperta || s.Stato == StatoSegnalazione.InLavorazione)
+                        {
+                            <form asp-action="Resolve" asp-route-id="@s.Id" method="post" style="display:inline; gap:4px;">
+                                @Html.AntiForgeryToken()
+                                <input class="form-control" name="note" placeholder="Nota di chiusura (opzionale)" style="display:inline-block; width: 220px; padding: 4px 8px; font-size:.78rem;" />
+                                <button type="submit" class="btn btn--primary" style="padding:4px 10px; font-size:.78rem;">✓ Chiudi</button>
+                            </form>
+                        }
+                    }
+                    @if (s.Stato == StatoSegnalazione.Aperta || s.Stato == StatoSegnalazione.InLavorazione)
+                    {
+                        <form asp-action="Cancel" asp-route-id="@s.Id" method="post" style="display:inline;"
+                              onsubmit="return confirm('Annullare la segnalazione?');">
+                            @Html.AntiForgeryToken()
+                            <button type="submit" class="ibtn" title="Annulla">✕</button>
+                        </form>
+                    }
+                </div>
+            </div>
+        }
+    </div>
+}
