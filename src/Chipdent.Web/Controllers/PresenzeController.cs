@@ -229,6 +229,166 @@ public class PresenzeController : Controller
         return RedirectToAction(nameof(Index));
     }
 
+    // ───── Correzioni timbratura ─────
+
+    [HttpGet("correzioni")]
+    [Authorize(Policy = Policies.RequireDirettore)]
+    public async Task<IActionResult> Correzioni(StatoCorrezione? filter = null)
+    {
+        var tid = _tenant.TenantId!;
+        var f = Builders<CorrezioneTimbratura>.Filter.Eq(c => c.TenantId, tid);
+        if (filter.HasValue) f &= Builders<CorrezioneTimbratura>.Filter.Eq(c => c.Stato, filter.Value);
+        else f &= Builders<CorrezioneTimbratura>.Filter.Eq(c => c.Stato, StatoCorrezione.Aperta);
+        var items = await _mongo.CorrezioniTimbrature.Find(f).SortByDescending(c => c.CreatedAt).ToListAsync();
+        ViewData["Section"] = "presenze";
+        ViewData["Filter"] = filter;
+        return View(items);
+    }
+
+    [HttpPost("correzioni/{id}/approva")]
+    [Authorize(Policy = Policies.RequireDirettore)]
+    [ValidateAntiForgeryToken]
+    public async Task<IActionResult> ApprovaCorrezione(string id, string? note = null)
+    {
+        var tid = _tenant.TenantId!;
+        var c = await _mongo.CorrezioniTimbrature.Find(x => x.Id == id && x.TenantId == tid).FirstOrDefaultAsync();
+        if (c is null) return NotFound();
+        if (c.Stato != StatoCorrezione.Aperta)
+        {
+            TempData["flash"] = "Richiesta già processata.";
+            return RedirectToAction(nameof(Correzioni));
+        }
+
+        var meId = User.FindFirst(ClaimTypes.NameIdentifier)?.Value ?? "";
+        var meName = User.Identity?.Name ?? "";
+
+        // Applica la correzione
+        switch (c.Tipo)
+        {
+            case TipoCorrezione.Aggiungi:
+                var dip = await _mongo.Dipendenti.Find(d => d.Id == c.DipendenteId).FirstOrDefaultAsync();
+                if (dip is not null)
+                {
+                    await _mongo.Timbrature.InsertOneAsync(new Timbratura
+                    {
+                        TenantId = tid,
+                        DipendenteId = c.DipendenteId,
+                        ClinicaId = dip.ClinicaId,
+                        Tipo = c.TipoTimbraturaProposto,
+                        Timestamp = DateTime.SpecifyKind(c.TimestampProposto, DateTimeKind.Utc),
+                        Metodo = MetodoTimbratura.Manuale,
+                        Remoto = c.RemotoProposto,
+                        RegistrataDaUserId = meId,
+                        Note = $"Da correzione approvata: {c.Motivazione}"
+                    });
+                }
+                break;
+            case TipoCorrezione.Modifica:
+                if (!string.IsNullOrEmpty(c.TimbraturaId))
+                {
+                    await _mongo.Timbrature.UpdateOneAsync(
+                        x => x.Id == c.TimbraturaId && x.TenantId == tid,
+                        Builders<Timbratura>.Update
+                            .Set(x => x.Tipo, c.TipoTimbraturaProposto)
+                            .Set(x => x.Timestamp, DateTime.SpecifyKind(c.TimestampProposto, DateTimeKind.Utc))
+                            .Set(x => x.Remoto, c.RemotoProposto));
+                }
+                break;
+            case TipoCorrezione.Elimina:
+                if (!string.IsNullOrEmpty(c.TimbraturaId))
+                {
+                    await _mongo.Timbrature.DeleteOneAsync(x => x.Id == c.TimbraturaId && x.TenantId == tid);
+                }
+                break;
+        }
+
+        await _mongo.CorrezioniTimbrature.UpdateOneAsync(
+            x => x.Id == id && x.TenantId == tid,
+            Builders<CorrezioneTimbratura>.Update
+                .Set(x => x.Stato, StatoCorrezione.Approvata)
+                .Set(x => x.DecisoreUserId, meId)
+                .Set(x => x.DecisoreNome, meName)
+                .Set(x => x.DataDecisione, DateTime.UtcNow)
+                .Set(x => x.NoteDecisore, note)
+                .Set(x => x.UpdatedAt, DateTime.UtcNow));
+
+        TempData["flash"] = "Correzione approvata e applicata.";
+        return RedirectToAction(nameof(Correzioni));
+    }
+
+    [HttpPost("correzioni/{id}/respingi")]
+    [Authorize(Policy = Policies.RequireDirettore)]
+    [ValidateAntiForgeryToken]
+    public async Task<IActionResult> RespingiCorrezione(string id, string? note = null)
+    {
+        var tid = _tenant.TenantId!;
+        var meId = User.FindFirst(ClaimTypes.NameIdentifier)?.Value ?? "";
+        var meName = User.Identity?.Name ?? "";
+        await _mongo.CorrezioniTimbrature.UpdateOneAsync(
+            x => x.Id == id && x.TenantId == tid && x.Stato == StatoCorrezione.Aperta,
+            Builders<CorrezioneTimbratura>.Update
+                .Set(x => x.Stato, StatoCorrezione.Respinta)
+                .Set(x => x.DecisoreUserId, meId)
+                .Set(x => x.DecisoreNome, meName)
+                .Set(x => x.DataDecisione, DateTime.UtcNow)
+                .Set(x => x.NoteDecisore, note)
+                .Set(x => x.UpdatedAt, DateTime.UtcNow));
+        TempData["flash"] = "Richiesta respinta.";
+        return RedirectToAction(nameof(Correzioni));
+    }
+
+    // ───── Approvazione timesheet mensile ─────
+
+    [HttpPost("approva-timesheet")]
+    [Authorize(Policy = Policies.RequireDirettore)]
+    [ValidateAntiForgeryToken]
+    public async Task<IActionResult> ApprovaTimesheet(string dipendenteId, DateTime mese, string? note = null)
+    {
+        var tid = _tenant.TenantId!;
+        var dip = await _mongo.Dipendenti.Find(d => d.Id == dipendenteId && d.TenantId == tid).FirstOrDefaultAsync();
+        if (dip is null) return NotFound();
+
+        var primo = new DateTime(mese.Year, mese.Month, 1, 0, 0, 0, DateTimeKind.Utc);
+        var fine = primo.AddMonths(1);
+        var timb = await _mongo.Timbrature.Find(x => x.TenantId == tid && x.DipendenteId == dipendenteId
+                                                      && x.Timestamp >= primo && x.Timestamp < fine).ToListAsync();
+        var turni = await _mongo.Turni.Find(x => x.TenantId == tid && x.PersonaId == dipendenteId
+                                                   && x.TipoPersona == TipoPersona.Dipendente
+                                                   && x.Data >= primo && x.Data < fine).ToListAsync();
+        var agg = TimbraturaCalculator.AggregaMese(dipendenteId, timb, turni, primo, fine);
+        var periodo = primo.ToString("yyyy-MM");
+
+        var meId = User.FindFirst(ClaimTypes.NameIdentifier)?.Value ?? "";
+        var meName = User.Identity?.Name ?? "";
+
+        // Upsert
+        await _mongo.ApprovazioniTimesheet.ReplaceOneAsync(
+            a => a.TenantId == tid && a.DipendenteId == dipendenteId && a.Periodo == periodo,
+            new ApprovazioneTimesheet
+            {
+                TenantId = tid,
+                DipendenteId = dipendenteId,
+                DipendenteNome = dip.NomeCompleto,
+                Periodo = periodo,
+                Stato = StatoApprovazioneTimesheet.Approvato,
+                DirettoreUserId = meId,
+                DirettoreNome = meName,
+                ApprovatoIl = DateTime.UtcNow,
+                Note = note,
+                OreLavorateMin = (int)agg.OreLavorate.TotalMinutes,
+                OrePianificateMin = (int)agg.OrePianificate.TotalMinutes,
+                OrePausaMin = (int)agg.OrePausa.TotalMinutes,
+                SaldoOreMin = (int)agg.SaldoBancaOre.TotalMinutes,
+                Ritardi = agg.Ritardi,
+                UsciteAnticipate = agg.UsciteAnticipate,
+                GiorniLavorati = agg.GiorniLavorati
+            },
+            new ReplaceOptions { IsUpsert = true });
+
+        TempData["flash"] = $"Timesheet di {dip.NomeCompleto} per {periodo} approvato.";
+        return RedirectToAction(nameof(Index), new { mese = mese.ToString("yyyy-MM-dd") });
+    }
+
     [HttpGet("export.csv")]
     [Authorize(Policy = Policies.RequireDirettore)]
     public async Task<IActionResult> ExportCsv(DateTime? mese = null, string? clinicaId = null)

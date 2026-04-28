@@ -108,6 +108,27 @@
     </div>
 </div>
 
+<!-- Stato approvazione mese -->
+@if (Model.ApprovazioneMese is { } app)
+{
+    var bg = app.Stato == StatoApprovazioneTimesheet.Approvato ? "rgba(45,122,80,0.08)"
+           : app.Stato == StatoApprovazioneTimesheet.Contestato ? "rgba(217,107,94,0.08)"
+           : "rgba(196,120,48,0.08)";
+    var icon = app.Stato == StatoApprovazioneTimesheet.Approvato ? "✅"
+             : app.Stato == StatoApprovazioneTimesheet.Contestato ? "⚠️" : "🕐";
+    <div class="alert" style="background: @bg; margin-bottom: var(--s-4);">
+        @icon <strong>Timesheet @app.Periodo:</strong> @app.Stato
+        @if (app.ApprovatoIl is not null)
+        {
+            <text> · @app.ApprovatoIl?.ToLocalTime().ToString("dd/MM HH:mm") da @app.DirettoreNome</text>
+        }
+        @if (!string.IsNullOrEmpty(app.Note))
+        {
+            <div class="muted" style="margin-top:4px; font-size:.85rem;">"@app.Note"</div>
+        }
+    </div>
+}
+
 <!-- KPI mese -->
 @if (Model.Aggregato is { } a)
 {
@@ -208,5 +229,93 @@ else
             <h3>Nessuna timbratura questo mese</h3>
             <p>Quando timbrerai entrata e uscita, qui troverai il dettaglio giornaliero e la banca ore.</p>
         </div>
+    </div>
+}
+
+<!-- Richiedi correzione + Mie correzioni -->
+<details class="card" style="margin-top: var(--s-4);">
+    <summary class="card__header" style="cursor:pointer; list-style: none;">
+        <h3 class="card__title">✏️ Richiedi correzione timbratura</h3>
+        @if (Model.CorrezioniPendenti > 0)
+        {
+            <span class="badge badge--warning" style="margin-left:8px;">@Model.CorrezioniPendenti pendenti</span>
+        }
+    </summary>
+    <div style="padding: var(--s-3);">
+        <p class="muted" style="font-size:.85rem; margin-bottom: var(--s-3);">
+            Hai dimenticato di timbrare? Ti sei sbagliato? Invia una richiesta al direttore con la motivazione.
+        </p>
+        <form asp-action="RichiediCorrezione" method="post" class="form-grid">
+            @Html.AntiForgeryToken()
+            <div class="form-group">
+                <label class="form-label">Tipo richiesta</label>
+                <select class="form-control" name="tipo">
+                    <option value="@TipoCorrezione.Aggiungi">Aggiungi una timbratura mancante</option>
+                    <option value="@TipoCorrezione.Modifica">Modifica orario di una timbratura</option>
+                    <option value="@TipoCorrezione.Elimina">Elimina una timbratura sbagliata</option>
+                </select>
+            </div>
+            <div class="form-group">
+                <label class="form-label">Tipo timbratura</label>
+                <select class="form-control" name="tipoTimbratura">
+                    <option value="@TipoTimbratura.CheckIn">Inizio turno</option>
+                    <option value="@TipoTimbratura.CheckOut">Fine turno</option>
+                    <option value="@TipoTimbratura.PauseStart">Inizio pausa</option>
+                    <option value="@TipoTimbratura.PauseEnd">Fine pausa</option>
+                </select>
+            </div>
+            <div class="form-group">
+                <label class="form-label">Quando (data + ora)</label>
+                <input class="form-control" type="datetime-local" name="quando" required value="@DateTime.Now.ToString("yyyy-MM-ddTHH:mm")" />
+            </div>
+            <div class="form-group">
+                <label class="form-check">
+                    <input type="checkbox" name="remoto" value="true" />
+                    Da remoto
+                </label>
+            </div>
+            <div class="form-group full">
+                <label class="form-label">Motivazione</label>
+                <textarea class="form-control" name="motivazione" rows="2" required maxlength="500" placeholder="Es. Ho dimenticato di fare il check-out alle 18:00."></textarea>
+            </div>
+            <div class="form-group full" style="text-align:right;">
+                <button type="submit" class="btn btn--primary">Invia richiesta</button>
+            </div>
+        </form>
+    </div>
+</details>
+
+@if (Model.MieCorrezioni.Any())
+{
+    <div class="card" style="margin-top: var(--s-3);">
+        <div class="card__header"><h3 class="card__title">Le mie richieste di correzione</h3></div>
+        <table class="table">
+            <thead><tr><th>Inviata</th><th>Tipo</th><th>Quando</th><th>Motivazione</th><th>Stato</th></tr></thead>
+            <tbody>
+                @foreach (var c in Model.MieCorrezioni)
+                {
+                    var statoBadge = c.Stato switch
+                    {
+                        StatoCorrezione.Aperta    => "<span class='badge badge--warning'>aperta</span>",
+                        StatoCorrezione.Approvata => "<span class='badge badge--success'>approvata</span>",
+                        StatoCorrezione.Respinta  => "<span class='badge badge--danger'>respinta</span>",
+                        _ => "<span class='badge'>annullata</span>"
+                    };
+                    <tr>
+                        <td class="muted" style="font-size:.78rem;">@c.CreatedAt.ToLocalTime().ToString("dd/MM HH:mm")</td>
+                        <td>@c.Tipo · @c.TipoTimbraturaProposto</td>
+                        <td>@c.TimestampProposto.ToLocalTime().ToString("dd/MM HH:mm")</td>
+                        <td class="muted" style="font-size:.85rem;">@c.Motivazione</td>
+                        <td>
+                            @Html.Raw(statoBadge)
+                            @if (!string.IsNullOrEmpty(c.NoteDecisore))
+                            {
+                                <div class="muted" style="font-size:.78rem;">"@c.NoteDecisore"</div>
+                            }
+                        </td>
+                    </tr>
+                }
+            </tbody>
+        </table>
     </div>
 }

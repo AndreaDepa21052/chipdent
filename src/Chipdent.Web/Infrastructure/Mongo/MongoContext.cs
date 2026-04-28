@@ -55,5 +55,7 @@ public class MongoContext
     public IMongoCollection<Dpi> Dpi => Database.GetCollection<Dpi>("dpi");
     public IMongoCollection<ConsegnaDpi> ConsegneDpi => Database.GetCollection<ConsegnaDpi>("consegneDpi");
     public IMongoCollection<Timbratura> Timbrature => Database.GetCollection<Timbratura>("timbrature");
+    public IMongoCollection<CorrezioneTimbratura> CorrezioniTimbrature => Database.GetCollection<CorrezioneTimbratura>("correzioniTimbrature");
+    public IMongoCollection<ApprovazioneTimesheet> ApprovazioniTimesheet => Database.GetCollection<ApprovazioneTimesheet>("approvazioniTimesheet");
     public IMongoCollection<SegnalazioneWhistleblowing> Whistleblowing => Database.GetCollection<SegnalazioneWhistleblowing>("whistleblowing");
 }

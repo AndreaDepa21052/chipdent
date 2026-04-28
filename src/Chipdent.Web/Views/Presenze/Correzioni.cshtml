@@ -1,0 +1,99 @@
+@model IReadOnlyList<Chipdent.Web.Domain.Entities.CorrezioneTimbratura>
+@{
+    ViewData["Title"] = "Correzioni timbratura";
+    ViewData["Crumb"] = "Presenze";
+    var filter = ViewData["Filter"] as Chipdent.Web.Domain.Entities.StatoCorrezione?;
+
+    string StatoBadge(StatoCorrezione s) => s switch
+    {
+        StatoCorrezione.Aperta    => "<span class='badge badge--warning'>aperta</span>",
+        StatoCorrezione.Approvata => "<span class='badge badge--success'>approvata</span>",
+        StatoCorrezione.Respinta  => "<span class='badge badge--danger'>respinta</span>",
+        _ => "<span class='badge'>annullata</span>"
+    };
+}
+
+<partial name="_Flash" />
+
+<div class="page-head">
+    <div>
+        <h2>✏️ Correzioni timbratura</h2>
+        <p class="page-head__sub">Richieste dei dipendenti di aggiungere, modificare o eliminare timbrature.</p>
+    </div>
+    <div class="page-head__actions">
+        <a class="btn btn--ghost" asp-action="Index">← Torna alle presenze</a>
+    </div>
+</div>
+
+<div class="seg" style="display:inline-flex; gap:0; border:1px solid var(--c-border, #e9e1d3); border-radius: 8px; overflow:hidden; margin-bottom: var(--s-4);">
+    <a class="btn @(filter == null || filter == StatoCorrezione.Aperta ? "btn--primary" : "btn--ghost")" asp-action="Correzioni" style="border-radius:0;">Aperte</a>
+    <a class="btn @(filter == StatoCorrezione.Approvata ? "btn--primary" : "btn--ghost")" asp-action="Correzioni" asp-route-filter="@StatoCorrezione.Approvata" style="border-radius:0;">Approvate</a>
+    <a class="btn @(filter == StatoCorrezione.Respinta ? "btn--primary" : "btn--ghost")" asp-action="Correzioni" asp-route-filter="@StatoCorrezione.Respinta" style="border-radius:0;">Respinte</a>
+</div>
+
+@if (!Model.Any())
+{
+    <div class="card">
+        <div class="empty">
+            <div class="empty__icon">✏️</div>
+            <h3>Nessuna richiesta</h3>
+            <p>Le richieste di correzione timbratura compariranno qui.</p>
+        </div>
+    </div>
+}
+else
+{
+    <div class="table-wrap">
+        <table class="table">
+            <thead>
+                <tr>
+                    <th>Inviata</th>
+                    <th>Dipendente</th>
+                    <th>Tipo richiesta</th>
+                    <th>Tipo timbratura</th>
+                    <th>Quando</th>
+                    <th>Motivazione</th>
+                    <th>Stato</th>
+                    <th></th>
+                </tr>
+            </thead>
+            <tbody>
+                @foreach (var c in Model)
+                {
+                    <tr>
+                        <td class="muted" style="font-size:.78rem;">@c.CreatedAt.ToLocalTime().ToString("dd/MM HH:mm")</td>
+                        <td><strong>@c.DipendenteNome</strong></td>
+                        <td>@c.Tipo</td>
+                        <td>
+                            @c.TipoTimbraturaProposto
+                            @if (c.RemotoProposto) { <span class="badge">🏠 remoto</span> }
+                        </td>
+                        <td>@c.TimestampProposto.ToLocalTime().ToString("dd/MM/yyyy HH:mm")</td>
+                        <td class="muted" style="font-size:.85rem; max-width: 280px;">@c.Motivazione</td>
+                        <td>
+                            @Html.Raw(StatoBadge(c.Stato))
+                            @if (!string.IsNullOrEmpty(c.NoteDecisore))
+                            {
+                                <div class="muted" style="font-size:.78rem;">"@c.NoteDecisore"</div>
+                            }
+                        </td>
+                        <td>
+                            @if (c.Stato == StatoCorrezione.Aperta)
+                            {
+                                <form asp-action="ApprovaCorrezione" asp-route-id="@c.Id" method="post" style="display:inline;"
+                                      onsubmit="return confirm('Approvare e applicare la correzione?');">
+                                    @Html.AntiForgeryToken()
+                                    <button type="submit" class="btn btn--primary" style="padding:4px 10px; font-size:.78rem;">✓ Applica</button>
+                                </form>
+                                <form asp-action="RespingiCorrezione" asp-route-id="@c.Id" method="post" style="display:inline;">
+                                    @Html.AntiForgeryToken()
+                                    <button type="submit" class="btn btn--ghost" style="padding:4px 10px; font-size:.78rem;">✕ Respingi</button>
+                                </form>
+                            }
+                        </td>
+                    </tr>
+                }
+            </tbody>
+        </table>
+    </div>
+}

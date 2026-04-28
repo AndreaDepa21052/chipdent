@@ -18,6 +18,8 @@ public class MieTimbratureViewModel
     public IReadOnlyList<TimbraturaGiorno> Giorni { get; set; } = Array.Empty<TimbraturaGiorno>();
 
     public int CorrezioniPendenti { get; set; }
+    public IReadOnlyList<CorrezioneTimbratura> MieCorrezioni { get; set; } = Array.Empty<CorrezioneTimbratura>();
+    public ApprovazioneTimesheet? ApprovazioneMese { get; set; }
 }
 
 public record TimbraturaGiorno(

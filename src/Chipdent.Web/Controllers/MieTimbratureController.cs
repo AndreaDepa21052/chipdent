@@ -66,6 +66,15 @@ public class MieTimbratureController : Controller
 
         var stato = await ComputeStatoCorrenteAsync(tid, dipendente.Id);
 
+        var periodo = primo.ToString("yyyy-MM");
+        var correzioni = await _mongo.CorrezioniTimbrature
+            .Find(c => c.TenantId == tid && c.DipendenteId == dipendente.Id
+                       && c.TimestampProposto >= primo && c.TimestampProposto < fine)
+            .SortByDescending(c => c.CreatedAt).ToListAsync();
+        var approvazione = await _mongo.ApprovazioniTimesheet
+            .Find(a => a.TenantId == tid && a.DipendenteId == dipendente.Id && a.Periodo == periodo)
+            .FirstOrDefaultAsync();
+
         ViewData["Section"] = "mie-timbrature";
         return View(new MieTimbratureViewModel
         {
@@ -75,7 +84,10 @@ public class MieTimbratureController : Controller
             Mese = primo,
             Aggregato = aggregato,
             Giorni = giorni,
-            StatoCorrente = stato
+            StatoCorrente = stato,
+            MieCorrezioni = correzioni,
+            CorrezioniPendenti = correzioni.Count(c => c.Stato == StatoCorrezione.Aperta),
+            ApprovazioneMese = approvazione
         });
     }
 
@@ -135,6 +147,43 @@ public class MieTimbratureController : Controller
         });
 
         TempData["flash"] = $"✓ {label} alle {DateTime.Now:HH:mm}.";
+        return RedirectToAction(nameof(Index));
+    }
+
+    [HttpPost("correzione")]
+    [ValidateAntiForgeryToken]
+    public async Task<IActionResult> RichiediCorrezione(TipoCorrezione tipo, string? timbraturaId,
+        TipoTimbratura tipoTimbratura, DateTime quando, bool remoto, string motivazione)
+    {
+        var tid = _tenant.TenantId!;
+        var (dip, _) = await ResolveLinkedDipendenteAsync(tid);
+        if (dip is null) return Forbid();
+        if (string.IsNullOrWhiteSpace(motivazione))
+        {
+            TempData["flash"] = "Motivazione obbligatoria.";
+            return RedirectToAction(nameof(Index));
+        }
+        await _mongo.CorrezioniTimbrature.InsertOneAsync(new CorrezioneTimbratura
+        {
+            TenantId = tid,
+            DipendenteId = dip.Id,
+            DipendenteNome = dip.NomeCompleto,
+            TimbraturaId = timbraturaId,
+            Tipo = tipo,
+            TipoTimbraturaProposto = tipoTimbratura,
+            TimestampProposto = DateTime.SpecifyKind(quando, DateTimeKind.Utc),
+            RemotoProposto = remoto,
+            Motivazione = motivazione.Trim(),
+            Stato = StatoCorrezione.Aperta
+        });
+        await _publisher.PublishAsync(tid, "activity", new
+        {
+            kind = "shift",
+            title = $"Richiesta correzione timbratura: {dip.NomeCompleto}",
+            description = $"{tipo} · {quando:dd/MM HH:mm}",
+            when = DateTime.UtcNow
+        });
+        TempData["flash"] = "Richiesta inviata al direttore.";
         return RedirectToAction(nameof(Index));
     }
 
