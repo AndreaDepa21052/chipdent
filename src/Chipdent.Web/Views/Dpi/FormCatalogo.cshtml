@@ -1,0 +1,65 @@
+@model Chipdent.Web.Models.DpiCatalogoFormViewModel
+@{
+    ViewData["Title"] = "Nuovo DPI";
+    ViewData["Crumb"] = "DPI";
+}
+
+<partial name="_Flash" />
+
+<div class="page-head">
+    <div>
+        <h2>Nuovo DPI in catalogo</h2>
+        <p class="page-head__sub">Le consegne ai dipendenti faranno riferimento a questo DPI.</p>
+    </div>
+    <div class="page-head__actions">
+        <a class="btn btn--ghost" asp-action="Index">← Indietro</a>
+    </div>
+</div>
+
+<div class="card" style="max-width: 720px;">
+    <form asp-action="CreateDpi" method="post">
+        @Html.AntiForgeryToken()
+
+        <div class="form-grid">
+            <div class="form-group">
+                <label class="form-label" asp-for="ClinicaId">Sede</label>
+                <select class="form-control" asp-for="ClinicaId" required>
+                    <option value="">— seleziona —</option>
+                    @foreach (var c in Model.Cliniche)
+                    {
+                        <option value="@c.Id" selected="@(c.Id == Model.ClinicaId)">@c.Nome</option>
+                    }
+                </select>
+            </div>
+            <div class="form-group">
+                <label class="form-label" asp-for="Tipo">Tipo</label>
+                <select class="form-control" asp-for="Tipo" asp-items="Html.GetEnumSelectList<Chipdent.Web.Domain.Entities.TipoDpi>()"></select>
+            </div>
+            <div class="form-group full">
+                <label class="form-label" asp-for="Nome">Nome</label>
+                <input class="form-control" asp-for="Nome" required maxlength="120" placeholder="Es. Mascherina FFP2 colore bianco" />
+            </div>
+            <div class="form-group">
+                <label class="form-label" asp-for="Modello">Modello</label>
+                <input class="form-control" asp-for="Modello" />
+            </div>
+            <div class="form-group">
+                <label class="form-label" asp-for="Codice">Codice interno</label>
+                <input class="form-control" asp-for="Codice" />
+            </div>
+            <div class="form-group">
+                <label class="form-label" asp-for="IntervalloSostituzioneGiorni">Intervallo sostituzione (giorni)</label>
+                <input class="form-control" asp-for="IntervalloSostituzioneGiorni" type="number" min="0" placeholder="Es. 30" />
+            </div>
+            <div class="form-group full">
+                <label class="form-label" asp-for="Note">Note</label>
+                <textarea class="form-control" asp-for="Note" rows="3"></textarea>
+            </div>
+        </div>
+
+        <div class="form-actions">
+            <a class="btn btn--ghost" asp-action="Index">Annulla</a>
+            <button type="submit" class="btn btn--primary">Aggiungi al catalogo</button>
+        </div>
+    </form>
+</div>

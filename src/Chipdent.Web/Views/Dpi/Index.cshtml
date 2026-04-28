@@ -1,0 +1,174 @@
+@model Chipdent.Web.Models.DpiIndexViewModel
+@{
+    ViewData["Title"] = "DPI & dispositivi";
+
+    string StatoBadge(StatoConsegnaDpi s) => s switch
+    {
+        StatoConsegnaDpi.InAttesaFirma => "<span class='badge badge--warning'>in attesa firma</span>",
+        StatoConsegnaDpi.Firmata       => "<span class='badge badge--success'>firmata</span>",
+        StatoConsegnaDpi.Sostituita    => "<span class='badge'>sostituita</span>",
+        StatoConsegnaDpi.Smarrita      => "<span class='badge badge--danger'>smarrita</span>",
+        StatoConsegnaDpi.Restituita    => "<span class='badge'>restituita</span>",
+        _ => "—"
+    };
+}
+
+<partial name="_Flash" />
+
+<div class="page-head">
+    <div>
+        <h2>DPI &amp; dispositivi protezione</h2>
+        <p class="page-head__sub">Catalogo DPI per sede, registro consegne con firma click e scadenza sostituzione.</p>
+    </div>
+    @if (Model.CanManage)
+    {
+        <div class="page-head__actions">
+            <a class="btn btn--ghost" asp-action="CreateDpi">+ Nuovo DPI in catalogo</a>
+            <a class="btn btn--primary" asp-action="Consegna">+ Nuova consegna</a>
+        </div>
+    }
+</div>
+
+<div class="grid grid--stats" style="margin-bottom: var(--s-4);">
+    <div class="stat">
+        <div class="stat__label">Catalogo</div>
+        <div class="stat__value">@Model.Catalogo.Count</div>
+    </div>
+    <div class="stat">
+        <div class="stat__label">Da firmare</div>
+        <div class="stat__value">@Model.InAttesaFirma</div>
+    </div>
+    <div class="stat">
+        <div class="stat__label">In scadenza (30g)</div>
+        <div class="stat__value">@Model.InScadenza</div>
+    </div>
+    <div class="stat">
+        <div class="stat__label">Scadute</div>
+        <div class="stat__value" style="color: @(Model.Scadute > 0 ? "#a83a3a" : "inherit");">@Model.Scadute</div>
+    </div>
+</div>
+
+@if (Model.CanManage)
+{
+    <div class="card" style="margin-bottom: var(--s-4);">
+        <div class="card__header"><h3 class="card__title">Catalogo DPI</h3></div>
+        @if (!Model.Catalogo.Any())
+        {
+            <p class="muted" style="padding: var(--s-3) 0;">Nessun DPI in catalogo. Aggiungi mascherine, guanti, camici, ecc.</p>
+        }
+        else
+        {
+            <table class="table">
+                <thead><tr><th>Nome</th><th>Tipo</th><th>Modello</th><th>Sede</th><th>Sostituz.</th><th>Consegne</th><th></th></tr></thead>
+                <tbody>
+                    @foreach (var row in Model.Catalogo)
+                    {
+                        var d = row.Dpi;
+                        <tr>
+                            <td><strong>@d.Nome</strong>@(string.IsNullOrEmpty(d.Codice) ? "" : $" · {d.Codice}")</td>
+                            <td>@d.Tipo</td>
+                            <td>@d.Modello</td>
+                            <td>@row.ClinicaNome</td>
+                            <td>@(d.IntervalloSostituzioneGiorni is null ? "—" : d.IntervalloSostituzioneGiorni + " gg")</td>
+                            <td>@row.ConsegneCount</td>
+                            <td>
+                                <a class="ibtn" asp-action="Consegna" asp-route-dpiId="@d.Id" title="Nuova consegna di questo DPI">+</a>
+                                <form asp-action="DeleteDpi" asp-route-id="@d.Id" method="post" style="display:inline;"
+                                      onsubmit="return confirm('Rimuovere dal catalogo?');">
+                                    @Html.AntiForgeryToken()
+                                    <button type="submit" class="ibtn" title="Elimina">✕</button>
+                                </form>
+                            </td>
+                        </tr>
+                    }
+                </tbody>
+            </table>
+        }
+    </div>
+}
+
+<div class="card">
+    <div class="card__header"><h3 class="card__title">Consegne</h3></div>
+    @if (!Model.Consegne.Any())
+    {
+        <p class="muted" style="padding: var(--s-3) 0;">Nessuna consegna registrata.</p>
+    }
+    else
+    {
+        <table class="table">
+            <thead>
+                <tr>
+                    <th>Data</th>
+                    <th>DPI</th>
+                    <th>Dipendente</th>
+                    <th>Sede</th>
+                    <th>Q.tà</th>
+                    <th>Scadenza sost.</th>
+                    <th>Stato</th>
+                    <th>Firma</th>
+                    <th></th>
+                </tr>
+            </thead>
+            <tbody>
+                @foreach (var row in Model.Consegne)
+                {
+                    var c = row.Consegna;
+                    var scaduta = c.ScadenzaSostituzione is not null && c.ScadenzaSostituzione < DateTime.UtcNow && c.Stato != StatoConsegnaDpi.Sostituita;
+                    <tr style="@(scaduta ? "background: rgba(217,107,94,0.05);" : "")">
+                        <td>@c.DataConsegna.ToLocalTime().ToString("dd/MM/yyyy")</td>
+                        <td>
+                            @(row.Dpi?.Nome ?? "—")
+                            <div class="muted" style="font-size:.78rem;">@(row.Dpi?.Tipo)</div>
+                        </td>
+                        <td>@row.DipendenteNome</td>
+                        <td>@row.ClinicaNome</td>
+                        <td>@c.Quantita</td>
+                        <td>
+                            @if (c.ScadenzaSostituzione is null) { <span class="muted">—</span> }
+                            else if (scaduta) { <span style="color:#a83a3a; font-weight:700;">⚠ @c.ScadenzaSostituzione?.ToString("dd/MM/yyyy")</span> }
+                            else { @c.ScadenzaSostituzione?.ToString("dd/MM/yyyy") }
+                        </td>
+                        <td>@Html.Raw(StatoBadge(c.Stato))</td>
+                        <td>
+                            @if (c.FirmaIl is not null)
+                            {
+                                <div style="font-size:.78rem;">
+                                    <strong>@c.FirmaNome</strong><br/>
+                                    <span class="muted">@c.FirmaIl?.ToLocalTime().ToString("dd/MM HH:mm")</span>
+                                </div>
+                            }
+                            else
+                            {
+                                <span class="muted">—</span>
+                            }
+                        </td>
+                        <td>
+                            @if (c.Stato == StatoConsegnaDpi.InAttesaFirma)
+                            {
+                                <form asp-action="Firma" asp-route-id="@c.Id" method="post" style="display:inline;">
+                                    @Html.AntiForgeryToken()
+                                    <button type="submit" class="btn btn--primary" style="padding:4px 10px; font-size:.78rem;">✍ Firma</button>
+                                </form>
+                            }
+                            @if (Model.CanManage && c.Stato != StatoConsegnaDpi.Sostituita)
+                            {
+                                <form asp-action="Sostituisci" asp-route-id="@c.Id" method="post" style="display:inline;">
+                                    @Html.AntiForgeryToken()
+                                    <button type="submit" class="ibtn" title="Marca come sostituito">↻</button>
+                                </form>
+                            }
+                            @if (Model.CanManage)
+                            {
+                                <form asp-action="DeleteConsegna" asp-route-id="@c.Id" method="post" style="display:inline;"
+                                      onsubmit="return confirm('Eliminare la consegna?');">
+                                    @Html.AntiForgeryToken()
+                                    <button type="submit" class="ibtn" title="Elimina">✕</button>
+                                </form>
+                            }
+                        </td>
+                    </tr>
+                }
+            </tbody>
+        </table>
+    }
+</div>

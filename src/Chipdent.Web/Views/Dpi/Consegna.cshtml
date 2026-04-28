@@ -1,0 +1,69 @@
+@model Chipdent.Web.Models.NuovaConsegnaDpiViewModel
+@{
+    ViewData["Title"] = "Nuova consegna DPI";
+    ViewData["Crumb"] = "DPI";
+}
+
+<partial name="_Flash" />
+
+<div class="page-head">
+    <div>
+        <h2>Nuova consegna DPI</h2>
+        <p class="page-head__sub">Registra la consegna; il dipendente firmerà con un click.</p>
+    </div>
+    <div class="page-head__actions">
+        <a class="btn btn--ghost" asp-action="Index">← Indietro</a>
+    </div>
+</div>
+
+<div class="card" style="max-width: 720px;">
+    <form asp-action="Consegna" method="post">
+        @Html.AntiForgeryToken()
+
+        <div class="form-grid">
+            <div class="form-group full">
+                <label class="form-label" asp-for="DpiId">DPI</label>
+                <select class="form-control" asp-for="DpiId" required>
+                    <option value="">— seleziona —</option>
+                    @foreach (var d in Model.DpiDisponibili)
+                    {
+                        <option value="@d.Id" selected="@(d.Id == Model.DpiId)">
+                            @d.Nome · @d.Tipo
+                            @(d.IntervalloSostituzioneGiorni is null ? "" : $" · sost. {d.IntervalloSostituzioneGiorni}gg")
+                        </option>
+                    }
+                </select>
+            </div>
+            <div class="form-group full">
+                <label class="form-label" asp-for="DipendenteId">Dipendente</label>
+                <select class="form-control" asp-for="DipendenteId" required>
+                    <option value="">— seleziona —</option>
+                    @foreach (var d in Model.Dipendenti)
+                    {
+                        <option value="@d.Id" selected="@(d.Id == Model.DipendenteId)">@d.NomeCompleto · @d.Ruolo</option>
+                    }
+                </select>
+            </div>
+
+            <div class="form-group">
+                <label class="form-label" asp-for="Quantita">Quantità</label>
+                <input class="form-control" asp-for="Quantita" type="number" min="1" />
+            </div>
+            <div class="form-group">
+                <label class="form-label" asp-for="ScadenzaSostituzione">Scadenza sostituzione</label>
+                <input class="form-control" asp-for="ScadenzaSostituzione" type="date" />
+                <small class="muted" style="font-size:.78rem;">Se vuota e il DPI ha intervallo configurato, viene calcolata automaticamente.</small>
+            </div>
+
+            <div class="form-group full">
+                <label class="form-label" asp-for="Note">Note</label>
+                <textarea class="form-control" asp-for="Note" rows="3"></textarea>
+            </div>
+        </div>
+
+        <div class="form-actions">
+            <a class="btn btn--ghost" asp-action="Index">Annulla</a>
+            <button type="submit" class="btn btn--primary">Registra consegna</button>
+        </div>
+    </form>
+</div>
