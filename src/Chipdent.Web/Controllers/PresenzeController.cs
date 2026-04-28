@@ -4,6 +4,7 @@ using System.Text;
 using Chipdent.Web.Domain.Entities;
 using Chipdent.Web.Hubs;
 using Chipdent.Web.Infrastructure.Identity;
+using Chipdent.Web.Infrastructure.Insights;
 using Chipdent.Web.Infrastructure.Mongo;
 using Chipdent.Web.Infrastructure.Tenancy;
 using Chipdent.Web.Models;
@@ -56,55 +57,24 @@ public class PresenzeController : Controller
 
         var righe = dipendenti.Select(d =>
         {
-            var miei = turni.Where(t => t.PersonaId == d.Id).ToList();
-            var oreP = (int)Math.Round(miei.Sum(t => Math.Max(0, (t.OraFine - t.OraInizio).TotalHours)));
+            var miei = turni.Where(t => t.PersonaId == d.Id && t.TipoPersona == TipoPersona.Dipendente).ToList();
             var giorniP = miei.Select(t => t.Data.Date).Distinct().Count();
+            var mieTimb = timbrature.Where(x => x.DipendenteId == d.Id).ToList();
 
-            var mieTimb = timbrature.Where(x => x.DipendenteId == d.Id).OrderBy(x => x.Timestamp).ToList();
-            // calcolo coppie check-in / check-out per giorno
-            var oreL = 0.0;
-            var ritardi = 0;
-            var uscite = 0;
-            var giorniLav = new HashSet<DateTime>();
-            var byDay = mieTimb.GroupBy(x => x.Timestamp.Date);
-            foreach (var grp in byDay)
-            {
-                DateTime? lastIn = null;
-                foreach (var t in grp.OrderBy(x => x.Timestamp))
-                {
-                    if (t.Tipo == TipoTimbratura.CheckIn)
-                    {
-                        lastIn = t.Timestamp;
-                        var turnoOdierno = miei.Where(tt => tt.Data.Date == grp.Key)
-                                               .OrderBy(tt => tt.OraInizio).FirstOrDefault();
-                        if (turnoOdierno is not null)
-                        {
-                            var atteso = turnoOdierno.Data.Date.Add(turnoOdierno.OraInizio);
-                            if (t.Timestamp > atteso.AddMinutes(ToleranceMinutes)) ritardi++;
-                        }
-                    }
-                    else if (lastIn.HasValue)
-                    {
-                        oreL += (t.Timestamp - lastIn.Value).TotalHours;
-                        var turnoOdierno = miei.Where(tt => tt.Data.Date == grp.Key)
-                                               .OrderByDescending(tt => tt.OraFine).FirstOrDefault();
-                        if (turnoOdierno is not null)
-                        {
-                            var atteso = turnoOdierno.Data.Date.Add(turnoOdierno.OraFine);
-                            if (t.Timestamp < atteso.AddMinutes(-ToleranceMinutes)) uscite++;
-                        }
-                        giorniLav.Add(grp.Key);
-                        lastIn = null;
-                    }
-                }
-            }
+            var agg = TimbraturaCalculator.AggregaMese(d.Id, mieTimb, miei, primoDelMese, primoMeseSucc);
 
             return new DipendentePresenzeRow(
                 d.Id, d.NomeCompleto,
                 clinicheLookup.GetValueOrDefault(d.ClinicaId, "—"),
-                oreP, (int)Math.Round(oreL),
-                ritardi, uscite,
-                giorniLav.Count, giorniP);
+                OrePianificate: (int)Math.Round(agg.OrePianificate.TotalHours),
+                OreLavorate: (int)Math.Round(agg.OreLavorate.TotalHours),
+                Ritardi: agg.Ritardi,
+                UsciteAnticipate: agg.UsciteAnticipate,
+                GiorniLavorati: agg.GiorniLavorati,
+                GiorniPianificati: giorniP,
+                OrePausa: (int)Math.Round(agg.OrePausa.TotalHours),
+                SaldoOre: (int)Math.Round(agg.SaldoBancaOre.TotalHours),
+                GiorniInRemoto: agg.GiorniInRemoto);
         }).ToList();
 
         var ultimeRows = timbrature

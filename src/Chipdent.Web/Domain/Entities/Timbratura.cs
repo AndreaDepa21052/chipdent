@@ -21,17 +21,23 @@ public class Timbratura : TenantEntity
     /// <summary>UserId di chi ha registrato la timbratura (può essere il dipendente stesso o il Direttore).</summary>
     public string? RegistrataDaUserId { get; set; }
     public string? Note { get; set; }
+
+    /// <summary>True se il dipendente sta lavorando in remoto (smart working).</summary>
+    public bool Remoto { get; set; }
 }
 
 public enum TipoTimbratura
 {
     CheckIn,
-    CheckOut
+    CheckOut,
+    PauseStart,
+    PauseEnd
 }
 
 public enum MetodoTimbratura
 {
     Pin,
     Qr,
-    Manuale
+    Manuale,
+    Web
 }

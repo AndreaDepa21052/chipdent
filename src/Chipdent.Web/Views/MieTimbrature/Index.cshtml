@@ -1,0 +1,212 @@
+@model Chipdent.Web.Models.MieTimbratureViewModel
+@using Chipdent.Web.Models
+@using Chipdent.Web.Domain.Entities
+@{
+    ViewData["Title"] = "Le mie timbrature";
+    var culture = new System.Globalization.CultureInfo("it-IT");
+    var prevMese = Model.Mese.AddMonths(-1);
+    var nextMese = Model.Mese.AddMonths(1);
+
+    string FmtTs(TimeSpan ts) => $"{(int)ts.TotalHours:D2}:{ts.Minutes:D2}";
+    string FmtSaldo(TimeSpan saldo)
+    {
+        var sign = saldo.TotalMinutes >= 0 ? "+" : "−";
+        var abs = saldo.Duration();
+        return $"{sign}{(int)abs.TotalHours:D2}:{abs.Minutes:D2}";
+    }
+}
+
+<partial name="_Flash" />
+
+<div class="page-head">
+    <div>
+        <h2>⏱ Le mie timbrature</h2>
+        @if (Model.HasLinkedDipendente)
+        {
+            <p class="page-head__sub">@Model.DipendenteNome · @Model.ClinicaNome</p>
+        }
+    </div>
+    @if (Model.HasLinkedDipendente)
+    {
+        <div class="page-head__actions cal-nav">
+            <a class="ibtn" asp-action="Index" asp-route-mese="@prevMese.ToString("yyyy-MM-dd")" title="Mese precedente">
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M15 18l-6-6 6-6"/></svg>
+            </a>
+            <span style="padding: 0 12px; font-weight:600;">@Model.Mese.ToString("MMMM yyyy", culture)</span>
+            <a class="ibtn" asp-action="Index" asp-route-mese="@nextMese.ToString("yyyy-MM-dd")" title="Mese successivo">
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M9 18l6-6-6-6"/></svg>
+            </a>
+        </div>
+    }
+</div>
+
+@if (!Model.HasLinkedDipendente)
+{
+    <div class="card">
+        <div class="empty">
+            <div class="empty__icon">⏱</div>
+            <h3>Account non collegato a un dipendente</h3>
+            <p>Per timbrare dal browser chiedi al direttore di collegare il tuo account a un profilo dipendente.</p>
+        </div>
+    </div>
+    return;
+}
+
+<!-- Web punch -->
+<div class="card" style="margin-bottom: var(--s-4); padding: var(--s-4);">
+    <div style="display:flex; gap: var(--s-4); align-items:center; flex-wrap:wrap;">
+        <div style="flex: 1; min-width: 200px;">
+            <div class="muted" style="font-size:.78rem; text-transform:uppercase; letter-spacing:1px;">Stato corrente</div>
+            <div style="font-family:'Playfair Display',serif; font-size:24px; color: var(--c-ink); margin-top:4px;">
+                @switch (Model.StatoCorrente)
+                {
+                    case StatoTimbraturaCorrente.Fuori:    <text>🌙 Fuori dal lavoro</text> break;
+                    case StatoTimbraturaCorrente.AlLavoro: <text>🟢 Al lavoro</text> break;
+                    case StatoTimbraturaCorrente.InPausa:  <text>☕ In pausa</text> break;
+                }
+            </div>
+            <div class="muted" style="font-size:.85rem; margin-top:4px;">@DateTime.Now.ToString("dddd dd MMMM · HH:mm", culture)</div>
+        </div>
+
+        <div style="display:flex; gap:8px; flex-wrap:wrap;">
+            @if (Model.StatoCorrente == StatoTimbraturaCorrente.Fuori)
+            {
+                <form asp-action="Punch" method="post" style="display:inline;">
+                    @Html.AntiForgeryToken()
+                    <input type="hidden" name="tipo" value="@TipoTimbratura.CheckIn" />
+                    <button type="submit" class="btn btn--primary" style="padding: 12px 24px; font-size:1rem;">▶ Inizia turno</button>
+                </form>
+                <form asp-action="Punch" method="post" style="display:inline;">
+                    @Html.AntiForgeryToken()
+                    <input type="hidden" name="tipo" value="@TipoTimbratura.CheckIn" />
+                    <input type="hidden" name="remoto" value="true" />
+                    <button type="submit" class="btn btn--ghost" style="padding: 12px 24px; font-size:1rem;">🏠 Inizia da remoto</button>
+                </form>
+            }
+            else if (Model.StatoCorrente == StatoTimbraturaCorrente.AlLavoro)
+            {
+                <form asp-action="Punch" method="post" style="display:inline;">
+                    @Html.AntiForgeryToken()
+                    <input type="hidden" name="tipo" value="@TipoTimbratura.PauseStart" />
+                    <button type="submit" class="btn btn--ghost" style="padding: 12px 20px;">☕ Inizia pausa</button>
+                </form>
+                <form asp-action="Punch" method="post" style="display:inline;">
+                    @Html.AntiForgeryToken()
+                    <input type="hidden" name="tipo" value="@TipoTimbratura.CheckOut" />
+                    <button type="submit" class="btn btn--primary" style="padding: 12px 24px;">⏹ Fine turno</button>
+                </form>
+            }
+            else if (Model.StatoCorrente == StatoTimbraturaCorrente.InPausa)
+            {
+                <form asp-action="Punch" method="post" style="display:inline;">
+                    @Html.AntiForgeryToken()
+                    <input type="hidden" name="tipo" value="@TipoTimbratura.PauseEnd" />
+                    <button type="submit" class="btn btn--primary" style="padding: 12px 24px;">▶ Riprendi lavoro</button>
+                </form>
+            }
+        </div>
+    </div>
+</div>
+
+<!-- KPI mese -->
+@if (Model.Aggregato is { } a)
+{
+    var saldoColor = a.SaldoBancaOre.TotalMinutes >= 0 ? "#2d7a50" : "#a83a3a";
+    <div class="grid grid--stats" style="margin-bottom: var(--s-4);">
+        <div class="stat">
+            <div class="stat__label">Ore lavorate</div>
+            <div class="stat__value">@FmtTs(a.OreLavorate)</div>
+            <div class="stat__hint">su @FmtTs(a.OrePianificate) pianificate</div>
+        </div>
+        <div class="stat">
+            <div class="stat__label">Banca ore (mese)</div>
+            <div class="stat__value" style="color: @saldoColor;">@FmtSaldo(a.SaldoBancaOre)</div>
+            <div class="stat__hint">@(a.SaldoBancaOre.TotalMinutes >= 0 ? "ore extra accumulate" : "ore in difetto")</div>
+        </div>
+        <div class="stat">
+            <div class="stat__label">Pause</div>
+            <div class="stat__value">@FmtTs(a.OrePausa)</div>
+        </div>
+        <div class="stat">
+            <div class="stat__label">Giorni lavorati</div>
+            <div class="stat__value">@a.GiorniLavorati</div>
+            <div class="stat__hint">@a.GiorniInRemoto da remoto</div>
+        </div>
+        <div class="stat">
+            <div class="stat__label">Ritardi</div>
+            <div class="stat__value">@a.Ritardi</div>
+        </div>
+        <div class="stat">
+            <div class="stat__label">Uscite anticipate</div>
+            <div class="stat__value">@a.UsciteAnticipate</div>
+        </div>
+    </div>
+}
+
+<!-- Dettaglio giorni -->
+@if (Model.Giorni.Any())
+{
+    <div class="card">
+        <div class="card__header"><h3 class="card__title">Dettaglio giornaliero</h3></div>
+        <table class="table">
+            <thead>
+                <tr>
+                    <th>Giorno</th>
+                    <th>Pianificato</th>
+                    <th>Lavorato</th>
+                    <th>Pausa</th>
+                    <th>Saldo</th>
+                    <th>Note</th>
+                    <th>Timbrature</th>
+                </tr>
+            </thead>
+            <tbody>
+                @foreach (var g in Model.Giorni)
+                {
+                    var saldoG = g.Aggregato.OreLavorate - g.Aggregato.OrePianificate;
+                    <tr>
+                        <td>
+                            <strong>@g.Data.ToString("ddd dd/MM", culture)</strong>
+                            @if (g.Aggregato.AncoraAperto)
+                            {
+                                <span class="badge badge--warning" style="margin-left:6px;">aperto</span>
+                            }
+                        </td>
+                        <td>@FmtTs(g.Aggregato.OrePianificate)</td>
+                        <td>@FmtTs(g.Aggregato.OreLavorate) @(g.Aggregato.Remoto ? "🏠" : "")</td>
+                        <td class="muted">@(g.Aggregato.OrePausa > TimeSpan.Zero ? FmtTs(g.Aggregato.OrePausa) : "—")</td>
+                        <td style="color: @(saldoG.TotalMinutes >= 0 ? "#2d7a50" : "#a83a3a"); font-weight:600;">@FmtSaldo(saldoG)</td>
+                        <td>
+                            @if (g.Aggregato.Ritardo) { <span class="badge badge--warning">ritardo</span> }
+                            @if (g.Aggregato.UsciteAnticipate) { <span class="badge badge--warning">uscita anticipata</span> }
+                        </td>
+                        <td class="muted" style="font-size:.78rem;">
+                            @foreach (var t in g.Timbrature)
+                            {
+                                var icon = t.Tipo switch
+                                {
+                                    TipoTimbratura.CheckIn    => "▶",
+                                    TipoTimbratura.CheckOut   => "⏹",
+                                    TipoTimbratura.PauseStart => "☕",
+                                    TipoTimbratura.PauseEnd   => "↩",
+                                    _ => "•"
+                                };
+                                <span style="margin-right:8px;">@icon @t.Timestamp.ToLocalTime().ToString("HH:mm")</span>
+                            }
+                        </td>
+                    </tr>
+                }
+            </tbody>
+        </table>
+    </div>
+}
+else
+{
+    <div class="card">
+        <div class="empty">
+            <div class="empty__icon">⏱</div>
+            <h3>Nessuna timbratura questo mese</h3>
+            <p>Quando timbrerai entrata e uscita, qui troverai il dettaglio giornaliero e la banca ore.</p>
+        </div>
+    </div>
+}

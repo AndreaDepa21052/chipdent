@@ -22,7 +22,10 @@ public record DipendentePresenzeRow(
     int Ritardi,
     int UsciteAnticipate,
     int GiorniLavorati,
-    int GiorniPianificati);
+    int GiorniPianificati,
+    int OrePausa = 0,
+    int SaldoOre = 0,
+    int GiorniInRemoto = 0);
 
 public record TimbraturaRow(Timbratura T, string DipendenteNome);
 
