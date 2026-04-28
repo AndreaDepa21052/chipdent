@@ -212,8 +212,15 @@ public class TurniController : Controller
     [HttpPost("{id}/sposta")]
     [Authorize(Policy = Policies.RequireDirettore)]
     [ValidateAntiForgeryToken]
-    public async Task<IActionResult> Move([FromForm] string id, [FromForm] DateTime data, [FromForm] string? personaId, [FromForm] TipoPersona? tipo)
+    public async Task<IActionResult> Move(string id, [FromForm] DateTime data, [FromForm] string? personaId, [FromForm] TipoPersona? tipo)
     {
+        if (string.IsNullOrEmpty(id))
+            return BadRequest("Id turno mancante.");
+
+        var existing = await _mongo.Turni.Find(t => t.Id == id && t.TenantId == _tenant.TenantId).FirstOrDefaultAsync();
+        if (existing is null)
+            return NotFound($"Turno {id} non trovato.");
+
         var update = Builders<Turno>.Update
             .Set(t => t.Data, UtcDate(data))
             .Set(t => t.UpdatedAt, DateTime.UtcNow);
@@ -222,8 +229,7 @@ public class TurniController : Controller
             update = update.Set(t => t.PersonaId, personaId);
             if (tipo.HasValue) update = update.Set(t => t.TipoPersona, tipo.Value);
         }
-        var res = await _mongo.Turni.UpdateOneAsync(t => t.Id == id && t.TenantId == _tenant.TenantId, update);
-        if (res.MatchedCount == 0) return NotFound();
+        await _mongo.Turni.UpdateOneAsync(t => t.Id == id && t.TenantId == _tenant.TenantId, update);
         return Json(new { ok = true });
     }
 
