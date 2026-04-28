@@ -56,7 +56,7 @@ public class CambioTurnoController : Controller
                                          && r.Stato == StatoCambioTurno.InAttesa
                                          && (r.DestinatarioUserId == me || r.DestinatarioUserId is null))
                              .Select(Map).ToList();
-        var daApprovare = canApprove
+        IReadOnlyList<CambioTurnoRow> daApprovare = canApprove
             ? allReq.Where(r => r.Stato == StatoCambioTurno.AccettataDaCollega).Select(Map).ToList()
             : Array.Empty<CambioTurnoRow>();
 
