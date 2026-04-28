@@ -228,13 +228,16 @@ else
                     if (data.indexOf('turno:') === 0) {
                         var id = data.substring(6);
                         var fd = new FormData();
-                        fd.append('id', id);
                         fd.append('data', dataIso);
                         fd.append('personaId', personaId);
                         fd.append('tipo', personaTipo);
                         fd.append('__RequestVerificationToken', token);
-                        fetch('@Url.Action("Move", "Turni")', { method: 'POST', body: fd })
-                            .then(function (r) { if (r.ok) location.reload(); else alert('Spostamento fallito.'); });
+                        fetch('/turni/' + encodeURIComponent(id) + '/sposta', { method: 'POST', body: fd })
+                            .then(function (r) {
+                                if (r.ok) location.reload();
+                                else r.text().then(function (t) { alert('Spostamento fallito (' + r.status + '): ' + (t || r.statusText)); });
+                            })
+                            .catch(function (err) { alert('Spostamento fallito: ' + err); });
                     }
                     else if (data.indexOf('template:') === 0) {
                         var tid = data.substring(9);
@@ -248,8 +251,12 @@ else
                         fd2.append('tipo', personaTipo);
                         fd2.append('clinicaId', clinicaId);
                         fd2.append('__RequestVerificationToken', token);
-                        fetch('@Url.Action("Quick", "Turni")', { method: 'POST', body: fd2 })
-                            .then(function (r) { if (r.ok) location.reload(); else alert('Creazione fallita.'); });
+                        fetch('/turni/rapido', { method: 'POST', body: fd2 })
+                            .then(function (r) {
+                                if (r.ok) location.reload();
+                                else r.text().then(function (t) { alert('Creazione fallita (' + r.status + '): ' + (t || r.statusText)); });
+                            })
+                            .catch(function (err) { alert('Creazione fallita: ' + err); });
                     }
                 });
             });

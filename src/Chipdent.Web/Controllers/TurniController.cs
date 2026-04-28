@@ -140,7 +140,7 @@ public class TurniController : Controller
         });
 
         TempData["flash"] = "Turno creato.";
-        return RedirectToAction(nameof(Index), new { week = vm.ReturnWeek });
+        return RedirectToAction(nameof(Index), new { week = vm.ReturnWeek.ToString("yyyy-MM-dd") });
     }
 
     [HttpGet("{id}/modifica")]
@@ -195,7 +195,7 @@ public class TurniController : Controller
         await _mongo.Turni.UpdateOneAsync(t => t.Id == id && t.TenantId == _tenant.TenantId, update);
 
         TempData["flash"] = "Turno aggiornato.";
-        return RedirectToAction(nameof(Index), new { week = vm.ReturnWeek });
+        return RedirectToAction(nameof(Index), new { week = vm.ReturnWeek.ToString("yyyy-MM-dd") });
     }
 
     [HttpPost("{id}/elimina")]
@@ -205,7 +205,7 @@ public class TurniController : Controller
     {
         await _mongo.Turni.DeleteOneAsync(t => t.Id == id && t.TenantId == _tenant.TenantId);
         TempData["flash"] = "Turno eliminato.";
-        return RedirectToAction(nameof(Index), new { week });
+        return RedirectToAction(nameof(Index), new { week = week?.ToString("yyyy-MM-dd") });
     }
 
     /// <summary>Drag&drop: sposta un turno a una nuova data/persona via AJAX.</summary>
@@ -268,7 +268,7 @@ public class TurniController : Controller
         if (sourceTurni.Count == 0)
         {
             TempData["flash"] = "Nessun turno da copiare nella settimana di origine.";
-            return RedirectToAction(nameof(Index), new { week = dest });
+            return RedirectToAction(nameof(Index), new { week = dest.ToString("yyyy-MM-dd") });
         }
 
         var copies = sourceTurni.Select(t => new Turno
@@ -285,7 +285,7 @@ public class TurniController : Controller
         await _mongo.Turni.InsertManyAsync(copies);
 
         TempData["flash"] = $"Copiati {copies.Count} turni nella settimana del {dest:dd/MM}.";
-        return RedirectToAction(nameof(Index), new { week = dest });
+        return RedirectToAction(nameof(Index), new { week = dest.ToString("yyyy-MM-dd") });
     }
 
     // ───── Templates ─────

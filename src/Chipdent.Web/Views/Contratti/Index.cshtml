@@ -1,0 +1,96 @@
+@model Chipdent.Web.Models.ContrattiIndexViewModel
+@{
+    ViewData["Title"] = "Contratti";
+
+    string StatoBadge(StatoContratto s) => s switch
+    {
+        StatoContratto.Attivo       => "<span class='badge badge--success'><span class='dot'></span>attivo</span>",
+        StatoContratto.PreScadenza  => "<span class='badge'><span class='dot'></span>≤ 90g</span>",
+        StatoContratto.InScadenza   => "<span class='badge badge--warning'><span class='dot'></span>≤ 30g</span>",
+        StatoContratto.Critico      => "<span class='badge badge--danger'><span class='dot'></span>≤ 7g</span>",
+        StatoContratto.Scaduto      => "<span class='badge badge--danger'><span class='dot'></span>SCADUTO</span>",
+        _ => "—"
+    };
+}
+
+<partial name="_Flash" />
+
+<div class="page-head">
+    <div>
+        <h2>Contratti</h2>
+        <p class="page-head__sub">@Model.Contratti.Count contratt@(Model.Contratti.Count == 1 ? "o" : "i") · scaduti: @Model.TotaliPerStato(StatoContratto.Scaduto) · in scadenza: @(Model.TotaliPerStato(StatoContratto.InScadenza) + Model.TotaliPerStato(StatoContratto.Critico))</p>
+    </div>
+    <div class="page-head__actions">
+        <a class="btn btn--ghost" asp-action="ExportCsv">⬇ Export CSV</a>
+        <a class="btn btn--primary" asp-action="Create">+ Nuovo contratto</a>
+    </div>
+</div>
+
+<div class="seg" style="display:inline-flex; gap:0; border:1px solid var(--c-border, #e9e1d3); border-radius: 8px; overflow:hidden; margin-bottom: var(--s-4);">
+    <a class="btn @(Model.Filter == null ? "btn--primary" : "btn--ghost")" asp-action="Index" style="border-radius:0;">Tutti</a>
+    <a class="btn @(Model.Filter == StatoContratto.Critico ? "btn--primary" : "btn--ghost")" asp-action="Index" asp-route-filter="@StatoContratto.Critico" style="border-radius:0;">Critici (7g)</a>
+    <a class="btn @(Model.Filter == StatoContratto.InScadenza ? "btn--primary" : "btn--ghost")" asp-action="Index" asp-route-filter="@StatoContratto.InScadenza" style="border-radius:0;">In scadenza (30g)</a>
+    <a class="btn @(Model.Filter == StatoContratto.PreScadenza ? "btn--primary" : "btn--ghost")" asp-action="Index" asp-route-filter="@StatoContratto.PreScadenza" style="border-radius:0;">Pre-scadenza (90g)</a>
+    <a class="btn @(Model.Filter == StatoContratto.Scaduto ? "btn--primary" : "btn--ghost")" asp-action="Index" asp-route-filter="@StatoContratto.Scaduto" style="border-radius:0;">Scaduti</a>
+</div>
+
+@if (!Model.Contratti.Any())
+{
+    <div class="card">
+        <div class="empty">
+            <div class="empty__icon">📋</div>
+            <h3>Nessun contratto registrato</h3>
+            <p>Aggiungi il primo contratto firmato per gestire scadenze e alert.</p>
+            <a class="btn btn--primary" asp-action="Create" style="margin-top: var(--s-3);">+ Nuovo contratto</a>
+        </div>
+    </div>
+}
+else
+{
+    <div class="table-wrap">
+        <table class="table">
+            <thead>
+                <tr>
+                    <th>Dipendente</th>
+                    <th>Sede</th>
+                    <th>Tipo</th>
+                    <th>Periodo</th>
+                    <th>Retribuzione</th>
+                    <th>Stato</th>
+                    <th></th>
+                </tr>
+            </thead>
+            <tbody>
+                @foreach (var row in Model.Contratti)
+                {
+                    var c = row.Contratto;
+                    <tr>
+                        <td>
+                            <div class="strong">@row.DipendenteNome</div>
+                            <div class="muted">@row.RuoloDipendente</div>
+                        </td>
+                        <td>@row.ClinicaNome</td>
+                        <td>@c.Tipo @(c.Livello is null ? "" : "· " + c.Livello)</td>
+                        <td>
+                            @c.DataInizio.ToString("dd/MM/yyyy")
+                            @if (c.DataFine is not null) { <text> → @c.DataFine?.ToString("dd/MM/yyyy")</text> } else { <span class="muted">→ ∞</span> }
+                        </td>
+                        <td>@(c.RetribuzioneMensileLorda is null ? "—" : c.RetribuzioneMensileLorda?.ToString("N0") + " €")</td>
+                        <td>@Html.Raw(StatoBadge(c.StatoCalcolato))</td>
+                        <td>
+                            <div class="actions">
+                                @if (!string.IsNullOrEmpty(c.AllegatoPath))
+                                {
+                                    <a class="ibtn" asp-action="Download" asp-route-id="@c.Id" title="Scarica allegato" target="_blank">⬇</a>
+                                }
+                                <a class="ibtn" asp-action="Edit" asp-route-id="@c.Id" title="Modifica">
+                                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>
+                                </a>
+                            </div>
+                        </td>
+                    </tr>
+                }
+            </tbody>
+        </table>
+    </div>
+}

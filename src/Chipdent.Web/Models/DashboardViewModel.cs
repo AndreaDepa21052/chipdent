@@ -23,6 +23,7 @@ public class DashboardViewModel
     public int RlsInScadenza { get; set; }
     public int DocumentiInScadenza { get; set; }
     public int RichiesteFerieInAttesa { get; set; }
+    public int ContrattiInScadenza { get; set; }
 
     // Direttore
     public IReadOnlyList<ClinicaSummary> ClinicheDelDirettore { get; set; } = Array.Empty<ClinicaSummary>();
