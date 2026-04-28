@@ -210,11 +210,187 @@ public static class MongoSeeder
                 await ctx.Comunicazioni.InsertManyAsync(comm, cancellationToken: ct);
                 logger.LogInformation("Seeded {Count} comunicazioni", comm.Length);
             }
+
+            await SeedHistoricalAiDataAsync(ctx, tenant, logger, ct);
         }
         catch (Exception ex)
         {
             logger.LogWarning(ex, "Mongo seed skipped: {Message}", ex.Message);
         }
+    }
+
+    /// <summary>
+    /// Genera dati storici (12 mesi) per popolare le card AI Insights al primo avvio:
+    /// turni passati, timbrature con qualche ritardo anomalo, ferie usate, cambi turno,
+    /// un dipendente cessato 6 mesi fa per il forecast organico.
+    /// Idempotente: salta se trova già turni storici.
+    /// </summary>
+    private static async Task SeedHistoricalAiDataAsync(MongoContext ctx, Tenant tenant, ILogger logger, CancellationToken ct)
+    {
+        var oggi = DateTime.UtcNow.Date;
+        var dodiciMesiFa = oggi.AddMonths(-12);
+
+        // Skip se già esistono turni storici (oltre 30 giorni indietro)
+        var hasHistory = await ctx.Turni
+            .Find(t => t.TenantId == tenant.Id && t.Data < oggi.AddDays(-30))
+            .AnyAsync(ct);
+        if (hasHistory) return;
+
+        var dipendenti = await ctx.Dipendenti.Find(d => d.TenantId == tenant.Id).ToListAsync(ct);
+        if (dipendenti.Count == 0) return;
+
+        var rng = new Random(42); // seed fisso per stabilità
+
+        // ── Turni storici: ~3 turni/settimana per dipendente, mattino/pomeriggio alternati ──
+        var turniStorici = new List<Turno>();
+        var timbrature = new List<Timbratura>();
+        foreach (var d in dipendenti.Where(x => x.Stato != StatoDipendente.Cessato))
+        {
+            for (var giorno = dodiciMesiFa; giorno < oggi; giorno = giorno.AddDays(1))
+            {
+                if (giorno.DayOfWeek == DayOfWeek.Saturday || giorno.DayOfWeek == DayOfWeek.Sunday) continue;
+                if (rng.NextDouble() > 0.6) continue; // ~3/5 giorni feriali
+
+                var mattina = rng.NextDouble() < 0.6;
+                var inizio = mattina ? new TimeSpan(8, 30, 0) : new TimeSpan(14, 0, 0);
+                var fine = mattina ? new TimeSpan(13, 0, 0) : new TimeSpan(19, 0, 0);
+
+                var turno = new Turno
+                {
+                    TenantId = tenant.Id,
+                    Data = DateTime.SpecifyKind(giorno, DateTimeKind.Utc),
+                    OraInizio = inizio,
+                    OraFine = fine,
+                    ClinicaId = d.ClinicaId,
+                    PersonaId = d.Id,
+                    TipoPersona = TipoPersona.Dipendente,
+                    CreatedAt = DateTime.SpecifyKind(giorno.AddDays(-7), DateTimeKind.Utc)
+                };
+                turniStorici.Add(turno);
+
+                // Timbratura: check-in qualche minuto dopo l'inizio (con ritardi mirati per Sara Conti per anomalie)
+                var ritardoBase = rng.Next(-2, 5);
+                if (d.Email == "s.conti@confident.it" && giorno > oggi.AddDays(-21) && rng.NextDouble() < 0.35)
+                {
+                    ritardoBase = rng.Next(20, 45); // ritardi anomali recenti
+                }
+                var inizioTs = giorno.Add(inizio).AddMinutes(ritardoBase);
+                var fineTs = giorno.Add(fine).AddMinutes(rng.Next(-5, 8));
+
+                timbrature.Add(new Timbratura
+                {
+                    TenantId = tenant.Id,
+                    DipendenteId = d.Id,
+                    ClinicaId = d.ClinicaId,
+                    Tipo = TipoTimbratura.CheckIn,
+                    Timestamp = DateTime.SpecifyKind(inizioTs, DateTimeKind.Utc),
+                    Metodo = MetodoTimbratura.Pin
+                });
+                timbrature.Add(new Timbratura
+                {
+                    TenantId = tenant.Id,
+                    DipendenteId = d.Id,
+                    ClinicaId = d.ClinicaId,
+                    Tipo = TipoTimbratura.CheckOut,
+                    Timestamp = DateTime.SpecifyKind(fineTs, DateTimeKind.Utc),
+                    Metodo = MetodoTimbratura.Pin
+                });
+            }
+        }
+        if (turniStorici.Count > 0) await ctx.Turni.InsertManyAsync(turniStorici, cancellationToken: ct);
+        if (timbrature.Count > 0) await ctx.Timbrature.InsertManyAsync(timbrature, cancellationToken: ct);
+        logger.LogInformation("Seeded {T} turni storici e {Tm} timbrature", turniStorici.Count, timbrature.Count);
+
+        // ── Ferie usate (alcune approvate per generare saldo basso) ──
+        var sara = dipendenti.FirstOrDefault(x => x.Email == "s.conti@confident.it");
+        if (sara is not null)
+        {
+            var ferie = new[]
+            {
+                new RichiestaFerie {
+                    TenantId = tenant.Id, DipendenteId = sara.Id, RichiedenteUserId = "system",
+                    ClinicaId = sara.ClinicaId, Tipo = TipoAssenza.Ferie,
+                    DataInizio = DateTime.SpecifyKind(oggi.AddMonths(-4), DateTimeKind.Utc),
+                    DataFine = DateTime.SpecifyKind(oggi.AddMonths(-4).AddDays(7), DateTimeKind.Utc),
+                    GiorniRichiesti = 5, Stato = StatoRichiestaFerie.Approvata, SaldoApplicato = true,
+                    DecisoreIl = oggi.AddMonths(-4).AddDays(-3),
+                    CreatedAt = DateTime.SpecifyKind(oggi.AddMonths(-4).AddDays(-7), DateTimeKind.Utc)
+                },
+                new RichiestaFerie {
+                    TenantId = tenant.Id, DipendenteId = sara.Id, RichiedenteUserId = "system",
+                    ClinicaId = sara.ClinicaId, Tipo = TipoAssenza.Ferie,
+                    DataInizio = DateTime.SpecifyKind(oggi.AddMonths(-2), DateTimeKind.Utc),
+                    DataFine = DateTime.SpecifyKind(oggi.AddMonths(-2).AddDays(10), DateTimeKind.Utc),
+                    GiorniRichiesti = 8, Stato = StatoRichiestaFerie.Approvata, SaldoApplicato = true,
+                    DecisoreIl = oggi.AddMonths(-2).AddDays(-2),
+                    CreatedAt = DateTime.SpecifyKind(oggi.AddMonths(-2).AddDays(-5), DateTimeKind.Utc)
+                }
+            };
+            await ctx.RichiesteFerie.InsertManyAsync(ferie, cancellationToken: ct);
+
+            // Riduco il saldo ferie di Sara per generare segnale di rischio
+            await ctx.Dipendenti.UpdateOneAsync(
+                d => d.Id == sara.Id,
+                Builders<Dipendente>.Update.Set(d => d.GiorniFerieResidui, 2));
+
+            // Cambi turno frequenti per Sara (ultimi 90g) → segnale di rischio
+            var cambi = new List<RichiestaCambioTurno>();
+            for (var i = 0; i < 4; i++)
+            {
+                var d = oggi.AddDays(-rng.Next(10, 80));
+                cambi.Add(new RichiestaCambioTurno
+                {
+                    TenantId = tenant.Id,
+                    TurnoId = "historical",
+                    ClinicaId = sara.ClinicaId,
+                    RichiedenteUserId = "system",
+                    RichiedenteNome = sara.NomeCompleto,
+                    TipoPersona = TipoPersona.Dipendente,
+                    PersonaIdRichiedente = sara.Id,
+                    Stato = i % 2 == 0 ? StatoCambioTurno.ApprovataDirettore : StatoCambioTurno.RifiutataDaCollega,
+                    NoteRichiesta = "Esigenza personale",
+                    CreatedAt = DateTime.SpecifyKind(d, DateTimeKind.Utc)
+                });
+            }
+            await ctx.RichiesteCambioTurno.InsertManyAsync(cambi, cancellationToken: ct);
+        }
+
+        // ── Dipendente cessato 6 mesi fa, per il forecast organico (segnale di trend) ──
+        var milanoId = dipendenti.FirstOrDefault(d => d.ClinicaId != null)?.ClinicaId;
+        if (!string.IsNullOrEmpty(milanoId))
+        {
+            var cessato = new Dipendente
+            {
+                TenantId = tenant.Id,
+                Nome = "Roberta",
+                Cognome = "Vianello",
+                Email = "r.vianello@confident.it",
+                Ruolo = RuoloDipendente.ASO,
+                ClinicaId = milanoId,
+                DataAssunzione = DateTime.SpecifyKind(oggi.AddYears(-2), DateTimeKind.Utc),
+                DataDimissioni = DateTime.SpecifyKind(oggi.AddMonths(-6), DateTimeKind.Utc),
+                MotivoDimissioni = "Trasferimento fuori regione",
+                Stato = StatoDipendente.Cessato
+            };
+            await ctx.Dipendenti.InsertOneAsync(cessato, cancellationToken: ct);
+
+            // Nuovo assunto 2 mesi fa per controbilanciare il trend
+            var assunto = new Dipendente
+            {
+                TenantId = tenant.Id,
+                Nome = "Davide",
+                Cognome = "Romano",
+                Email = "d.romano@confident.it",
+                Ruolo = RuoloDipendente.ASO,
+                ClinicaId = milanoId,
+                DataAssunzione = DateTime.SpecifyKind(oggi.AddMonths(-2), DateTimeKind.Utc),
+                Stato = StatoDipendente.Onboarding,
+                GiorniFerieResidui = 22
+            };
+            await ctx.Dipendenti.InsertOneAsync(assunto, cancellationToken: ct);
+        }
+
+        logger.LogInformation("Seeded historical AI demo data");
     }
 
     /// <summary>
