@@ -9,6 +9,41 @@ public static class Changelog
     public static readonly IReadOnlyList<ChangelogEntry> Entries = new List<ChangelogEntry>
     {
         // ───────────────────────────────────────────────────────────────────
+        // 🛡️ v1.600.0 — Tornavento Compliance
+        // ───────────────────────────────────────────────────────────────────
+        new(
+            Version: "v1.600.0",
+            Codename: "Tornavento Compliance",
+            Date: new DateTime(2026, 4, 28),
+            Category: ChangelogCategory.Foundation,
+            Title: "🛡️ v1.600.0 «Tornavento Compliance» — chiusura completa della mappa",
+            Description: "Chiusi gli ultimi tre item della Roadmap Y2 fattibili senza dipendenze esterne: Ottimizzazione turni AI, Benchmark inter-sede KPI dedicato, Whistleblowing anonimo (D.Lgs. 24/2023). Restano fuori solo gli item con vincoli esterni (XDENT, paghe, multi-lingua, white-label, marketplace) o roadmap strategici."),
+
+        new(
+            Version: "v1.600.0",
+            Codename: "Tornavento Compliance",
+            Date: new DateTime(2026, 4, 28),
+            Category: ChangelogCategory.Turni,
+            Title: "✨ Ottimizzazione turni AI deterministica",
+            Description: "Nuova pagina /ottimizzazione-turni: data una settimana, l'algoritmo greedy multifattoriale propone turni per ogni clinica×ruolo basandosi sulle soglie di copertura, escludendo dipendenti in ferie/già pianificati, distribuendo equamente le ore (score = oreSettimana×4 + oreStoriche/4). Motivazione esplicabile per ogni assegnazione, applica-tutti in un click. Niente ML, solo regole."),
+
+        new(
+            Version: "v1.600.0",
+            Codename: "Tornavento Compliance",
+            Date: new DateTime(2026, 4, 28),
+            Category: ChangelogCategory.Dashboard,
+            Title: "📊 Benchmark inter-sede KPI",
+            Description: "Pagina /benchmark con confronto sedi su 6 KPI aggregati: organico vs target, costo, compliance, turni settimana, ferie pendenti, ritardi. Overall score 0-100 con pesi (30/25/20/15/10), top 3 / bottom 3 con motivazione testuale, radar chart comparativo, export CSV, stampa PDF."),
+
+        new(
+            Version: "v1.600.0",
+            Codename: "Tornavento Compliance",
+            Date: new DateTime(2026, 4, 28),
+            Category: ChangelogCategory.Compliance,
+            Title: "🛡️ Whistleblowing anonimo (D.Lgs. 24/2023)",
+            Description: "Canale dedicato accessibile anche senza login (link dalla pagina di accesso) per segnalare violazioni in forma anonima o firmata. Ogni segnalazione genera un codice di tracciamento WB-XXXX-XXXX-XXXX + codice di accesso scelto dal segnalante che permette il follow-up senza account. Conversazione bidirezionale segnalante↔Compliance Officer. Pannello admin /whistleblowing/admin (Management) con filtri per stato, gestione esito finale, allegato 20MB."),
+
+        // ───────────────────────────────────────────────────────────────────
         // 🪟 v1.500.0 — Tornavento Multi-Workspace
         // ───────────────────────────────────────────────────────────────────
         new(

@@ -1,0 +1,123 @@
+@model Chipdent.Web.Models.WhistleblowingPubblicaViewModel
+@{
+    var isAuthenticated = User?.Identity?.IsAuthenticated == true;
+    Layout = isAuthenticated ? "_Layout" : "_AuthLayout";
+    ViewData["Title"] = "Whistleblowing";
+}
+
+<partial name="_Flash" />
+
+<div class="@(isAuthenticated ? "" : "auth__form")" style="@(isAuthenticated ? "" : "max-width: 720px; width: 100%;")">
+    <h2>🛡️ Segnalazione whistleblowing</h2>
+    <p class="lead">
+        Canale dedicato per segnalare violazioni ai sensi del <strong>D.Lgs. 24/2023</strong>.
+        Puoi inviare la segnalazione in forma anonima oppure firmata. In ogni caso riceverai
+        un <strong>codice di tracciamento</strong> per seguire lo stato del caso.
+    </p>
+
+    <div class="alert alert--info" style="margin-bottom: var(--s-4);">
+        <strong>Riservatezza garantita:</strong> le segnalazioni sono memorizzate separatamente,
+        accessibili solo dal Compliance Officer designato. Se scegli "anonimo", nessun dato identificativo
+        (IP, account, browser) viene associato alla segnalazione.
+    </div>
+
+    <form asp-action="Submit" method="post" enctype="multipart/form-data" novalidate>
+        @Html.AntiForgeryToken()
+        <input type="hidden" asp-for="TenantSlug" />
+
+        <div asp-validation-summary="ModelOnly" class="alert alert--danger" style="display:@(ViewData.ModelState.ErrorCount > 0 ? "block" : "none");"></div>
+
+        <div class="form-group">
+            <label class="form-label" asp-for="Tipo">Tipo violazione</label>
+            <select class="form-control" asp-for="Tipo" asp-items="Html.GetEnumSelectList<Chipdent.Web.Domain.Entities.TipoViolazioneWhistleblowing>()"></select>
+        </div>
+
+        <div class="form-group">
+            <label class="form-label" asp-for="Oggetto">Oggetto sintetico</label>
+            <input class="form-control" asp-for="Oggetto" required maxlength="200" placeholder="Es. Comportamenti scorretti durante turni notturni" />
+            <span class="text-danger" asp-validation-for="Oggetto"></span>
+        </div>
+
+        <div class="form-group">
+            <label class="form-label" asp-for="Descrizione">Descrizione dettagliata dei fatti</label>
+            <textarea class="form-control" asp-for="Descrizione" rows="6" required maxlength="5000" placeholder="Descrivi quando e dove sono avvenuti i fatti, con il maggior numero di dettagli possibile."></textarea>
+            <span class="text-danger" asp-validation-for="Descrizione"></span>
+        </div>
+
+        <div class="form-group">
+            <label class="form-label" asp-for="FattiESoggetti">Soggetti coinvolti / contesto (opzionale)</label>
+            <textarea class="form-control" asp-for="FattiESoggetti" rows="3" maxlength="2000"></textarea>
+        </div>
+
+        @if (Model.Cliniche.Any())
+        {
+            <div class="form-group">
+                <label class="form-label" asp-for="ClinicaId">Sede coinvolta (opzionale)</label>
+                <select class="form-control" asp-for="ClinicaId">
+                    <option value="">— riguarda l'intera organizzazione —</option>
+                    @foreach (var c in Model.Cliniche)
+                    {
+                        <option value="@c.Id">@c.Nome</option>
+                    }
+                </select>
+            </div>
+        }
+
+        <div class="form-group">
+            <label class="form-label" asp-for="Allegato">Allegato (opzionale, max 20MB)</label>
+            <input class="form-control" asp-for="Allegato" type="file" accept=".pdf,.png,.jpg,.jpeg,.webp,.doc,.docx,.txt" />
+        </div>
+
+        <div class="form-group" style="background: var(--c-bg-soft, #faf6f0); padding: var(--s-3); border-radius: 10px; margin-top: var(--s-3);">
+            <label class="form-check">
+                <input asp-for="Anonima" type="checkbox" id="anonimaToggle" />
+                <strong>Voglio restare anonimo</strong>
+            </label>
+            <small class="muted" style="display:block; font-size:.78rem; margin-top:6px;">
+                Se selezionato, nessun dato identificativo verrà salvato. Se deselezionato, indica i tuoi dati per essere riconosciuto dal Compliance Officer (la firma è comunque protetta dalla normativa).
+            </small>
+        </div>
+
+        <div id="firmatarioFields" hidden>
+            <div class="form-grid">
+                <div class="form-group">
+                    <label class="form-label" asp-for="FirmatarioNome">Nome e cognome</label>
+                    <input class="form-control" asp-for="FirmatarioNome" maxlength="120" />
+                    <span class="text-danger" asp-validation-for="FirmatarioNome"></span>
+                </div>
+                <div class="form-group">
+                    <label class="form-label" asp-for="FirmatarioRuolo">Ruolo</label>
+                    <input class="form-control" asp-for="FirmatarioRuolo" maxlength="60" />
+                </div>
+                <div class="form-group full">
+                    <label class="form-label" asp-for="FirmatarioEmail">Email di contatto</label>
+                    <input class="form-control" asp-for="FirmatarioEmail" type="email" />
+                </div>
+            </div>
+        </div>
+
+        <div class="form-group" style="margin-top: var(--s-4); border-top: 1px solid var(--c-border, #e9e1d3); padding-top: var(--s-3);">
+            <label class="form-label" asp-for="CodiceAccesso">🔐 Imposta un codice di accesso</label>
+            <input class="form-control" asp-for="CodiceAccesso" type="text" required minlength="6" maxlength="40" placeholder="Almeno 6 caratteri — annotalo!" />
+            <small class="muted" style="font-size:.78rem;">
+                Servirà a te per vedere lo stato del caso e ricevere risposte. <strong>Annotalo subito</strong> insieme al codice di tracciamento che ti verrà mostrato dopo l'invio.
+            </small>
+            <span class="text-danger" asp-validation-for="CodiceAccesso"></span>
+        </div>
+
+        <div class="form-actions" style="margin-top: var(--s-4);">
+            <a class="btn btn--ghost" asp-action="Segui">Ho già un codice → segui caso</a>
+            <button type="submit" class="btn btn--primary">Invia segnalazione</button>
+        </div>
+    </form>
+</div>
+
+<script>
+    (function () {
+        var toggle = document.getElementById('anonimaToggle');
+        var fields = document.getElementById('firmatarioFields');
+        function sync() { fields.hidden = toggle.checked; }
+        toggle.addEventListener('change', sync);
+        sync();
+    })();
+</script>

@@ -1,0 +1,37 @@
+@model Chipdent.Web.Models.WhistleblowingConfermaViewModel
+@{
+    var isAuthenticated = User?.Identity?.IsAuthenticated == true;
+    Layout = isAuthenticated ? "_Layout" : "_AuthLayout";
+    ViewData["Title"] = "Segnalazione inviata";
+}
+
+<div class="@(isAuthenticated ? "" : "auth__form")" style="@(isAuthenticated ? "" : "max-width: 600px; width: 100%; text-align:center;")">
+    <div style="font-size: 64px; margin-bottom: var(--s-3);">✅</div>
+    <h2>Segnalazione registrata</h2>
+    <p class="lead" style="margin-bottom: var(--s-4);">
+        Grazie. La tua segnalazione è stata ricevuta dal Compliance Officer di <strong>@Model.TenantNome</strong>.
+    </p>
+
+    <div class="card" style="background: linear-gradient(135deg, rgba(196,120,48,0.06), rgba(122,92,154,0.06)); border: 2px dashed var(--c-accent, #c47830); padding: var(--s-4); margin-bottom: var(--s-4);">
+        <div class="muted" style="font-size:.85rem; text-transform:uppercase; letter-spacing:1px; margin-bottom: 8px;">Codice di tracciamento</div>
+        <div style="font-family: 'JetBrains Mono', monospace; font-size: 1.6rem; font-weight: 700; color: var(--c-ink); letter-spacing: 2px; user-select: all;">
+            @Model.CodiceTracciamento
+        </div>
+        <p class="muted" style="font-size:.82rem; margin-top: var(--s-3);">
+            ⚠ <strong>Conservalo subito</strong>. Insieme al tuo codice di accesso ti permetterà di seguire il caso e dialogare col Compliance Officer.
+            Non sarà più mostrato.
+        </p>
+    </div>
+
+    <div class="alert alert--info" style="text-align:left; margin-bottom: var(--s-4);">
+        <strong>Cosa succede ora:</strong>
+        <ul style="margin: 8px 0 0; padding-left: 20px;">
+            <li>Il Compliance Officer prende in carico il caso (entro 7 giorni di norma).</li>
+            <li>Puoi tornare quando vuoi su <a asp-action="Segui">questa pagina</a> con il tuo codice per vedere lo stato.</li>
+            <li>Puoi rispondere a richieste di chiarimento direttamente dal pannello tracciamento.</li>
+            <li>Le tue informazioni sono protette ai sensi del D.Lgs. 24/2023.</li>
+        </ul>
+    </div>
+
+    <a class="btn btn--ghost" asp-action="Segui">Vai al tracciamento →</a>
+</div>

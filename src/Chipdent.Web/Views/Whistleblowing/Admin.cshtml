@@ -1,0 +1,95 @@
+@model Chipdent.Web.Models.WhistleblowingAdminIndexViewModel
+@{
+    ViewData["Title"] = "Whistleblowing — admin";
+
+    string StatoBadge(StatoWhistleblowing s) => s switch
+    {
+        StatoWhistleblowing.Aperta         => "<span class='badge badge--warning'>aperta</span>",
+        StatoWhistleblowing.InEsame        => "<span class='badge'>in esame</span>",
+        StatoWhistleblowing.InfoRichiesti  => "<span class='badge badge--warning'>info richiesti</span>",
+        StatoWhistleblowing.Risolta        => "<span class='badge badge--success'>risolta</span>",
+        StatoWhistleblowing.Archiviata     => "<span class='badge'>archiviata</span>",
+        StatoWhistleblowing.NonAmmissibile => "<span class='badge badge--danger'>non ammissibile</span>",
+        _ => "—"
+    };
+}
+
+<partial name="_Flash" />
+
+<div class="page-head">
+    <div>
+        <h2>🛡️ Whistleblowing — pannello admin</h2>
+        <p class="page-head__sub">Gestione segnalazioni protette dal D.Lgs. 24/2023.</p>
+    </div>
+</div>
+
+<div class="grid grid--stats" style="margin-bottom: var(--s-4);">
+    <div class="stat">
+        <div class="stat__label">Aperte</div>
+        <div class="stat__value">@Model.Aperte</div>
+    </div>
+    <div class="stat">
+        <div class="stat__label">In esame</div>
+        <div class="stat__value">@Model.InEsame</div>
+    </div>
+    <div class="stat">
+        <div class="stat__label">Totali</div>
+        <div class="stat__value">@Model.Tutte.Count</div>
+    </div>
+</div>
+
+<div class="seg" style="display:inline-flex; gap:0; border:1px solid var(--c-border, #e9e1d3); border-radius: 8px; overflow:hidden; margin-bottom: var(--s-4); flex-wrap:wrap;">
+    <a class="btn @(Model.Filter == null ? "btn--primary" : "btn--ghost")" asp-action="Admin" style="border-radius:0;">Tutte</a>
+    <a class="btn @(Model.Filter == StatoWhistleblowing.Aperta ? "btn--primary" : "btn--ghost")" asp-action="Admin" asp-route-filter="@StatoWhistleblowing.Aperta" style="border-radius:0;">Aperte</a>
+    <a class="btn @(Model.Filter == StatoWhistleblowing.InEsame ? "btn--primary" : "btn--ghost")" asp-action="Admin" asp-route-filter="@StatoWhistleblowing.InEsame" style="border-radius:0;">In esame</a>
+    <a class="btn @(Model.Filter == StatoWhistleblowing.InfoRichiesti ? "btn--primary" : "btn--ghost")" asp-action="Admin" asp-route-filter="@StatoWhistleblowing.InfoRichiesti" style="border-radius:0;">Info richieste</a>
+    <a class="btn @(Model.Filter == StatoWhistleblowing.Risolta ? "btn--primary" : "btn--ghost")" asp-action="Admin" asp-route-filter="@StatoWhistleblowing.Risolta" style="border-radius:0;">Risolte</a>
+</div>
+
+@if (!Model.Tutte.Any())
+{
+    <div class="card">
+        <div class="empty">
+            <div class="empty__icon">🛡️</div>
+            <h3>Nessuna segnalazione</h3>
+            <p>Quando i dipendenti useranno il canale whistleblowing, le segnalazioni appariranno qui.</p>
+        </div>
+    </div>
+}
+else
+{
+    <div class="table-wrap">
+        <table class="table">
+            <thead>
+                <tr>
+                    <th>Codice</th>
+                    <th>Oggetto</th>
+                    <th>Tipo</th>
+                    <th>Sede</th>
+                    <th>Forma</th>
+                    <th>Stato</th>
+                    <th>Aperta il</th>
+                    <th></th>
+                </tr>
+            </thead>
+            <tbody>
+                @foreach (var row in Model.Tutte)
+                {
+                    var s = row.Segnalazione;
+                    <tr>
+                        <td style="font-family: 'JetBrains Mono', monospace; font-size:.78rem;">@s.CodiceTracciamento</td>
+                        <td><strong>@s.Oggetto</strong></td>
+                        <td>@s.Tipo</td>
+                        <td>@row.ClinicaNome</td>
+                        <td>@(s.Anonima ? "🎭 anonima" : "✍ firmata")</td>
+                        <td>@Html.Raw(StatoBadge(s.Stato))</td>
+                        <td class="muted" style="font-size:.78rem;">@s.CreatedAt.ToLocalTime().ToString("dd/MM/yyyy HH:mm")</td>
+                        <td>
+                            <a class="btn btn--ghost" asp-action="AdminDettaglio" asp-route-id="@s.Id" style="padding: 4px 10px; font-size:.78rem;">Apri →</a>
+                        </td>
+                    </tr>
+                }
+            </tbody>
+        </table>
+    </div>
+}

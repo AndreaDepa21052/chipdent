@@ -1,0 +1,110 @@
+@model Chipdent.Web.Models.WhistleblowingAdminDettaglioViewModel
+@{
+    ViewData["Title"] = "Dettaglio segnalazione";
+    ViewData["Crumb"] = "Whistleblowing";
+    var s = Model.Segnalazione;
+    var statoOptions = Enum.GetValues<StatoWhistleblowing>();
+}
+
+<partial name="_Flash" />
+
+<div class="page-head">
+    <div>
+        <div class="muted" style="font-family: 'JetBrains Mono', monospace; font-size:.78rem; letter-spacing:1px;">@s.CodiceTracciamento</div>
+        <h2>@s.Oggetto</h2>
+        <p class="page-head__sub">
+            @s.Tipo · sede: @Model.ClinicaNome · @(s.Anonima ? "🎭 anonima" : $"✍ firmata da {s.FirmatarioNome}")
+            @if (!s.Anonima && !string.IsNullOrEmpty(s.FirmatarioEmail))
+            {
+                <text> · <a href="mailto:@s.FirmatarioEmail">@s.FirmatarioEmail</a></text>
+            }
+        </p>
+    </div>
+    <div class="page-head__actions">
+        <a class="btn btn--ghost" asp-action="Admin">← Torna alla lista</a>
+    </div>
+</div>
+
+<div class="grid" style="grid-template-columns: 2fr 1fr; gap: var(--s-4);">
+
+    <div>
+        <div class="card" style="margin-bottom: var(--s-3);">
+            <div class="card__header"><h3 class="card__title">Descrizione</h3></div>
+            <div style="padding: var(--s-3); white-space: pre-wrap;">@s.Descrizione</div>
+            @if (!string.IsNullOrWhiteSpace(s.FattiESoggetti))
+            {
+                <div class="muted" style="padding: 0 var(--s-3) var(--s-3); font-size:.85rem; white-space: pre-wrap;">
+                    <strong>Soggetti / contesto:</strong> @s.FattiESoggetti
+                </div>
+            }
+            @if (!string.IsNullOrEmpty(s.AllegatoPath))
+            {
+                <div style="padding: 0 var(--s-3) var(--s-3);">
+                    <a class="btn btn--ghost" asp-action="AdminAllegato" asp-route-id="@s.Id" target="_blank">⬇ @s.AllegatoNome</a>
+                </div>
+            }
+        </div>
+
+        <div class="card">
+            <div class="card__header"><h3 class="card__title">💬 Conversazione col segnalante</h3></div>
+            <div style="padding: var(--s-3); display:flex; flex-direction:column; gap: var(--s-2); max-height: 460px; overflow-y: auto;">
+                @if (!s.Conversazione.Any())
+                {
+                    <p class="muted">Nessun messaggio ancora.</p>
+                }
+                else
+                {
+                    @foreach (var m in s.Conversazione)
+                    {
+                        var dalSegnalante = m.DalSegnalante;
+                        <div style="display:flex; flex-direction:column; align-items: @(dalSegnalante ? "flex-start" : "flex-end");">
+                            <small class="muted" style="font-size:.7rem;">@m.AutoreNome · @m.Timestamp.ToLocalTime().ToString("dd/MM HH:mm")</small>
+                            <div style="max-width: 75%; padding: 10px 14px; border-radius: 12px; background: @(dalSegnalante ? "var(--c-bg-soft, #f3ece0)" : "var(--c-accent, #c47830)"); color: @(dalSegnalante ? "var(--c-ink, #2a1508)" : "#fff"); margin-top: 4px; white-space: pre-wrap;">
+                                @m.Testo
+                            </div>
+                        </div>
+                    }
+                }
+            </div>
+            <form asp-action="AdminMessaggio" asp-route-id="@s.Id" method="post" style="padding: var(--s-3); border-top: 1px solid var(--c-border, #e9e1d3);">
+                @Html.AntiForgeryToken()
+                <textarea class="form-control" name="testo" rows="3" maxlength="2000" required placeholder="Scrivi un messaggio. Sarà visibile al segnalante via codice di tracciamento."></textarea>
+                <div style="text-align:right; margin-top: var(--s-2);">
+                    <button type="submit" class="btn btn--primary">Invia messaggio</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <div>
+        <div class="card" style="margin-bottom: var(--s-3);">
+            <div class="card__header"><h3 class="card__title">Stato del caso</h3></div>
+            <div style="padding: var(--s-3);">
+                <div style="font-size:.85rem; margin-bottom:6px;"><strong>Stato attuale:</strong> @s.Stato</div>
+                @if (s.PresoInCaricoIl.HasValue)
+                {
+                    <div class="muted" style="font-size:.78rem;">Preso in carico da @s.GestitoDaNome il @s.PresoInCaricoIl?.ToLocalTime().ToString("dd/MM HH:mm")</div>
+                }
+                @if (s.DataChiusura.HasValue)
+                {
+                    <div class="muted" style="font-size:.78rem;">Chiuso il @s.DataChiusura?.ToLocalTime().ToString("dd/MM/yyyy")</div>
+                }
+            </div>
+        </div>
+
+        <div class="card">
+            <div class="card__header"><h3 class="card__title">Aggiorna stato</h3></div>
+            <form asp-action="AdminCambiaStato" asp-route-id="@s.Id" method="post" style="padding: var(--s-3); display:flex; flex-direction:column; gap: 8px;">
+                @Html.AntiForgeryToken()
+                <select class="form-control" name="stato" required>
+                    @foreach (var st in statoOptions)
+                    {
+                        <option value="@st" selected="@(st == s.Stato)">@st</option>
+                    }
+                </select>
+                <textarea class="form-control" name="esito" rows="3" maxlength="2000" placeholder="Esito finale (per stati Risolta/Archiviata/NonAmmissibile)"></textarea>
+                <button type="submit" class="btn btn--primary">Salva stato</button>
+            </form>
+        </div>
+    </div>
+</div>

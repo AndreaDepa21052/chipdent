@@ -1,0 +1,39 @@
+@model Chipdent.Web.Models.WhistleblowingSeguiViewModel
+@{
+    var isAuthenticated = User?.Identity?.IsAuthenticated == true;
+    Layout = isAuthenticated ? "_Layout" : "_AuthLayout";
+    ViewData["Title"] = "Segui segnalazione";
+}
+
+<div class="@(isAuthenticated ? "" : "auth__form")" style="@(isAuthenticated ? "" : "max-width: 540px; width: 100%;")">
+    <h2>🔍 Segui la tua segnalazione</h2>
+    <p class="lead">
+        Inserisci il <strong>codice di tracciamento</strong> ricevuto al momento dell'invio
+        e il <strong>codice di accesso</strong> che hai impostato.
+    </p>
+
+    @if (!string.IsNullOrEmpty(Model.Errore))
+    {
+        <div class="alert alert--danger">@Model.Errore</div>
+    }
+
+    <form asp-action="Segui" method="post" novalidate>
+        @Html.AntiForgeryToken()
+
+        <div class="form-group">
+            <label class="form-label" asp-for="CodiceTracciamento">Codice di tracciamento</label>
+            <input class="form-control" asp-for="CodiceTracciamento" required placeholder="WB-XXXX-XXXX-XXXX" style="font-family: 'JetBrains Mono', monospace; letter-spacing: 1px; text-transform: uppercase;" />
+        </div>
+
+        <div class="form-group">
+            <label class="form-label" asp-for="CodiceAccesso">Codice di accesso</label>
+            <input class="form-control" asp-for="CodiceAccesso" type="password" required />
+        </div>
+
+        <button type="submit" class="btn btn--primary btn--block">Mostra stato</button>
+    </form>
+
+    <div style="text-align:center; margin-top: var(--s-3); font-size:.85rem;">
+        <a asp-action="Index">← Torna alla nuova segnalazione</a>
+    </div>
+</div>

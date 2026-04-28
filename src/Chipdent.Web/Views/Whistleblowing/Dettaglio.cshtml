@@ -1,0 +1,109 @@
+@model Chipdent.Web.Models.WhistleblowingDettaglioPubblicoViewModel
+@{
+    var isAuthenticated = User?.Identity?.IsAuthenticated == true;
+    Layout = isAuthenticated ? "_Layout" : "_AuthLayout";
+    ViewData["Title"] = "Stato segnalazione";
+
+    string StatoLabel(StatoWhistleblowing s) => s switch
+    {
+        StatoWhistleblowing.Aperta         => "🆕 Aperta — in attesa di presa in carico",
+        StatoWhistleblowing.InEsame        => "🔍 In esame dal Compliance Officer",
+        StatoWhistleblowing.InfoRichiesti  => "❓ Richiesti chiarimenti",
+        StatoWhistleblowing.Risolta        => "✅ Risolta",
+        StatoWhistleblowing.Archiviata     => "📦 Archiviata",
+        StatoWhistleblowing.NonAmmissibile => "⛔ Non ammissibile",
+        _ => "—"
+    };
+
+    string StatoColor(StatoWhistleblowing s) => s switch
+    {
+        StatoWhistleblowing.Aperta         => "#c47830",
+        StatoWhistleblowing.InEsame        => "#2457a4",
+        StatoWhistleblowing.InfoRichiesti  => "#d9943a",
+        StatoWhistleblowing.Risolta        => "#2d7a50",
+        StatoWhistleblowing.Archiviata     => "#7a5c3a",
+        StatoWhistleblowing.NonAmmissibile => "#a83a3a",
+        _ => "#7a5c3a"
+    };
+
+    var s = Model.Segnalazione;
+}
+
+<partial name="_Flash" />
+
+<div class="@(isAuthenticated ? "" : "auth__form")" style="@(isAuthenticated ? "" : "max-width: 720px; width: 100%;")">
+    <div style="display:flex; align-items:flex-start; justify-content:space-between; gap: var(--s-3); margin-bottom: var(--s-3);">
+        <div>
+            <div class="muted" style="font-family: 'JetBrains Mono', monospace; font-size:.78rem; letter-spacing:1px;">@s.CodiceTracciamento</div>
+            <h2 style="margin: 4px 0 0;">@s.Oggetto</h2>
+        </div>
+        <span class="badge" style="background: @StatoColor(s.Stato); color:#fff; padding: 6px 12px; font-size:.85rem;">@StatoLabel(s.Stato)</span>
+    </div>
+
+    <div class="muted" style="font-size:.82rem; margin-bottom: var(--s-4);">
+        Aperta il @s.CreatedAt.ToLocalTime().ToString("dd MMM yyyy HH:mm", new System.Globalization.CultureInfo("it-IT"))
+        · sede: @Model.ClinicaNome
+        · @(s.Anonima ? "anonima" : $"firmata da {s.FirmatarioNome}")
+    </div>
+
+    <div class="card" style="margin-bottom: var(--s-3);">
+        <div class="card__header"><h3 class="card__title">Descrizione</h3></div>
+        <div style="padding: var(--s-3); white-space: pre-wrap;">@s.Descrizione</div>
+        @if (!string.IsNullOrWhiteSpace(s.FattiESoggetti))
+        {
+            <div class="muted" style="padding: 0 var(--s-3) var(--s-3); font-size:.85rem; white-space: pre-wrap;">
+                <strong>Soggetti / contesto:</strong> @s.FattiESoggetti
+            </div>
+        }
+    </div>
+
+    @if (!string.IsNullOrEmpty(s.EsitoFinale))
+    {
+        <div class="alert alert--success" style="margin-bottom: var(--s-3);">
+            <strong>Esito finale:</strong> @s.EsitoFinale
+        </div>
+    }
+
+    <div class="card" style="margin-bottom: var(--s-3);">
+        <div class="card__header"><h3 class="card__title">💬 Conversazione</h3></div>
+        <div style="padding: var(--s-3); display:flex; flex-direction:column; gap: var(--s-2);">
+            @if (!s.Conversazione.Any())
+            {
+                <p class="muted">Nessun messaggio ancora. Quando il Compliance Officer scriverà, troverai qui i messaggi.</p>
+            }
+            else
+            {
+                @foreach (var m in s.Conversazione)
+                {
+                    var dalSegnalante = m.DalSegnalante;
+                    <div style="display:flex; flex-direction:column; align-items: @(dalSegnalante ? "flex-end" : "flex-start");">
+                        <small class="muted" style="font-size:.7rem;">@m.AutoreNome · @m.Timestamp.ToLocalTime().ToString("dd/MM HH:mm")</small>
+                        <div style="max-width: 75%; padding: 10px 14px; border-radius: 12px; background: @(dalSegnalante ? "var(--c-accent, #c47830)" : "var(--c-bg-soft, #f3ece0)"); color: @(dalSegnalante ? "#fff" : "var(--c-ink, #2a1508)"); margin-top: 4px; white-space: pre-wrap;">
+                            @m.Testo
+                        </div>
+                    </div>
+                }
+            }
+        </div>
+    </div>
+
+    @if (s.Stato != StatoWhistleblowing.Risolta && s.Stato != StatoWhistleblowing.Archiviata && s.Stato != StatoWhistleblowing.NonAmmissibile)
+    {
+        <div class="card">
+            <div class="card__header"><h3 class="card__title">Aggiungi messaggio</h3></div>
+            <form asp-action="Rispondi" method="post" style="padding: var(--s-3);">
+                @Html.AntiForgeryToken()
+                <input type="hidden" name="codiceTracciamento" value="@s.CodiceTracciamento" />
+                <input type="hidden" name="codiceAccesso" value="@Model.CodiceAccessoVerificato" />
+                <textarea class="form-control" name="testo" rows="3" maxlength="2000" required placeholder="Aggiungi dettagli, rispondi a una richiesta di chiarimento..."></textarea>
+                <div style="text-align:right; margin-top: var(--s-2);">
+                    <button type="submit" class="btn btn--primary">Invia messaggio</button>
+                </div>
+            </form>
+        </div>
+    }
+
+    <div style="text-align:center; margin-top: var(--s-3); font-size:.78rem;">
+        <a asp-action="Segui">← Esci dal tracciamento</a>
+    </div>
+</div>
