@@ -1,0 +1,128 @@
+@model Chipdent.Web.Models.CambioTurnoIndexViewModel
+@{
+    ViewData["Title"] = "Cambio turno";
+
+    string Badge(StatoCambioTurno s) => s switch
+    {
+        StatoCambioTurno.InAttesa            => "<span class='badge badge--warning'><span class='dot'></span>in attesa</span>",
+        StatoCambioTurno.AccettataDaCollega  => "<span class='badge'><span class='dot'></span>accettata · attende direttore</span>",
+        StatoCambioTurno.RifiutataDaCollega  => "<span class='badge badge--danger'><span class='dot'></span>rifiutata dal collega</span>",
+        StatoCambioTurno.ApprovataDirettore  => "<span class='badge badge--success'><span class='dot'></span>approvata · turno scambiato</span>",
+        StatoCambioTurno.RifiutataDirettore  => "<span class='badge badge--danger'><span class='dot'></span>respinta dal direttore</span>",
+        StatoCambioTurno.Annullata           => "<span class='badge'><span class='dot'></span>annullata</span>",
+        _ => "—"
+    };
+
+    string TurnoLabel(Chipdent.Web.Models.CambioTurnoRow row)
+        => row.Turno is null ? "(turno rimosso)" : $"{row.Turno.Data:dd/MM} · {row.Turno.OraInizio:hh\\:mm}–{row.Turno.OraFine:hh\\:mm}";
+}
+
+<partial name="_Flash" />
+
+<div class="page-head">
+    <div>
+        <h2>Cambio turno</h2>
+        <p class="page-head__sub">Cedi un turno a un collega — il Direttore approverà lo scambio.</p>
+    </div>
+    <div class="page-head__actions">
+        <a class="btn btn--ghost" asp-controller="Turni" asp-action="Index">📅 Vai al calendario</a>
+    </div>
+</div>
+
+@if (Model.CanApprove && Model.DaApprovare.Any())
+{
+    <div class="card" style="margin-bottom: var(--s-4); border: 2px solid var(--c-accent, #c47830);">
+        <div class="card__header"><h3 class="card__title">⚡ Da approvare (Direttore)</h3></div>
+        <table class="table">
+            <thead><tr><th>Turno</th><th>Sede</th><th>Richiedente → Collega</th><th>Decisione</th></tr></thead>
+            <tbody>
+                @foreach (var row in Model.DaApprovare)
+                {
+                    <tr>
+                        <td>@TurnoLabel(row)</td>
+                        <td>@row.ClinicaNome</td>
+                        <td>@row.Richiesta.RichiedenteNome <strong>↔</strong> @row.Richiesta.CollegaAccettanteNome</td>
+                        <td>
+                            <form asp-action="Approva" asp-route-id="@row.Richiesta.Id" method="post" style="display:inline;">
+                                @Html.AntiForgeryToken()
+                                <button type="submit" class="btn btn--primary" style="padding:4px 10px; font-size:.78rem;">✓ Approva</button>
+                            </form>
+                            <form asp-action="NonApprova" asp-route-id="@row.Richiesta.Id" method="post" style="display:inline;"
+                                  onsubmit="return confirm('Respingere il cambio?');">
+                                @Html.AntiForgeryToken()
+                                <button type="submit" class="btn btn--ghost" style="padding:4px 10px; font-size:.78rem;">✕ Respingi</button>
+                            </form>
+                        </td>
+                    </tr>
+                }
+            </tbody>
+        </table>
+    </div>
+}
+
+@if (Model.InArrivo.Any())
+{
+    <div class="card" style="margin-bottom: var(--s-4);">
+        <div class="card__header"><h3 class="card__title">📥 In arrivo per te</h3></div>
+        <table class="table">
+            <thead><tr><th>Da</th><th>Turno</th><th>Sede</th><th>Note</th><th></th></tr></thead>
+            <tbody>
+                @foreach (var row in Model.InArrivo)
+                {
+                    <tr>
+                        <td><strong>@row.Richiesta.RichiedenteNome</strong></td>
+                        <td>@TurnoLabel(row)</td>
+                        <td>@row.ClinicaNome</td>
+                        <td class="muted" style="max-width: 240px;">@row.Richiesta.NoteRichiesta</td>
+                        <td>
+                            <form asp-action="Accetta" asp-route-id="@row.Richiesta.Id" method="post" style="display:inline;"
+                                  onsubmit="return confirm('Accettare di prendere questo turno?');">
+                                @Html.AntiForgeryToken()
+                                <button type="submit" class="btn btn--primary" style="padding:4px 10px; font-size:.78rem;">✓ Accetto</button>
+                            </form>
+                            <form asp-action="Rifiuta" asp-route-id="@row.Richiesta.Id" method="post" style="display:inline;">
+                                @Html.AntiForgeryToken()
+                                <button type="submit" class="btn btn--ghost" style="padding:4px 10px; font-size:.78rem;">✕ No</button>
+                            </form>
+                        </td>
+                    </tr>
+                }
+            </tbody>
+        </table>
+    </div>
+}
+
+<div class="card">
+    <div class="card__header"><h3 class="card__title">📤 Le mie richieste</h3></div>
+    @if (!Model.Mie.Any())
+    {
+        <p class="muted" style="padding: var(--s-3) 0;">Nessuna richiesta. Puoi avviarne una da un turno nel <a asp-controller="Turni" asp-action="Index">calendario</a>.</p>
+    }
+    else
+    {
+        <table class="table">
+            <thead><tr><th>Turno</th><th>Sede</th><th>Destinatario</th><th>Stato</th><th></th></tr></thead>
+            <tbody>
+                @foreach (var row in Model.Mie)
+                {
+                    <tr>
+                        <td>@TurnoLabel(row)</td>
+                        <td>@row.ClinicaNome</td>
+                        <td>@row.DestinatarioLabel</td>
+                        <td>@Html.Raw(Badge(row.Richiesta.Stato))</td>
+                        <td>
+                            @if (row.Richiesta.Stato == StatoCambioTurno.InAttesa || row.Richiesta.Stato == StatoCambioTurno.AccettataDaCollega)
+                            {
+                                <form asp-action="Annulla" asp-route-id="@row.Richiesta.Id" method="post" style="display:inline;"
+                                      onsubmit="return confirm('Annullare la richiesta?');">
+                                    @Html.AntiForgeryToken()
+                                    <button type="submit" class="ibtn" title="Annulla">✕</button>
+                                </form>
+                            }
+                        </td>
+                    </tr>
+                }
+            </tbody>
+        </table>
+    }
+</div>

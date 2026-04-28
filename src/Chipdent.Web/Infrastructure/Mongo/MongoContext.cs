@@ -49,4 +49,6 @@ public class MongoContext
     public IMongoCollection<CategoriaDocumentoObbligatoria> CategorieDocumentoObbligatorie => Database.GetCollection<CategoriaDocumentoObbligatoria>("categorieDocumentoObbligatorie");
     public IMongoCollection<WorkflowConfiguration> WorkflowConfigs => Database.GetCollection<WorkflowConfiguration>("workflowConfigs");
     public IMongoCollection<Contratto> Contratti => Database.GetCollection<Contratto>("contratti");
+    public IMongoCollection<RichiestaCambioTurno> RichiesteCambioTurno => Database.GetCollection<RichiestaCambioTurno>("richiesteCambioTurno");
+    public IMongoCollection<Segnalazione> Segnalazioni => Database.GetCollection<Segnalazione>("segnalazioni");
 }

@@ -77,6 +77,7 @@ public class TurniController : Controller
         ViewData["Section"] = "turni";
         ViewData["RestrictedView"] = restrictToSelf;
         ViewData["NoLinkedPerson"] = !canSeeAll && linkedPersonId is null;
+        ViewData["CanRequestSwap"] = restrictToSelf;
         return View(new TurniWeekViewModel
         {
             WeekStart = weekStart,

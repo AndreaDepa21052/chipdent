@@ -9,6 +9,7 @@
     var nextWeek = Model.WeekStart.AddDays(7);
     var restricted = (bool)(ViewData["RestrictedView"] ?? false);
     var noLink = (bool)(ViewData["NoLinkedPerson"] ?? false);
+    var canRequestSwap = (bool)(ViewData["CanRequestSwap"] ?? false);
 
     // Indicizza i conflitti per (personaId, data) per evidenziare le celle.
     var conflittiByCell = Model.Conflitti
@@ -159,15 +160,28 @@ else
                         @foreach (var t in turniDelGiorno)
                         {
                             var clinicaNome = Model.ClinicheLookup.TryGetValue(t.ClinicaId, out var n) ? n : "";
-                            <a class="cal__shift @(riga.Tipo == Chipdent.Web.Domain.Entities.TipoPersona.Dipendente ? "cal__shift--alt" : "")"
-                               draggable="true"
-                               data-turno-id="@t.Id"
-                               asp-action="Edit"
-                               asp-route-id="@t.Id"
-                               asp-route-week="@Model.WeekStart.ToString("yyyy-MM-dd")">
-                                @t.OraInizio.ToString(@"hh\:mm")–@t.OraFine.ToString(@"hh\:mm")
-                                <small>@clinicaNome</small>
-                            </a>
+                            if (canRequestSwap)
+                            {
+                                <a class="cal__shift @(riga.Tipo == Chipdent.Web.Domain.Entities.TipoPersona.Dipendente ? "cal__shift--alt" : "")"
+                                   data-turno-id="@t.Id"
+                                   asp-controller="CambioTurno" asp-action="Create" asp-route-turnoId="@t.Id"
+                                   title="Cedi questo turno a un collega">
+                                    @t.OraInizio.ToString(@"hh\:mm")–@t.OraFine.ToString(@"hh\:mm")
+                                    <small>@clinicaNome ↔</small>
+                                </a>
+                            }
+                            else
+                            {
+                                <a class="cal__shift @(riga.Tipo == Chipdent.Web.Domain.Entities.TipoPersona.Dipendente ? "cal__shift--alt" : "")"
+                                   draggable="true"
+                                   data-turno-id="@t.Id"
+                                   asp-action="Edit"
+                                   asp-route-id="@t.Id"
+                                   asp-route-week="@Model.WeekStart.ToString("yyyy-MM-dd")">
+                                    @t.OraInizio.ToString(@"hh\:mm")–@t.OraFine.ToString(@"hh\:mm")
+                                    <small>@clinicaNome</small>
+                                </a>
+                            }
                         }
                     </div>
                 }
