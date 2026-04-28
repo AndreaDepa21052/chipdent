@@ -78,6 +78,45 @@
     <link rel="stylesheet" href="~/css/site.css" asp-append-version="true" />
     <link rel="stylesheet" href="~/css/tour.css" asp-append-version="true" />
     <link rel="stylesheet" href="~/Chipdent.Web.styles.css" asp-append-version="true" />
+    <style>
+        /* Sidebar nav: gruppi collassabili */
+        .nav__group { margin-bottom: 4px; }
+        .nav__group > summary {
+            list-style: none;
+            cursor: pointer;
+            user-select: none;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 10px 14px 6px;
+            border-radius: 6px;
+            transition: background 0.12s;
+        }
+        .nav__group > summary::-webkit-details-marker,
+        .nav__group > summary::marker { display: none; content: ''; }
+        .nav__group > summary:hover { background: var(--c-bg-soft, #faf6f0); }
+        .nav__group > summary:focus-visible {
+            outline: 2px solid var(--c-accent, #c47830);
+            outline-offset: -2px;
+        }
+        .nav__group-chev {
+            transition: transform 0.18s ease;
+            opacity: 0.6;
+            flex-shrink: 0;
+        }
+        .nav__group:not([open]) > summary .nav__group-chev { transform: rotate(-90deg); }
+        .nav__group > summary > span:first-child { flex: 1; }
+        /* Disabilita lo stile heading default che potrebbe conflittare */
+        .nav__group > summary.nav__group-title {
+            font-family: 'JetBrains Mono', 'Inter', monospace;
+            font-size: 0.7rem;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            color: var(--c-ink-soft, #7a5c3a);
+            font-weight: 600;
+            margin: 0;
+        }
+    </style>
 </head>
 <body>
     <div class="app">
@@ -92,125 +131,144 @@
             </button>
 
             <nav class="nav" data-tour="sidebar-nav">
-                <div class="nav__group-title">Operatività</div>
-                <a class="nav__item @(section == "dashboard" ? "is-active" : "")" data-tour="nav-dashboard" asp-controller="Dashboard" asp-action="Index">
-                    <svg class="nav__icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="7" height="9" rx="1.5"/><rect x="14" y="3" width="7" height="5" rx="1.5"/><rect x="14" y="12" width="7" height="9" rx="1.5"/><rect x="3" y="16" width="7" height="5" rx="1.5"/></svg>
-                    Dashboard
-                </a>
-                <a class="nav__item @(section == "turni" ? "is-active" : "")" data-tour="nav-turni" asp-controller="Turni" asp-action="Index">
-                    <svg class="nav__icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="4" width="18" height="18" rx="2"/><path d="M16 2v4M8 2v4M3 10h18"/></svg>
-                    Turni
-                </a>
-                <a class="nav__item @(section == "ferie" ? "is-active" : "")" data-tour="nav-ferie" asp-controller="Ferie" asp-action="Index">
-                    <svg class="nav__icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M2 22a8 8 0 0 1 16 0"/><path d="M14 9V2M14 9l4-2M14 9l4 2"/><circle cx="14" cy="9" r="1"/></svg>
-                    Ferie
-                </a>
-                <a class="nav__item @(section == "cambio-turno" ? "is-active" : "")" asp-controller="CambioTurno" asp-action="Index">
-                    <svg class="nav__icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M17 1l4 4-4 4"/><path d="M3 11V9a4 4 0 0 1 4-4h14"/><path d="M7 23l-4-4 4-4"/><path d="M21 13v2a4 4 0 0 1-4 4H3"/></svg>
-                    Cambio turno
-                </a>
-                <a class="nav__item @(section == "sostituzioni" ? "is-active" : "")" asp-controller="Sostituzioni" asp-action="Index">
-                    <svg class="nav__icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 2v4M12 18v4M4.93 4.93l2.83 2.83M16.24 16.24l2.83 2.83M2 12h4M18 12h4"/><circle cx="12" cy="12" r="4"/></svg>
-                    Sostituzioni
-                </a>
-                <a class="nav__item @(section == "presenze" ? "is-active" : "")" asp-controller="Presenze" asp-action="Index">
-                    <svg class="nav__icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
-                    Presenze
-                </a>
-                <a class="nav__item @(section == "dpi" ? "is-active" : "")" asp-controller="Dpi" asp-action="Index">
-                    <svg class="nav__icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 2L4 5v6c0 5 3.5 9.5 8 11 4.5-1.5 8-6 8-11V5l-8-3z"/></svg>
-                    DPI
-                </a>
-                <a class="nav__item @(section == "miei-documenti" ? "is-active" : "")" asp-controller="MieiDocumenti" asp-action="Index">
-                    <svg class="nav__icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><path d="M14 2v6h6"/><path d="M9 13h6M9 17h4"/></svg>
-                    I miei documenti
-                </a>
-                <a class="nav__item @(section == "segnalazioni" ? "is-active" : "")" asp-controller="Segnalazioni" asp-action="Index">
-                    <svg class="nav__icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M10.29 3.86 1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>
-                    Segnalazioni
-                </a>
-                <a class="nav__item @(section == "chat" ? "is-active" : "")" data-tour="nav-chat" asp-controller="Chat" asp-action="Index">
-                    <svg class="nav__icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 11.5a8.38 8.38 0 0 1-.9 3.8 8.5 8.5 0 0 1-7.6 4.7 8.38 8.38 0 0 1-3.8-.9L3 21l1.9-5.7a8.38 8.38 0 0 1-.9-3.8 8.5 8.5 0 0 1 4.7-7.6 8.38 8.38 0 0 1 3.8-.9h.5a8.48 8.48 0 0 1 8 8v.5z"/></svg>
-                    Chat
-                </a>
-                <a class="nav__item @(section == "comunicazioni" ? "is-active" : "")" data-tour="nav-comunicazioni" asp-controller="Comunicazioni" asp-action="Index">
-                    <svg class="nav__icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg>
-                    Comunicazioni
-                </a>
+                <details class="nav__group" data-group-key="operativita" open>
+                    <summary class="nav__group-title">
+                        <span>Operatività</span>
+                        <svg class="nav__group-chev" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M6 9l6 6 6-6"/></svg>
+                    </summary>
+                    <a class="nav__item @(section == "dashboard" ? "is-active" : "")" data-tour="nav-dashboard" asp-controller="Dashboard" asp-action="Index">
+                        <svg class="nav__icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="7" height="9" rx="1.5"/><rect x="14" y="3" width="7" height="5" rx="1.5"/><rect x="14" y="12" width="7" height="9" rx="1.5"/><rect x="3" y="16" width="7" height="5" rx="1.5"/></svg>
+                        Dashboard
+                    </a>
+                    <a class="nav__item @(section == "turni" ? "is-active" : "")" data-tour="nav-turni" asp-controller="Turni" asp-action="Index">
+                        <svg class="nav__icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="4" width="18" height="18" rx="2"/><path d="M16 2v4M8 2v4M3 10h18"/></svg>
+                        Turni
+                    </a>
+                    <a class="nav__item @(section == "ferie" ? "is-active" : "")" data-tour="nav-ferie" asp-controller="Ferie" asp-action="Index">
+                        <svg class="nav__icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M2 22a8 8 0 0 1 16 0"/><path d="M14 9V2M14 9l4-2M14 9l4 2"/><circle cx="14" cy="9" r="1"/></svg>
+                        Ferie
+                    </a>
+                    <a class="nav__item @(section == "cambio-turno" ? "is-active" : "")" asp-controller="CambioTurno" asp-action="Index">
+                        <svg class="nav__icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M17 1l4 4-4 4"/><path d="M3 11V9a4 4 0 0 1 4-4h14"/><path d="M7 23l-4-4 4-4"/><path d="M21 13v2a4 4 0 0 1-4 4H3"/></svg>
+                        Cambio turno
+                    </a>
+                    <a class="nav__item @(section == "sostituzioni" ? "is-active" : "")" asp-controller="Sostituzioni" asp-action="Index">
+                        <svg class="nav__icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 2v4M12 18v4M4.93 4.93l2.83 2.83M16.24 16.24l2.83 2.83M2 12h4M18 12h4"/><circle cx="12" cy="12" r="4"/></svg>
+                        Sostituzioni
+                    </a>
+                    <a class="nav__item @(section == "presenze" ? "is-active" : "")" asp-controller="Presenze" asp-action="Index">
+                        <svg class="nav__icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
+                        Presenze
+                    </a>
+                    <a class="nav__item @(section == "dpi" ? "is-active" : "")" asp-controller="Dpi" asp-action="Index">
+                        <svg class="nav__icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 2L4 5v6c0 5 3.5 9.5 8 11 4.5-1.5 8-6 8-11V5l-8-3z"/></svg>
+                        DPI
+                    </a>
+                    <a class="nav__item @(section == "miei-documenti" ? "is-active" : "")" asp-controller="MieiDocumenti" asp-action="Index">
+                        <svg class="nav__icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><path d="M14 2v6h6"/><path d="M9 13h6M9 17h4"/></svg>
+                        I miei documenti
+                    </a>
+                    <a class="nav__item @(section == "segnalazioni" ? "is-active" : "")" asp-controller="Segnalazioni" asp-action="Index">
+                        <svg class="nav__icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M10.29 3.86 1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>
+                        Segnalazioni
+                    </a>
+                    <a class="nav__item @(section == "chat" ? "is-active" : "")" data-tour="nav-chat" asp-controller="Chat" asp-action="Index">
+                        <svg class="nav__icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 11.5a8.38 8.38 0 0 1-.9 3.8 8.5 8.5 0 0 1-7.6 4.7 8.38 8.38 0 0 1-3.8-.9L3 21l1.9-5.7a8.38 8.38 0 0 1-.9-3.8 8.5 8.5 0 0 1 4.7-7.6 8.38 8.38 0 0 1 3.8-.9h.5a8.48 8.48 0 0 1 8 8v.5z"/></svg>
+                        Chat
+                    </a>
+                    <a class="nav__item @(section == "comunicazioni" ? "is-active" : "")" data-tour="nav-comunicazioni" asp-controller="Comunicazioni" asp-action="Index">
+                        <svg class="nav__icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg>
+                        Comunicazioni
+                    </a>
+                </details>
 
                 @if (canSeeAnagrafiche)
                 {
-                    <div class="nav__group-title">Anagrafiche</div>
-                    <a class="nav__item @(section == "cliniche" ? "is-active" : "")" data-tour="nav-cliniche" asp-controller="Cliniche" asp-action="Index">
-                        <svg class="nav__icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 21V8l9-5 9 5v13"/><path d="M9 21V12h6v9"/></svg>
-                        Cliniche
-                    </a>
-                    <a class="nav__item @(section == "dottori" ? "is-active" : "")" data-tour="nav-dottori" asp-controller="Dottori" asp-action="Index">
-                        <svg class="nav__icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="8" r="4"/><path d="M4 21a8 8 0 0 1 16 0"/></svg>
-                        Dottori
-                    </a>
-                    <a class="nav__item @(section == "dipendenti" ? "is-active" : "")" data-tour="nav-dipendenti" asp-controller="Dipendenti" asp-action="Index">
-                        <svg class="nav__icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="9" cy="8" r="4"/><path d="M2 21a7 7 0 0 1 14 0"/><circle cx="17" cy="9" r="3"/><path d="M22 20a5 5 0 0 0-5-5"/></svg>
-                        Dipendenti
-                    </a>
-                    <a class="nav__item @(section == "contratti" ? "is-active" : "")" asp-controller="Contratti" asp-action="Index">
-                        <svg class="nav__icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><path d="M14 2v6h6"/><path d="M9 13h6M9 17h4"/></svg>
-                        Contratti
-                    </a>
-                    <a class="nav__item @(section == "formazione" ? "is-active" : "")" asp-controller="Formazione" asp-action="Index">
-                        <svg class="nav__icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M22 10v6M2 10l10-5 10 5-10 5-10-5z"/><path d="M6 12v5c3 3 9 3 12 0v-5"/></svg>
-                        Formazione &amp; ECM
-                    </a>
+                    <details class="nav__group" data-group-key="anagrafiche" open>
+                        <summary class="nav__group-title">
+                            <span>Anagrafiche</span>
+                            <svg class="nav__group-chev" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M6 9l6 6 6-6"/></svg>
+                        </summary>
+                        <a class="nav__item @(section == "cliniche" ? "is-active" : "")" data-tour="nav-cliniche" asp-controller="Cliniche" asp-action="Index">
+                            <svg class="nav__icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 21V8l9-5 9 5v13"/><path d="M9 21V12h6v9"/></svg>
+                            Cliniche
+                        </a>
+                        <a class="nav__item @(section == "dottori" ? "is-active" : "")" data-tour="nav-dottori" asp-controller="Dottori" asp-action="Index">
+                            <svg class="nav__icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="8" r="4"/><path d="M4 21a8 8 0 0 1 16 0"/></svg>
+                            Dottori
+                        </a>
+                        <a class="nav__item @(section == "dipendenti" ? "is-active" : "")" data-tour="nav-dipendenti" asp-controller="Dipendenti" asp-action="Index">
+                            <svg class="nav__icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="9" cy="8" r="4"/><path d="M2 21a7 7 0 0 1 14 0"/><circle cx="17" cy="9" r="3"/><path d="M22 20a5 5 0 0 0-5-5"/></svg>
+                            Dipendenti
+                        </a>
+                        <a class="nav__item @(section == "contratti" ? "is-active" : "")" asp-controller="Contratti" asp-action="Index">
+                            <svg class="nav__icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><path d="M14 2v6h6"/><path d="M9 13h6M9 17h4"/></svg>
+                            Contratti
+                        </a>
+                        <a class="nav__item @(section == "formazione" ? "is-active" : "")" asp-controller="Formazione" asp-action="Index">
+                            <svg class="nav__icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M22 10v6M2 10l10-5 10 5-10 5-10-5z"/><path d="M6 12v5c3 3 9 3 12 0v-5"/></svg>
+                            Formazione &amp; ECM
+                        </a>
+                    </details>
+
                     @if (User.IsManagement())
                     {
-                        <a class="nav__item @(section == "ai-insights" ? "is-active" : "")" asp-controller="AiInsights" asp-action="Index" style="background: linear-gradient(90deg, rgba(196,120,48,0.1), rgba(122,92,154,0.1));">
-                            <svg class="nav__icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 2l2 7h7l-5.5 4 2 7-5.5-4-5.5 4 2-7L3 9h7z"/></svg>
-                            ✨ AI Insights
+                        <details class="nav__group" data-group-key="direzionale" open>
+                            <summary class="nav__group-title">
+                                <span>Direzionale</span>
+                                <svg class="nav__group-chev" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M6 9l6 6 6-6"/></svg>
+                            </summary>
+                            <a class="nav__item @(section == "ai-insights" ? "is-active" : "")" asp-controller="AiInsights" asp-action="Index" style="background: linear-gradient(90deg, rgba(196,120,48,0.1), rgba(122,92,154,0.1));">
+                                <svg class="nav__icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 2l2 7h7l-5.5 4 2 7-5.5-4-5.5 4 2-7L3 9h7z"/></svg>
+                                ✨ AI Insights
+                            </a>
+                            <a class="nav__item @(section == "headcount" ? "is-active" : "")" asp-controller="Headcount" asp-action="Index">
+                                <svg class="nav__icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 3v18h18"/><path d="M7 14l3-3 4 4 5-6"/></svg>
+                                Headcount
+                            </a>
+                            <a class="nav__item @(section == "report" ? "is-active" : "")" asp-controller="Report" asp-action="Index">
+                                <svg class="nav__icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><path d="M14 2v6h6"/><path d="M16 13H8M16 17H8M10 9H8"/></svg>
+                                Report
+                            </a>
+                        </details>
+                    }
+
+                    <details class="nav__group" data-group-key="compliance" open>
+                        <summary class="nav__group-title">
+                            <span>Compliance</span>
+                            <svg class="nav__group-chev" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M6 9l6 6 6-6"/></svg>
+                        </summary>
+                        <a class="nav__item @(section == "rls" ? "is-active" : "")" data-tour="nav-rls" asp-controller="Rls" asp-action="Index">
+                            <svg class="nav__icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg>
+                            RLS / Sicurezza
                         </a>
-                        <a class="nav__item @(section == "headcount" ? "is-active" : "")" asp-controller="Headcount" asp-action="Index">
-                            <svg class="nav__icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 3v18h18"/><path d="M7 14l3-3 4 4 5-6"/></svg>
-                            Headcount
+                        <a class="nav__item @(section == "documentazione" ? "is-active" : "")" data-tour="nav-documentazione" asp-controller="Documentazione" asp-action="Index">
+                            <svg class="nav__icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><path d="M14 2v6h6"/></svg>
+                            Documentazione
                         </a>
-                        <a class="nav__item @(section == "report" ? "is-active" : "")" asp-controller="Report" asp-action="Index">
-                            <svg class="nav__icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><path d="M14 2v6h6"/><path d="M16 13H8M16 17H8M10 9H8"/></svg>
-                            Report
+                        <a class="nav__item @(section == "audit" ? "is-active" : "")" data-tour="nav-audit" asp-controller="Audit" asp-action="Index">
+                            <svg class="nav__icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M9 11l3 3L22 4"/><path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11"/></svg>
+                            Audit log
+                        </a>
+                    </details>
+                }
+
+                @if (canSeeUsers)
+                {
+                    <details class="nav__group" data-group-key="amministrazione" open>
+                        <summary class="nav__group-title">
+                            <span>Amministrazione</span>
+                            <svg class="nav__group-chev" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M6 9l6 6 6-6"/></svg>
+                        </summary>
+                        <a class="nav__item @(section == "users" ? "is-active" : "")" data-tour="nav-users" asp-controller="Users" asp-action="Index">
+                            <svg class="nav__icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M16 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="8.5" cy="7" r="4"/><path d="M20 8v6M23 11h-6"/></svg>
+                            Utenti
                         </a>
                         <a class="nav__item @(section == "configurazione" ? "is-active" : "")" asp-controller="Configurazione" asp-action="Index">
                             <svg class="nav__icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.6 1.6 0 0 0 .3 1.8l.1.1a2 2 0 1 1-2.8 2.8l-.1-.1a1.6 1.6 0 0 0-1.8-.3 1.6 1.6 0 0 0-1 1.5V21a2 2 0 1 1-4 0v-.1a1.6 1.6 0 0 0-1-1.5 1.6 1.6 0 0 0-1.8.3l-.1.1a2 2 0 1 1-2.8-2.8l.1-.1a1.6 1.6 0 0 0 .3-1.8 1.6 1.6 0 0 0-1.5-1H3a2 2 0 1 1 0-4h.1a1.6 1.6 0 0 0 1.5-1 1.6 1.6 0 0 0-.3-1.8l-.1-.1a2 2 0 1 1 2.8-2.8l.1.1a1.6 1.6 0 0 0 1.8.3H9a1.6 1.6 0 0 0 1-1.5V3a2 2 0 1 1 4 0v.1a1.6 1.6 0 0 0 1 1.5 1.6 1.6 0 0 0 1.8-.3l.1-.1a2 2 0 1 1 2.8 2.8l-.1.1a1.6 1.6 0 0 0-.3 1.8V9a1.6 1.6 0 0 0 1.5 1H21a2 2 0 1 1 0 4h-.1a1.6 1.6 0 0 0-1.5 1z"/></svg>
                             Configurazione
                         </a>
-                    }
-
-                    <div class="nav__group-title">Compliance</div>
-                    <a class="nav__item @(section == "rls" ? "is-active" : "")" data-tour="nav-rls" asp-controller="Rls" asp-action="Index">
-                        <svg class="nav__icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg>
-                        RLS / Sicurezza
-                    </a>
-                    <a class="nav__item @(section == "documentazione" ? "is-active" : "")" data-tour="nav-documentazione" asp-controller="Documentazione" asp-action="Index">
-                        <svg class="nav__icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><path d="M14 2v6h6"/></svg>
-                        Documentazione
-                    </a>
-                }
-
-                @if (canSeeAnagrafiche)
-                {
-                    <a class="nav__item @(section == "audit" ? "is-active" : "")" data-tour="nav-audit" asp-controller="Audit" asp-action="Index">
-                        <svg class="nav__icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M9 11l3 3L22 4"/><path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11"/></svg>
-                        Audit log
-                    </a>
-                }
-
-                @if (canSeeUsers)
-                {
-                    <div class="nav__group-title">Amministrazione</div>
-                    <a class="nav__item @(section == "users" ? "is-active" : "")" data-tour="nav-users" asp-controller="Users" asp-action="Index">
-                        <svg class="nav__icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M16 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="8.5" cy="7" r="4"/><path d="M20 8v6M23 11h-6"/></svg>
-                        Utenti
-                    </a>
-                    <a class="nav__item @(section == "configurazione" ? "is-active" : "")" asp-controller="Configurazione" asp-action="Index">
-                        <svg class="nav__icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.6 1.6 0 0 0 .3 1.8l.1.1a2 2 0 1 1-2.8 2.8l-.1-.1a1.6 1.6 0 0 0-1.8-.3 1.6 1.6 0 0 0-1 1.5V21a2 2 0 1 1-4 0v-.1a1.6 1.6 0 0 0-1-1.5 1.6 1.6 0 0 0-1.8.3l-.1.1a2 2 0 1 1-2.8-2.8l.1-.1a1.6 1.6 0 0 0 .3-1.8 1.6 1.6 0 0 0-1.5-1H3a2 2 0 1 1 0-4h.1a1.6 1.6 0 0 0 1.5-1 1.6 1.6 0 0 0-.3-1.8l-.1-.1a2 2 0 1 1 2.8-2.8l.1.1a1.6 1.6 0 0 0 1.8.3H9a1.6 1.6 0 0 0 1-1.5V3a2 2 0 1 1 4 0v.1a1.6 1.6 0 0 0 1 1.5 1.6 1.6 0 0 0 1.8-.3l.1-.1a2 2 0 1 1 2.8 2.8l-.1.1a1.6 1.6 0 0 0-.3 1.8V9a1.6 1.6 0 0 0 1.5 1H21a2 2 0 1 1 0 4h-.1a1.6 1.6 0 0 0-1.5 1z"/></svg>
-                        Configurazione
-                    </a>
+                    </details>
                 }
             </nav>
 
@@ -372,6 +430,46 @@
     <script src="~/js/site.js" asp-append-version="true"></script>
     <script src="~/js/notifications.js" asp-append-version="true"></script>
     <script src="~/js/cmdk.js" asp-append-version="true"></script>
+    <script>
+        // Sidebar nav: persistenza stato collassato + auto-open gruppo della sezione attiva
+        (function () {
+            var STORAGE_KEY = "chipdent.nav.collapsed";
+            var groups = document.querySelectorAll(".nav__group[data-group-key]");
+            if (!groups.length) return;
+
+            var collapsed = {};
+            try { collapsed = JSON.parse(localStorage.getItem(STORAGE_KEY) || "{}") || {}; }
+            catch (e) { collapsed = {}; }
+
+            // 1. Ripristina stato salvato
+            groups.forEach(function (g) {
+                var key = g.dataset.groupKey;
+                if (collapsed[key] === true) g.removeAttribute("open");
+            });
+
+            // 2. Forza apertura del gruppo contenente .nav__item.is-active
+            groups.forEach(function (g) {
+                if (g.querySelector(".nav__item.is-active")) {
+                    g.setAttribute("open", "");
+                    var key = g.dataset.groupKey;
+                    if (collapsed[key]) {
+                        delete collapsed[key];
+                        try { localStorage.setItem(STORAGE_KEY, JSON.stringify(collapsed)); } catch (e) {}
+                    }
+                }
+            });
+
+            // 3. Salva stato a ogni toggle
+            groups.forEach(function (g) {
+                g.addEventListener("toggle", function () {
+                    var key = g.dataset.groupKey;
+                    if (g.open) delete collapsed[key];
+                    else collapsed[key] = true;
+                    try { localStorage.setItem(STORAGE_KEY, JSON.stringify(collapsed)); } catch (e) {}
+                });
+            });
+        })();
+    </script>
     <script src="~/js/tour.js" asp-append-version="true"></script>
     @await RenderSectionAsync("Scripts", required: false)
 </body>
