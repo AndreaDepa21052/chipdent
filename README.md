@@ -96,10 +96,11 @@ Workflow:
 
 - 1 tenant (`Confident`)
 - 3 cliniche (Milano, Roma, Torino)
-- 3 utenti demo (password comune `chipdent`):
+- 4 utenti demo (password comune `chipdent`):
   - `owner@chipdent.it` — Owner
   - `direttore.milano@chipdent.it` — Direttore (scope: Milano)
   - `backoffice@chipdent.it` — Backoffice
+  - `staff@chipdent.it` — Staff (linked al dipendente Giulia Moretti, Igienista Milano)
 - 3 dottori (con scadenza albo per testare gli alert)
 - 3 dipendenti (uno in onboarding, ferie residue diverse)
 

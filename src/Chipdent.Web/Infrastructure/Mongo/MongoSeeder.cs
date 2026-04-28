@@ -119,6 +119,31 @@ public static class MongoSeeder
                 logger.LogInformation("Seeded {Count} dipendenti", dipendenti.Length);
             }
 
+            // Utente Staff demo, linkato al dipendente Giulia Moretti (Igienista, Milano)
+            const string staffEmail = "staff@chipdent.it";
+            if (!await ctx.Users.Find(u => u.Email == staffEmail).AnyAsync(ct))
+            {
+                var giulia = await ctx.Dipendenti
+                    .Find(d => d.TenantId == tenant.Id && d.Email == "g.moretti@confident.it")
+                    .FirstOrDefaultAsync(ct);
+                if (giulia is not null)
+                {
+                    await ctx.Users.InsertOneAsync(new User
+                    {
+                        TenantId = tenant.Id,
+                        Email = staffEmail,
+                        PasswordHash = hasher.Hash("chipdent"),
+                        FullName = giulia.NomeCompleto,
+                        Role = UserRole.Staff,
+                        ClinicaIds = new List<string> { giulia.ClinicaId },
+                        LinkedPersonType = LinkedPersonType.Dipendente,
+                        LinkedPersonId = giulia.Id,
+                        IsActive = true
+                    }, cancellationToken: ct);
+                    logger.LogInformation("Seeded staff user {Email} linked to {Dip}", staffEmail, giulia.NomeCompleto);
+                }
+            }
+
             if (!await ctx.DocumentiClinica.Find(d => d.TenantId == tenant.Id).AnyAsync(ct))
             {
                 var docs = new List<DocumentoClinica>();
