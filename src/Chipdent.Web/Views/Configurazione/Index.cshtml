@@ -1,0 +1,207 @@
+@model Chipdent.Web.Models.ConfigurazioneIndexViewModel
+@{
+    ViewData["Title"] = "Configurazione rete";
+    ViewData["Section"] = "configurazione";
+}
+
+<partial name="_Flash" />
+
+<div class="page-head">
+    <div>
+        <h2>Configurazione rete</h2>
+        <p class="page-head__sub">Parametri condivisi tra tutte le sedi della catena: workflow, soglie copertura turni, categorie documenti obbligatori.</p>
+    </div>
+</div>
+
+<div class="grid" style="grid-template-columns: 1fr 1fr; gap: var(--s-4);">
+
+    <!-- Workflow -->
+    <div class="card">
+        <div class="card__header"><h3 class="card__title">Workflow di approvazione</h3></div>
+        <form asp-action="SaveWorkflow" method="post" style="padding: var(--s-3) 0;">
+            @Html.AntiForgeryToken()
+            <div class="form-group">
+                <label class="form-check">
+                    <input type="checkbox" name="EscaladaFerieLunghe" value="true" @(Model.Workflow.EscaladaFerieLunghe ? "checked" : "") />
+                    Escalation ferie lunghe al Management
+                </label>
+            </div>
+            <div class="form-group">
+                <label class="form-label">Giorni max auto-approvabili dal Direttore</label>
+                <input class="form-control" type="number" min="1" max="60" name="GiorniMaxAutoApprove" value="@Model.Workflow.GiorniMaxAutoApprove" />
+            </div>
+            <div class="form-group">
+                <label class="form-check">
+                    <input type="checkbox" name="CircolariConfermaObbligatoria" value="true" @(Model.Workflow.CircolariConfermaObbligatoria ? "checked" : "") />
+                    Conferma lettura obbligatoria sulle circolari
+                </label>
+            </div>
+            <div class="form-group">
+                <label class="form-check">
+                    <input type="checkbox" name="NotificaSostituzioniViaEmail" value="true" @(Model.Workflow.NotificaSostituzioniViaEmail ? "checked" : "") />
+                    Notifica sostituzioni urgenti via email
+                </label>
+            </div>
+            <div class="form-actions">
+                <button type="submit" class="btn btn--primary">Salva workflow</button>
+            </div>
+        </form>
+    </div>
+
+    <!-- Soglie copertura -->
+    <div class="card">
+        <div class="card__header"><h3 class="card__title">Soglie di copertura turni</h3></div>
+        <form asp-action="AddSoglia" method="post" style="padding: var(--s-3) 0; display:grid; grid-template-columns: 1fr 1fr 80px 110px auto; gap: 8px; align-items:end;">
+            @Html.AntiForgeryToken()
+            <div class="form-group" style="margin:0;">
+                <label class="form-label" style="font-size:.75rem;">Sede</label>
+                <select class="form-control" name="clinicaId" required>
+                    <option value="">— scegli —</option>
+                    @foreach (var c in Model.Cliniche)
+                    {
+                        <option value="@c.Id">@c.Nome</option>
+                    }
+                </select>
+            </div>
+            <div class="form-group" style="margin:0;">
+                <label class="form-label" style="font-size:.75rem;">Ruolo</label>
+                <select class="form-control" name="ruolo">
+                    @foreach (var r in Enum.GetValues<RuoloDipendente>())
+                    {
+                        <option value="@r">@r</option>
+                    }
+                </select>
+            </div>
+            <div class="form-group" style="margin:0;">
+                <label class="form-label" style="font-size:.75rem;">Min/g</label>
+                <input class="form-control" type="number" min="1" name="minimoPerGiorno" value="1" required />
+            </div>
+            <div class="form-group" style="margin:0;">
+                <label class="form-label" style="font-size:.75rem;">Giorno</label>
+                <select class="form-control" name="giornoSettimana">
+                    <option value="">tutti</option>
+                    <option value="Monday">Lunedì</option>
+                    <option value="Tuesday">Martedì</option>
+                    <option value="Wednesday">Mercoledì</option>
+                    <option value="Thursday">Giovedì</option>
+                    <option value="Friday">Venerdì</option>
+                    <option value="Saturday">Sabato</option>
+                    <option value="Sunday">Domenica</option>
+                </select>
+            </div>
+            <button type="submit" class="btn btn--primary">+ Aggiungi</button>
+        </form>
+
+        @if (!Model.Soglie.Any())
+        {
+            <p class="muted" style="padding: var(--s-3) 0;">Nessuna soglia configurata.</p>
+        }
+        else
+        {
+            <table class="table" style="margin-top: var(--s-3);">
+                <thead>
+                    <tr><th>Sede</th><th>Ruolo</th><th>Giorno</th><th>Minimo/g</th><th></th><th></th></tr>
+                </thead>
+                <tbody>
+                    @foreach (var row in Model.Soglie)
+                    {
+                        <tr style="opacity: @(row.Soglia.Attiva ? "1" : "0.5")">
+                            <td>@row.ClinicaNome</td>
+                            <td>@row.Soglia.Ruolo</td>
+                            <td>@(row.Soglia.GiornoSettimana?.ToString() ?? "tutti")</td>
+                            <td>@row.Soglia.MinimoPerGiorno</td>
+                            <td>
+                                <form asp-action="ToggleSoglia" asp-route-id="@row.Soglia.Id" method="post" style="display:inline;">
+                                    @Html.AntiForgeryToken()
+                                    <button type="submit" class="ibtn" title="@(row.Soglia.Attiva ? "Disattiva" : "Attiva")">@(row.Soglia.Attiva ? "⏸" : "▶")</button>
+                                </form>
+                            </td>
+                            <td>
+                                <form asp-action="DeleteSoglia" asp-route-id="@row.Soglia.Id" method="post" style="display:inline;"
+                                      onsubmit="return confirm('Eliminare questa soglia?');">
+                                    @Html.AntiForgeryToken()
+                                    <button type="submit" class="ibtn" title="Elimina">✕</button>
+                                </form>
+                            </td>
+                        </tr>
+                    }
+                </tbody>
+            </table>
+        }
+    </div>
+</div>
+
+<!-- Categorie documenti obbligatori -->
+<div class="card" style="margin-top: var(--s-4);">
+    <div class="card__header">
+        <h3 class="card__title">Categorie documenti obbligatori per sede</h3>
+    </div>
+
+    <form asp-action="AddCategoria" method="post" style="padding: var(--s-3) 0; display:grid; grid-template-columns: 1fr 1fr 2fr auto; gap: 8px; align-items:end;">
+        @Html.AntiForgeryToken()
+        <div class="form-group" style="margin:0;">
+            <label class="form-label" style="font-size:.75rem;">Sede</label>
+            <select class="form-control" name="clinicaId" required>
+                <option value="">— scegli —</option>
+                @foreach (var c in Model.Cliniche)
+                {
+                    <option value="@c.Id">@c.Nome</option>
+                }
+            </select>
+        </div>
+        <div class="form-group" style="margin:0;">
+            <label class="form-label" style="font-size:.75rem;">Tipo documento</label>
+            <select class="form-control" name="tipo">
+                @foreach (var t in Enum.GetValues<TipoDocumento>())
+                {
+                    <option value="@t">@t</option>
+                }
+            </select>
+        </div>
+        <div class="form-group" style="margin:0;">
+            <label class="form-label" style="font-size:.75rem;">Note (opzionale)</label>
+            <input class="form-control" name="note" placeholder="Es. richiesto da ATS regionale" />
+        </div>
+        <button type="submit" class="btn btn--primary">+ Aggiungi</button>
+    </form>
+
+    @if (!Model.CategorieObbligatorie.Any())
+    {
+        <p class="muted" style="padding: var(--s-3) 0;">Nessuna categoria obbligatoria configurata.</p>
+    }
+    else
+    {
+        <table class="table" style="margin-top: var(--s-3);">
+            <thead>
+                <tr><th>Sede</th><th>Tipo</th><th>Stato</th><th>Note</th><th></th></tr>
+            </thead>
+            <tbody>
+                @foreach (var row in Model.CategorieObbligatorie)
+                {
+                    <tr>
+                        <td>@row.ClinicaNome</td>
+                        <td><strong>@row.Categoria.Tipo</strong></td>
+                        <td>
+                            @if (row.DocumentiCaricati == 0)
+                            {
+                                <span class="badge badge--danger"><span class="dot"></span>nessun documento</span>
+                            }
+                            else
+                            {
+                                <span class="badge badge--success"><span class="dot"></span>@row.DocumentiCaricati caricat@(row.DocumentiCaricati == 1 ? "o" : "i")</span>
+                            }
+                        </td>
+                        <td class="muted">@(row.Categoria.Note ?? "—")</td>
+                        <td>
+                            <form asp-action="DeleteCategoria" asp-route-id="@row.Categoria.Id" method="post" style="display:inline;"
+                                  onsubmit="return confirm('Rimuovere questa categoria obbligatoria?');">
+                                @Html.AntiForgeryToken()
+                                <button type="submit" class="ibtn" title="Rimuovi">✕</button>
+                            </form>
+                        </td>
+                    </tr>
+                }
+            </tbody>
+        </table>
+    }
+</div>
