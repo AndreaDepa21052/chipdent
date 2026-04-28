@@ -414,6 +414,105 @@ public class PresenzeController : Controller
         return File(Encoding.UTF8.GetBytes(sb.ToString()), "text/csv; charset=utf-8", $"presenze-{model.Mese:yyyy-MM}.csv");
     }
 
+    /// <summary>
+    /// Export per consulente del lavoro / sistemi paghe (Zucchetti / TeamSystem-like):
+    /// CSV con una riga per (dipendente × giorno), formato strutturato che include
+    /// causale paga, ore ordinarie, ore pausa e flag remoto.
+    /// </summary>
+    [HttpGet("export-paghe.csv")]
+    [Authorize(Policy = Policies.RequireDirettore)]
+    public async Task<IActionResult> ExportPaghe(DateTime? mese = null, string? clinicaId = null)
+    {
+        var tid = _tenant.TenantId!;
+        var meseRif = mese ?? DateTime.Today;
+        var primo = new DateTime(meseRif.Year, meseRif.Month, 1, 0, 0, 0, DateTimeKind.Utc);
+        var fine = primo.AddMonths(1);
+
+        var dipFilter = Builders<Dipendente>.Filter.Eq(d => d.TenantId, tid)
+                       & Builders<Dipendente>.Filter.Ne(d => d.Stato, StatoDipendente.Cessato);
+        if (!string.IsNullOrEmpty(clinicaId))
+            dipFilter &= Builders<Dipendente>.Filter.Eq(d => d.ClinicaId, clinicaId);
+        var dipendenti = await _mongo.Dipendenti.Find(dipFilter).SortBy(d => d.Cognome).ToListAsync();
+        var cliniche = (await _mongo.Cliniche.Find(c => c.TenantId == tid).ToListAsync())
+            .ToDictionary(c => c.Id, c => c.Nome);
+        var timb = await _mongo.Timbrature.Find(x => x.TenantId == tid && x.Timestamp >= primo && x.Timestamp < fine).ToListAsync();
+        var turni = await _mongo.Turni.Find(t => t.TenantId == tid && t.TipoPersona == TipoPersona.Dipendente
+                                                  && t.Data >= primo && t.Data < fine).ToListAsync();
+        var ferie = await _mongo.RichiesteFerie.Find(r => r.TenantId == tid && r.Stato == StatoRichiestaFerie.Approvata
+                                                           && r.DataInizio < fine && r.DataFine >= primo).ToListAsync();
+
+        var sb = new StringBuilder();
+        sb.Append('﻿');
+        // Header pensato per import generico (Zucchetti & C. usano formati simili)
+        sb.AppendLine("Periodo;CodiceDip;CognomeNome;CodiceFiscale;Sede;Data;Causale;OreOrdinarie;OrePausa;OreNetto;Remoto;Ritardo;UscitaAnticipata");
+
+        foreach (var d in dipendenti)
+        {
+            var sedeNome = cliniche.GetValueOrDefault(d.ClinicaId, "—");
+            for (var giorno = primo.Date; giorno < fine.Date; giorno = giorno.AddDays(1))
+            {
+                var tg = timb.Where(x => x.DipendenteId == d.Id && x.Timestamp.Date == giorno).ToList();
+                var trg = turni.Where(x => x.PersonaId == d.Id && x.Data.Date == giorno).ToList();
+                var ferieGiorno = ferie.FirstOrDefault(f => f.DipendenteId == d.Id
+                                                             && f.DataInizio.Date <= giorno && f.DataFine.Date >= giorno);
+
+                string causale;
+                int oreOrdinarie = 0, orePausa = 0, oreNetto = 0;
+                bool remoto = false, ritardo = false, uscita = false;
+
+                if (ferieGiorno is not null)
+                {
+                    causale = ferieGiorno.Tipo switch
+                    {
+                        TipoAssenza.Ferie          => "FER",
+                        TipoAssenza.Permesso       => "PER",
+                        TipoAssenza.Malattia       => "MAL",
+                        TipoAssenza.PermessoStudio => "STU",
+                        _ => "ASS"
+                    };
+                }
+                else if (tg.Count > 0)
+                {
+                    var giornoAgg = TimbraturaCalculator.AggregaGiorno(tg, trg);
+                    oreOrdinarie = (int)Math.Round(giornoAgg.OreLavorate.TotalMinutes); // memo: minuti, vedi note
+                    orePausa = (int)Math.Round(giornoAgg.OrePausa.TotalMinutes);
+                    oreNetto = oreOrdinarie;
+                    remoto = giornoAgg.Remoto;
+                    ritardo = giornoAgg.Ritardo;
+                    uscita = giornoAgg.UsciteAnticipate;
+                    causale = remoto ? "SMA" : "ORD"; // SMA = smart working
+                }
+                else if (trg.Count > 0)
+                {
+                    causale = "ASG"; // turno assegnato senza timbrature → eventualmente assenza giustificabile
+                }
+                else
+                {
+                    continue; // nessun turno né timbratura: salta la riga
+                }
+
+                sb.Append(primo.ToString("yyyy-MM")).Append(';')
+                  .Append(Csv(d.CodiceFiscale ?? d.Id)).Append(';')
+                  .Append(Csv($"{d.Cognome} {d.Nome}".Trim())).Append(';')
+                  .Append(Csv(d.CodiceFiscale)).Append(';')
+                  .Append(Csv(sedeNome)).Append(';')
+                  .Append(giorno.ToString("yyyy-MM-dd")).Append(';')
+                  .Append(causale).Append(';')
+                  // Ore in formato decimale (es. 8,50) con virgola IT per Zucchetti-friendliness
+                  .Append((oreOrdinarie / 60.0).ToString("0.00", CultureInfo.GetCultureInfo("it-IT"))).Append(';')
+                  .Append((orePausa / 60.0).ToString("0.00", CultureInfo.GetCultureInfo("it-IT"))).Append(';')
+                  .Append((oreNetto / 60.0).ToString("0.00", CultureInfo.GetCultureInfo("it-IT"))).Append(';')
+                  .Append(remoto ? "S" : "N").Append(';')
+                  .Append(ritardo ? "S" : "N").Append(';')
+                  .Append(uscita ? "S" : "N")
+                  .AppendLine();
+            }
+        }
+
+        return File(Encoding.UTF8.GetBytes(sb.ToString()), "text/csv; charset=utf-8",
+            $"paghe-{primo:yyyy-MM}{(string.IsNullOrEmpty(clinicaId) ? "" : "-" + clinicaId)}.csv");
+    }
+
     private static string Csv(string? s)
     {
         if (string.IsNullOrEmpty(s)) return "";

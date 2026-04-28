@@ -9,6 +9,57 @@ public static class Changelog
     public static readonly IReadOnlyList<ChangelogEntry> Entries = new List<ChangelogEntry>
     {
         // ───────────────────────────────────────────────────────────────────
+        // ⏱ v1.700.0 — Tornavento Time Pro
+        // ───────────────────────────────────────────────────────────────────
+        new(
+            Version: "v1.700.0",
+            Codename: "Tornavento Time Pro",
+            Date: new DateTime(2026, 4, 28),
+            Category: ChangelogCategory.Foundation,
+            Title: "⏱ v1.700.0 «Tornavento Time Pro» — feature time tracking stile Factorial",
+            Description: "Avvicinamento alle feature core di Factorial nel time tracking: self-service web, pause, banca ore, smart working, correzioni timbratura, approvazione timesheet, notifica dimenticate, export paghe."),
+
+        new(
+            Version: "v1.700.0",
+            Codename: "Tornavento Time Pro",
+            Date: new DateTime(2026, 4, 28),
+            Category: ChangelogCategory.Turni,
+            Title: "Self-service timbrature web + pause + smart working",
+            Description: "Nuova pagina /mie-timbrature: il dipendente timbra dal browser con pulsanti contestuali (Inizia/Pausa/Fine), flag «Inizia da remoto» per smart working. PauseStart/PauseEnd come nuovi tipi timbratura, sottratti automaticamente dalle ore lavorate. Validazione transizioni di stato server-side."),
+
+        new(
+            Version: "v1.700.0",
+            Codename: "Tornavento Time Pro",
+            Date: new DateTime(2026, 4, 28),
+            Category: ChangelogCategory.Dashboard,
+            Title: "Banca ore mensile",
+            Description: "Per ogni dipendente viene mostrato il saldo mensile = ore lavorate - ore pianificate, in verde se positivo (ore extra accumulate) o rosso se negativo. Visibile sia nella pagina personale del dipendente sia nel pannello Direttore."),
+
+        new(
+            Version: "v1.700.0",
+            Codename: "Tornavento Time Pro",
+            Date: new DateTime(2026, 4, 28),
+            Category: ChangelogCategory.Turni,
+            Title: "Richieste correzione timbratura + approvazione timesheet",
+            Description: "Lo Staff può chiedere al direttore di aggiungere/modificare/eliminare timbrature con motivazione obbligatoria. Il direttore approva (la modifica viene applicata davvero) o respinge. A fine mese, approvazione formale del timesheet con snapshot ore lavorate/pianificate/saldo per audit e paghe."),
+
+        new(
+            Version: "v1.700.0",
+            Codename: "Tornavento Time Pro",
+            Date: new DateTime(2026, 4, 28),
+            Category: ChangelogCategory.Notifiche,
+            Title: "Watchdog timbrature dimenticate",
+            Description: "Background service che alle 22:00 di ogni giorno controlla se ci sono dipendenti con check-in aperto senza check-out e notifica il direttore via SignalR e bell."),
+
+        new(
+            Version: "v1.700.0",
+            Codename: "Tornavento Time Pro",
+            Date: new DateTime(2026, 4, 28),
+            Category: ChangelogCategory.Documenti,
+            Title: "Export paghe Zucchetti / TeamSystem",
+            Description: "Nuovo endpoint /presenze/export-paghe.csv produce un file con riga per (dipendente × giorno), causale paga (ORD/SMA/FER/PER/MAL/STU/ASS/ASG), ore decimali con virgola IT, flag remoto/ritardo/uscita-anticipata. Compatibile con i formati di import generici dei principali sistemi paghe italiani."),
+
+        // ───────────────────────────────────────────────────────────────────
         // 🛡️ v1.600.0 — Tornavento Compliance
         // ───────────────────────────────────────────────────────────────────
         new(

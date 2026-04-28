@@ -23,6 +23,7 @@
             </select>
         </form>
         <a class="btn btn--ghost" asp-action="ExportCsv" asp-route-mese="@Model.Mese.ToString("yyyy-MM")" asp-route-clinicaId="@Model.FilterClinicaId">⬇ CSV</a>
+        <a class="btn btn--ghost" asp-action="ExportPaghe" asp-route-mese="@Model.Mese.ToString("yyyy-MM")" asp-route-clinicaId="@Model.FilterClinicaId" title="Formato compatibile Zucchetti / TeamSystem">⬇ Paghe</a>
         <a class="btn btn--ghost" asp-action="Correzioni">✏️ Correzioni</a>
         <a class="btn btn--primary" asp-action="Kiosk" target="_blank">📱 Apri kiosk timbrature</a>
     </div>
