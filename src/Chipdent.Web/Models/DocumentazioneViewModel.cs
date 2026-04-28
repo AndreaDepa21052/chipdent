@@ -23,5 +23,9 @@ public class DocumentoFormViewModel
     public string? EnteEmittente { get; set; }
     public string? Note { get; set; }
 
+    public string? AllegatoNomeAttuale { get; set; }
+    public string? AllegatoPathAttuale { get; set; }
+    public Microsoft.AspNetCore.Http.IFormFile? Allegato { get; set; }
+
     public IReadOnlyList<Clinica> Cliniche { get; set; } = Array.Empty<Clinica>();
 }

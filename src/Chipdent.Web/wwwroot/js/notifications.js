@@ -95,9 +95,31 @@
     connection.onreconnected(function () { setState("connected"); });
     connection.onclose(function () { setState("disconnected"); });
 
+    // ── Web Notifications API: chiede il consenso una volta per sessione ──
+    function ensureBrowserNotifyPermission() {
+        if (!("Notification" in window)) return;
+        if (Notification.permission === "default") {
+            // Chiede il consenso solo dopo la prima interazione utente per non essere bloccato da Chrome.
+            var asked = sessionStorage.getItem("chipdent.notifyAsked");
+            if (asked) return;
+            document.addEventListener("click", function once() {
+                document.removeEventListener("click", once);
+                sessionStorage.setItem("chipdent.notifyAsked", "1");
+                Notification.requestPermission().catch(function () {});
+            }, { once: true });
+        }
+    }
+    function browserNotify(title, body) {
+        if (!("Notification" in window) || Notification.permission !== "granted") return;
+        if (document.visibilityState === "visible") return; // già visibile, basta il toast
+        try { new Notification(title, { body: body, icon: "/img/logo.png", silent: false }); } catch (_) { }
+    }
+    ensureBrowserNotifyPermission();
+
     connection.on("activity", function (payload) {
         Chipdent.toast(payload.title || "Aggiornamento", payload.description || "");
         pushBell(payload.kind || "default", payload.title || "Aggiornamento", payload.description || "");
+        browserNotify(payload.title || "Aggiornamento", payload.description || "");
         if (!feed) return;
         var li = document.createElement("li");
         li.className = "list__item feed-enter";

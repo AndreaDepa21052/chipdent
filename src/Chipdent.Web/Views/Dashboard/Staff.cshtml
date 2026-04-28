@@ -1,0 +1,83 @@
+@model DashboardViewModel
+@{
+    ViewData["Title"] = "Home";
+    ViewData["Section"] = "dashboard";
+}
+
+<div style="margin-bottom: var(--s-6);">
+    <h2 style="margin-bottom:var(--s-1);">Ciao, @Model.StaffNome</h2>
+    <p style="color:var(--c-ink-muted); margin:0;">@DateTime.Now.ToString("dddd d MMMM yyyy", new System.Globalization.CultureInfo("it-IT"))</p>
+</div>
+
+<div class="grid grid--stats" style="margin-bottom: var(--s-6);">
+    @if (Model.StaffSaldoFerie.HasValue)
+    {
+        <div class="stat">
+            <div class="stat__label">Saldo ferie</div>
+            <div class="stat__value">@Model.StaffSaldoFerie</div>
+            <div class="stat__hint">giorni residui</div>
+        </div>
+    }
+    <div class="stat">
+        <div class="stat__label">Mie richieste in attesa</div>
+        <div class="stat__value">@Model.MieRichiesteInAttesa</div>
+        <div class="stat__hint"><a asp-controller="Ferie" asp-action="Index">vai a Ferie →</a></div>
+    </div>
+    <div class="stat">
+        <div class="stat__label">Circolari non lette</div>
+        <div class="stat__value">@Model.CircolariNonLette</div>
+        <div class="stat__hint"><a asp-controller="Comunicazioni" asp-action="Index">apri inbox →</a></div>
+    </div>
+    <div class="stat">
+        <div class="stat__label">Prossimo turno</div>
+        @if (Model.MieiProssimiTurni.Any())
+        {
+            var t = Model.MieiProssimiTurni.First();
+            <div class="stat__value" style="font-size: 1.1rem;">@t.Orario</div>
+            <div class="stat__hint">@t.Clinica</div>
+        }
+        else
+        {
+            <div class="stat__value" style="font-size: 1.1rem; color: var(--c-ink-soft);">—</div>
+            <div class="stat__hint">nessun turno pianificato</div>
+        }
+    </div>
+</div>
+
+<div class="grid" style="grid-template-columns: 1fr 1fr; gap: var(--s-4);">
+    <div class="card">
+        <div class="card__header">
+            <h3 class="card__title">I miei prossimi turni</h3>
+            <a class="muted" asp-controller="Turni" asp-action="Index" style="font-size:.85rem;">vedi calendario →</a>
+        </div>
+        @if (!Model.MieiProssimiTurni.Any())
+        {
+            <p class="muted" style="padding: var(--s-3) 0;">Nessun turno nei prossimi 7 giorni.</p>
+        }
+        else
+        {
+            <ul class="list">
+                @foreach (var t in Model.MieiProssimiTurni.Take(8))
+                {
+                    <li class="list__item">
+                        <div class="list__icon">📅</div>
+                        <div>
+                            <div class="list__title">@t.Orario</div>
+                            <div class="list__meta">@t.Clinica</div>
+                        </div>
+                    </li>
+                }
+            </ul>
+        }
+    </div>
+
+    <div class="card">
+        <div class="card__header"><h3 class="card__title">Azioni rapide</h3></div>
+        <div style="display:flex; flex-direction:column; gap: 8px; padding: var(--s-3) 0;">
+            <a class="btn btn--primary" asp-controller="Ferie" asp-action="Create">+ Richiedi ferie / permesso</a>
+            <a class="btn btn--ghost" asp-controller="Chat" asp-action="Index">💬 Vai alla chat</a>
+            <a class="btn btn--ghost" asp-controller="Comunicazioni" asp-action="Index">📢 Inbox circolari</a>
+            <a class="btn btn--ghost" asp-controller="Account" asp-action="Profile">👤 Il mio profilo</a>
+        </div>
+    </div>
+</div>

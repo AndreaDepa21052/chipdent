@@ -9,6 +9,41 @@ public static class Changelog
     public static readonly IReadOnlyList<ChangelogEntry> Entries = new List<ChangelogEntry>
     {
         // ───────────────────────────────────────────────────────────────────
+        // 🌳 v1.000.0 — Tornavento  (MVP chiuso)
+        // ───────────────────────────────────────────────────────────────────
+        new(
+            Version: "v1.000.0",
+            Codename: "Tornavento",
+            Date: new DateTime(2026, 4, 28),
+            Category: ChangelogCategory.Foundation,
+            Title: "🌳 v1.000.0 «Tornavento» — chiusura dell'MVP",
+            Description: "Prima release stabile di Chipdent. Tutti i moduli MVP della mappa funzionale sono implementati: anagrafiche multi-sede, turni con drag&drop e conflict detection, ferie con saldo automatico, RLS (visite/corsi/DVR), documentazione con upload, chat realtime, circolari con conferma lettura, dashboard differenziate per ruolo, notifiche live + digest email."),
+
+        new(
+            Version: "v1.000.0",
+            Codename: "Tornavento",
+            Date: new DateTime(2026, 4, 28),
+            Category: ChangelogCategory.Dashboard,
+            Title: "Dashboard differenziate per ruolo",
+            Description: "Ogni ruolo vede una home dedicata: Management → KPI cross-sede e azioni di governo; Direttore → turni di oggi, ferie da approvare, scadenze documenti delle proprie sedi; Staff → app personale con saldo ferie, prossimi turni e circolari non lette."),
+
+        new(
+            Version: "v1.000.0",
+            Codename: "Tornavento",
+            Date: new DateTime(2026, 4, 28),
+            Category: ChangelogCategory.Documenti,
+            Title: "Upload allegati documenti (locale)",
+            Description: "Caricamento di PDF, immagini e office sotto wwwroot/uploads/{tenant}/, con validazione mime/size. Documenti di clinica linkati a un file scaricabile. Astrazione IFileStorage pronta per migrare in futuro su Azure Blob senza toccare i controller."),
+
+        new(
+            Version: "v1.000.0",
+            Codename: "Tornavento",
+            Date: new DateTime(2026, 4, 28),
+            Category: ChangelogCategory.Notifiche,
+            Title: "Notifiche browser + digest email giornaliero",
+            Description: "Le notifiche realtime SignalR ora si appoggiano alla Web Notifications API per i toast di sistema fuori dalla scheda. Background service «DigestEmailService» invia ogni mattina alle 7 un riepilogo a chi ha attivo il digest (scadenze docs, RLS, richieste in attesa)."),
+
+        // ───────────────────────────────────────────────────────────────────
         // Pre-Tornavento (work-in-progress verso v1.000.0)
         // ───────────────────────────────────────────────────────────────────
         new(

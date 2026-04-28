@@ -1,0 +1,84 @@
+@model DashboardViewModel
+@{
+    ViewData["Title"] = "Dashboard direzionale";
+    ViewData["Section"] = "dashboard";
+}
+
+<div style="margin-bottom: var(--s-6); display:flex; justify-content:space-between; align-items:flex-end; gap:var(--s-4); flex-wrap:wrap;">
+    <div>
+        <h2 style="margin-bottom:var(--s-1);">Buongiorno, @Model.UserFullName</h2>
+        <p style="color:var(--c-ink-muted); margin:0;">
+            Vista direzionale di <strong style="color:var(--c-ink);">@Model.TenantName</strong> ·
+            @DateTime.Now.ToString("dddd d MMMM yyyy", new System.Globalization.CultureInfo("it-IT"))
+        </p>
+    </div>
+</div>
+
+<div class="grid grid--stats" data-tour="dashboard-stats" style="margin-bottom: var(--s-6);">
+    <div class="stat">
+        <div class="stat__label">Cliniche</div>
+        <div class="stat__value">@Model.ClinicheTotali</div>
+        <div class="stat__hint">
+            <span class="badge badge--success"><span class="dot"></span>@Model.ClinicheOperative operative</span>
+        </div>
+    </div>
+    <div class="stat">
+        <div class="stat__label">Dottori attivi</div>
+        <div class="stat__value">@Model.DottoriAttivi</div>
+    </div>
+    <div class="stat">
+        <div class="stat__label">Dipendenti</div>
+        <div class="stat__value">@Model.DipendentiAttivi</div>
+    </div>
+    <div class="stat">
+        <div class="stat__label">RLS in scadenza</div>
+        <div class="stat__value">@Model.RlsInScadenza</div>
+        @if (Model.RlsInScadenza > 0)
+        {
+            <div class="stat__hint"><span class="badge badge--warning"><span class="dot"></span>azione richiesta</span></div>
+        }
+    </div>
+    <div class="stat">
+        <div class="stat__label">Documenti in scadenza</div>
+        <div class="stat__value">@Model.DocumentiInScadenza</div>
+    </div>
+    <div class="stat">
+        <div class="stat__label">Ferie in attesa</div>
+        <div class="stat__value">@Model.RichiesteFerieInAttesa</div>
+    </div>
+</div>
+
+<div class="grid" style="grid-template-columns: 2fr 1fr; gap: var(--s-4);">
+    <div class="card">
+        <div class="card__header"><h3 class="card__title">Attività recente</h3></div>
+        @if (!Model.Attivita.Any())
+        {
+            <p class="muted" style="padding: var(--s-3) 0;">Nessuna attività ancora registrata.</p>
+        }
+        else
+        {
+            <ul class="list">
+                @foreach (var a in Model.Attivita)
+                {
+                    <li class="list__item">
+                        <div class="list__icon">●</div>
+                        <div>
+                            <div class="list__title">@a.Title</div>
+                            <div class="list__meta">@a.Description</div>
+                        </div>
+                        <div class="list__when">@a.When.ToLocalTime().ToString("dd/MM HH:mm")</div>
+                    </li>
+                }
+            </ul>
+        }
+    </div>
+    <div class="card">
+        <div class="card__header"><h3 class="card__title">Azioni rapide</h3></div>
+        <div style="display:flex; flex-direction:column; gap: 8px; padding: var(--s-3) 0;">
+            <a class="btn btn--ghost" asp-controller="Cliniche" asp-action="Index" asp-route-view="mappa">📍 Mappa sedi</a>
+            <a class="btn btn--ghost" asp-controller="Ferie" asp-action="Index" asp-route-filter="@StatoRichiestaFerie.InAttesa">🏖️ Approva ferie pendenti</a>
+            <a class="btn btn--ghost" asp-controller="Documentazione" asp-action="Index">📁 Vedi documenti scaduti</a>
+            <a class="btn btn--ghost" asp-controller="Users" asp-action="Index">👥 Gestisci utenti</a>
+        </div>
+    </div>
+</div>

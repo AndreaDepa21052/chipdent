@@ -17,7 +17,7 @@
 </div>
 
 <div class="card" style="max-width: 760px;">
-    <form asp-action="@(isNew ? "Create" : "Edit")" asp-route-id="@(isNew ? null : Model.Id)" method="post">
+    <form asp-action="@(isNew ? "Create" : "Edit")" asp-route-id="@(isNew ? null : Model.Id)" method="post" enctype="multipart/form-data">
         @Html.AntiForgeryToken()
         <input type="hidden" asp-for="Id" />
 
@@ -59,6 +59,22 @@
             <div class="form-group full">
                 <label class="form-label" asp-for="Note">Note</label>
                 <textarea class="form-control" asp-for="Note"></textarea>
+            </div>
+
+            <div class="form-group full">
+                <label class="form-label" asp-for="Allegato">Allegato (PDF, immagine, doc — max 50MB)</label>
+                @if (!string.IsNullOrEmpty(Model.AllegatoNomeAttuale))
+                {
+                    <div class="muted" style="font-size:.82rem; margin-bottom:6px;">
+                        Allegato attuale: <strong>@Model.AllegatoNomeAttuale</strong>
+                        @if (!string.IsNullOrEmpty(Model.AllegatoPathAttuale) && !string.IsNullOrEmpty(Model.Id))
+                        {
+                            <a asp-action="Download" asp-route-id="@Model.Id" target="_blank" style="margin-left:8px;">scarica ↓</a>
+                        }
+                    </div>
+                }
+                <input class="form-control" asp-for="Allegato" type="file" accept=".pdf,.png,.jpg,.jpeg,.gif,.webp,.doc,.docx,.xls,.xlsx,.odt,.txt" />
+                <span class="text-danger" asp-validation-for="Allegato"></span>
             </div>
         </div>
 

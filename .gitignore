@@ -49,3 +49,6 @@ npm-debug.log
 
 ## Mongo
 mongo-data/
+
+## Local file uploads (per-tenant) — never commit user content
+src/Chipdent.Web/wwwroot/uploads/

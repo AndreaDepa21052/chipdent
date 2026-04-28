@@ -13,6 +13,9 @@ public class DocumentoClinica : TenantEntity
     public string? EnteEmittente { get; set; }
     public string? Note { get; set; }
     public string? AllegatoNome { get; set; }
+    /// <summary>Path relativo a wwwroot, es. uploads/{tenant}/documenti/abc-foo.pdf.</summary>
+    public string? AllegatoPath { get; set; }
+    public long? AllegatoSize { get; set; }
 
     public StatoDocumento StatoCalcolato
     {

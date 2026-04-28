@@ -1,0 +1,135 @@
+@model DashboardViewModel
+@{
+    ViewData["Title"] = "Dashboard di sede";
+    ViewData["Section"] = "dashboard";
+}
+
+<div style="margin-bottom: var(--s-6);">
+    <h2 style="margin-bottom:var(--s-1);">Buongiorno, @Model.UserFullName</h2>
+    <p style="color:var(--c-ink-muted); margin:0;">
+        Operatività delle tue sedi · @DateTime.Now.ToString("dddd d MMMM yyyy", new System.Globalization.CultureInfo("it-IT"))
+    </p>
+</div>
+
+<div class="grid grid--stats" style="margin-bottom: var(--s-6);">
+    <div class="stat">
+        <div class="stat__label">Le tue cliniche</div>
+        <div class="stat__value">@Model.ClinicheDelDirettore.Count</div>
+    </div>
+    <div class="stat">
+        <div class="stat__label">Turni oggi</div>
+        <div class="stat__value">@Model.TurniOggi.Count</div>
+    </div>
+    <div class="stat">
+        <div class="stat__label">Ferie da approvare</div>
+        <div class="stat__value">@Model.RichiesteFerieInAttesa</div>
+        @if (Model.RichiesteFerieInAttesa > 0)
+        {
+            <div class="stat__hint"><a asp-controller="Ferie" asp-action="Index" asp-route-filter="@StatoRichiestaFerie.InAttesa">vedi tutte →</a></div>
+        }
+    </div>
+    <div class="stat">
+        <div class="stat__label">Doc in scadenza</div>
+        <div class="stat__value">@Model.DocumentiInScadenza</div>
+    </div>
+</div>
+
+<div class="grid" style="grid-template-columns: 1fr 1fr; gap: var(--s-4); margin-bottom: var(--s-4);">
+    <div class="card">
+        <div class="card__header"><h3 class="card__title">Turni di oggi</h3></div>
+        @if (!Model.TurniOggi.Any())
+        {
+            <p class="muted" style="padding: var(--s-3) 0;">Nessun turno oggi.</p>
+        }
+        else
+        {
+            <ul class="list">
+                @foreach (var t in Model.TurniOggi)
+                {
+                    <li class="list__item">
+                        <div class="list__icon">●</div>
+                        <div>
+                            <div class="list__title">@t.Persona</div>
+                            <div class="list__meta">@t.Ruolo · @t.Clinica</div>
+                        </div>
+                        <div class="list__when">@t.Orario</div>
+                    </li>
+                }
+            </ul>
+        }
+    </div>
+
+    <div class="card">
+        <div class="card__header"><h3 class="card__title">Richieste ferie da approvare</h3></div>
+        @if (!Model.FerieDaApprovare.Any())
+        {
+            <p class="muted" style="padding: var(--s-3) 0;">Nessuna richiesta in attesa.</p>
+        }
+        else
+        {
+            <ul class="list">
+                @foreach (var r in Model.FerieDaApprovare)
+                {
+                    <li class="list__item">
+                        <div class="list__icon">🏖️</div>
+                        <div>
+                            <div class="list__title">@r.Tipo · @r.GiorniRichiesti g</div>
+                            <div class="list__meta">@r.DataInizio.ToString("dd/MM") → @r.DataFine.ToString("dd/MM")</div>
+                        </div>
+                        <a class="btn btn--ghost" style="padding: 4px 10px; font-size:.78rem;" asp-controller="Ferie" asp-action="Index">Apri</a>
+                    </li>
+                }
+            </ul>
+        }
+    </div>
+</div>
+
+<div class="card" style="margin-bottom: var(--s-4);">
+    <div class="card__header"><h3 class="card__title">Le tue sedi</h3></div>
+    @if (!Model.ClinicheDelDirettore.Any())
+    {
+        <p class="muted" style="padding: var(--s-3) 0;">Nessuna sede assegnata.</p>
+    }
+    else
+    {
+        <div class="grid" style="grid-template-columns: repeat(auto-fill, minmax(220px, 1fr)); gap: var(--s-3); padding: var(--s-3) 0;">
+            @foreach (var c in Model.ClinicheDelDirettore)
+            {
+                <a class="card" asp-controller="Cliniche" asp-action="Details" asp-route-id="@c.Id" style="text-decoration:none; color:inherit; padding: var(--s-3);">
+                    <div style="font-weight:700;">@c.Nome</div>
+                    <div class="muted" style="font-size:.8rem; margin-top:6px;">
+                        @c.DipendentiAttivi dipendenti · @c.TurniSettimana turni in settimana
+                    </div>
+                    @if (c.DocumentiScadutiOPresto > 0)
+                    {
+                        <div style="margin-top:8px;"><span class="badge badge--warning">@c.DocumentiScadutiOPresto doc in scadenza</span></div>
+                    }
+                </a>
+            }
+        </div>
+    }
+</div>
+
+<div class="card">
+    <div class="card__header"><h3 class="card__title">Attività recente</h3></div>
+    @if (!Model.Attivita.Any())
+    {
+        <p class="muted" style="padding: var(--s-3) 0;">Nessuna attività ancora registrata.</p>
+    }
+    else
+    {
+        <ul class="list">
+            @foreach (var a in Model.Attivita)
+            {
+                <li class="list__item">
+                    <div class="list__icon">●</div>
+                    <div>
+                        <div class="list__title">@a.Title</div>
+                        <div class="list__meta">@a.Description</div>
+                    </div>
+                    <div class="list__when">@a.When.ToLocalTime().ToString("dd/MM HH:mm")</div>
+                </li>
+            }
+        </ul>
+    }
+</div>
