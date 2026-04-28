@@ -1,0 +1,168 @@
+@model Chipdent.Web.Models.PresenzeIndexViewModel
+@{
+    ViewData["Title"] = "Presenze";
+    var culture = new System.Globalization.CultureInfo("it-IT");
+}
+
+<partial name="_Flash" />
+
+<div class="page-head">
+    <div>
+        <h2>Presenze &amp; timbrature</h2>
+        <p class="page-head__sub">Ore lavorate vs pianificate, ritardi e uscite anticipate del mese.</p>
+    </div>
+    <div class="page-head__actions">
+        <form method="get" style="display:inline-flex; gap:8px; align-items:center;">
+            <input class="form-control" type="month" name="mese" value="@Model.Mese.ToString("yyyy-MM")" onchange="this.form.submit();" style="width: 160px;" />
+            <select class="form-control" name="clinicaId" onchange="this.form.submit();" style="width: 180px;">
+                <option value="">Tutte le sedi</option>
+                @foreach (var c in Model.Cliniche)
+                {
+                    <option value="@c.Id" selected="@(c.Id == Model.FilterClinicaId)">@c.Nome</option>
+                }
+            </select>
+        </form>
+        <a class="btn btn--ghost" asp-action="ExportCsv" asp-route-mese="@Model.Mese.ToString("yyyy-MM")" asp-route-clinicaId="@Model.FilterClinicaId">⬇ CSV</a>
+        <a class="btn btn--primary" asp-action="Kiosk" target="_blank">📱 Apri kiosk timbrature</a>
+    </div>
+</div>
+
+<div class="card" style="margin-bottom: var(--s-4);">
+    <div class="card__header"><h3 class="card__title">@Model.Mese.ToString("MMMM yyyy", culture)</h3></div>
+    @if (!Model.Righe.Any())
+    {
+        <p class="muted" style="padding: var(--s-3) 0;">Nessun dipendente per i filtri selezionati.</p>
+    }
+    else
+    {
+        <table class="table">
+            <thead>
+                <tr>
+                    <th>Dipendente</th>
+                    <th>Sede</th>
+                    <th>Ore lavorate / pianificate</th>
+                    <th>Giorni</th>
+                    <th>Ritardi</th>
+                    <th>Uscite anticipate</th>
+                </tr>
+            </thead>
+            <tbody>
+                @foreach (var r in Model.Righe)
+                {
+                    var pct = r.OrePianificate > 0 ? Math.Min(100, (int)Math.Round(r.OreLavorate * 100.0 / r.OrePianificate)) : 0;
+                    var color = pct >= 95 ? "#2d7a50" : pct >= 80 ? "#c47830" : "#a83a3a";
+                    <tr>
+                        <td><strong>@r.Nome</strong></td>
+                        <td>@r.ClinicaNome</td>
+                        <td>
+                            <div style="display:flex; align-items:center; gap:8px;">
+                                <span style="min-width:80px;">@r.OreLavorate / @r.OrePianificate h</span>
+                                <div style="flex:1; max-width:120px; background: #ece0cc; border-radius: 4px; height: 6px; overflow:hidden;">
+                                    <div style="background: @color; height:100%; width: @(pct)%;"></div>
+                                </div>
+                            </div>
+                        </td>
+                        <td>@r.GiorniLavorati / @r.GiorniPianificati</td>
+                        <td>@(r.Ritardi > 0 ? $"⚠ {r.Ritardi}" : "0")</td>
+                        <td>@(r.UsciteAnticipate > 0 ? $"⚠ {r.UsciteAnticipate}" : "0")</td>
+                    </tr>
+                }
+            </tbody>
+        </table>
+    }
+</div>
+
+<div class="grid" style="grid-template-columns: 2fr 1fr; gap: var(--s-4);">
+    <div class="card">
+        <div class="card__header"><h3 class="card__title">Ultime timbrature</h3></div>
+        @if (!Model.UltimeTimbrature.Any())
+        {
+            <p class="muted" style="padding: var(--s-3) 0;">Nessuna timbratura nel periodo.</p>
+        }
+        else
+        {
+            <ul class="list">
+                @foreach (var row in Model.UltimeTimbrature)
+                {
+                    var t = row.T;
+                    <li class="list__item">
+                        <div class="list__icon">@(t.Tipo == TipoTimbratura.CheckIn ? "🟢" : "🔴")</div>
+                        <div>
+                            <div class="list__title">@row.DipendenteNome</div>
+                            <div class="list__meta">
+                                @t.Tipo · @t.Metodo
+                                @if (Model.CanManage)
+                                {
+                                    <form asp-action="EliminaTimbratura" asp-route-id="@t.Id" method="post" style="display:inline; margin-left:6px;"
+                                          onsubmit="return confirm('Eliminare la timbratura?');">
+                                        @Html.AntiForgeryToken()
+                                        <button type="submit" class="ibtn" title="Elimina" style="display:inline-block;">✕</button>
+                                    </form>
+                                }
+                            </div>
+                        </div>
+                        <div class="list__when">@t.Timestamp.ToLocalTime().ToString("dd/MM HH:mm")</div>
+                    </li>
+                }
+            </ul>
+        }
+    </div>
+
+    <div class="card">
+        <div class="card__header"><h3 class="card__title">Inserimento manuale</h3></div>
+        <form asp-action="Manuale" method="post" style="padding: var(--s-3) 0;">
+            @Html.AntiForgeryToken()
+            <div class="form-group">
+                <label class="form-label">Dipendente</label>
+                <select class="form-control" name="DipendenteId" required>
+                    <option value="">— seleziona —</option>
+                    @foreach (var r in Model.Righe)
+                    {
+                        <option value="@r.DipendenteId">@r.Nome</option>
+                    }
+                </select>
+            </div>
+            <div class="form-group">
+                <label class="form-label">Tipo</label>
+                <select class="form-control" name="Tipo">
+                    <option value="CheckIn">Check-in</option>
+                    <option value="CheckOut">Check-out</option>
+                </select>
+            </div>
+            <div class="form-group">
+                <label class="form-label">Quando</label>
+                <input class="form-control" type="datetime-local" name="Quando" value="@DateTime.Now.ToString("yyyy-MM-ddTHH:mm")" required />
+            </div>
+            <div class="form-group">
+                <label class="form-label">Note</label>
+                <input class="form-control" name="Note" />
+            </div>
+            <button type="submit" class="btn btn--primary btn--block">Inserisci</button>
+        </form>
+    </div>
+</div>
+
+<details style="margin-top: var(--s-4);">
+    <summary style="cursor:pointer; font-size:.85rem; color: var(--c-ink-soft);">⚙ Configura PIN timbratura per dipendente</summary>
+    <div class="card" style="margin-top: var(--s-2); padding: var(--s-3);">
+        <form asp-action="SetPin" method="post" style="display:flex; gap:8px; align-items:flex-end; flex-wrap:wrap;">
+            @Html.AntiForgeryToken()
+            <div class="form-group" style="flex:1; min-width:200px; margin:0;">
+                <label class="form-label">Dipendente</label>
+                <select class="form-control" name="DipendenteId" required>
+                    <option value="">— seleziona —</option>
+                    @foreach (var r in Model.Righe)
+                    {
+                        <option value="@r.DipendenteId">@r.Nome</option>
+                    }
+                </select>
+            </div>
+            <div class="form-group" style="width:140px; margin:0;">
+                <label class="form-label">PIN (4-6 cifre)</label>
+                <input class="form-control" type="text" name="Pin" pattern="\d{4,6}" maxlength="6" required />
+            </div>
+            <button type="submit" class="btn btn--primary">Salva PIN</button>
+        </form>
+        <p class="muted" style="font-size:.78rem; margin-top:6px;">Il PIN consente al dipendente di timbrare entrata/uscita dal kiosk di sede.</p>
+    </div>
+</details>

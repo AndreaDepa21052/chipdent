@@ -1,0 +1,114 @@
+@{
+    ViewData["Title"] = "Timbra entrata / uscita";
+    Layout = null;
+    var esito = ViewBag.Esito as string;
+    var tipo = ViewBag.EsitoTipo as string;
+    var slug = (ViewBag.TenantSlug as string) ?? Context.Request.Query["tenantSlug"].ToString();
+}
+<!DOCTYPE html>
+<html lang="it">
+<head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Timbra · Chipdent</title>
+    <link rel="icon" type="image/png" href="~/img/logo.png" />
+    <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Playfair+Display:wght@500;600;700&display=swap">
+    <style>
+        body { margin:0; font-family: 'Inter', sans-serif; background: linear-gradient(135deg, #faf6f0 0%, #f3ece0 100%); min-height: 100vh; display:flex; align-items:center; justify-content:center; }
+        .kiosk { background: #fff; padding: 40px 36px; border-radius: 24px; box-shadow: 0 20px 60px rgba(59, 30, 12, 0.15); width: 100%; max-width: 480px; }
+        .kiosk h1 { font-family: 'Playfair Display', serif; color: #3b1e0c; font-size: 28px; margin: 0 0 6px; }
+        .kiosk p.sub { color: #7a5c3a; margin: 0 0 24px; font-size: 14px; }
+        .kiosk .clock { text-align:center; font-family: 'JetBrains Mono', monospace; font-size: 56px; color: #c47830; margin: 12px 0 24px; letter-spacing: 2px; }
+        .kiosk .clock small { display:block; font-size: 13px; color: #7a5c3a; letter-spacing: 0; margin-top: 4px; font-family: 'Inter', sans-serif; }
+        .pin-display { background: #faf6f0; border: 2px solid #ddd0b8; border-radius: 12px; padding: 18px; text-align:center; font-size: 32px; font-family: 'JetBrains Mono', monospace; letter-spacing: 12px; min-height: 32px; margin-bottom: 16px; color: #3b1e0c; }
+        .keypad { display:grid; grid-template-columns: repeat(3, 1fr); gap: 10px; }
+        .keypad button { padding: 22px 0; font-size: 22px; border: 1px solid #ddd0b8; background: #fff; border-radius: 12px; cursor:pointer; font-weight: 600; color: #3b1e0c; transition: all 0.1s; }
+        .keypad button:hover { background: #faf6f0; }
+        .keypad button:active { transform: scale(0.95); }
+        .keypad .clear { background: #fef0e8; color: #a83a3a; }
+        .keypad .ok { background: #c47830; color: #fff; border-color: #c47830; }
+        .keypad .ok:hover { background: #a8631e; }
+        .esito { padding: 14px 16px; border-radius: 10px; margin-bottom: 16px; font-size: 14px; font-weight: 600; }
+        .esito.ok { background: #e8f5ee; color: #2d7a50; }
+        .esito.errore { background: #fef0e8; color: #a83a3a; }
+        .footer { text-align:center; margin-top: 20px; font-size: 11px; color: #b89a78; font-family: 'JetBrains Mono', monospace; }
+    </style>
+</head>
+<body>
+    <div class="kiosk">
+        <h1>Timbra entrata / uscita</h1>
+        <p class="sub">Inserisci il tuo PIN personale.</p>
+
+        <div class="clock" id="clock">
+            <span id="clockTime"></span>
+            <small id="clockDate"></small>
+        </div>
+
+        @if (!string.IsNullOrEmpty(esito))
+        {
+            <div class="esito @tipo">@esito</div>
+        }
+
+        <form method="post" id="pinForm" action="@Url.Action("KioskPost", "Presenze")">
+            @Html.AntiForgeryToken()
+            <input type="hidden" name="pin" id="pinValue" />
+            @if (!string.IsNullOrEmpty(slug))
+            {
+                <input type="hidden" name="tenantSlug" value="@slug" />
+            }
+
+            <div class="pin-display" id="pinDisplay">&nbsp;</div>
+
+            <div class="keypad">
+                @for (int i = 1; i <= 9; i++)
+                {
+                    <button type="button" data-key="@i">@i</button>
+                }
+                <button type="button" class="clear" data-key="C">C</button>
+                <button type="button" data-key="0">0</button>
+                <button type="submit" class="ok">✓</button>
+            </div>
+        </form>
+
+        <div class="footer">CHIPDENT · KIOSK MODE</div>
+    </div>
+
+    <script>
+        (function () {
+            var pin = '';
+            var disp = document.getElementById('pinDisplay');
+            var hidden = document.getElementById('pinValue');
+            var form = document.getElementById('pinForm');
+
+            function render() {
+                disp.textContent = pin.length === 0 ? ' ' : '•'.repeat(pin.length);
+                hidden.value = pin;
+            }
+
+            document.querySelectorAll('.keypad button').forEach(function (b) {
+                b.addEventListener('click', function (e) {
+                    var k = b.dataset.key;
+                    if (k === 'C') { pin = ''; render(); return; }
+                    if (b.type === 'submit') {
+                        if (pin.length < 4) { e.preventDefault(); return; }
+                        return;
+                    }
+                    if (pin.length < 6) { pin += k; render(); }
+                });
+            });
+
+            // Clock
+            function tick() {
+                var d = new Date();
+                document.getElementById('clockTime').textContent = d.toLocaleTimeString('it-IT', { hour: '2-digit', minute: '2-digit' });
+                document.getElementById('clockDate').textContent = d.toLocaleDateString('it-IT', { weekday: 'long', day: 'numeric', month: 'long' });
+            }
+            tick(); setInterval(tick, 1000);
+
+            // Auto-clear esito dopo 5 secondi
+            var esito = document.querySelector('.esito');
+            if (esito) setTimeout(function () { esito.style.transition = 'opacity 0.5s'; esito.style.opacity = '0'; }, 5000);
+        })();
+    </script>
+</body>
+</html>

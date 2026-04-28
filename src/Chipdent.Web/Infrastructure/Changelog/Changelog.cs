@@ -9,6 +9,41 @@ public static class Changelog
     public static readonly IReadOnlyList<ChangelogEntry> Entries = new List<ChangelogEntry>
     {
         // ───────────────────────────────────────────────────────────────────
+        // 🌟 v1.300.0 — Tornavento Completo  (chiusura mappa funzionale)
+        // ───────────────────────────────────────────────────────────────────
+        new(
+            Version: "v1.300.0",
+            Codename: "Tornavento Completo",
+            Date: new DateTime(2026, 4, 28),
+            Category: ChangelogCategory.Foundation,
+            Title: "🌟 v1.300.0 «Tornavento Completo» — mappa funzionale al 100%",
+            Description: "Chiusi gli ultimi tre moduli del livello Direttore di sede: sostituzioni urgenti, DPI con firma digitale, presenze con kiosk PIN. Tutta la mappa funzionale Chipdent (Management + Direttore + Staff) è ora live, salvo gli item esplicitamente etichettati come Roadmap futura (AI insights, integrazioni esterne, whistleblowing, multi-lingua, white-label)."),
+
+        new(
+            Version: "v1.300.0",
+            Codename: "Tornavento Completo",
+            Date: new DateTime(2026, 4, 28),
+            Category: ChangelogCategory.Turni,
+            Title: "Sostituzioni urgenti",
+            Description: "Workflow per assenze improvvise: il Direttore apre la richiesta indicando assente + data + motivo, il sistema mostra i candidati disponibili (stessa sede, stesso ruolo, esclude chi è in ferie o ha turni sovrapposti). Il sostituto designato accetta o rifiuta; alla conferma il sistema riassegna automaticamente il PersonaId del turno collegato. Pulsante 🚨 Escala al Management se nessuno copre."),
+
+        new(
+            Version: "v1.300.0",
+            Codename: "Tornavento Completo",
+            Date: new DateTime(2026, 4, 28),
+            Category: ChangelogCategory.Compliance,
+            Title: "DPI con firma digitale",
+            Description: "Catalogo DPI per sede (mascherine, guanti, camici, occhiali, ecc.) con intervallo sostituzione configurabile. Consegna nominale al dipendente con firma click che registra timestamp + IP + utente; calcolo automatico della scadenza. Counter dedicati per «da firmare», «in scadenza 30g», «scadute»."),
+
+        new(
+            Version: "v1.300.0",
+            Codename: "Tornavento Completo",
+            Date: new DateTime(2026, 4, 28),
+            Category: ChangelogCategory.Turni,
+            Title: "Presenze & timbrature con kiosk PIN",
+            Description: "Pagina kiosk a tutto schermo (`/presenze/kiosk`) per tablet di sede: il dipendente digita il PIN personale (4-6 cifre) e timbra entrata/uscita; il sistema decide automaticamente quale dei due in base all'ultima timbratura del giorno. Report mensile per il Direttore: ore lavorate vs pianificate, ritardi e uscite anticipate (tolleranza ±10 min), giorni effettivi vs giorni pianificati. Inserimento manuale + export CSV."),
+
+        // ───────────────────────────────────────────────────────────────────
         // 👥 v1.200.0 — Tornavento+Staff
         // ───────────────────────────────────────────────────────────────────
         new(
