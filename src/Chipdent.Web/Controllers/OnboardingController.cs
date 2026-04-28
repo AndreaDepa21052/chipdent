@@ -86,8 +86,7 @@ public class OnboardingController : Controller
             Indirizzo = form.Indirizzo.Trim(),
             NumeroRiuniti = form.NumeroRiuniti,
             OrganicoTarget = form.OrganicoTarget,
-            Stato = ClinicaStato.Operativa,
-            DataAttivazione = DateTime.UtcNow
+            Stato = ClinicaStato.Operativa
         });
         TempData["flash"] = "✓ Prima clinica creata.";
         return RedirectToAction(nameof(Index), new { step = 3 });

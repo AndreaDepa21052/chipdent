@@ -41,7 +41,7 @@ builder.Services.AddSignalR();
 builder.Services.AddHttpContextAccessor();
 
 // Azure App Service / reverse proxies: rispetta X-Forwarded-* per HTTPS detection corretta
-builder.Services.Configure<Microsoft.AspNetCore.HttpOverrides.ForwardedHeadersOptions>(options =>
+builder.Services.Configure<Microsoft.AspNetCore.Builder.ForwardedHeadersOptions>(options =>
 {
     options.ForwardedHeaders = Microsoft.AspNetCore.HttpOverrides.ForwardedHeaders.XForwardedFor
                               | Microsoft.AspNetCore.HttpOverrides.ForwardedHeaders.XForwardedProto;
