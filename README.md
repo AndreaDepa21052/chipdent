@@ -104,6 +104,13 @@ Workflow:
 - 3 dottori (con scadenza albo per testare gli alert)
 - 3 dipendenti (uno in onboarding, ferie residue diverse)
 
+## Deploy in produzione
+
+Per portare Chipdent su Azure App Service + MongoDB Atlas:
+- Procedura completa step-by-step: [`docs/DEPLOY-AZURE.md`](docs/DEPLOY-AZURE.md)
+- Script indici Atlas: [`docs/atlas-indexes.js`](docs/atlas-indexes.js)
+- Workflow GitHub Actions: [`.github/workflows/azure-deploy.yml`](.github/workflows/azure-deploy.yml)
+
 ## Test
 
 ```bash

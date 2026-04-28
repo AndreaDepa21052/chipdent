@@ -1,0 +1,60 @@
+name: Build & Deploy to Azure App Service
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+env:
+  AZURE_WEBAPP_NAME: chipdent-app
+  DOTNET_VERSION: '8.0.x'
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup .NET
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: ${{ env.DOTNET_VERSION }}
+
+      - name: Restore
+        run: dotnet restore Chipdent.sln
+
+      - name: Build
+        run: dotnet build Chipdent.sln --configuration Release --no-restore
+
+      - name: Test
+        run: dotnet test Chipdent.sln --configuration Release --no-build --verbosity normal
+
+      - name: Publish
+        run: dotnet publish src/Chipdent.Web/Chipdent.Web.csproj -c Release -o ${{github.workspace}}/publish --no-build
+
+      - name: Upload artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: webapp
+          path: ${{github.workspace}}/publish
+
+  deploy:
+    needs: build
+    runs-on: ubuntu-latest
+    environment:
+      name: 'production'
+      url: ${{ steps.deploy.outputs.webapp-url }}
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          name: webapp
+          path: ./publish
+
+      - name: Deploy to Azure WebApp
+        id: deploy
+        uses: azure/webapps-deploy@v3
+        with:
+          app-name: ${{ env.AZURE_WEBAPP_NAME }}
+          slot-name: production
+          package: ./publish
+          publish-profile: ${{ secrets.AZURE_WEBAPP_PUBLISH_PROFILE }}
