@@ -200,6 +200,54 @@ else
 
 @if (Model.CanEdit)
 {
+    <!-- Modale selezione clinica per drop template -->
+    <div id="cliniche-modal" class="cdm-modal" hidden role="dialog" aria-modal="true" aria-labelledby="cdm-title">
+        <div class="cdm-modal__backdrop" data-close></div>
+        <div class="cdm-modal__panel">
+            <header class="cdm-modal__head">
+                <h3 id="cdm-title">📍 Scegli la clinica</h3>
+                <button type="button" class="cdm-modal__close" data-close aria-label="Chiudi">✕</button>
+            </header>
+            <p class="cdm-modal__sub" id="cdm-sub"></p>
+            <div class="cdm-clinic-list">
+                @foreach (var kv in Model.ClinicheLookup.OrderBy(k => k.Value))
+                {
+                    <button type="button" class="cdm-clinic-btn" data-clinica-id="@kv.Key">
+                        <span class="cdm-clinic-icon">🏥</span>
+                        <span class="cdm-clinic-name">@kv.Value</span>
+                        <span class="cdm-clinic-arrow">→</span>
+                    </button>
+                }
+            </div>
+            <footer class="cdm-modal__foot">
+                <button type="button" class="btn btn--ghost" data-close>Annulla</button>
+            </footer>
+        </div>
+    </div>
+
+    <style>
+        .cdm-modal { position: fixed; inset: 0; z-index: 9000; display: flex; align-items: center; justify-content: center; padding: 16px; }
+        .cdm-modal[hidden] { display: none; }
+        .cdm-modal__backdrop { position: absolute; inset: 0; background: rgba(42, 21, 8, 0.5); backdrop-filter: blur(2px); animation: cdm-fade 0.18s ease-out; }
+        .cdm-modal__panel { position: relative; background: #fff; border-radius: 16px; max-width: 460px; width: 100%; box-shadow: 0 24px 60px rgba(59,30,12,0.3); overflow: hidden; animation: cdm-slide 0.22s cubic-bezier(0.2, 0.9, 0.3, 1); }
+        .cdm-modal__head { display: flex; justify-content: space-between; align-items: center; padding: 18px 22px 6px; }
+        .cdm-modal__head h3 { font-family: 'Playfair Display', serif; font-size: 1.25rem; color: var(--c-ink, #2a1508); margin: 0; }
+        .cdm-modal__close { background: none; border: 0; font-size: 18px; color: var(--c-ink-soft, #7a5c3a); cursor: pointer; padding: 4px 8px; border-radius: 6px; }
+        .cdm-modal__close:hover { background: var(--c-bg-soft, #faf6f0); }
+        .cdm-modal__sub { padding: 0 22px; font-size: .85rem; color: var(--c-ink-soft, #7a5c3a); margin: 0 0 14px; }
+        .cdm-clinic-list { padding: 0 22px 12px; display: flex; flex-direction: column; gap: 8px; max-height: 360px; overflow-y: auto; }
+        .cdm-clinic-btn { display: flex; align-items: center; gap: 12px; padding: 14px 16px; border: 1.5px solid var(--c-border, #e9e1d3); border-radius: 12px; background: #fff; cursor: pointer; font-size: 1rem; color: var(--c-ink, #2a1508); transition: all 0.12s; text-align: left; font-family: inherit; }
+        .cdm-clinic-btn:hover { border-color: var(--c-accent, #c47830); background: var(--c-bg-soft, #faf6f0); transform: translateX(2px); }
+        .cdm-clinic-btn:focus { outline: 2px solid var(--c-accent, #c47830); outline-offset: 2px; }
+        .cdm-clinic-icon { font-size: 1.25rem; }
+        .cdm-clinic-name { flex: 1; font-weight: 600; }
+        .cdm-clinic-arrow { color: var(--c-ink-soft, #7a5c3a); transition: transform 0.12s; }
+        .cdm-clinic-btn:hover .cdm-clinic-arrow { transform: translateX(4px); color: var(--c-accent, #c47830); }
+        .cdm-modal__foot { padding: 12px 22px 18px; display: flex; justify-content: flex-end; border-top: 1px solid var(--c-bg-soft, #f3ece0); }
+        @@keyframes cdm-fade { from { opacity: 0; } to { opacity: 1; } }
+        @@keyframes cdm-slide { from { opacity: 0; transform: translateY(12px) scale(0.98); } to { opacity: 1; transform: translateY(0) scale(1); } }
+    </style>
+
     @section Scripts {
     <script>
         var Model_canEdit = @Json.Serialize(Model.CanEdit);
@@ -255,25 +303,63 @@ else
                     }
                     else if (data.indexOf('template:') === 0) {
                         var tid = data.substring(9);
-                        // Per usare template serve sapere la clinica → prompt rapido (in attesa di un selettore migliore)
-                        var clinicaId = prompt('ID clinica per il turno (verrà migliorato a breve):');
-                        if (!clinicaId) return;
-                        var fd2 = new FormData();
-                        fd2.append('templateId', tid);
-                        fd2.append('data', dataIso);
-                        fd2.append('personaId', personaId);
-                        fd2.append('tipo', personaTipo);
-                        fd2.append('clinicaId', clinicaId);
-                        fd2.append('__RequestVerificationToken', token);
-                        fetch('/turni/rapido', { method: 'POST', body: fd2 })
-                            .then(function (r) {
-                                if (r.ok) location.reload();
-                                else r.text().then(function (t) { alert('Creazione fallita (' + r.status + '): ' + (t || r.statusText)); });
-                            })
-                            .catch(function (err) { alert('Creazione fallita: ' + err); });
+                        var personaNome = cell.closest('.cal__row')?.querySelector('.cal__person .name')?.textContent?.trim() || 'persona';
+                        var giornoLabel = new Date(dataIso).toLocaleDateString('it-IT', { weekday: 'long', day: 'numeric', month: 'short' });
+
+                        var modal = document.getElementById('cliniche-modal');
+                        var subEl = document.getElementById('cdm-sub');
+                        if (subEl) subEl.textContent = 'Seleziona la sede in cui assegnare il turno di ' + personaNome + ' di ' + giornoLabel + '.';
+
+                        var clinicBtns = modal.querySelectorAll('.cdm-clinic-btn');
+
+                        // Auto-submit se c'è una sola clinica
+                        if (clinicBtns.length === 1) {
+                            submitQuickShift(tid, dataIso, personaId, personaTipo, clinicBtns[0].dataset.clinicaId, token);
+                            return;
+                        }
+
+                        // Apri la modale e collega i pulsanti
+                        modal.hidden = false;
+                        var firstBtn = clinicBtns[0];
+                        if (firstBtn) firstBtn.focus();
+
+                        clinicBtns.forEach(function (btn) {
+                            btn.onclick = function () {
+                                modal.hidden = true;
+                                submitQuickShift(tid, dataIso, personaId, personaTipo, btn.dataset.clinicaId, token);
+                            };
+                        });
                     }
                 });
             });
+
+            // ── Helper: crea turno rapido da template ──
+            function submitQuickShift(templateId, dataIso, personaId, personaTipo, clinicaId, token) {
+                var fd2 = new FormData();
+                fd2.append('templateId', templateId);
+                fd2.append('data', dataIso);
+                fd2.append('personaId', personaId);
+                fd2.append('tipo', personaTipo);
+                fd2.append('clinicaId', clinicaId);
+                fd2.append('__RequestVerificationToken', token);
+                fetch('/turni/rapido', { method: 'POST', body: fd2 })
+                    .then(function (r) {
+                        if (r.ok) location.reload();
+                        else r.text().then(function (t) { alert('Creazione fallita (' + r.status + '): ' + (t || r.statusText)); });
+                    })
+                    .catch(function (err) { alert('Creazione fallita: ' + err); });
+            }
+
+            // ── Modale: chiusura via backdrop / pulsanti / ESC ──
+            var modal = document.getElementById('cliniche-modal');
+            if (modal) {
+                modal.querySelectorAll('[data-close]').forEach(function (el) {
+                    el.addEventListener('click', function () { modal.hidden = true; });
+                });
+                document.addEventListener('keydown', function (e) {
+                    if (e.key === 'Escape' && !modal.hidden) modal.hidden = true;
+                });
+            }
         })();
     </script>
     <form id="afh" style="display:none;">@Html.AntiForgeryToken()</form>
