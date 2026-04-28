@@ -1,0 +1,133 @@
+@model Chipdent.Web.Models.FerieIndexViewModel
+@{
+    ViewData["Title"] = "Ferie & permessi";
+
+    string StatoBadge(StatoRichiestaFerie s) => s switch
+    {
+        StatoRichiestaFerie.InAttesa   => "<span class='badge badge--warning'><span class='dot'></span>in attesa</span>",
+        StatoRichiestaFerie.Approvata  => "<span class='badge badge--success'><span class='dot'></span>approvata</span>",
+        StatoRichiestaFerie.Rifiutata  => "<span class='badge badge--danger'><span class='dot'></span>rifiutata</span>",
+        StatoRichiestaFerie.Annullata  => "<span class='badge'><span class='dot'></span>annullata</span>",
+        _ => "—"
+    };
+
+    string TipoLabel(TipoAssenza t) => t switch
+    {
+        TipoAssenza.Ferie          => "Ferie",
+        TipoAssenza.Permesso       => "Permesso",
+        TipoAssenza.Malattia       => "Malattia",
+        TipoAssenza.PermessoStudio => "Permesso studio",
+        _ => t.ToString()
+    };
+}
+
+<partial name="_Flash" />
+
+<div class="page-head">
+    <div>
+        <h2>Ferie & permessi</h2>
+        <p class="page-head__sub">@Model.Richieste.Count richiest@(Model.Richieste.Count == 1 ? "a" : "e") · in attesa: @Model.Richieste.Count(r => r.Richiesta.Stato == StatoRichiestaFerie.InAttesa)</p>
+    </div>
+    <div class="page-head__actions">
+        @if (Model.MieiGiorniResidui.HasValue)
+        {
+            <span class="badge badge--accent" style="font-size:.85rem;">Saldo: @Model.MieiGiorniResidui g</span>
+        }
+        @if (Model.CanRequest)
+        {
+            <a class="btn btn--primary" asp-action="Create">+ Nuova richiesta</a>
+        }
+    </div>
+</div>
+
+<div class="seg" style="display:inline-flex; gap:0; border:1px solid var(--c-border, #e9e1d3); border-radius: 8px; overflow:hidden; margin-bottom: var(--s-4);">
+    <a class="btn @(Model.Filter == null ? "btn--primary" : "btn--ghost")" asp-action="Index" style="border-radius:0;">Tutte</a>
+    <a class="btn @(Model.Filter == StatoRichiestaFerie.InAttesa ? "btn--primary" : "btn--ghost")" asp-action="Index" asp-route-filter="@StatoRichiestaFerie.InAttesa" style="border-radius:0;">In attesa</a>
+    <a class="btn @(Model.Filter == StatoRichiestaFerie.Approvata ? "btn--primary" : "btn--ghost")" asp-action="Index" asp-route-filter="@StatoRichiestaFerie.Approvata" style="border-radius:0;">Approvate</a>
+    <a class="btn @(Model.Filter == StatoRichiestaFerie.Rifiutata ? "btn--primary" : "btn--ghost")" asp-action="Index" asp-route-filter="@StatoRichiestaFerie.Rifiutata" style="border-radius:0;">Rifiutate</a>
+</div>
+
+@if (!Model.Richieste.Any())
+{
+    <div class="card">
+        <div class="empty">
+            <div class="empty__icon">🏖️</div>
+            <h3>Nessuna richiesta</h3>
+            <p>Le richieste di ferie e permessi compariranno qui.</p>
+        </div>
+    </div>
+}
+else
+{
+    <div class="table-wrap">
+        <table class="table">
+            <thead>
+                <tr>
+                    <th>Dipendente</th>
+                    <th>Tipo</th>
+                    <th>Periodo</th>
+                    <th>Giorni</th>
+                    <th>Stato</th>
+                    <th>Decisione</th>
+                    <th></th>
+                </tr>
+            </thead>
+            <tbody>
+                @foreach (var row in Model.Richieste)
+                {
+                    var r = row.Richiesta;
+                    <tr>
+                        <td>
+                            <div class="strong">@row.DipendenteNome</div>
+                            <div class="muted">@row.ClinicaNome</div>
+                        </td>
+                        <td>@TipoLabel(r.Tipo)</td>
+                        <td>@r.DataInizio.ToString("dd/MM/yyyy") → @r.DataFine.ToString("dd/MM/yyyy")</td>
+                        <td>@r.GiorniRichiesti g</td>
+                        <td>@Html.Raw(StatoBadge(r.Stato))</td>
+                        <td>
+                            @if (r.DecisoreIl is not null)
+                            {
+                                <div class="muted" style="font-size:.78rem;">
+                                    @row.DecisoreNome · @r.DecisoreIl?.ToString("dd/MM HH:mm")
+                                </div>
+                                @if (!string.IsNullOrWhiteSpace(r.NoteDecisore))
+                                {
+                                    <div class="muted" style="font-size:.78rem;">"@r.NoteDecisore"</div>
+                                }
+                            }
+                            else
+                            {
+                                <span class="muted">—</span>
+                            }
+                        </td>
+                        <td>
+                            <div class="actions">
+                                @if (r.Stato == StatoRichiestaFerie.InAttesa && Model.CanApprove)
+                                {
+                                    <form asp-action="Approve" asp-route-id="@r.Id" method="post" style="display:inline;">
+                                        @Html.AntiForgeryToken()
+                                        <button type="submit" class="btn btn--primary" style="padding:4px 10px; font-size:.78rem;">Approva</button>
+                                    </form>
+                                    <form asp-action="Reject" asp-route-id="@r.Id" method="post" style="display:inline;"
+                                          onsubmit="return confirm('Rifiutare questa richiesta?');">
+                                        @Html.AntiForgeryToken()
+                                        <button type="submit" class="btn btn--ghost" style="padding:4px 10px; font-size:.78rem;">Rifiuta</button>
+                                    </form>
+                                }
+                                else if (r.Stato == StatoRichiestaFerie.InAttesa)
+                                {
+                                    <form asp-action="Cancel" asp-route-id="@r.Id" method="post" style="display:inline;"
+                                          onsubmit="return confirm('Annullare questa richiesta?');">
+                                        @Html.AntiForgeryToken()
+                                        <button type="submit" class="btn btn--ghost" style="padding:4px 10px; font-size:.78rem;">Annulla</button>
+                                    </form>
+                                }
+                            </div>
+                        </td>
+                    </tr>
+                }
+            </tbody>
+        </table>
+    </div>
+}

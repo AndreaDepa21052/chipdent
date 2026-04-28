@@ -15,6 +15,14 @@ public static class Changelog
             Version: "v0.900.0",
             Codename: "pre-Tornavento",
             Date: new DateTime(2026, 4, 28),
+            Category: ChangelogCategory.Ferie,
+            Title: "Workflow ferie completo",
+            Description: "Lo Staff invia richieste di ferie/permesso/malattia, il Direttore approva o rifiuta. Saldo giorni residui aggiornato automaticamente all'approvazione e ripristinato in caso di annullamento. Calcolo giorni lavorativi (lun-ven) automatico."),
+
+        new(
+            Version: "v0.900.0",
+            Codename: "pre-Tornavento",
+            Date: new DateTime(2026, 4, 28),
             Category: ChangelogCategory.Foundation,
             Title: "Refactor RBAC + mappa funzionale",
             Description: "Ruoli allineati alla mappa funzionale: Owner/Management/Direttore/Backoffice/Staff. Direttore con scope multi-clinica. Footer con link alla mappa funzionale."),

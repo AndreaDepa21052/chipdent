@@ -1,0 +1,100 @@
+@model Chipdent.Web.Models.NuovaRichiestaFerieViewModel
+@{
+    ViewData["Title"] = "Nuova richiesta ferie";
+    ViewData["Crumb"] = "Ferie";
+}
+
+<partial name="_Flash" />
+
+<div class="page-head">
+    <div>
+        <h2>Nuova richiesta</h2>
+        <p class="page-head__sub">Indica periodo e tipologia. Il Direttore di sede approverà o rifiuterà.</p>
+    </div>
+    <div class="page-head__actions">
+        <a class="btn btn--ghost" asp-action="Index">← Torna a Ferie</a>
+    </div>
+</div>
+
+<div class="card" style="max-width:640px;">
+    <form asp-action="Create" method="post">
+        @Html.AntiForgeryToken()
+
+        <div asp-validation-summary="ModelOnly" class="alert alert--danger" style="display:@(ViewData.ModelState.ErrorCount > 0 ? "block" : "none");"></div>
+
+        <div class="form-grid">
+            <div class="form-group full">
+                <label class="form-label" asp-for="DipendenteId">Dipendente</label>
+                @if (Model.LockedDipendente)
+                {
+                    var d = Model.DipendentiSelezionabili.FirstOrDefault();
+                    <input type="hidden" asp-for="DipendenteId" />
+                    <input class="form-control" value="@(d?.NomeCompleto ?? "")" disabled />
+                }
+                else
+                {
+                    <select class="form-control" asp-for="DipendenteId" required>
+                        <option value="">— seleziona —</option>
+                        @foreach (var d in Model.DipendentiSelezionabili)
+                        {
+                            <option value="@d.Id">@d.NomeCompleto · @d.Ruolo · saldo @d.GiorniFerieResidui g</option>
+                        }
+                    </select>
+                }
+                <span class="text-danger" asp-validation-for="DipendenteId"></span>
+            </div>
+
+            <div class="form-group">
+                <label class="form-label" asp-for="Tipo">Tipo</label>
+                <select class="form-control" asp-for="Tipo" asp-items="Html.GetEnumSelectList<Chipdent.Web.Domain.Entities.TipoAssenza>()"></select>
+            </div>
+
+            <div class="form-group"></div>
+
+            <div class="form-group">
+                <label class="form-label" asp-for="DataInizio">Dal</label>
+                <input class="form-control" asp-for="DataInizio" type="date" required id="data-inizio" />
+            </div>
+
+            <div class="form-group">
+                <label class="form-label" asp-for="DataFine">Al</label>
+                <input class="form-control" asp-for="DataFine" type="date" required id="data-fine" />
+                <small class="muted" id="giorni-stimati" style="font-size:.78rem;"></small>
+            </div>
+
+            <div class="form-group full">
+                <label class="form-label" asp-for="Note">Note (opzionale)</label>
+                <textarea class="form-control" asp-for="Note" rows="3" placeholder="Es. matrimonio del fratello, viaggio prenotato, ecc."></textarea>
+            </div>
+        </div>
+
+        <div class="form-actions">
+            <a class="btn btn--ghost" asp-action="Index">Annulla</a>
+            <button type="submit" class="btn btn--primary">Invia richiesta</button>
+        </div>
+    </form>
+</div>
+
+@section Scripts {
+<script>
+    (function () {
+        var inizio = document.getElementById('data-inizio');
+        var fine = document.getElementById('data-fine');
+        var label = document.getElementById('giorni-stimati');
+        function recompute() {
+            var di = new Date(inizio.value);
+            var df = new Date(fine.value);
+            if (isNaN(di) || isNaN(df) || df < di) { label.textContent = ''; return; }
+            var days = 0;
+            for (var d = new Date(di); d <= df; d.setDate(d.getDate() + 1)) {
+                var dow = d.getDay();
+                if (dow !== 0 && dow !== 6) days++;
+            }
+            label.textContent = days + ' giorn' + (days === 1 ? 'o' : 'i') + ' lavorativ' + (days === 1 ? 'o' : 'i');
+        }
+        inizio.addEventListener('change', recompute);
+        fine.addEventListener('change', recompute);
+        recompute();
+    })();
+</script>
+}

@@ -42,4 +42,5 @@ public class MongoContext
     public IMongoCollection<Comunicazione> Comunicazioni => Database.GetCollection<Comunicazione>("comunicazioni");
     public IMongoCollection<Trasferimento> Trasferimenti => Database.GetCollection<Trasferimento>("trasferimenti");
     public IMongoCollection<AuditEntry> Audit => Database.GetCollection<AuditEntry>("audit");
+    public IMongoCollection<RichiestaFerie> RichiesteFerie => Database.GetCollection<RichiestaFerie>("richiesteFerie");
 }
