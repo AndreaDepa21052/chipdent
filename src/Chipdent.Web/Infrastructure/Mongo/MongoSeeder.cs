@@ -10,6 +10,8 @@ public static class MongoSeeder
     {
         try
         {
+            await MigrateLegacyRolesAsync(ctx, logger, ct);
+
             var tenant = await ctx.Tenants.Find(t => t.Slug == "confident").FirstOrDefaultAsync(ct);
             if (tenant is null)
             {
@@ -52,6 +54,41 @@ public static class MongoSeeder
                 };
                 await ctx.Cliniche.InsertManyAsync(cliniche, cancellationToken: ct);
                 logger.LogInformation("Seeded {Count} cliniche", cliniche.Count);
+            }
+
+            var milanoIdSeed = cliniche.FirstOrDefault(c => c.Citta == "Milano")?.Id;
+            if (!string.IsNullOrEmpty(milanoIdSeed))
+            {
+                const string direttoreEmail = "direttore.milano@chipdent.it";
+                if (!await ctx.Users.Find(u => u.Email == direttoreEmail).AnyAsync(ct))
+                {
+                    await ctx.Users.InsertOneAsync(new User
+                    {
+                        TenantId = tenant.Id,
+                        Email = direttoreEmail,
+                        PasswordHash = hasher.Hash("chipdent"),
+                        FullName = "Anna Bianchi",
+                        Role = UserRole.Direttore,
+                        ClinicaIds = new List<string> { milanoIdSeed },
+                        IsActive = true
+                    }, cancellationToken: ct);
+                    logger.LogInformation("Seeded direttore user {Email}", direttoreEmail);
+                }
+
+                const string backofficeEmail = "backoffice@chipdent.it";
+                if (!await ctx.Users.Find(u => u.Email == backofficeEmail).AnyAsync(ct))
+                {
+                    await ctx.Users.InsertOneAsync(new User
+                    {
+                        TenantId = tenant.Id,
+                        Email = backofficeEmail,
+                        PasswordHash = hasher.Hash("chipdent"),
+                        FullName = "Elena Rossi",
+                        Role = UserRole.Backoffice,
+                        IsActive = true
+                    }, cancellationToken: ct);
+                    logger.LogInformation("Seeded backoffice user {Email}", backofficeEmail);
+                }
             }
 
             if (!await ctx.Dottori.Find(d => d.TenantId == tenant.Id).AnyAsync(ct))
@@ -152,6 +189,43 @@ public static class MongoSeeder
         catch (Exception ex)
         {
             logger.LogWarning(ex, "Mongo seed skipped: {Message}", ex.Message);
+        }
+    }
+
+    /// <summary>
+    /// Migra dati pre-refactor ruoli (Operatore/HR/Manager/Admin) al nuovo
+    /// modello (Staff/Backoffice/Direttore/Management). Idempotente.
+    /// </summary>
+    private static async Task MigrateLegacyRolesAsync(MongoContext ctx, ILogger logger, CancellationToken ct)
+    {
+        try
+        {
+            // I valori numerici stabili — lo stesso enum coincide con la persistenza:
+            //   Staff=0   (era Operatore=0)
+            //   Backoffice=10 (era HR=10)
+            //   Direttore=20  (era Manager=20)
+            //   Management=30 (era Admin=30)
+            //   Owner=99
+            // Non c'è quindi rinumerazione: i record persistiti restano validi.
+            // Garantiamo solo che ClinicaIds esista come array (mongo legacy può non averla).
+            var users = await ctx.Users.Find(_ => true).ToListAsync(ct);
+            var fixedCount = 0;
+            foreach (var u in users)
+            {
+                if (u.ClinicaIds is null)
+                {
+                    await ctx.Users.UpdateOneAsync(
+                        x => x.Id == u.Id,
+                        Builders<User>.Update.Set(x => x.ClinicaIds, new List<string>()),
+                        cancellationToken: ct);
+                    fixedCount++;
+                }
+            }
+            if (fixedCount > 0) logger.LogInformation("Migrated {Count} users (ClinicaIds backfill)", fixedCount);
+        }
+        catch (Exception ex)
+        {
+            logger.LogWarning(ex, "Role migration skipped: {Message}", ex.Message);
         }
     }
 }

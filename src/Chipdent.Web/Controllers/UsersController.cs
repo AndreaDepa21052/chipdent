@@ -11,7 +11,7 @@ using MongoDB.Driver;
 
 namespace Chipdent.Web.Controllers;
 
-[Authorize(Policy = Policies.RequireAdmin)]
+[Authorize(Policy = Policies.RequireManagement)]
 [Route("utenti")]
 public class UsersController : Controller
 {
@@ -61,6 +61,7 @@ public class UsersController : Controller
 
         var dottori = await _mongo.Dottori.Find(d => d.TenantId == _tenant.TenantId).SortBy(d => d.Cognome).ToListAsync();
         var dipendenti = await _mongo.Dipendenti.Find(d => d.TenantId == _tenant.TenantId).SortBy(d => d.Cognome).ToListAsync();
+        var cliniche = await _mongo.Cliniche.Find(c => c.TenantId == _tenant.TenantId).SortBy(c => c.Nome).ToListAsync();
         var current = User.FindFirst(System.Security.Claims.ClaimTypes.NameIdentifier)?.Value;
 
         ViewData["Section"] = "users";
@@ -70,10 +71,12 @@ public class UsersController : Controller
             Email = u.Email,
             FullName = u.FullName,
             Role = u.Role,
+            ClinicaIds = u.ClinicaIds?.ToList() ?? new(),
             LinkedPersonType = u.LinkedPersonType,
             LinkedPersonId = u.LinkedPersonId,
             IsActive = u.IsActive,
             IsCurrent = u.Id == current,
+            Cliniche = cliniche,
             Dottori = dottori,
             Dipendenti = dipendenti
         });
@@ -112,6 +115,18 @@ public class UsersController : Controller
         }
         if (vm.LinkedPersonType == LinkedPersonType.None) vm.LinkedPersonId = null;
 
+        // Direttore: deve essere assegnato ad almeno una clinica.
+        // Management/Owner: lasciare vuoto = visibilità su tutte le sedi.
+        // Backoffice/Staff: ClinicaIds è informativo, non obbligatorio.
+        var clinicaIds = (vm.ClinicaIds ?? new())
+            .Where(s => !string.IsNullOrWhiteSpace(s))
+            .Distinct()
+            .ToList();
+        if (vm.Role == UserRole.Direttore && clinicaIds.Count == 0)
+        {
+            ModelState.AddModelError(nameof(vm.ClinicaIds), "Un Direttore deve essere assegnato ad almeno una clinica.");
+        }
+
         if (!string.IsNullOrEmpty(vm.LinkedPersonId))
         {
             var alreadyLinked = await _mongo.Users
@@ -130,6 +145,7 @@ public class UsersController : Controller
         {
             vm.Email = existing.Email;
             vm.IsCurrent = isCurrent;
+            vm.Cliniche = await _mongo.Cliniche.Find(c => c.TenantId == _tenant.TenantId).SortBy(c => c.Nome).ToListAsync();
             vm.Dottori = await _mongo.Dottori.Find(d => d.TenantId == _tenant.TenantId).SortBy(d => d.Cognome).ToListAsync();
             vm.Dipendenti = await _mongo.Dipendenti.Find(d => d.TenantId == _tenant.TenantId).SortBy(d => d.Cognome).ToListAsync();
             ViewData["Section"] = "users";
@@ -141,6 +157,7 @@ public class UsersController : Controller
             Builders<User>.Update
                 .Set(x => x.FullName, vm.FullName)
                 .Set(x => x.Role, vm.Role)
+                .Set(x => x.ClinicaIds, clinicaIds)
                 .Set(x => x.LinkedPersonType, vm.LinkedPersonType)
                 .Set(x => x.LinkedPersonId, vm.LinkedPersonId)
                 .Set(x => x.IsActive, vm.IsActive)
@@ -192,13 +209,12 @@ public class UsersController : Controller
 
     private static PermissionsMatrixViewModel BuildMatrix()
     {
-        var roles = new[] { UserRole.Operatore, UserRole.HR, UserRole.Manager, UserRole.Admin, UserRole.Owner };
+        var roles = new[] { UserRole.Staff, UserRole.Backoffice, UserRole.Direttore, UserRole.Management, UserRole.Owner };
 
         bool All(UserRole r) => true;
-        bool Staff(UserRole r) => r != UserRole.Operatore;
-        bool Hr(UserRole r) => r == UserRole.HR || r == UserRole.Manager || r == UserRole.Admin || r == UserRole.Owner;
-        bool Manager(UserRole r) => r == UserRole.Manager || r == UserRole.Admin || r == UserRole.Owner;
-        bool Admin(UserRole r) => r == UserRole.Admin || r == UserRole.Owner;
+        bool Backoffice(UserRole r) => r == UserRole.Backoffice || r == UserRole.Direttore || r == UserRole.Management || r == UserRole.Owner;
+        bool Direttore(UserRole r) => r == UserRole.Direttore || r == UserRole.Management || r == UserRole.Owner;
+        bool Management(UserRole r) => r == UserRole.Management || r == UserRole.Owner;
         bool Owner(UserRole r) => r == UserRole.Owner;
 
         PermissionRow Row(string mod, string action, Func<UserRole, bool> rule) =>
@@ -208,25 +224,25 @@ public class UsersController : Controller
         {
             Row("Dashboard", "Visualizza", All),
             Row("Turni", "Visualizza calendario", All),
-            Row("Turni", "Crea / modifica turni", Manager),
+            Row("Turni", "Crea / modifica turni", Direttore),
             Row("Comunicazioni", "Visualizza inbox", All),
             Row("Comunicazioni", "Invia comunicazione", All),
-            Row("Comunicazioni", "Approva richieste", Manager),
-            Row("Cliniche", "Visualizza", Staff),
-            Row("Cliniche", "Crea / modifica", Manager),
-            Row("Cliniche", "Elimina", Admin),
-            Row("Dottori", "Visualizza", Staff),
-            Row("Dottori", "Crea / modifica", Hr),
-            Row("Dipendenti", "Visualizza", Staff),
-            Row("Dipendenti", "Crea / modifica", Hr),
-            Row("RLS / Sicurezza", "Visualizza", Staff),
-            Row("RLS / Sicurezza", "Crea visite / corsi", Hr),
-            Row("RLS / Sicurezza", "Gestisci DVR", Manager),
-            Row("Documentazione", "Visualizza", Staff),
-            Row("Documentazione", "Crea / modifica", Manager),
-            Row("Documentazione", "Elimina", Admin),
-            Row("Utenti", "Gestisci utenti e inviti", Admin),
-            Row("Utenti", "Cambia ruoli", Admin),
+            Row("Comunicazioni", "Approva richieste", Direttore),
+            Row("Cliniche", "Visualizza", Backoffice),
+            Row("Cliniche", "Crea / modifica", Management),
+            Row("Cliniche", "Elimina", Management),
+            Row("Dottori", "Visualizza", Backoffice),
+            Row("Dottori", "Crea / modifica", Backoffice),
+            Row("Dipendenti", "Visualizza", Backoffice),
+            Row("Dipendenti", "Crea / modifica", Backoffice),
+            Row("RLS / Sicurezza", "Visualizza", Backoffice),
+            Row("RLS / Sicurezza", "Crea visite / corsi", Backoffice),
+            Row("RLS / Sicurezza", "Gestisci DVR", Direttore),
+            Row("Documentazione", "Visualizza", Backoffice),
+            Row("Documentazione", "Crea / modifica", Direttore),
+            Row("Documentazione", "Elimina", Management),
+            Row("Utenti", "Gestisci utenti e inviti", Management),
+            Row("Utenti", "Cambia ruoli", Management),
             Row("Workspace", "Impostazioni workspace", Owner)
         };
 
@@ -234,19 +250,30 @@ public class UsersController : Controller
     }
 
     [HttpGet("invita")]
-    public IActionResult Invite()
+    public async Task<IActionResult> Invite()
     {
         ViewData["Section"] = "users";
-        return View(new InviteUserViewModel());
+        var cliniche = await _mongo.Cliniche.Find(c => c.TenantId == _tenant.TenantId).SortBy(c => c.Nome).ToListAsync();
+        return View(new InviteUserViewModel { Cliniche = cliniche });
     }
 
     [HttpPost("invita")]
     [ValidateAntiForgeryToken]
     public async Task<IActionResult> Invite(InviteUserViewModel vm)
     {
+        var clinicaIds = (vm.ClinicaIds ?? new())
+            .Where(s => !string.IsNullOrWhiteSpace(s))
+            .Distinct()
+            .ToList();
+        if (vm.Ruolo == UserRole.Direttore && clinicaIds.Count == 0)
+        {
+            ModelState.AddModelError(nameof(vm.ClinicaIds), "Un Direttore deve essere assegnato ad almeno una clinica.");
+        }
+
         if (!ModelState.IsValid)
         {
             ViewData["Section"] = "users";
+            vm.Cliniche = await _mongo.Cliniche.Find(c => c.TenantId == _tenant.TenantId).SortBy(c => c.Nome).ToListAsync();
             return View(vm);
         }
 
@@ -257,6 +284,7 @@ public class UsersController : Controller
         {
             ModelState.AddModelError(nameof(vm.Email), "Esiste già un utente con questa email.");
             ViewData["Section"] = "users";
+            vm.Cliniche = await _mongo.Cliniche.Find(c => c.TenantId == _tenant.TenantId).SortBy(c => c.Nome).ToListAsync();
             return View(vm);
         }
 
@@ -266,6 +294,7 @@ public class UsersController : Controller
             Email = vm.Email.Trim().ToLowerInvariant(),
             FullName = vm.FullName.Trim(),
             Ruolo = vm.Ruolo,
+            ClinicaIds = clinicaIds,
             Token = GenerateToken(),
             ScadeIl = DateTime.UtcNow.AddDays(7),
             InvitatoDaUserId = User.FindFirst(System.Security.Claims.ClaimTypes.NameIdentifier)?.Value ?? string.Empty

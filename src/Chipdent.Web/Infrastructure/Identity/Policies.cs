@@ -3,43 +3,81 @@ using Microsoft.AspNetCore.Authorization;
 
 namespace Chipdent.Web.Infrastructure.Identity;
 
+/// <summary>
+/// Policy di autorizzazione allineate alla mappa funzionale Chipdent
+/// (Management / Direttore / Backoffice / Staff). Owner è una variante tecnica
+/// di Management usata solo per il last-owner-guard del workspace.
+/// </summary>
 public static class Policies
 {
-    public const string RequireOwner   = nameof(RequireOwner);
-    public const string RequireAdmin   = nameof(RequireAdmin);
-    public const string RequireManager = nameof(RequireManager);
-    public const string RequireHR      = nameof(RequireHR);
+    public const string RequireOwner      = nameof(RequireOwner);
+    public const string RequireManagement = nameof(RequireManagement);
+    public const string RequireDirettore  = nameof(RequireDirettore);
+    public const string RequireBackoffice = nameof(RequireBackoffice);
 
-    /// <summary>Roles that have full read access across the tenant.</summary>
-    public const string FullAccessRoles = "Owner,Admin";
-
-    /// <summary>Roles that can read anagrafica/compliance data.</summary>
-    public const string StaffRoles = "Owner,Admin,Manager,HR";
+    public static class Names
+    {
+        public const string Owner      = "Owner";
+        public const string Management = "Management";
+        public const string Direttore  = "Direttore";
+        public const string Backoffice = "Backoffice";
+        public const string Staff      = "Staff";
+    }
 
     public static void Configure(AuthorizationOptions o)
     {
-        o.AddPolicy(RequireOwner,   p => p.RequireRole("Owner"));
-        o.AddPolicy(RequireAdmin,   p => p.RequireRole("Owner", "Admin"));
-        o.AddPolicy(RequireManager, p => p.RequireRole("Owner", "Admin", "Manager"));
-        o.AddPolicy(RequireHR,      p => p.RequireRole("Owner", "Admin", "Manager", "HR"));
+        // Owner: amministratore tecnico del workspace (last-owner-guard).
+        o.AddPolicy(RequireOwner,      p => p.RequireRole(Names.Owner));
+
+        // Management: vista direzionale completa (Admin/CEO/COO/HR Director).
+        o.AddPolicy(RequireManagement, p => p.RequireRole(Names.Owner, Names.Management));
+
+        // Direttore: operatività di sede (turni, sostituzioni, comunicazioni mgmt).
+        // Il Backoffice NON è incluso: non gestisce scheduling.
+        o.AddPolicy(RequireDirettore,  p => p.RequireRole(Names.Owner, Names.Management, Names.Direttore));
+
+        // Backoffice: anagrafiche e compliance (dottori/dipendenti/RLS).
+        // Il Direttore è incluso: può gestire le anagrafiche della propria sede.
+        o.AddPolicy(RequireBackoffice, p => p.RequireRole(Names.Owner, Names.Management, Names.Backoffice, Names.Direttore));
     }
 }
 
 public static class UserAccess
 {
-    public static bool IsFullAccess(this ClaimsPrincipal? user) =>
-        user is not null && (user.IsInRole("Owner") || user.IsInRole("Admin"));
+    public static bool IsOwner(this ClaimsPrincipal? user) =>
+        user?.IsInRole(Policies.Names.Owner) == true;
 
-    public static bool CanSeeAnagrafiche(this ClaimsPrincipal? user) =>
-        user is not null && (user.IsInRole("Owner") || user.IsInRole("Admin")
-                             || user.IsInRole("Manager") || user.IsInRole("HR"));
+    public static bool IsManagement(this ClaimsPrincipal? user) =>
+        user is not null && (user.IsInRole(Policies.Names.Owner) || user.IsInRole(Policies.Names.Management));
 
-    public static bool CanManageUsers(this ClaimsPrincipal? user) =>
-        user is not null && (user.IsInRole("Owner") || user.IsInRole("Admin"));
+    public static bool IsDirettore(this ClaimsPrincipal? user) =>
+        user?.IsInRole(Policies.Names.Direttore) == true;
 
+    public static bool IsBackoffice(this ClaimsPrincipal? user) =>
+        user?.IsInRole(Policies.Names.Backoffice) == true;
+
+    public static bool IsStaff(this ClaimsPrincipal? user) =>
+        user?.IsInRole(Policies.Names.Staff) == true;
+
+    /// <summary>
+    /// Vero se l'utente ha visibilità completa su tutto il tenant (Management/Owner).
+    /// Direttore, Backoffice e Staff sono sempre limitati al proprio scope.
+    /// </summary>
+    public static bool HasFullTenantAccess(this ClaimsPrincipal? user) => user.IsManagement();
+
+    public static bool CanManageUsers(this ClaimsPrincipal? user) => user.IsManagement();
+
+    /// <summary>
+    /// Può approvare richieste operative (ferie, sostituzioni). Direttore + Management.
+    /// </summary>
     public static bool CanApprove(this ClaimsPrincipal? user) =>
-        user is not null && (user.IsInRole("Owner") || user.IsInRole("Admin")
-                             || user.IsInRole("Manager"));
+        user.IsManagement() || user.IsDirettore();
+
+    /// <summary>
+    /// Può vedere/gestire anagrafiche e compliance. Backoffice + Direttore + Management.
+    /// </summary>
+    public static bool CanSeeAnagrafiche(this ClaimsPrincipal? user) =>
+        user.IsManagement() || user.IsDirettore() || user.IsBackoffice();
 
     public static string? LinkedPersonId(this ClaimsPrincipal? user)
     {

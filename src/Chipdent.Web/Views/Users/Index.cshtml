@@ -2,11 +2,18 @@
 @{
     ViewData["Title"] = "Utenti";
 
-    string RoleClass(Chipdent.Web.Domain.Entities.UserRole r) => r switch
+    string RoleClass(UserRole r) => r switch
     {
-        Chipdent.Web.Domain.Entities.UserRole.Owner => "role-badge--owner",
-        Chipdent.Web.Domain.Entities.UserRole.Admin => "role-badge--admin",
+        UserRole.Owner      => "role-badge--owner",
+        UserRole.Management => "role-badge--admin",
+        UserRole.Direttore  => "role-badge--manager",
+        UserRole.Backoffice => "role-badge--hr",
         _ => ""
+    };
+    string RoleLabel(UserRole r) => r switch
+    {
+        UserRole.Direttore => "Direttore di sede",
+        _ => r.ToString()
     };
 }
 
@@ -56,11 +63,11 @@
                         <td>
                             <form asp-action="ChangeRole" asp-route-id="@u.Id" method="post" class="role-cell">
                                 @Html.AntiForgeryToken()
-                                <span class="role-badge @RoleClass(u.Role)">@u.Role</span>
+                                <span class="role-badge @RoleClass(u.Role)">@RoleLabel(u.Role)</span>
                                 <select name="role" onchange="if(confirm('Cambiare il ruolo di ' + @Json.Serialize(u.FullName) + ' in ' + this.value + '?')) this.form.submit(); else this.value=@Json.Serialize(u.Role.ToString());">
-                                    @foreach (var r in Enum.GetValues<Chipdent.Web.Domain.Entities.UserRole>())
+                                    @foreach (var r in Enum.GetValues<UserRole>())
                                     {
-                                        <option value="@r" selected="@(r == u.Role)">@r</option>
+                                        <option value="@r" selected="@(r == u.Role)">@RoleLabel(r)</option>
                                     }
                                 </select>
                             </form>

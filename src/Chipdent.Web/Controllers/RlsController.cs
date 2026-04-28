@@ -9,7 +9,7 @@ using MongoDB.Driver;
 
 namespace Chipdent.Web.Controllers;
 
-[Authorize(Roles = Policies.StaffRoles)]
+[Authorize(Policy = Policies.RequireBackoffice)]
 [Route("rls")]
 public class RlsController : Controller
 {
@@ -95,7 +95,7 @@ public class RlsController : Controller
     }
 
     [HttpGet("visite/nuova")]
-    [Authorize(Policy = Policies.RequireHR)]
+    [Authorize(Policy = Policies.RequireBackoffice)]
     public async Task<IActionResult> CreateVisita()
     {
         ViewData["Section"] = "rls";
@@ -106,7 +106,7 @@ public class RlsController : Controller
     }
 
     [HttpPost("visite/nuova")]
-    [Authorize(Policy = Policies.RequireHR)]
+    [Authorize(Policy = Policies.RequireBackoffice)]
     [ValidateAntiForgeryToken]
     public async Task<IActionResult> CreateVisita(VisitaFormViewModel vm)
     {
@@ -130,7 +130,7 @@ public class RlsController : Controller
     }
 
     [HttpGet("visite/{id}/modifica")]
-    [Authorize(Policy = Policies.RequireHR)]
+    [Authorize(Policy = Policies.RequireBackoffice)]
     public async Task<IActionResult> EditVisita(string id)
     {
         var v = await _mongo.VisiteMediche.Find(x => x.Id == id && x.TenantId == _tenant.TenantId).FirstOrDefaultAsync();
@@ -146,7 +146,7 @@ public class RlsController : Controller
     }
 
     [HttpPost("visite/{id}/modifica")]
-    [Authorize(Policy = Policies.RequireHR)]
+    [Authorize(Policy = Policies.RequireBackoffice)]
     [ValidateAntiForgeryToken]
     public async Task<IActionResult> EditVisita(string id, VisitaFormViewModel vm)
     {
@@ -170,7 +170,7 @@ public class RlsController : Controller
     }
 
     [HttpPost("visite/{id}/elimina")]
-    [Authorize(Policy = Policies.RequireAdmin)]
+    [Authorize(Policy = Policies.RequireManagement)]
     [ValidateAntiForgeryToken]
     public async Task<IActionResult> DeleteVisita(string id)
     {
@@ -194,7 +194,7 @@ public class RlsController : Controller
     }
 
     [HttpGet("corsi/nuovo")]
-    [Authorize(Policy = Policies.RequireHR)]
+    [Authorize(Policy = Policies.RequireBackoffice)]
     public async Task<IActionResult> CreateCorso()
     {
         ViewData["Section"] = "rls"; ViewData["Tab"] = "corsi"; ViewData["IsNew"] = true;
@@ -202,7 +202,7 @@ public class RlsController : Controller
     }
 
     [HttpPost("corsi/nuovo")]
-    [Authorize(Policy = Policies.RequireHR)]
+    [Authorize(Policy = Policies.RequireBackoffice)]
     [ValidateAntiForgeryToken]
     public async Task<IActionResult> CreateCorso(CorsoFormViewModel vm)
     {
@@ -226,7 +226,7 @@ public class RlsController : Controller
     }
 
     [HttpGet("corsi/{id}/modifica")]
-    [Authorize(Policy = Policies.RequireHR)]
+    [Authorize(Policy = Policies.RequireBackoffice)]
     public async Task<IActionResult> EditCorso(string id)
     {
         var c = await _mongo.Corsi.Find(x => x.Id == id && x.TenantId == _tenant.TenantId).FirstOrDefaultAsync();
@@ -241,7 +241,7 @@ public class RlsController : Controller
     }
 
     [HttpPost("corsi/{id}/modifica")]
-    [Authorize(Policy = Policies.RequireHR)]
+    [Authorize(Policy = Policies.RequireBackoffice)]
     [ValidateAntiForgeryToken]
     public async Task<IActionResult> EditCorso(string id, CorsoFormViewModel vm)
     {
@@ -265,7 +265,7 @@ public class RlsController : Controller
     }
 
     [HttpPost("corsi/{id}/elimina")]
-    [Authorize(Policy = Policies.RequireAdmin)]
+    [Authorize(Policy = Policies.RequireManagement)]
     [ValidateAntiForgeryToken]
     public async Task<IActionResult> DeleteCorso(string id)
     {
@@ -287,7 +287,7 @@ public class RlsController : Controller
     }
 
     [HttpGet("dvr/nuovo")]
-    [Authorize(Policy = Policies.RequireManager)]
+    [Authorize(Policy = Policies.RequireDirettore)]
     public async Task<IActionResult> CreateDvr()
     {
         ViewData["Section"] = "rls"; ViewData["Tab"] = "dvr"; ViewData["IsNew"] = true;
@@ -295,7 +295,7 @@ public class RlsController : Controller
     }
 
     [HttpPost("dvr/nuovo")]
-    [Authorize(Policy = Policies.RequireManager)]
+    [Authorize(Policy = Policies.RequireDirettore)]
     [ValidateAntiForgeryToken]
     public async Task<IActionResult> CreateDvr(DvrFormViewModel vm)
     {
@@ -320,7 +320,7 @@ public class RlsController : Controller
     }
 
     [HttpGet("dvr/{id}/modifica")]
-    [Authorize(Policy = Policies.RequireManager)]
+    [Authorize(Policy = Policies.RequireDirettore)]
     public async Task<IActionResult> EditDvr(string id)
     {
         var d = await _mongo.DVRs.Find(x => x.Id == id && x.TenantId == _tenant.TenantId).FirstOrDefaultAsync();
@@ -336,7 +336,7 @@ public class RlsController : Controller
     }
 
     [HttpPost("dvr/{id}/modifica")]
-    [Authorize(Policy = Policies.RequireManager)]
+    [Authorize(Policy = Policies.RequireDirettore)]
     [ValidateAntiForgeryToken]
     public async Task<IActionResult> EditDvr(string id, DvrFormViewModel vm)
     {
@@ -361,7 +361,7 @@ public class RlsController : Controller
     }
 
     [HttpPost("dvr/{id}/elimina")]
-    [Authorize(Policy = Policies.RequireAdmin)]
+    [Authorize(Policy = Policies.RequireManagement)]
     [ValidateAntiForgeryToken]
     public async Task<IActionResult> DeleteDvr(string id)
     {

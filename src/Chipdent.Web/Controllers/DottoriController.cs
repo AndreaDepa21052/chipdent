@@ -10,7 +10,7 @@ using MongoDB.Driver;
 
 namespace Chipdent.Web.Controllers;
 
-[Authorize(Roles = Policies.StaffRoles)]
+[Authorize(Policy = Policies.RequireBackoffice)]
 [Route("dottori")]
 public class DottoriController : Controller
 {
@@ -74,7 +74,7 @@ public class DottoriController : Controller
     }
 
     [HttpGet("nuovo")]
-    [Authorize(Policy = Policies.RequireHR)]
+    [Authorize(Policy = Policies.RequireBackoffice)]
     public async Task<IActionResult> Create()
     {
         ViewData["Section"] = "dottori";
@@ -84,7 +84,7 @@ public class DottoriController : Controller
     }
 
     [HttpPost("nuovo")]
-    [Authorize(Policy = Policies.RequireHR)]
+    [Authorize(Policy = Policies.RequireBackoffice)]
     [ValidateAntiForgeryToken]
     public async Task<IActionResult> Create(Dottore model)
     {
@@ -115,7 +115,7 @@ public class DottoriController : Controller
     }
 
     [HttpGet("{id}/modifica")]
-    [Authorize(Policy = Policies.RequireHR)]
+    [Authorize(Policy = Policies.RequireBackoffice)]
     public async Task<IActionResult> Edit(string id)
     {
         var d = await Load(id);
@@ -127,7 +127,7 @@ public class DottoriController : Controller
     }
 
     [HttpPost("{id}/modifica")]
-    [Authorize(Policy = Policies.RequireHR)]
+    [Authorize(Policy = Policies.RequireBackoffice)]
     [ValidateAntiForgeryToken]
     public async Task<IActionResult> Edit(string id, Dottore model)
     {
@@ -164,7 +164,7 @@ public class DottoriController : Controller
     }
 
     [HttpPost("{id}/elimina")]
-    [Authorize(Policy = Policies.RequireAdmin)]
+    [Authorize(Policy = Policies.RequireManagement)]
     [ValidateAntiForgeryToken]
     public async Task<IActionResult> Delete(string id)
     {
@@ -177,7 +177,7 @@ public class DottoriController : Controller
     }
 
     [HttpGet("{id}/trasferisci")]
-    [Authorize(Policy = Policies.RequireManager)]
+    [Authorize(Policy = Policies.RequireDirettore)]
     public async Task<IActionResult> Transfer(string id)
     {
         var d = await Load(id);
@@ -197,7 +197,7 @@ public class DottoriController : Controller
     }
 
     [HttpPost("{id}/trasferisci")]
-    [Authorize(Policy = Policies.RequireManager)]
+    [Authorize(Policy = Policies.RequireDirettore)]
     [ValidateAntiForgeryToken]
     public async Task<IActionResult> Transfer(string id, TransferViewModel vm)
     {
@@ -244,7 +244,7 @@ public class DottoriController : Controller
     }
 
     [HttpGet("{id}/dimetti")]
-    [Authorize(Policy = Policies.RequireManager)]
+    [Authorize(Policy = Policies.RequireDirettore)]
     public async Task<IActionResult> Dismiss(string id)
     {
         var d = await Load(id);
@@ -259,7 +259,7 @@ public class DottoriController : Controller
     }
 
     [HttpPost("{id}/dimetti")]
-    [Authorize(Policy = Policies.RequireManager)]
+    [Authorize(Policy = Policies.RequireDirettore)]
     [ValidateAntiForgeryToken]
     public async Task<IActionResult> Dismiss(string id, DismissViewModel vm)
     {
@@ -288,7 +288,7 @@ public class DottoriController : Controller
     }
 
     [HttpPost("{id}/riattiva")]
-    [Authorize(Policy = Policies.RequireManager)]
+    [Authorize(Policy = Policies.RequireDirettore)]
     [ValidateAntiForgeryToken]
     public async Task<IActionResult> Reactivate(string id)
     {

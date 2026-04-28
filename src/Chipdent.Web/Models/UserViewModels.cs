@@ -20,7 +20,10 @@ public class UserEditViewModel
     public string FullName { get; set; } = string.Empty;
 
     [Display(Name = "Ruolo")]
-    public UserRole Role { get; set; } = UserRole.Operatore;
+    public UserRole Role { get; set; } = UserRole.Staff;
+
+    [Display(Name = "Cliniche assegnate")]
+    public List<string> ClinicaIds { get; set; } = new();
 
     [Display(Name = "Tipo persona collegata")]
     public LinkedPersonType LinkedPersonType { get; set; } = LinkedPersonType.None;
@@ -31,6 +34,7 @@ public class UserEditViewModel
     public bool IsActive { get; set; } = true;
     public bool IsCurrent { get; set; }
 
+    public IReadOnlyList<Clinica> Cliniche { get; set; } = Array.Empty<Clinica>();
     public IReadOnlyList<Dottore> Dottori { get; set; } = Array.Empty<Dottore>();
     public IReadOnlyList<Dipendente> Dipendenti { get; set; } = Array.Empty<Dipendente>();
 }
@@ -53,7 +57,12 @@ public class InviteUserViewModel
     public string FullName { get; set; } = string.Empty;
 
     [Display(Name = "Ruolo")]
-    public UserRole Ruolo { get; set; } = UserRole.Operatore;
+    public UserRole Ruolo { get; set; } = UserRole.Staff;
+
+    [Display(Name = "Cliniche assegnate")]
+    public List<string> ClinicaIds { get; set; } = new();
+
+    public IReadOnlyList<Clinica> Cliniche { get; set; } = Array.Empty<Clinica>();
 }
 
 public class AcceptInviteViewModel

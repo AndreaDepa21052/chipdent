@@ -1,6 +1,12 @@
 @model Chipdent.Web.Models.InviteUserViewModel
 @{
     ViewData["Title"] = "Invita utente";
+
+    string RoleLabel(UserRole r) => r switch
+    {
+        UserRole.Direttore => "Direttore di sede",
+        _ => r.ToString()
+    };
 }
 
 <partial name="_Flash" />
@@ -33,8 +39,34 @@
 
         <div class="form-group">
             <label class="form-label" asp-for="Ruolo"></label>
-            <select class="form-control" asp-for="Ruolo" asp-items="Html.GetEnumSelectList<Chipdent.Web.Domain.Entities.UserRole>()"></select>
+            <select class="form-control" asp-for="Ruolo">
+                @foreach (var r in Enum.GetValues<UserRole>())
+                {
+                    <option value="@r" selected="@(r == Model.Ruolo)">@RoleLabel(r)</option>
+                }
+            </select>
         </div>
+
+        @if (Model.Cliniche.Count > 0)
+        {
+            <div class="form-group">
+                <label class="form-label" asp-for="ClinicaIds">Cliniche assegnate</label>
+                <div class="checkbox-list">
+                    @foreach (var c in Model.Cliniche)
+                    {
+                        var sel = Model.ClinicaIds.Contains(c.Id);
+                        <label class="form-check" style="display:inline-flex; margin-right: var(--s-3); margin-bottom: var(--s-2);">
+                            <input type="checkbox" name="ClinicaIds" value="@c.Id" checked="@sel" />
+                            @c.Nome <span class="muted" style="margin-left:4px;">@c.Citta</span>
+                        </label>
+                    }
+                </div>
+                <span class="text-danger" asp-validation-for="ClinicaIds"></span>
+                <p style="color: var(--c-ink-soft); font-size:.82rem; margin-top: 4px;">
+                    Obbligatorio per il <strong>Direttore</strong>. Lascia vuoto per Management/Owner per dare visibilità su tutte le sedi.
+                </p>
+            </div>
+        }
 
         <div class="form-actions">
             <a class="btn btn--ghost" asp-action="Index">Annulla</a>

@@ -8,7 +8,7 @@ using MongoDB.Driver;
 
 namespace Chipdent.Web.Controllers;
 
-[Authorize(Roles = Policies.StaffRoles)]
+[Authorize(Policy = Policies.RequireBackoffice)]
 [Route("audit")]
 public class AuditController : Controller
 {

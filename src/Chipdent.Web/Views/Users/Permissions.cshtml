@@ -3,11 +3,18 @@
     ViewData["Title"] = "Matrice permessi";
     ViewData["Crumb"] = "Utenti";
 
-    string RoleClass(Chipdent.Web.Domain.Entities.UserRole r) => r switch
+    string RoleClass(UserRole r) => r switch
     {
-        Chipdent.Web.Domain.Entities.UserRole.Owner => "role-badge--owner",
-        Chipdent.Web.Domain.Entities.UserRole.Admin => "role-badge--admin",
+        UserRole.Owner      => "role-badge--owner",
+        UserRole.Management => "role-badge--admin",
+        UserRole.Direttore  => "role-badge--manager",
+        UserRole.Backoffice => "role-badge--hr",
         _ => ""
+    };
+    string RoleLabel(UserRole r) => r switch
+    {
+        UserRole.Direttore => "Direttore",
+        _ => r.ToString()
     };
 }
 
@@ -32,7 +39,7 @@
                     <th style="width: 22%;">Azione</th>
                     @foreach (var r in Model.Roles)
                     {
-                        <th style="text-align:center;"><span class="role-badge @RoleClass(r)">@r</span></th>
+                        <th style="text-align:center;"><span class="role-badge @RoleClass(r)">@RoleLabel(r)</span></th>
                     }
                 </tr>
             </thead>
@@ -71,22 +78,22 @@
 <div class="grid grid--stats" style="margin-top: var(--s-6);">
     <div class="stat">
         <div class="stat__label">Owner</div>
-        <div class="stat__value" style="font-size: 1rem; color: var(--c-ink); margin-top: var(--s-2);">Accesso completo · gestione workspace</div>
+        <div class="stat__value" style="font-size: 1rem; color: var(--c-ink); margin-top: var(--s-2);">Ruolo tecnico · garante del workspace (last-owner-guard)</div>
     </div>
     <div class="stat">
-        <div class="stat__label">Admin</div>
-        <div class="stat__value" style="font-size: 1rem; color: var(--c-ink); margin-top: var(--s-2);">Accesso completo · gestione utenti e ruoli</div>
+        <div class="stat__label">Management</div>
+        <div class="stat__value" style="font-size: 1rem; color: var(--c-ink); margin-top: var(--s-2);">Vista direzionale · tutta la catena · gestione utenti</div>
     </div>
     <div class="stat">
-        <div class="stat__label">Manager</div>
-        <div class="stat__value" style="font-size: 1rem; color: var(--c-ink); margin-top: var(--s-2);">Operatività completa · approvazioni</div>
+        <div class="stat__label">Direttore di sede</div>
+        <div class="stat__value" style="font-size: 1rem; color: var(--c-ink); margin-top: var(--s-2);">Operatività della propria sede · turni · approvazioni</div>
     </div>
     <div class="stat">
-        <div class="stat__label">HR</div>
-        <div class="stat__value" style="font-size: 1rem; color: var(--c-ink); margin-top: var(--s-2);">Anagrafiche persone · RLS / formazione</div>
+        <div class="stat__label">Backoffice</div>
+        <div class="stat__value" style="font-size: 1rem; color: var(--c-ink); margin-top: var(--s-2);">Anagrafiche cross-sede · RLS · documentazione</div>
     </div>
     <div class="stat">
-        <div class="stat__label">Operatore</div>
-        <div class="stat__value" style="font-size: 1rem; color: var(--c-ink); margin-top: var(--s-2);">Dashboard · turni propri · comunicazioni</div>
+        <div class="stat__label">Staff</div>
+        <div class="stat__value" style="font-size: 1rem; color: var(--c-ink); margin-top: var(--s-2);">App personale · turni propri · comunicazioni</div>
     </div>
 </div>

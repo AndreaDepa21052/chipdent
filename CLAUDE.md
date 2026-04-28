@@ -157,29 +157,56 @@ var db = client.GetDatabase("chipdent_shared"); // SBAGLIATO
 
 ## 👤 Ruoli utente (RBAC)
 
+I ruoli sono allineati alla **mappa funzionale** (`docs/chipdent-features.html`).
+
 ```csharp
-public static class Roles
+public enum UserRole
 {
-    public const string NetworkAdmin   = "NETWORK_ADMIN";   // management catena
-    public const string ClinicDirector = "CLINIC_DIRECTOR"; // direttore sede
-    public const string Staff          = "STAFF";           // operativo
-    public const string SuperAdmin     = "SUPER_ADMIN";     // team Chipdent
+    Staff      = 0,   // operatività (receptionist, ASO, igienista)
+    Backoffice = 10,  // anagrafiche/compliance cross-sede (ex HR)
+    Direttore  = 20,  // responsabile di sede, scope ClinicaIds
+    Management = 30,  // CEO/COO/HR Director/CFO — vista direzionale completa
+    Owner      = 99   // ruolo tecnico (last-owner-guard del workspace)
 }
 ```
 
+**Policy disponibili** (`Infrastructure/Identity/Policies.cs`):
+
+| Policy             | Include                                            |
+|--------------------|----------------------------------------------------|
+| `RequireOwner`     | Owner                                              |
+| `RequireManagement`| Owner + Management                                 |
+| `RequireDirettore` | Owner + Management + Direttore                     |
+| `RequireBackoffice`| Owner + Management + Backoffice + Direttore        |
+
+Direttore e Backoffice sono **fratelli peer**: il primo opera scope-clinica, il secondo cross-sede. Non si includono a vicenda nelle policy operative (es. Backoffice non gestisce turni; Direttore vede le proprie cliniche soltanto).
+
 **Uso nei controller:**
 ```csharp
-[Authorize(Roles = Roles.NetworkAdmin + "," + Roles.ClinicDirector)]
-public async Task<IActionResult> GestioneTurni() { ... }
-
-[Authorize(Roles = Roles.ClinicDirector)]
+[Authorize(Policy = Policies.RequireDirettore)]
 public async Task<IActionResult> ApprovaFerie(string id) { ... }
+
+[Authorize(Policy = Policies.RequireBackoffice)]
+public async Task<IActionResult> ListaDottori() { ... }
 ```
 
-Il `ClinicDirector` vede SOLO la propria sede. Verificare sempre:
+**Scope per clinica:** `User.ClinicaIds` (vuoto = visibilità tenant-wide).
+Il claim `clinica_ids` è propagato dal cookie auth e letto in `ITenantContext.ClinicaIds`.
+
 ```csharp
-if (turno.ClinicaId != _tenantContext.ClinicaId && !User.IsInRole(Roles.NetworkAdmin))
+// scope check programmatico
+if (!_tenantContext.CanAccessClinica(turno.ClinicaId))
     return Forbid();
+```
+
+**Helper su `ClaimsPrincipal`:**
+```csharp
+User.IsManagement()        // Owner | Management
+User.IsDirettore()         // solo Direttore
+User.IsBackoffice()        // solo Backoffice
+User.IsStaff()             // solo Staff
+User.CanApprove()          // Management + Direttore (ferie, sostituzioni)
+User.CanSeeAnagrafiche()   // Management + Direttore + Backoffice
 ```
 
 ---

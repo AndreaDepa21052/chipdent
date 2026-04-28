@@ -9,7 +9,7 @@ using MongoDB.Driver;
 
 namespace Chipdent.Web.Controllers;
 
-[Authorize(Roles = Policies.StaffRoles)]
+[Authorize(Policy = Policies.RequireBackoffice)]
 [Route("documentazione")]
 public class DocumentazioneController : Controller
 {
@@ -53,7 +53,7 @@ public class DocumentazioneController : Controller
     }
 
     [HttpGet("nuovo")]
-    [Authorize(Policy = Policies.RequireManager)]
+    [Authorize(Policy = Policies.RequireDirettore)]
     public async Task<IActionResult> Create(string? clinicaId = null)
     {
         ViewData["Section"] = "documentazione"; ViewData["IsNew"] = true;
@@ -65,7 +65,7 @@ public class DocumentazioneController : Controller
     }
 
     [HttpPost("nuovo")]
-    [Authorize(Policy = Policies.RequireManager)]
+    [Authorize(Policy = Policies.RequireDirettore)]
     [ValidateAntiForgeryToken]
     public async Task<IActionResult> Create(DocumentoFormViewModel vm)
     {
@@ -93,7 +93,7 @@ public class DocumentazioneController : Controller
     }
 
     [HttpGet("{id}/modifica")]
-    [Authorize(Policy = Policies.RequireManager)]
+    [Authorize(Policy = Policies.RequireDirettore)]
     public async Task<IActionResult> Edit(string id)
     {
         var d = await _mongo.DocumentiClinica.Find(x => x.Id == id && x.TenantId == _tenant.TenantId).FirstOrDefaultAsync();
@@ -109,7 +109,7 @@ public class DocumentazioneController : Controller
     }
 
     [HttpPost("{id}/modifica")]
-    [Authorize(Policy = Policies.RequireManager)]
+    [Authorize(Policy = Policies.RequireDirettore)]
     [ValidateAntiForgeryToken]
     public async Task<IActionResult> Edit(string id, DocumentoFormViewModel vm)
     {
@@ -136,7 +136,7 @@ public class DocumentazioneController : Controller
     }
 
     [HttpPost("{id}/elimina")]
-    [Authorize(Policy = Policies.RequireAdmin)]
+    [Authorize(Policy = Policies.RequireManagement)]
     [ValidateAntiForgeryToken]
     public async Task<IActionResult> Delete(string id)
     {

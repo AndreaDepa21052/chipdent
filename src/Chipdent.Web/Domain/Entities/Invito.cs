@@ -6,7 +6,8 @@ public class Invito : TenantEntity
 {
     public string Email { get; set; } = string.Empty;
     public string FullName { get; set; } = string.Empty;
-    public UserRole Ruolo { get; set; } = UserRole.Operatore;
+    public UserRole Ruolo { get; set; } = UserRole.Staff;
+    public List<string> ClinicaIds { get; set; } = new();
     public string Token { get; set; } = string.Empty;
     public DateTime ScadeIl { get; set; } = DateTime.UtcNow.AddDays(7);
     public DateTime? UsatoIl { get; set; }
