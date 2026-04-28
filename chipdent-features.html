@@ -1,0 +1,1055 @@
+<!DOCTYPE html>
+<html lang="it">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Chipdent — Mappa Funzionale</title>
+<link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@700&family=Nunito:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;600&display=swap" rel="stylesheet">
+<style>
+:root {
+  --bg:     #faf6f0;
+  --bg2:    #f3ece0;
+  --bg3:    #ece0cc;
+  --brown:  #3b1e0c;
+  --amber:  #c47830;
+  --amber2: #d9943a;
+  --amber3: #f0b860;
+  --text:   #2a1508;
+  --muted:  #7a5c3a;
+  --faint:  #b89a78;
+  --border: #ddd0b8;
+
+  /* level colors */
+  --mgmt:   #2457a4;   /* blue   — management */
+  --mgmt-bg:#eef3fc;
+  --dir:    #c47830;   /* amber  — direttore */
+  --dir-bg: #fef6ee;
+  --staff:  #2d7a50;   /* green  — staff */
+  --staff-bg:#e8f5ee;
+
+  --p0: #e05c1a;  /* MVP */
+  --p1: #c47830;  /* priorità alta */
+  --p2: #2d7a50;  /* priorità media */
+  --p3: #7a5c9a;  /* futuro */
+}
+* { box-sizing: border-box; margin: 0; padding: 0; }
+body {
+  font-family: 'Nunito', sans-serif;
+  background: var(--bg);
+  color: var(--text);
+  padding: 40px 32px 80px;
+  max-width: 1200px;
+  margin: 0 auto;
+}
+
+/* HEADER */
+.header {
+  display: flex; align-items: flex-start; justify-content: space-between;
+  border-bottom: 3px solid var(--brown);
+  padding-bottom: 20px; margin-bottom: 36px;
+}
+.header h1 {
+  font-family: 'Playfair Display', serif;
+  font-size: 34px; color: var(--brown);
+}
+.header p { font-size: 13px; color: var(--muted); margin-top: 4px; }
+.header-right { text-align: right; font-family: 'JetBrains Mono', monospace; font-size: 11px; color: var(--faint); line-height: 2; }
+
+/* LEGEND */
+.legend {
+  display: flex; gap: 20px; flex-wrap: wrap;
+  margin-bottom: 32px;
+  padding: 14px 20px;
+  background: var(--bg2); border: 1px solid var(--border); border-radius: 10px;
+}
+.legend-group { display: flex; align-items: center; gap: 8px; font-size: 12px; }
+.legend-dot { width: 12px; height: 12px; border-radius: 3px; flex-shrink: 0; }
+.legend-sep { width: 1px; height: 24px; background: var(--border); margin: 0 4px; }
+.legend-label { font-size: 10px; color: var(--faint); font-family: 'JetBrains Mono', monospace; letter-spacing: 0.5px; text-transform: uppercase; margin-right: 4px; }
+
+/* TABS */
+.tabs { display: flex; gap: 4px; margin-bottom: 28px; border-bottom: 2px solid var(--border); }
+.tab {
+  padding: 10px 22px; font-size: 13px; font-weight: 700;
+  color: var(--muted); cursor: pointer;
+  border-bottom: 3px solid transparent; margin-bottom: -2px;
+  transition: all 0.15s; border-radius: 6px 6px 0 0;
+}
+.tab:hover { color: var(--text); background: var(--bg2); }
+.tab.active-mgmt  { color: var(--mgmt);  border-bottom-color: var(--mgmt);  background: var(--mgmt-bg); }
+.tab.active-dir   { color: var(--dir);   border-bottom-color: var(--dir);   background: var(--dir-bg); }
+.tab.active-staff { color: var(--staff); border-bottom-color: var(--staff); background: var(--staff-bg); }
+.tab.active-all   { color: var(--brown); border-bottom-color: var(--brown); background: var(--bg2); }
+
+.view { display: none; }
+.view.active { display: block; }
+
+/* SECTION */
+.section { margin-bottom: 32px; }
+.section-header {
+  display: flex; align-items: center; gap: 12px;
+  margin-bottom: 14px;
+  padding-bottom: 10px;
+  border-bottom: 1px solid var(--border);
+}
+.section-icon { font-size: 22px; }
+.section-title { font-family: 'Playfair Display', serif; font-size: 20px; color: var(--brown); }
+.section-desc { font-size: 12px; color: var(--muted); margin-top: 2px; }
+
+/* FEATURE GRID */
+.feature-grid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 10px;
+}
+.feature-card {
+  background: white;
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  padding: 14px 16px;
+  position: relative;
+  overflow: hidden;
+  transition: box-shadow 0.15s;
+}
+.feature-card:hover { box-shadow: 0 4px 16px rgba(0,0,0,0.08); }
+.feature-card::before {
+  content: '';
+  position: absolute; top: 0; left: 0; right: 0; height: 3px;
+  background: var(--card-accent, var(--amber));
+}
+.feature-name {
+  font-size: 13px; font-weight: 800; color: var(--text);
+  margin-bottom: 5px;
+  display: flex; align-items: center; gap: 6px;
+}
+.feature-desc { font-size: 11.5px; color: var(--muted); line-height: 1.6; margin-bottom: 10px; }
+.feature-bullets {
+  list-style: none;
+  display: flex; flex-direction: column; gap: 3px;
+}
+.feature-bullets li {
+  font-size: 11px; color: var(--muted);
+  padding-left: 14px; position: relative; line-height: 1.5;
+}
+.feature-bullets li::before {
+  content: '→';
+  position: absolute; left: 0;
+  color: var(--card-accent, var(--amber));
+  font-size: 10px;
+}
+.feature-footer {
+  display: flex; align-items: center; justify-content: space-between;
+  margin-top: 10px; padding-top: 8px; border-top: 1px solid var(--bg3);
+}
+.priority-tag {
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 9px; font-weight: 600;
+  padding: 2px 8px; border-radius: 4px;
+  letter-spacing: 0.5px;
+}
+.p-mvp  { background: rgba(224,92,26,0.12);  color: var(--p0); }
+.p-high { background: rgba(196,120,48,0.12); color: var(--p1); }
+.p-mid  { background: rgba(45,122,80,0.12);  color: var(--p2); }
+.p-low  { background: rgba(122,92,154,0.12); color: var(--p3); }
+
+.user-badge {
+  font-size: 9px; font-weight: 700;
+  padding: 2px 7px; border-radius: 10px;
+  letter-spacing: 0.3px;
+}
+.u-mgmt  { background: var(--mgmt-bg);  color: var(--mgmt); }
+.u-dir   { background: var(--dir-bg);   color: var(--dir); }
+.u-staff { background: var(--staff-bg); color: var(--staff); }
+.u-all   { background: var(--bg2);      color: var(--muted); }
+
+/* ROLE HEADER */
+.role-header {
+  display: flex; align-items: center; gap: 16px;
+  padding: 20px 24px;
+  border-radius: 12px;
+  margin-bottom: 24px;
+}
+.role-header.mgmt  { background: var(--mgmt-bg);  border: 1px solid rgba(36,87,164,0.2); }
+.role-header.dir   { background: var(--dir-bg);   border: 1px solid rgba(196,120,48,0.25); }
+.role-header.staff { background: var(--staff-bg); border: 1px solid rgba(45,122,80,0.2); }
+.role-icon { font-size: 36px; }
+.role-title { font-family: 'Playfair Display', serif; font-size: 22px; }
+.role-title.mgmt  { color: var(--mgmt); }
+.role-title.dir   { color: var(--dir); }
+.role-title.staff { color: var(--staff); }
+.role-desc { font-size: 12.5px; color: var(--muted); margin-top: 3px; line-height: 1.6; }
+.role-stats { margin-left: auto; text-align: right; }
+.role-stat-num { font-family: 'Playfair Display', serif; font-size: 28px; }
+.role-stat-num.mgmt  { color: var(--mgmt); }
+.role-stat-num.dir   { color: var(--dir); }
+.role-stat-num.staff { color: var(--staff); }
+.role-stat-lbl { font-size: 10px; color: var(--muted); }
+
+/* MATRIX VIEW */
+.matrix-table { width: 100%; border-collapse: collapse; font-size: 12px; margin-bottom: 24px; }
+.matrix-table th {
+  padding: 10px 12px; text-align: left;
+  font-family: 'JetBrains Mono', monospace; font-size: 10px;
+  letter-spacing: 0.8px; text-transform: uppercase;
+  color: var(--faint); font-weight: 600;
+  border-bottom: 2px solid var(--border);
+}
+.matrix-table td {
+  padding: 10px 12px; border-bottom: 1px solid var(--bg3);
+  vertical-align: top;
+}
+.matrix-table tr:hover td { background: var(--bg2); }
+.matrix-table tr:last-child td { border-bottom: none; }
+.check { color: var(--staff); font-weight: 800; font-size: 14px; }
+.cross { color: var(--faint); font-size: 14px; }
+.partial { color: var(--amber); font-weight: 700; }
+.module-name { font-weight: 700; color: var(--text); }
+.module-sub  { font-size: 10.5px; color: var(--muted); margin-top: 2px; }
+
+/* BACKLOG */
+.backlog-header {
+  display: flex; justify-content: space-between; align-items: center;
+  margin-bottom: 20px;
+}
+.sprint-col { display: flex; flex-direction: column; gap: 8px; }
+.sprint-label {
+  font-family: 'JetBrains Mono', monospace; font-size: 10px; font-weight: 600;
+  letter-spacing: 1px; text-transform: uppercase;
+  color: var(--faint); margin-bottom: 4px;
+}
+.backlog-grid {
+  display: grid; grid-template-columns: repeat(4, 1fr); gap: 16px;
+}
+.backlog-col { }
+.backlog-col-header {
+  padding: 10px 14px; border-radius: 8px 8px 0 0;
+  font-size: 12px; font-weight: 800;
+}
+.bc-mvp   { background: var(--p0); color: white; }
+.bc-s2    { background: var(--p1); color: white; }
+.bc-s3    { background: var(--p2); color: white; }
+.bc-later { background: var(--p3); color: white; }
+.backlog-items { display: flex; flex-direction: column; gap: 6px; padding: 8px 0; }
+.backlog-item {
+  background: white; border: 1px solid var(--border);
+  border-radius: 8px; padding: 10px 12px;
+  font-size: 11.5px;
+}
+.backlog-item-title { font-weight: 700; color: var(--text); margin-bottom: 3px; }
+.backlog-item-meta  { font-size: 10px; color: var(--muted); display: flex; gap: 6px; flex-wrap: wrap; margin-top: 4px; }
+.story-pts {
+  font-family: 'JetBrains Mono', monospace; font-size: 10px;
+  background: var(--bg2); border: 1px solid var(--border);
+  padding: 1px 6px; border-radius: 4px; color: var(--muted);
+}
+
+/* scrollbar */
+::-webkit-scrollbar { width: 4px; }
+::-webkit-scrollbar-thumb { background: var(--border); border-radius: 2px; }
+</style>
+</head>
+<body>
+
+<div class="header">
+  <div>
+    <h1>Chipdent — Mappa Funzionale</h1>
+    <p>Feature map completa per livello utente · Priorità MVP e roadmap</p>
+  </div>
+  <div class="header-right">v1.0 · Aprile 2025<br>Product Backlog<br>Riservato</div>
+</div>
+
+<!-- LEGEND -->
+<div class="legend">
+  <div class="legend-label">Utente</div>
+  <div class="legend-group"><div class="legend-dot" style="background:var(--mgmt)"></div>Management centrale</div>
+  <div class="legend-group"><div class="legend-dot" style="background:var(--dir)"></div>Direttore di sede</div>
+  <div class="legend-group"><div class="legend-dot" style="background:var(--staff)"></div>Staff operativo</div>
+  <div class="legend-sep"></div>
+  <div class="legend-label">Priorità</div>
+  <div class="legend-group"><div class="legend-dot" style="background:var(--p0)"></div>MVP obbligatorio</div>
+  <div class="legend-group"><div class="legend-dot" style="background:var(--p1)"></div>Sprint 2</div>
+  <div class="legend-group"><div class="legend-dot" style="background:var(--p2)"></div>Sprint 3</div>
+  <div class="legend-group"><div class="legend-dot" style="background:var(--p3)"></div>Roadmap futura</div>
+</div>
+
+<!-- TABS -->
+<div class="tabs">
+  <div class="tab active-mgmt active" onclick="switchTab('mgmt', this, 'active-mgmt')">🏢 Management</div>
+  <div class="tab" onclick="switchTab('dir', this, 'active-dir')">🏥 Direttore sede</div>
+  <div class="tab" onclick="switchTab('staff', this, 'active-staff')">👥 Staff operativo</div>
+  <div class="tab" onclick="switchTab('matrix', this, 'active-all')">📊 Matrice completa</div>
+  <div class="tab" onclick="switchTab('backlog', this, 'active-all')">📋 Product backlog</div>
+</div>
+
+<!-- ══════════════════════════════════════════════
+     MANAGEMENT VIEW
+══════════════════════════════════════════════ -->
+<div class="view active" id="view-mgmt">
+  <div class="role-header mgmt">
+    <div class="role-icon">🏢</div>
+    <div>
+      <div class="role-title mgmt">Management Centrale</div>
+      <div class="role-desc">CEO, COO, HR Director, CFO — governano la catena nel suo insieme.<br>Hanno visibilità su tutto, accesso in sola lettura o con approvazione su ogni sede.</div>
+    </div>
+    <div class="role-stats">
+      <div class="role-stat-num mgmt">12</div>
+      <div class="role-stat-lbl">moduli dedicati</div>
+    </div>
+  </div>
+
+  <div class="section">
+    <div class="section-header">
+      <div class="section-icon">📊</div>
+      <div><div class="section-title">Dashboard & Controllo</div><div class="section-desc">Vista d'insieme su tutta la catena in tempo reale</div></div>
+    </div>
+    <div class="feature-grid">
+
+      <div class="feature-card" style="--card-accent:var(--mgmt)">
+        <div class="feature-name">🎯 Dashboard esecutiva</div>
+        <div class="feature-desc">Homepage personalizzata con tutti i KPI della catena in un'unica schermata.</div>
+        <ul class="feature-bullets">
+          <li>Cliniche attive, alert critici, scadenze imminenti</li>
+          <li>Headcount totale e per sede</li>
+          <li>Tasso copertura turni settimanale</li>
+          <li>Stato compliance RLS aggregato</li>
+          <li>Documenti mancanti o in scadenza</li>
+        </ul>
+        <div class="feature-footer">
+          <span class="priority-tag p-mvp">MVP</span>
+          <span class="user-badge u-mgmt">Management</span>
+        </div>
+      </div>
+
+      <div class="feature-card" style="--card-accent:var(--mgmt)">
+        <div class="feature-name">📈 Report & Analytics</div>
+        <div class="feature-desc">Reportistica strutturata esportabile per board, HR e compliance.</div>
+        <ul class="feature-bullets">
+          <li>Report presenze mensile per sede</li>
+          <li>Costo personale aggregato per clinica</li>
+          <li>Indice di compliance RLS per sede</li>
+          <li>Turnover e nuovi assunti nel periodo</li>
+          <li>Export PDF / Excel con un click</li>
+        </ul>
+        <div class="feature-footer">
+          <span class="priority-tag p-high">Sprint 2</span>
+          <span class="user-badge u-mgmt">Management</span>
+        </div>
+      </div>
+
+      <div class="feature-card" style="--card-accent:var(--mgmt)">
+        <div class="feature-name">🔔 Centro notifiche & alert</div>
+        <div class="feature-desc">Sistema di alert prioritizzati che porta al management solo ciò che richiede attenzione.</div>
+        <ul class="feature-bullets">
+          <li>Alert critico: scadenza RLS imminente</li>
+          <li>Alert: documento mancante per sede</li>
+          <li>Alert: sede sotto copertura turni minima</li>
+          <li>Digest giornaliero via email o push</li>
+          <li>Configurazione soglie personalizzabili</li>
+        </ul>
+        <div class="feature-footer">
+          <span class="priority-tag p-mvp">MVP</span>
+          <span class="user-badge u-mgmt">Management</span>
+        </div>
+      </div>
+
+    </div>
+  </div>
+
+  <div class="section">
+    <div class="section-header">
+      <div class="section-icon">🏥</div>
+      <div><div class="section-title">Gestione Rete Cliniche</div><div class="section-desc">Anagrafica e monitoraggio di tutte le sedi</div></div>
+    </div>
+    <div class="feature-grid">
+
+      <div class="feature-card" style="--card-accent:var(--mgmt)">
+        <div class="feature-name">🏥 Anagrafica cliniche</div>
+        <div class="feature-desc">Registro completo di ogni sede con tutti i dati rilevanti centralizzati.</div>
+        <ul class="feature-bullets">
+          <li>Dati anagrafici, P.IVA, ragione sociale</li>
+          <li>Indirizzo, contatti, referente operativo</li>
+          <li>Numero riuniti, sale, posti</li>
+          <li>Data apertura, stato attivo/inattivo</li>
+          <li>Note e storico modifiche</li>
+        </ul>
+        <div class="feature-footer">
+          <span class="priority-tag p-mvp">MVP</span>
+          <span class="user-badge u-mgmt">Management</span>
+        </div>
+      </div>
+
+      <div class="feature-card" style="--card-accent:var(--mgmt)">
+        <div class="feature-name">📍 Mappa rete sedi</div>
+        <div class="feature-desc">Vista geografica interattiva di tutta la catena con stato di ogni sede.</div>
+        <ul class="feature-bullets">
+          <li>Pin colorati per stato (attiva / attenzione / critica)</li>
+          <li>Click su sede → dettaglio rapido</li>
+          <li>Filtro per regione o stato</li>
+          <li>Cluster per zone con molte sedi</li>
+        </ul>
+        <div class="feature-footer">
+          <span class="priority-tag p-mid">Sprint 3</span>
+          <span class="user-badge u-mgmt">Management</span>
+        </div>
+      </div>
+
+      <div class="feature-card" style="--card-accent:var(--mgmt)">
+        <div class="feature-name">⚙️ Configurazione rete</div>
+        <div class="feature-desc">Parametri condivisi tra tutte le sedi definiti a livello centrale.</div>
+        <ul class="feature-bullets">
+          <li>Ruoli e profili di accesso</li>
+          <li>Template turni standard per tipologia sede</li>
+          <li>Soglie minime di copertura per ruolo</li>
+          <li>Categorie documenti obbligatori per sede</li>
+          <li>Workflow di approvazione centralizzato</li>
+        </ul>
+        <div class="feature-footer">
+          <span class="priority-tag p-high">Sprint 2</span>
+          <span class="user-badge u-mgmt">Management</span>
+        </div>
+      </div>
+
+    </div>
+  </div>
+
+  <div class="section">
+    <div class="section-header">
+      <div class="section-icon">👥</div>
+      <div><div class="section-title">HR Strategico</div><div class="section-desc">Visione aggregata delle risorse umane di tutta la catena</div></div>
+    </div>
+    <div class="feature-grid">
+
+      <div class="feature-card" style="--card-accent:var(--mgmt)">
+        <div class="feature-name">👤 Anagrafica dipendenti</div>
+        <div class="feature-desc">Registro unico di tutto il personale con storico completo.</div>
+        <ul class="feature-bullets">
+          <li>Dati personali, documento identità, CF</li>
+          <li>Tipo contratto, CCNL, livello</li>
+          <li>Storico sedi di appartenenza</li>
+          <li>Certificati e titoli di studio</li>
+          <li>Note HR riservate</li>
+        </ul>
+        <div class="feature-footer">
+          <span class="priority-tag p-mvp">MVP</span>
+          <span class="user-badge u-mgmt">Management</span>
+        </div>
+      </div>
+
+      <div class="feature-card" style="--card-accent:var(--mgmt)">
+        <div class="feature-name">🦷 Anagrafica dottori</div>
+        <div class="feature-desc">Gestione specifica per medici con dati professionali e regolatori.</div>
+        <ul class="feature-bullets">
+          <li>Numero iscrizione Albo con scadenza</li>
+          <li>Specializzazioni e abilitazioni</li>
+          <li>Tipo rapporto (dipendente / libero prof.)</li>
+          <li>P.IVA e regime fiscale se autonomo</li>
+          <li>Alert rinnovo iscrizione albo</li>
+        </ul>
+        <div class="feature-footer">
+          <span class="priority-tag p-mvp">MVP</span>
+          <span class="user-badge u-mgmt">Management</span>
+        </div>
+      </div>
+
+      <div class="feature-card" style="--card-accent:var(--mgmt)">
+        <div class="feature-name">📊 Headcount & organico</div>
+        <div class="feature-desc">Analisi della struttura organizzativa per prendere decisioni di assunzione.</div>
+        <ul class="feature-bullets">
+          <li>Organico attuale vs target per sede</li>
+          <li>Distribuzione ruoli per clinica</li>
+          <li>Storico assunzioni e dimissioni</li>
+          <li>Dipendenti per tipo contratto</li>
+          <li>Costo stimato personale per sede</li>
+        </ul>
+        <div class="feature-footer">
+          <span class="priority-tag p-high">Sprint 2</span>
+          <span class="user-badge u-mgmt">Management</span>
+        </div>
+      </div>
+
+      <div class="feature-card" style="--card-accent:var(--mgmt)">
+        <div class="feature-name">🎓 Formazione & sviluppo</div>
+        <div class="feature-desc">Tracciamento corsi obbligatori e facoltativi su tutta la catena.</div>
+        <ul class="feature-bullets">
+          <li>Corsi obbligatori per ruolo e sede</li>
+          <li>Stato completamento per dipendente</li>
+          <li>Scadenze ECM per i medici</li>
+          <li>Budget formazione per clinica</li>
+          <li>Pianificazione corsi futuri</li>
+        </ul>
+        <div class="feature-footer">
+          <span class="priority-tag p-mid">Sprint 3</span>
+          <span class="user-badge u-mgmt">Management</span>
+        </div>
+      </div>
+
+      <div class="feature-card" style="--card-accent:var(--mgmt)">
+        <div class="feature-name">📋 Contratti & scadenze</div>
+        <div class="feature-desc">Gestione centralizzata dei contratti di lavoro con alert sulle scadenze.</div>
+        <ul class="feature-bullets">
+          <li>Caricamento contratto firmato</li>
+          <li>Data inizio, fine, tipo (TD/TI/stage)</li>
+          <li>Alert rinnovo 90/30/7 giorni prima</li>
+          <li>Storico contratti per dipendente</li>
+          <li>Export per consulente del lavoro</li>
+        </ul>
+        <div class="feature-footer">
+          <span class="priority-tag p-high">Sprint 2</span>
+          <span class="user-badge u-mgmt">Management</span>
+        </div>
+      </div>
+
+      <div class="feature-card" style="--card-accent:var(--p3)">
+        <div class="feature-name">🤖 AI insights HR</div>
+        <div class="feature-desc">Suggerimenti predittivi basati sui dati della catena.</div>
+        <ul class="feature-bullets">
+          <li>Previsione fabbisogno personale per stagione</li>
+          <li>Rilevamento anomalie presenze</li>
+          <li>Suggerimento ottimizzazione turni</li>
+          <li>Risk score per turnover dipendente</li>
+        </ul>
+        <div class="feature-footer">
+          <span class="priority-tag p-low">Roadmap</span>
+          <span class="user-badge u-mgmt">Management</span>
+        </div>
+      </div>
+
+    </div>
+  </div>
+</div>
+
+<!-- ══════════════════════════════════════════════
+     DIRETTORE SEDE VIEW
+══════════════════════════════════════════════ -->
+<div class="view" id="view-dir">
+  <div class="role-header dir">
+    <div class="role-icon">🏥</div>
+    <div>
+      <div class="role-title dir">Direttore di Sede</div>
+      <div class="role-desc">Responsabile di clinica, coordinatore medico — gestisce il day-by-day della propria sede.<br>Vede solo la propria clinica, con possibilità di escalation al management per approvazioni.</div>
+    </div>
+    <div class="role-stats">
+      <div class="role-stat-num dir">10</div>
+      <div class="role-stat-lbl">moduli dedicati</div>
+    </div>
+  </div>
+
+  <div class="section">
+    <div class="section-header">
+      <div class="section-icon">📅</div>
+      <div><div class="section-title">Gestione Turni</div><div class="section-desc">Pianificazione e controllo copertura della propria sede</div></div>
+    </div>
+    <div class="feature-grid">
+
+      <div class="feature-card" style="--card-accent:var(--dir)">
+        <div class="feature-name">📅 Pianificazione turni</div>
+        <div class="feature-desc">Editor visivo settimanale/mensile per assegnare turni al personale della sede.</div>
+        <ul class="feature-bullets">
+          <li>Vista griglia: persone × giorni × fasce orarie</li>
+          <li>Drag & drop per spostare turni</li>
+          <li>Template turni riutilizzabili</li>
+          <li>Copia settimana precedente</li>
+          <li>Indicatore copertura minima per ruolo</li>
+          <li>Conflict detection automatica</li>
+        </ul>
+        <div class="feature-footer">
+          <span class="priority-tag p-mvp">MVP</span>
+          <span class="user-badge u-dir">Direttore</span>
+        </div>
+      </div>
+
+      <div class="feature-card" style="--card-accent:var(--dir)">
+        <div class="feature-name">✅ Gestione ferie & permessi</div>
+        <div class="feature-desc">Workflow di richiesta e approvazione ferie con visibilità sul calendario.</div>
+        <ul class="feature-bullets">
+          <li>Richiesta ferie da parte del dipendente</li>
+          <li>Approvazione / rifiuto con motivazione</li>
+          <li>Saldo ferie residue sempre visibile</li>
+          <li>Verifica sovrapposizioni automatica</li>
+          <li>Calendario ferie sede in vista mese</li>
+          <li>Storico approvazioni</li>
+        </ul>
+        <div class="feature-footer">
+          <span class="priority-tag p-mvp">MVP</span>
+          <span class="user-badge u-dir">Direttore</span>
+        </div>
+      </div>
+
+      <div class="feature-card" style="--card-accent:var(--dir)">
+        <div class="feature-name">🔄 Gestione sostituzioni</div>
+        <div class="feature-desc">Workflow per gestire assenze improvvise e trovare una sostituzione rapida.</div>
+        <ul class="feature-bullets">
+          <li>Segnalazione assenza improvvisa</li>
+          <li>Lista disponibili per quel turno</li>
+          <li>Notifica automatica al sostituto</li>
+          <li>Tracciamento straordinari generati</li>
+          <li>Escalation a management se non risolta</li>
+        </ul>
+        <div class="feature-footer">
+          <span class="priority-tag p-high">Sprint 2</span>
+          <span class="user-badge u-dir">Direttore</span>
+        </div>
+      </div>
+
+      <div class="feature-card" style="--card-accent:var(--dir)">
+        <div class="feature-name">🕐 Presenze & timbrature</div>
+        <div class="feature-desc">Tracciamento entrate/uscite del personale con report ore lavorate.</div>
+        <ul class="feature-bullets">
+          <li>Check-in via QR code o PIN</li>
+          <li>Ore lavorate vs pianificate</li>
+          <li>Ritardi e uscite anticipate segnalate</li>
+          <li>Export presenze mensile per paghe</li>
+          <li>Integrazione futura con sistemi paghe</li>
+        </ul>
+        <div class="feature-footer">
+          <span class="priority-tag p-mid">Sprint 3</span>
+          <span class="user-badge u-dir">Direttore</span>
+        </div>
+      </div>
+
+    </div>
+  </div>
+
+  <div class="section">
+    <div class="section-header">
+      <div class="section-icon">⚠️</div>
+      <div><div class="section-title">RLS & Sicurezza</div><div class="section-desc">Gestione compliance sicurezza sul lavoro per la propria sede</div></div>
+    </div>
+    <div class="feature-grid">
+
+      <div class="feature-card" style="--card-accent:var(--dir)">
+        <div class="feature-name">🩺 Visite mediche</div>
+        <div class="feature-desc">Registro sorveglianza sanitaria con alert automatici sulle scadenze.</div>
+        <ul class="feature-bullets">
+          <li>Data ultima visita e scadenza per dipendente</li>
+          <li>Alert 90/30/7 giorni prima della scadenza</li>
+          <li>Pianificazione visite future</li>
+          <li>Upload referto medico</li>
+          <li>Idoneità, limitazioni, prescrizioni</li>
+        </ul>
+        <div class="feature-footer">
+          <span class="priority-tag p-mvp">MVP</span>
+          <span class="user-badge u-dir">Direttore</span>
+        </div>
+      </div>
+
+      <div class="feature-card" style="--card-accent:var(--dir)">
+        <div class="feature-name">📚 Corsi sicurezza</div>
+        <div class="feature-desc">Tracciamento corsi obbligatori (antincendio, primo soccorso, sicurezza generale).</div>
+        <ul class="feature-bullets">
+          <li>Corsi obbligatori per ruolo configurabili</li>
+          <li>Stato completamento per dipendente</li>
+          <li>Scadenza e data prossimo rinnovo</li>
+          <li>Upload attestato completamento</li>
+          <li>Barra progresso per corso × sede</li>
+        </ul>
+        <div class="feature-footer">
+          <span class="priority-tag p-mvp">MVP</span>
+          <span class="user-badge u-dir">Direttore</span>
+        </div>
+      </div>
+
+      <div class="feature-card" style="--card-accent:var(--dir)">
+        <div class="feature-name">📋 DVR & valutazione rischi</div>
+        <div class="feature-desc">Gestione del Documento di Valutazione dei Rischi per la sede.</div>
+        <ul class="feature-bullets">
+          <li>Versione corrente DVR con metadati</li>
+          <li>Scadenza revisione periodica</li>
+          <li>Storico versioni precedenti</li>
+          <li>RSPP assegnato e contatti</li>
+          <li>Workflow revisione con approvazione</li>
+        </ul>
+        <div class="feature-footer">
+          <span class="priority-tag p-mvp">MVP</span>
+          <span class="user-badge u-dir">Direttore</span>
+        </div>
+      </div>
+
+      <div class="feature-card" style="--card-accent:var(--dir)">
+        <div class="feature-name">🛡️ DPI & dispositivi</div>
+        <div class="feature-desc">Tracciamento distribuzione dispositivi di protezione individuale.</div>
+        <ul class="feature-bullets">
+          <li>Registro consegna DPI per dipendente</li>
+          <li>Firma digitale ricezione</li>
+          <li>Scadenza e sostituzione periodica</li>
+          <li>Inventario DPI disponibili in sede</li>
+        </ul>
+        <div class="feature-footer">
+          <span class="priority-tag p-high">Sprint 2</span>
+          <span class="user-badge u-dir">Direttore</span>
+        </div>
+      </div>
+
+    </div>
+  </div>
+
+  <div class="section">
+    <div class="section-header">
+      <div class="section-icon">📁</div>
+      <div><div class="section-title">Documentazione di Sede</div><div class="section-desc">Archivio documenti obbligatori e operativi per la clinica</div></div>
+    </div>
+    <div class="feature-grid">
+
+      <div class="feature-card" style="--card-accent:var(--dir)">
+        <div class="feature-name">📁 Archivio documenti</div>
+        <div class="feature-desc">Repository centralizzato per tutti i documenti della sede, con scadenze e alert.</div>
+        <ul class="feature-bullets">
+          <li>Categorie: contratto affitto, CPI, autorizzazione sanitaria, impianti, ecc.</li>
+          <li>Checklist documenti obbligatori per sede</li>
+          <li>Alert su documenti mancanti o scaduti</li>
+          <li>Versioning automatico</li>
+          <li>Download e anteprima inline</li>
+        </ul>
+        <div class="feature-footer">
+          <span class="priority-tag p-mvp">MVP</span>
+          <span class="user-badge u-dir">Direttore</span>
+        </div>
+      </div>
+
+      <div class="feature-card" style="--card-accent:var(--dir)">
+        <div class="feature-name">📤 Upload & gestione file</div>
+        <div class="feature-desc">Sistema di caricamento documenti semplice con metadati e categorizzazione.</div>
+        <ul class="feature-bullets">
+          <li>Upload drag & drop o da mobile</li>
+          <li>Fino a 50MB per file (PDF, immagini)</li>
+          <li>Tagging automatico per categoria</li>
+          <li>Data scadenza e promemoria rinnovo</li>
+          <li>Condivisione link temporaneo</li>
+        </ul>
+        <div class="feature-footer">
+          <span class="priority-tag p-mvp">MVP</span>
+          <span class="user-badge u-dir">Direttore</span>
+        </div>
+      </div>
+
+      <div class="feature-card" style="--card-accent:var(--dir)">
+        <div class="feature-name">🔍 Audit documentale</div>
+        <div class="feature-desc">Log di tutte le operazioni sui documenti per tracciabilità e compliance.</div>
+        <ul class="feature-bullets">
+          <li>Chi ha caricato / modificato / visto</li>
+          <li>Timestamp di ogni azione</li>
+          <li>Export log per ispezioni</li>
+          <li>Firma digitale documenti</li>
+        </ul>
+        <div class="feature-footer">
+          <span class="priority-tag p-high">Sprint 2</span>
+          <span class="user-badge u-dir">Direttore</span>
+        </div>
+      </div>
+
+    </div>
+  </div>
+</div>
+
+<!-- ══════════════════════════════════════════════
+     STAFF OPERATIVO VIEW
+══════════════════════════════════════════════ -->
+<div class="view" id="view-staff">
+  <div class="role-header staff">
+    <div class="role-icon">👥</div>
+    <div>
+      <div class="role-title staff">Staff Operativo</div>
+      <div class="role-desc">Receptionist, assistenti, igienisti, coordinatori — lavorano all'interno della sede ogni giorno.<br>Accesso limitato ai propri dati e ai processi operativi che li riguardano direttamente.</div>
+    </div>
+    <div class="role-stats">
+      <div class="role-stat-num staff">8</div>
+      <div class="role-stat-lbl">moduli dedicati</div>
+    </div>
+  </div>
+
+  <div class="section">
+    <div class="section-header">
+      <div class="section-icon">🗓️</div>
+      <div><div class="section-title">Selfservice Personale</div><div class="section-desc">Ogni dipendente gestisce i propri dati e richieste in autonomia</div></div>
+    </div>
+    <div class="feature-grid">
+
+      <div class="feature-card" style="--card-accent:var(--staff)">
+        <div class="feature-name">📱 App personale</div>
+        <div class="feature-desc">Interfaccia semplificata mobile per il dipendente — i suoi turni, le sue richieste, le sue notifiche.</div>
+        <ul class="feature-bullets">
+          <li>Visualizzazione turni personali</li>
+          <li>Prossimo turno in evidenza</li>
+          <li>Notifiche push per cambi turno</li>
+          <li>Storico presenze personali</li>
+          <li>Saldo ferie residue</li>
+        </ul>
+        <div class="feature-footer">
+          <span class="priority-tag p-mvp">MVP</span>
+          <span class="user-badge u-staff">Staff</span>
+        </div>
+      </div>
+
+      <div class="feature-card" style="--card-accent:var(--staff)">
+        <div class="feature-name">🏖️ Richiesta ferie</div>
+        <div class="feature-desc">Il dipendente richiede ferie direttamente dall'app, il direttore approva o rifiuta.</div>
+        <ul class="feature-bullets">
+          <li>Seleziona date e tipo assenza</li>
+          <li>Vede disponibilità colleghi nel periodo</li>
+          <li>Stato richiesta in tempo reale</li>
+          <li>Notifica approvazione/rifiuto con note</li>
+          <li>Storico richieste passate</li>
+        </ul>
+        <div class="feature-footer">
+          <span class="priority-tag p-mvp">MVP</span>
+          <span class="user-badge u-staff">Staff</span>
+        </div>
+      </div>
+
+      <div class="feature-card" style="--card-accent:var(--staff)">
+        <div class="feature-name">🔄 Cambio turno</div>
+        <div class="feature-desc">Richiesta di scambio turno con un collega, con approvazione del direttore.</div>
+        <ul class="feature-bullets">
+          <li>Seleziona turno da cedere</li>
+          <li>Proposta a collega specifico o broadcast</li>
+          <li>Collega accetta/rifiuta</li>
+          <li>Approvazione finale direttore</li>
+          <li>Tutto tracciato automaticamente</li>
+        </ul>
+        <div class="feature-footer">
+          <span class="priority-tag p-high">Sprint 2</span>
+          <span class="user-badge u-staff">Staff</span>
+        </div>
+      </div>
+
+      <div class="feature-card" style="--card-accent:var(--staff)">
+        <div class="feature-name">📋 I miei documenti</div>
+        <div class="feature-desc">Area personale con i propri documenti: contratto, attestati, documentazione sanitaria.</div>
+        <ul class="feature-bullets">
+          <li>Contratto di lavoro firmato</li>
+          <li>Attestati corsi completati</li>
+          <li>Referto visita medica</li>
+          <li>Documenti caricati da HR</li>
+          <li>Download in autonomia</li>
+        </ul>
+        <div class="feature-footer">
+          <span class="priority-tag p-high">Sprint 2</span>
+          <span class="user-badge u-staff">Staff</span>
+        </div>
+      </div>
+
+    </div>
+  </div>
+
+  <div class="section">
+    <div class="section-header">
+      <div class="section-icon">✉️</div>
+      <div><div class="section-title">Comunicazioni</div><div class="section-desc">Messaggistica interna e ricezione comunicazioni ufficiali</div></div>
+    </div>
+    <div class="feature-grid">
+
+      <div class="feature-card" style="--card-accent:var(--staff)">
+        <div class="feature-name">💬 Messaggistica interna</div>
+        <div class="feature-desc">Chat interna con colleghi della stessa sede e con il direttore.</div>
+        <ul class="feature-bullets">
+          <li>Messaggi diretti 1:1</li>
+          <li>Gruppo sede (tutti i colleghi)</li>
+          <li>Allegati (foto, documenti)</li>
+          <li>Indicatore di lettura</li>
+          <li>Notifiche push su mobile</li>
+        </ul>
+        <div class="feature-footer">
+          <span class="priority-tag p-mvp">MVP</span>
+          <span class="user-badge u-staff">Staff</span>
+        </div>
+      </div>
+
+      <div class="feature-card" style="--card-accent:var(--staff)">
+        <div class="feature-name">📢 Circolari & comunicazioni ufficiali</div>
+        <div class="feature-desc">Ricezione e conferma lettura di comunicazioni ufficiali dal management.</div>
+        <ul class="feature-bullets">
+          <li>Circolari da management / HR centrale</li>
+          <li>Conferma lettura obbligatoria</li>
+          <li>Archivio circolari passate</li>
+          <li>Badge di notifica per non lette</li>
+          <li>Allegati scaricabili</li>
+        </ul>
+        <div class="feature-footer">
+          <span class="priority-tag p-mvp">MVP</span>
+          <span class="user-badge u-staff">Staff</span>
+        </div>
+      </div>
+
+      <div class="feature-card" style="--card-accent:var(--staff)">
+        <div class="feature-name">🚨 Segnalazioni</div>
+        <div class="feature-desc">Canal formale per segnalare problemi operativi, tecnici o di sicurezza.</div>
+        <ul class="feature-bullets">
+          <li>Segnalazione guasto attrezzatura</li>
+          <li>Segnalazione problema sicurezza</li>
+          <li>Assegnazione a responsabile</li>
+          <li>Stato risoluzione tracciato</li>
+          <li>Whistleblowing anonimo (futuro)</li>
+        </ul>
+        <div class="feature-footer">
+          <span class="priority-tag p-high">Sprint 2</span>
+          <span class="user-badge u-staff">Staff</span>
+        </div>
+      </div>
+
+    </div>
+  </div>
+</div>
+
+<!-- ══════════════════════════════════════════════
+     MATRIX VIEW
+══════════════════════════════════════════════ -->
+<div class="view" id="view-matrix">
+  <h2 style="font-family:'Playfair Display',serif;font-size:22px;color:var(--brown);margin-bottom:20px">Matrice funzionale completa — chi usa cosa</h2>
+  <table class="matrix-table">
+    <thead>
+      <tr>
+        <th style="width:28%">Modulo / Feature</th>
+        <th style="width:24%">Funzione principale</th>
+        <th style="width:12%;text-align:center">🏢 Mgmt</th>
+        <th style="width:12%;text-align:center">🏥 Direttore</th>
+        <th style="width:12%;text-align:center">👥 Staff</th>
+        <th style="width:12%;text-align:center">Priorità</th>
+      </tr>
+    </thead>
+    <tbody>
+      <!-- DASHBOARD -->
+      <tr><td colspan="6" style="background:var(--bg2);font-weight:800;font-size:11px;letter-spacing:1px;color:var(--muted);text-transform:uppercase;padding:8px 12px">Dashboard & Controllo</td></tr>
+      <tr><td><div class="module-name">Dashboard esecutiva catena</div><div class="module-sub">KPI aggregati, alert, stato sedi</div></td><td>Vista d'insieme real-time</td><td class="check" style="text-align:center">✓</td><td class="cross" style="text-align:center">—</td><td class="cross" style="text-align:center">—</td><td style="text-align:center"><span class="priority-tag p-mvp">MVP</span></td></tr>
+      <tr><td><div class="module-name">Dashboard di sede</div><div class="module-sub">KPI clinica, turni oggi, alert locali</div></td><td>Controllo operativo quotidiano</td><td class="partial" style="text-align:center">◐</td><td class="check" style="text-align:center">✓</td><td class="cross" style="text-align:center">—</td><td style="text-align:center"><span class="priority-tag p-mvp">MVP</span></td></tr>
+      <tr><td><div class="module-name">App personale dipendente</div><div class="module-sub">Turni, ferie, comunicazioni</div></td><td>Self-service operativo</td><td class="cross" style="text-align:center">—</td><td class="cross" style="text-align:center">—</td><td class="check" style="text-align:center">✓</td><td style="text-align:center"><span class="priority-tag p-mvp">MVP</span></td></tr>
+      <tr><td><div class="module-name">Centro notifiche & alert</div><div class="module-sub">Alert prioritizzati per ruolo</div></td><td>Attenzione su ciò che conta</td><td class="check" style="text-align:center">✓</td><td class="check" style="text-align:center">✓</td><td class="partial" style="text-align:center">◐</td><td style="text-align:center"><span class="priority-tag p-mvp">MVP</span></td></tr>
+
+      <!-- ANAGRAFICHE -->
+      <tr><td colspan="6" style="background:var(--bg2);font-weight:800;font-size:11px;letter-spacing:1px;color:var(--muted);text-transform:uppercase;padding:8px 12px">Anagrafiche</td></tr>
+      <tr><td><div class="module-name">Anagrafica cliniche</div><div class="module-sub">Dati sede, stato, configurazione</div></td><td>Registro rete sedi</td><td class="check" style="text-align:center">✓</td><td class="partial" style="text-align:center">◐</td><td class="cross" style="text-align:center">—</td><td style="text-align:center"><span class="priority-tag p-mvp">MVP</span></td></tr>
+      <tr><td><div class="module-name">Anagrafica dottori</div><div class="module-sub">Dati professionali, albo, contratto</div></td><td>Registro medici catena</td><td class="check" style="text-align:center">✓</td><td class="check" style="text-align:center">✓</td><td class="cross" style="text-align:center">—</td><td style="text-align:center"><span class="priority-tag p-mvp">MVP</span></td></tr>
+      <tr><td><div class="module-name">Anagrafica dipendenti</div><div class="module-sub">Dati personali, contratto, storico</div></td><td>Registro HR completo</td><td class="check" style="text-align:center">✓</td><td class="check" style="text-align:center">✓</td><td class="partial" style="text-align:center">◐</td><td style="text-align:center"><span class="priority-tag p-mvp">MVP</span></td></tr>
+      <tr><td><div class="module-name">Contratti & scadenze</div><div class="module-sub">Tipo contratto, date, alert rinnovo</div></td><td>Gestione ciclo vita contratti</td><td class="check" style="text-align:center">✓</td><td class="partial" style="text-align:center">◐</td><td class="cross" style="text-align:center">—</td><td style="text-align:center"><span class="priority-tag p-high">Spr. 2</span></td></tr>
+
+      <!-- TURNI & HR -->
+      <tr><td colspan="6" style="background:var(--bg2);font-weight:800;font-size:11px;letter-spacing:1px;color:var(--muted);text-transform:uppercase;padding:8px 12px">Turni & HR Operativo</td></tr>
+      <tr><td><div class="module-name">Pianificazione turni</div><div class="module-sub">Editor visivo, drag & drop, template</div></td><td>Scheduling settimanale/mensile</td><td class="partial" style="text-align:center">◐</td><td class="check" style="text-align:center">✓</td><td class="cross" style="text-align:center">—</td><td style="text-align:center"><span class="priority-tag p-mvp">MVP</span></td></tr>
+      <tr><td><div class="module-name">Richiesta & approvazione ferie</div><div class="module-sub">Workflow completo dipendente→direttore</div></td><td>Gestione assenze pianificate</td><td class="partial" style="text-align:center">◐</td><td class="check" style="text-align:center">✓</td><td class="check" style="text-align:center">✓</td><td style="text-align:center"><span class="priority-tag p-mvp">MVP</span></td></tr>
+      <tr><td><div class="module-name">Cambio & scambio turni</div><div class="module-sub">Richiesta tra colleghi con approvazione</div></td><td>Flessibilità operativa</td><td class="cross" style="text-align:center">—</td><td class="check" style="text-align:center">✓</td><td class="check" style="text-align:center">✓</td><td style="text-align:center"><span class="priority-tag p-high">Spr. 2</span></td></tr>
+      <tr><td><div class="module-name">Gestione sostituzioni</div><div class="module-sub">Assenze improvvise, lista disponibili</div></td><td>Business continuity sede</td><td class="cross" style="text-align:center">—</td><td class="check" style="text-align:center">✓</td><td class="cross" style="text-align:center">—</td><td style="text-align:center"><span class="priority-tag p-high">Spr. 2</span></td></tr>
+      <tr><td><div class="module-name">Presenze & timbrature</div><div class="module-sub">Check-in QR, ore lavorate, export</div></td><td>Tracciamento presenze reali</td><td class="partial" style="text-align:center">◐</td><td class="check" style="text-align:center">✓</td><td class="check" style="text-align:center">✓</td><td style="text-align:center"><span class="priority-tag p-mid">Spr. 3</span></td></tr>
+
+      <!-- RLS -->
+      <tr><td colspan="6" style="background:var(--bg2);font-weight:800;font-size:11px;letter-spacing:1px;color:var(--muted);text-transform:uppercase;padding:8px 12px">RLS & Compliance</td></tr>
+      <tr><td><div class="module-name">Visite mediche</div><div class="module-sub">Scadenze, idoneità, upload referti</div></td><td>Sorveglianza sanitaria</td><td class="check" style="text-align:center">✓</td><td class="check" style="text-align:center">✓</td><td class="partial" style="text-align:center">◐</td><td style="text-align:center"><span class="priority-tag p-mvp">MVP</span></td></tr>
+      <tr><td><div class="module-name">Corsi sicurezza</div><div class="module-sub">Stato completamento, attestati, scadenze</div></td><td>Formazione obbligatoria</td><td class="check" style="text-align:center">✓</td><td class="check" style="text-align:center">✓</td><td class="partial" style="text-align:center">◐</td><td style="text-align:center"><span class="priority-tag p-mvp">MVP</span></td></tr>
+      <tr><td><div class="module-name">DVR & valutazione rischi</div><div class="module-sub">Versioning, RSPP, revisione periodica</div></td><td>Documento principale sicurezza</td><td class="check" style="text-align:center">✓</td><td class="check" style="text-align:center">✓</td><td class="cross" style="text-align:center">—</td><td style="text-align:center"><span class="priority-tag p-mvp">MVP</span></td></tr>
+      <tr><td><div class="module-name">DPI & dispositivi protezione</div><div class="module-sub">Registro consegna, firma, scadenza</div></td><td>Tracciamento dispositivi sicurezza</td><td class="cross" style="text-align:center">—</td><td class="check" style="text-align:center">✓</td><td class="partial" style="text-align:center">◐</td><td style="text-align:center"><span class="priority-tag p-high">Spr. 2</span></td></tr>
+
+      <!-- DOCUMENTI -->
+      <tr><td colspan="6" style="background:var(--bg2);font-weight:800;font-size:11px;letter-spacing:1px;color:var(--muted);text-transform:uppercase;padding:8px 12px">Documentazione</td></tr>
+      <tr><td><div class="module-name">Archivio documenti per sede</div><div class="module-sub">CPI, contratto affitto, autorizzazioni</div></td><td>Repository documenti obbligatori</td><td class="check" style="text-align:center">✓</td><td class="check" style="text-align:center">✓</td><td class="cross" style="text-align:center">—</td><td style="text-align:center"><span class="priority-tag p-mvp">MVP</span></td></tr>
+      <tr><td><div class="module-name">Documenti personali dipendente</div><div class="module-sub">Contratto, attestati, referti</div></td><td>Fascicolo personale digitale</td><td class="check" style="text-align:center">✓</td><td class="check" style="text-align:center">✓</td><td class="check" style="text-align:center">✓</td><td style="text-align:center"><span class="priority-tag p-high">Spr. 2</span></td></tr>
+      <tr><td><div class="module-name">Firma digitale documenti</div><div class="module-sub">Firma contratti e policy da remoto</div></td><td>Processi paperless</td><td class="check" style="text-align:center">✓</td><td class="check" style="text-align:center">✓</td><td class="check" style="text-align:center">✓</td><td style="text-align:center"><span class="priority-tag p-mid">Spr. 3</span></td></tr>
+
+      <!-- COMUNICAZIONI -->
+      <tr><td colspan="6" style="background:var(--bg2);font-weight:800;font-size:11px;letter-spacing:1px;color:var(--muted);text-transform:uppercase;padding:8px 12px">Comunicazioni</td></tr>
+      <tr><td><div class="module-name">Messaggistica interna</div><div class="module-sub">Chat 1:1 e per sede</div></td><td>Comunicazione operativa quotidiana</td><td class="partial" style="text-align:center">◐</td><td class="check" style="text-align:center">✓</td><td class="check" style="text-align:center">✓</td><td style="text-align:center"><span class="priority-tag p-mvp">MVP</span></td></tr>
+      <tr><td><div class="module-name">Circolari ufficiali</div><div class="module-sub">Broadcast con conferma lettura</div></td><td>Comunicazioni formali catena</td><td class="check" style="text-align:center">✓</td><td class="check" style="text-align:center">✓</td><td class="check" style="text-align:center">✓</td><td style="text-align:center"><span class="priority-tag p-mvp">MVP</span></td></tr>
+      <tr><td><div class="module-name">Segnalazioni operative</div><div class="module-sub">Guasti, problemi sicurezza, ticket</div></td><td>Gestione problemi sede</td><td class="partial" style="text-align:center">◐</td><td class="check" style="text-align:center">✓</td><td class="check" style="text-align:center">✓</td><td style="text-align:center"><span class="priority-tag p-high">Spr. 2</span></td></tr>
+      <tr><td><div class="module-name">Notifiche push & email</div><div class="module-sub">Alert automatici per ruolo e evento</div></td><td>Proattività del sistema</td><td class="check" style="text-align:center">✓</td><td class="check" style="text-align:center">✓</td><td class="check" style="text-align:center">✓</td><td style="text-align:center"><span class="priority-tag p-mvp">MVP</span></td></tr>
+    </tbody>
+  </table>
+  <div style="font-size:11px;color:var(--muted);display:flex;gap:20px;flex-wrap:wrap;padding:10px 0">
+    <span><strong style="color:var(--staff)">✓</strong> Accesso completo</span>
+    <span><strong style="color:var(--amber)">◐</strong> Accesso parziale / sola lettura</span>
+    <span><strong style="color:var(--faint)">—</strong> Non accessibile</span>
+  </div>
+</div>
+
+<!-- ══════════════════════════════════════════════
+     BACKLOG VIEW
+══════════════════════════════════════════════ -->
+<div class="view" id="view-backlog">
+  <h2 style="font-family:'Playfair Display',serif;font-size:22px;color:var(--brown);margin-bottom:6px">Product Backlog — Prioritizzazione release</h2>
+  <p style="font-size:12px;color:var(--muted);margin-bottom:24px">Organizzato in sprint da 4 settimane. Story points indicativi (1 SP ≈ 1 giorno sviluppatore senior).</p>
+
+  <div class="backlog-grid">
+    <div class="backlog-col">
+      <div class="backlog-col-header bc-mvp">🚀 MVP — Sprint 1–2<br><span style="font-size:10px;font-weight:400;opacity:0.85">Settimane 1–8 · Core assoluto</span></div>
+      <div class="backlog-items">
+        <div class="backlog-item"><div class="backlog-item-title">Autenticazione & RBAC</div><div class="backlog-item-meta"><span class="user-badge u-all">Tutti</span><span class="story-pts">8 SP</span></div></div>
+        <div class="backlog-item"><div class="backlog-item-title">Anagrafica cliniche CRUD</div><div class="backlog-item-meta"><span class="user-badge u-mgmt">Mgmt</span><span class="story-pts">5 SP</span></div></div>
+        <div class="backlog-item"><div class="backlog-item-title">Anagrafica dottori CRUD</div><div class="backlog-item-meta"><span class="user-badge u-mgmt">Mgmt</span><span class="story-pts">5 SP</span></div></div>
+        <div class="backlog-item"><div class="backlog-item-title">Anagrafica dipendenti CRUD</div><div class="backlog-item-meta"><span class="user-badge u-mgmt">Mgmt</span><span class="story-pts">5 SP</span></div></div>
+        <div class="backlog-item"><div class="backlog-item-title">Dashboard esecutiva KPI</div><div class="backlog-item-meta"><span class="user-badge u-mgmt">Mgmt</span><span class="story-pts">8 SP</span></div></div>
+        <div class="backlog-item"><div class="backlog-item-title">Dashboard di sede</div><div class="backlog-item-meta"><span class="user-badge u-dir">Direttore</span><span class="story-pts">5 SP</span></div></div>
+        <div class="backlog-item"><div class="backlog-item-title">Pianificazione turni editor</div><div class="backlog-item-meta"><span class="user-badge u-dir">Direttore</span><span class="story-pts">13 SP</span></div></div>
+        <div class="backlog-item"><div class="backlog-item-title">Richiesta ferie workflow</div><div class="backlog-item-meta"><span class="user-badge u-all">Tutti</span><span class="story-pts">8 SP</span></div></div>
+        <div class="backlog-item"><div class="backlog-item-title">Visite mediche & scadenze</div><div class="backlog-item-meta"><span class="user-badge u-dir">Direttore</span><span class="story-pts">5 SP</span></div></div>
+        <div class="backlog-item"><div class="backlog-item-title">Corsi sicurezza tracker</div><div class="backlog-item-meta"><span class="user-badge u-dir">Direttore</span><span class="story-pts">5 SP</span></div></div>
+        <div class="backlog-item"><div class="backlog-item-title">Archivio documenti sede</div><div class="backlog-item-meta"><span class="user-badge u-dir">Direttore</span><span class="story-pts">8 SP</span></div></div>
+        <div class="backlog-item"><div class="backlog-item-title">Messaggistica interna</div><div class="backlog-item-meta"><span class="user-badge u-all">Tutti</span><span class="story-pts">8 SP</span></div></div>
+        <div class="backlog-item"><div class="backlog-item-title">Circolari & conferma lettura</div><div class="backlog-item-meta"><span class="user-badge u-all">Tutti</span><span class="story-pts">5 SP</span></div></div>
+        <div class="backlog-item"><div class="backlog-item-title">DVR gestione versioni</div><div class="backlog-item-meta"><span class="user-badge u-dir">Direttore</span><span class="story-pts">5 SP</span></div></div>
+        <div class="backlog-item"><div class="backlog-item-title">Notifiche push & email</div><div class="backlog-item-meta"><span class="user-badge u-all">Tutti</span><span class="story-pts">5 SP</span></div></div>
+        <div style="font-size:11px;font-weight:700;color:var(--p0);text-align:right;padding:4px 0">Totale: ~108 SP</div>
+      </div>
+    </div>
+
+    <div class="backlog-col">
+      <div class="backlog-col-header bc-s2">⚡ Sprint 3–4<br><span style="font-size:10px;font-weight:400;opacity:0.85">Settimane 9–16 · Completamento</span></div>
+      <div class="backlog-items">
+        <div class="backlog-item"><div class="backlog-item-title">Cambio & scambio turni</div><div class="backlog-item-meta"><span class="user-badge u-staff">Staff</span><span class="story-pts">5 SP</span></div></div>
+        <div class="backlog-item"><div class="backlog-item-title">Gestione sostituzioni urgenti</div><div class="backlog-item-meta"><span class="user-badge u-dir">Direttore</span><span class="story-pts">5 SP</span></div></div>
+        <div class="backlog-item"><div class="backlog-item-title">Contratti dipendenti + alert</div><div class="backlog-item-meta"><span class="user-badge u-mgmt">Mgmt</span><span class="story-pts">5 SP</span></div></div>
+        <div class="backlog-item"><div class="backlog-item-title">Headcount & report organico</div><div class="backlog-item-meta"><span class="user-badge u-mgmt">Mgmt</span><span class="story-pts">8 SP</span></div></div>
+        <div class="backlog-item"><div class="backlog-item-title">DPI registro & firma</div><div class="backlog-item-meta"><span class="user-badge u-dir">Direttore</span><span class="story-pts">5 SP</span></div></div>
+        <div class="backlog-item"><div class="backlog-item-title">Documenti personali dipendente</div><div class="backlog-item-meta"><span class="user-badge u-staff">Staff</span><span class="story-pts">5 SP</span></div></div>
+        <div class="backlog-item"><div class="backlog-item-title">Segnalazioni operative ticket</div><div class="backlog-item-meta"><span class="user-badge u-staff">Staff</span><span class="story-pts">5 SP</span></div></div>
+        <div class="backlog-item"><div class="backlog-item-title">Audit log documenti</div><div class="backlog-item-meta"><span class="user-badge u-dir">Direttore</span><span class="story-pts">3 SP</span></div></div>
+        <div class="backlog-item"><div class="backlog-item-title">Report & analytics export</div><div class="backlog-item-meta"><span class="user-badge u-mgmt">Mgmt</span><span class="story-pts">8 SP</span></div></div>
+        <div class="backlog-item"><div class="backlog-item-title">Configurazione rete centrale</div><div class="backlog-item-meta"><span class="user-badge u-mgmt">Mgmt</span><span class="story-pts">5 SP</span></div></div>
+        <div style="font-size:11px;font-weight:700;color:var(--p1);text-align:right;padding:4px 0">Totale: ~54 SP</div>
+      </div>
+    </div>
+
+    <div class="backlog-col">
+      <div class="backlog-col-header bc-s3">🌱 Sprint 5–6<br><span style="font-size:10px;font-weight:400;opacity:0.85">Mese 5–6 · Maturità</span></div>
+      <div class="backlog-items">
+        <div class="backlog-item"><div class="backlog-item-title">Presenze & timbrature QR</div><div class="backlog-item-meta"><span class="user-badge u-all">Tutti</span><span class="story-pts">8 SP</span></div></div>
+        <div class="backlog-item"><div class="backlog-item-title">Firma digitale documenti</div><div class="backlog-item-meta"><span class="user-badge u-all">Tutti</span><span class="story-pts">8 SP</span></div></div>
+        <div class="backlog-item"><div class="backlog-item-title">Formazione & ECM dottori</div><div class="backlog-item-meta"><span class="user-badge u-mgmt">Mgmt</span><span class="story-pts">8 SP</span></div></div>
+        <div class="backlog-item"><div class="backlog-item-title">Mappa geografica sedi</div><div class="backlog-item-meta"><span class="user-badge u-mgmt">Mgmt</span><span class="story-pts">5 SP</span></div></div>
+        <div class="backlog-item"><div class="backlog-item-title">App mobile React Native</div><div class="backlog-item-meta"><span class="user-badge u-staff">Staff</span><span class="story-pts">21 SP</span></div></div>
+        <div class="backlog-item"><div class="backlog-item-title">Integrazione XDENT API</div><div class="backlog-item-meta"><span class="user-badge u-dir">Direttore</span><span class="story-pts">13 SP</span></div></div>
+        <div class="backlog-item"><div class="backlog-item-title">Whistleblowing anonimo</div><div class="backlog-item-meta"><span class="user-badge u-staff">Staff</span><span class="story-pts">8 SP</span></div></div>
+        <div style="font-size:11px;font-weight:700;color:var(--p2);text-align:right;padding:4px 0">Totale: ~71 SP</div>
+      </div>
+    </div>
+
+    <div class="backlog-col">
+      <div class="backlog-col-header bc-later">🔭 Roadmap futura<br><span style="font-size:10px;font-weight:400;opacity:0.85">Anno 2+ · Differenziazione</span></div>
+      <div class="backlog-items">
+        <div class="backlog-item"><div class="backlog-item-title">AI insights HR predittivo</div><div class="backlog-item-meta"><span class="user-badge u-mgmt">Mgmt</span><span class="story-pts">?</span></div></div>
+        <div class="backlog-item"><div class="backlog-item-title">Ottimizzazione turni AI</div><div class="backlog-item-meta"><span class="user-badge u-dir">Direttore</span><span class="story-pts">?</span></div></div>
+        <div class="backlog-item"><div class="backlog-item-title">Integrazione sistema paghe</div><div class="backlog-item-meta"><span class="user-badge u-mgmt">Mgmt</span><span class="story-pts">?</span></div></div>
+        <div class="backlog-item"><div class="backlog-item-title">Benchmark inter-sede KPI</div><div class="backlog-item-meta"><span class="user-badge u-mgmt">Mgmt</span><span class="story-pts">?</span></div></div>
+        <div class="backlog-item"><div class="backlog-item-title">Portale fornitori</div><div class="backlog-item-meta"><span class="user-badge u-dir">Direttore</span><span class="story-pts">?</span></div></div>
+        <div class="backlog-item"><div class="backlog-item-title">Multi-lingua (EN, ES)</div><div class="backlog-item-meta"><span class="user-badge u-all">Tutti</span><span class="story-pts">?</span></div></div>
+        <div class="backlog-item"><div class="backlog-item-title">White-label per altri settori</div><div class="backlog-item-meta"><span class="user-badge u-mgmt">Mgmt</span><span class="story-pts">?</span></div></div>
+        <div class="backlog-item"><div class="backlog-item-title">Marketplace integrazioni</div><div class="backlog-item-meta"><span class="user-badge u-mgmt">Mgmt</span><span class="story-pts">?</span></div></div>
+      </div>
+    </div>
+  </div>
+
+  <div style="margin-top:24px;padding:16px 20px;background:var(--bg2);border:1px solid var(--border);border-radius:10px;font-size:12.5px;color:var(--muted);line-height:1.8">
+    <strong style="color:var(--text)">Note sul backlog:</strong> 1 Story Point ≈ 1 giorno di lavoro per uno sviluppatore senior full-stack.
+    MVP (108 SP) = circa <strong style="color:var(--text)">5–6 mesi</strong> con uno sviluppatore dedicato, o <strong style="color:var(--text)">2–3 mesi</strong> con un team di 2–3 persone.
+    Il completamento Sprint 3–4 (54 SP aggiuntivi) porta il prodotto a maturità commerciale completa.
+    L'integrazione XDENT API è strategicamente importante per non sostituire ma completare il software clinico esistente.
+  </div>
+</div>
+
+<script>
+function switchTab(id, el, activeClass) {
+  document.querySelectorAll('.tab').forEach(t => {
+    t.className = 'tab';
+  });
+  el.className = 'tab ' + activeClass;
+  document.querySelectorAll('.view').forEach(v => v.classList.remove('active'));
+  document.getElementById('view-' + id).classList.add('active');
+}
+</script>
+</body>
+</html>
