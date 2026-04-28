@@ -118,6 +118,14 @@
         pushBell("audit", (e.action || "") + " · " + (e.entityLabel || ""), "da " + (e.user || ""));
     });
 
+    connection.on("user-connected", function (p) {
+        var name = p && p.fullName ? p.fullName : "Un utente";
+        var role = p && p.role ? p.role : "";
+        var sub  = role ? (role + " · online ora") : "online ora";
+        Chipdent.toast(name + " si è collegato", sub);
+        pushBell("ping", name, sub, p && p.when);
+    });
+
     setState("connecting");
     connection.start()
         .then(function () { setState("connected"); })

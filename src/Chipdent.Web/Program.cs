@@ -12,6 +12,14 @@ builder.Services.AddSingleton<IPasswordHasher, BCryptPasswordHasher>();
 
 builder.Services.AddScoped<ITenantContext, TenantContext>();
 builder.Services.AddSingleton<INotificationPublisher, NotificationPublisher>();
+builder.Services.AddSingleton<IUserPresenceTracker, UserPresenceTracker>();
+builder.Services.AddSingleton<IChatPublisher, ChatPublisher>();
+builder.Services.AddSingleton<Chipdent.Web.Infrastructure.Storage.IFileStorage, Chipdent.Web.Infrastructure.Storage.LocalFileStorage>();
+builder.Services.AddSingleton<Chipdent.Web.Infrastructure.Notifications.IEmailSender, Chipdent.Web.Infrastructure.Notifications.LogOnlyEmailSender>();
+builder.Services.AddHostedService<Chipdent.Web.Infrastructure.Notifications.DigestEmailService>();
+builder.Services.AddHostedService<Chipdent.Web.Infrastructure.Notifications.TimbraturaWatchdog>();
+builder.Services.AddScoped<Chipdent.Web.Infrastructure.Insights.AiInsightsEngine>();
+builder.Services.AddScoped<Chipdent.Web.Infrastructure.Insights.TurniOptimizer>();
 builder.Services.AddScoped<Chipdent.Web.Infrastructure.Audit.IAuditService, Chipdent.Web.Infrastructure.Audit.AuditService>();
 
 builder.Services
@@ -33,7 +41,19 @@ builder.Services.AddControllersWithViews();
 builder.Services.AddSignalR();
 builder.Services.AddHttpContextAccessor();
 
+// Azure App Service / reverse proxies: rispetta X-Forwarded-* per HTTPS detection corretta
+builder.Services.Configure<Microsoft.AspNetCore.Builder.ForwardedHeadersOptions>(options =>
+{
+    options.ForwardedHeaders = Microsoft.AspNetCore.HttpOverrides.ForwardedHeaders.XForwardedFor
+                              | Microsoft.AspNetCore.HttpOverrides.ForwardedHeaders.XForwardedProto;
+    options.KnownNetworks.Clear();
+    options.KnownProxies.Clear();
+});
+
 var app = builder.Build();
+
+// Va prima di tutto: serve a riconoscere correttamente https dietro al reverse proxy
+app.UseForwardedHeaders();
 
 if (!app.Environment.IsDevelopment())
 {
@@ -75,6 +95,7 @@ app.MapControllerRoute(
     pattern: "{controller=Home}/{action=Index}/{id?}");
 
 app.MapHub<NotificationsHub>("/hubs/notifications");
+app.MapHub<ChatHub>("/hubs/chat");
 
 using (var scope = app.Services.CreateScope())
 {
