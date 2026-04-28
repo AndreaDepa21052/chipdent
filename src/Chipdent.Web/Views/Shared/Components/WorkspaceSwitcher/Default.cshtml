@@ -1,0 +1,85 @@
+@model Chipdent.Web.ViewComponents.WorkspaceSwitcherData
+@{
+    var t = Model.Current;
+    if (t is null) { return; }
+    var slugDomain = $"{t.Slug}.chipdent.it";
+    var hasLogo = !string.IsNullOrEmpty(t.LogoPath);
+}
+
+<details class="ws" data-tour="workspace">
+    <summary class="ws__chip" aria-label="Workspace switcher">
+        <span class="ws__mark">
+            @if (hasLogo)
+            {
+                <img src="~/@t.LogoPath" alt="" width="32" height="32" style="object-fit: cover; border-radius: 8px;" />
+            }
+            else
+            {
+                <img src="~/img/logo.png" alt="" width="32" height="32" />
+            }
+        </span>
+        <span class="ws__text">
+            <span class="ws__name">@t.DisplayName</span>
+            <span class="ws__slug">@slugDomain</span>
+        </span>
+        <svg class="ws__chev" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M8 9l4-4 4 4"/><path d="M16 15l-4 4-4-4"/></svg>
+    </summary>
+    <div class="ws__menu" role="menu">
+        <div class="ws__menu-title">Workspace attivo</div>
+        <a class="ws__item is-active" href="#" role="menuitem">
+            <span class="ws__mark ws__mark--sm">
+                @if (hasLogo)
+                {
+                    <img src="~/@t.LogoPath" alt="" width="22" height="22" style="object-fit: cover; border-radius: 6px;" />
+                }
+                else
+                {
+                    <img src="~/img/logo.png" alt="" width="22" height="22" />
+                }
+            </span>
+            <span style="flex:1;">@t.DisplayName</span>
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4"><polyline points="20 6 9 17 4 12"/></svg>
+        </a>
+
+        @if (Model.OtherWorkspaces.Any())
+        {
+            <div class="ws__menu-title" style="margin-top: 8px;">Altri workspace</div>
+            @foreach (var w in Model.OtherWorkspaces)
+            {
+                <form asp-controller="Workspace" asp-action="Switch" asp-route-slug="@w.Slug" method="post" style="margin:0;">
+                    @Html.AntiForgeryToken()
+                    <button type="submit" class="ws__item" role="menuitem" style="width:100%; text-align:left; background:none; border:0; cursor:pointer;">
+                        <span class="ws__mark ws__mark--sm">
+                            @if (!string.IsNullOrEmpty(w.LogoPath))
+                            {
+                                <img src="~/@w.LogoPath" alt="" width="22" height="22" style="object-fit: cover; border-radius: 6px;" />
+                            }
+                            else
+                            {
+                                <img src="~/img/logo.png" alt="" width="22" height="22" />
+                            }
+                        </span>
+                        <span style="flex:1;">@w.DisplayName</span>
+                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M5 12h14M13 5l7 7-7 7"/></svg>
+                    </button>
+                </form>
+            }
+        }
+
+        <hr/>
+        @if (User.IsManagement())
+        {
+            <a class="ws__item" asp-controller="Workspace" asp-action="Impostazioni" role="menuitem">
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.6 1.6 0 0 0 .3 1.8l.1.1a2 2 0 1 1-2.8 2.8l-.1-.1a1.6 1.6 0 0 0-1.8-.3 1.6 1.6 0 0 0-1 1.5V21a2 2 0 1 1-4 0v-.1a1.6 1.6 0 0 0-1-1.5 1.6 1.6 0 0 0-1.8.3l-.1.1a2 2 0 1 1-2.8-2.8l.1-.1a1.6 1.6 0 0 0 .3-1.8 1.6 1.6 0 0 0-1.5-1H3a2 2 0 1 1 0-4h.1a1.6 1.6 0 0 0 1.5-1 1.6 1.6 0 0 0-.3-1.8l-.1-.1a2 2 0 1 1 2.8-2.8l.1.1a1.6 1.6 0 0 0 1.8.3H9a1.6 1.6 0 0 0 1-1.5V3a2 2 0 1 1 4 0v.1a1.6 1.6 0 0 0 1 1.5 1.6 1.6 0 0 0 1.8-.3l.1-.1a2 2 0 1 1 2.8 2.8l-.1.1a1.6 1.6 0 0 0-.3 1.8V9a1.6 1.6 0 0 0 1.5 1H21a2 2 0 1 1 0 4h-.1a1.6 1.6 0 0 0-1.5 1z"/></svg>
+                Impostazioni workspace
+            </a>
+        }
+        @if (User.IsOwner())
+        {
+            <a class="ws__item" asp-controller="Workspace" asp-action="Nuovo" role="menuitem">
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 5v14M5 12h14"/></svg>
+                Nuovo workspace
+            </a>
+        }
+    </div>
+</details>

@@ -23,13 +23,13 @@ public class AccountController : Controller
     }
 
     [HttpGet("login")]
-    public IActionResult Login(string? returnUrl = null)
+    public IActionResult Login(string? returnUrl = null, string? tenantSlug = null)
     {
         if (User?.Identity?.IsAuthenticated == true)
         {
             return RedirectToAction("Index", "Dashboard");
         }
-        return View(new LoginViewModel { ReturnUrl = returnUrl });
+        return View(new LoginViewModel { ReturnUrl = returnUrl, TenantSlug = tenantSlug });
     }
 
     [HttpPost("login")]
@@ -41,9 +41,34 @@ public class AccountController : Controller
             return View(vm);
         }
 
-        var user = await _mongo.Users
+        var users = await _mongo.Users
             .Find(u => u.Email == vm.Email && u.IsActive)
-            .FirstOrDefaultAsync();
+            .ToListAsync();
+
+        User? user = null;
+
+        if (!string.IsNullOrEmpty(vm.TenantSlug))
+        {
+            var targetTenant = await _mongo.Tenants.Find(t => t.Slug == vm.TenantSlug).FirstOrDefaultAsync();
+            if (targetTenant is not null)
+                user = users.FirstOrDefault(u => u.TenantId == targetTenant.Id);
+        }
+
+        if (user is null && users.Count == 1) user = users[0];
+
+        if (user is null && users.Count > 1)
+        {
+            var tenantIds = users.Select(u => u.TenantId).ToList();
+            var tenantsForEmail = await _mongo.Tenants
+                .Find(t => tenantIds.Contains(t.Id) && t.IsActive)
+                .ToListAsync();
+            vm.Workspaces = tenantsForEmail
+                .OrderBy(t => t.DisplayName)
+                .Select(t => (t.Slug, t.DisplayName))
+                .ToList();
+            vm.Error = "Hai più workspace con questa email. Seleziona quello a cui accedere.";
+            return View(vm);
+        }
 
         if (user is null || !_hasher.Verify(vm.Password, user.PasswordHash))
         {

@@ -9,6 +9,25 @@ public static class Changelog
     public static readonly IReadOnlyList<ChangelogEntry> Entries = new List<ChangelogEntry>
     {
         // ───────────────────────────────────────────────────────────────────
+        // 🪟 v1.500.0 — Tornavento Multi-Workspace
+        // ───────────────────────────────────────────────────────────────────
+        new(
+            Version: "v1.500.0",
+            Codename: "Tornavento Multi-Workspace",
+            Date: new DateTime(2026, 4, 28),
+            Category: ChangelogCategory.Foundation,
+            Title: "Impostazioni workspace + creazione nuovo workspace",
+            Description: "Le voci «Impostazioni workspace» e «Nuovo workspace» nel selettore in alto a sinistra ora sono operative. La pagina /workspace/impostazioni (Management) permette di personalizzare nome, logo (upload PNG/JPG/SVG), colore primario, anagrafica legale (ragione sociale, P.IVA, CF, indirizzo) e fuso orario. Solo l'Owner può creare un secondo workspace via /workspace/nuovo: lo slug è univoco, il nuovo Owner è clonato con la stessa email e password."),
+
+        new(
+            Version: "v1.500.0",
+            Codename: "Tornavento Multi-Workspace",
+            Date: new DateTime(2026, 4, 28),
+            Category: ChangelogCategory.Foundation,
+            Title: "Switcher workspace dinamico + login multi-tenant",
+            Description: "Il workspace switcher mostra il logo del tenant corrente e lista dinamicamente gli altri workspace dove la tua email è Owner attivo, con un click che fa logout e redirect al login con tenantSlug pre-selezionato. La pagina di login gestisce il caso «email presente in più tenant»: se ce n'è solo uno funziona come prima; se ce ne sono più di uno mostra un picker workspace inline."),
+
+        // ───────────────────────────────────────────────────────────────────
         // ✨ v1.400.0 — Tornavento Intelligence
         // ───────────────────────────────────────────────────────────────────
         new(

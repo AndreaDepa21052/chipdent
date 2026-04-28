@@ -32,6 +32,25 @@
             <span class="text-danger" asp-validation-for="Password"></span>
         </div>
 
+        @if (Model.Workspaces.Count > 0)
+        {
+            <div class="form-group">
+                <label class="form-label" asp-for="TenantSlug">Workspace</label>
+                <select class="form-control" asp-for="TenantSlug" required>
+                    <option value="">— seleziona —</option>
+                    @foreach (var w in Model.Workspaces)
+                    {
+                        <option value="@w.Slug" selected="@(w.Slug == Model.TenantSlug)">@w.DisplayName (@w.Slug)</option>
+                    }
+                </select>
+            </div>
+        }
+        else if (!string.IsNullOrEmpty(Model.TenantSlug))
+        {
+            <input type="hidden" asp-for="TenantSlug" />
+            <div class="muted" style="font-size:.8rem; margin: -8px 0 12px;">Accedi al workspace <code>@Model.TenantSlug</code></div>
+        }
+
         <div class="form-group" style="display:flex; justify-content:space-between; align-items:center;">
             <label class="form-check">
                 <input asp-for="RememberMe" type="checkbox" />

@@ -1,0 +1,114 @@
+@model Chipdent.Web.Models.WorkspaceImpostazioniViewModel
+@{
+    ViewData["Title"] = "Impostazioni workspace";
+}
+
+<partial name="_Flash" />
+
+<div class="page-head">
+    <div>
+        <h2>Impostazioni workspace</h2>
+        <p class="page-head__sub">Branding, anagrafica legale, fuso orario.</p>
+    </div>
+    @if (User.IsOwner())
+    {
+        <div class="page-head__actions">
+            <a class="btn btn--primary" asp-action="Nuovo">+ Nuovo workspace</a>
+        </div>
+    }
+</div>
+
+<div class="card" style="max-width: 820px;">
+    <form asp-action="Impostazioni" method="post" enctype="multipart/form-data">
+        @Html.AntiForgeryToken()
+        <input type="hidden" asp-for="Id" />
+
+        <div asp-validation-summary="ModelOnly" class="alert alert--danger" style="display:@(ViewData.ModelState.ErrorCount > 0 ? "block" : "none");"></div>
+
+        <div class="form-grid">
+            <div class="form-group">
+                <label class="form-label">Slug</label>
+                <input class="form-control" value="@Model.Slug" disabled />
+                <small class="muted" style="font-size:.75rem;">Identificatore univoco del workspace, non modificabile.</small>
+            </div>
+            <div class="form-group">
+                <label class="form-label" asp-for="DisplayName"></label>
+                <input class="form-control" asp-for="DisplayName" required maxlength="120" />
+                <span class="text-danger" asp-validation-for="DisplayName"></span>
+            </div>
+
+            <div class="form-group full">
+                <label class="form-label" asp-for="Descrizione"></label>
+                <textarea class="form-control" asp-for="Descrizione" rows="2" maxlength="500" placeholder="Mission del workspace, area geografica, ecc."></textarea>
+            </div>
+
+            <div class="form-group">
+                <label class="form-label" asp-for="PrimaryColor"></label>
+                <div style="display:flex; gap:8px;">
+                    <input class="form-control" type="color" asp-for="PrimaryColor" style="max-width: 80px; padding: 4px;" />
+                    <input class="form-control" type="text" value="@Model.PrimaryColor" id="colorHex" pattern="^#[0-9a-fA-F]{6}$" oninput="document.querySelector('[name=PrimaryColor]').value = this.value;" />
+                </div>
+                <span class="text-danger" asp-validation-for="PrimaryColor"></span>
+            </div>
+            <div class="form-group">
+                <label class="form-label" asp-for="FusoOrario"></label>
+                <select class="form-control" asp-for="FusoOrario">
+                    <option value="Europe/Rome">Europe/Rome (Italia)</option>
+                    <option value="Europe/Madrid">Europe/Madrid</option>
+                    <option value="Europe/Paris">Europe/Paris</option>
+                    <option value="Europe/London">Europe/London</option>
+                    <option value="UTC">UTC</option>
+                </select>
+            </div>
+
+            <div class="form-group full">
+                <h4 style="margin: var(--s-3) 0 var(--s-2); color: var(--c-ink-soft); font-size:.85rem; text-transform:uppercase; letter-spacing:1px;">Anagrafica legale</h4>
+            </div>
+            <div class="form-group">
+                <label class="form-label" asp-for="RagioneSociale"></label>
+                <input class="form-control" asp-for="RagioneSociale" maxlength="150" />
+            </div>
+            <div class="form-group">
+                <label class="form-label" asp-for="PartitaIva"></label>
+                <input class="form-control" asp-for="PartitaIva" maxlength="20" />
+            </div>
+            <div class="form-group">
+                <label class="form-label" asp-for="CodiceFiscale"></label>
+                <input class="form-control" asp-for="CodiceFiscale" maxlength="20" />
+            </div>
+            <div class="form-group">
+                <label class="form-label" asp-for="IndirizzoLegale"></label>
+                <input class="form-control" asp-for="IndirizzoLegale" maxlength="250" />
+            </div>
+
+            <div class="form-group full">
+                <h4 style="margin: var(--s-3) 0 var(--s-2); color: var(--c-ink-soft); font-size:.85rem; text-transform:uppercase; letter-spacing:1px;">Logo</h4>
+                @if (!string.IsNullOrEmpty(Model.LogoPath))
+                {
+                    <div style="display:flex; align-items:center; gap: var(--s-3); margin-bottom: var(--s-2);">
+                        <img src="~/@Model.LogoPath" alt="Logo workspace" style="max-width: 96px; max-height: 96px; border-radius: 12px; border: 1px solid var(--c-border, #e9e1d3); padding: 8px; background:#fff;" />
+                        <label class="form-check">
+                            <input type="checkbox" asp-for="RimuoviLogo" />
+                            Rimuovi logo attuale
+                        </label>
+                    </div>
+                }
+                <input class="form-control" type="file" asp-for="LogoFile" accept=".png,.jpg,.jpeg,.webp,.svg" />
+                <small class="muted" style="font-size:.78rem;">Max 4 MB · PNG, JPG, WEBP, SVG.</small>
+                <span class="text-danger" asp-validation-for="LogoFile"></span>
+            </div>
+        </div>
+
+        <div class="form-actions">
+            <button type="submit" class="btn btn--primary">Salva impostazioni</button>
+        </div>
+    </form>
+</div>
+
+<div style="max-width:820px; margin-top: var(--s-4); font-size:.78rem; color: var(--c-ink-soft);">
+    Workspace creato il @Model.CreatedAt.ToLocalTime().ToString("dd MMM yyyy", new System.Globalization.CultureInfo("it-IT"))
+    @if (Model.DataAttivazione is not null)
+    {
+        <text>· attivato il @Model.DataAttivazione?.ToLocalTime().ToString("dd MMM yyyy", new System.Globalization.CultureInfo("it-IT"))</text>
+    }
+</div>

@@ -19,4 +19,10 @@ public class LoginViewModel
 
     public string? ReturnUrl { get; set; }
     public string? Error { get; set; }
+
+    /// <summary>Slug del tenant (opzionale): usato quando la stessa email esiste in più workspace.</summary>
+    public string? TenantSlug { get; set; }
+
+    /// <summary>Lista di workspace disponibili per l'email digitata, popolata server-side se >1.</summary>
+    public IReadOnlyList<(string Slug, string DisplayName)> Workspaces { get; set; } = Array.Empty<(string, string)>();
 }

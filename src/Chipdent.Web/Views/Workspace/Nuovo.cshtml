@@ -1,0 +1,56 @@
+@model Chipdent.Web.Models.NuovoWorkspaceViewModel
+@{
+    ViewData["Title"] = "Nuovo workspace";
+    ViewData["Crumb"] = "Workspace";
+}
+
+<partial name="_Flash" />
+
+<div class="page-head">
+    <div>
+        <h2>Nuovo workspace</h2>
+        <p class="page-head__sub">Crea un secondo workspace separato — riutilizza la tua email come Owner.</p>
+    </div>
+    <div class="page-head__actions">
+        <a class="btn btn--ghost" asp-action="Impostazioni">← Indietro</a>
+    </div>
+</div>
+
+<div class="alert alert--info" style="max-width:680px; margin-bottom: var(--s-4);">
+    <strong>Cosa succede:</strong> verrà creato un nuovo workspace separato, con dati indipendenti. La tua email diventa Owner anche del nuovo workspace usando la stessa password attuale. Per accedervi dovrai fare logout e rilogga selezionando lo slug del nuovo workspace.
+</div>
+
+<div class="card" style="max-width: 680px;">
+    <form asp-action="Nuovo" method="post">
+        @Html.AntiForgeryToken()
+
+        <div asp-validation-summary="ModelOnly" class="alert alert--danger" style="display:@(ViewData.ModelState.ErrorCount > 0 ? "block" : "none");"></div>
+
+        <div class="form-grid">
+            <div class="form-group full">
+                <label class="form-label">Slug (identificatore univoco)</label>
+                <input class="form-control" asp-for="Slug" required pattern="^[a-z0-9][a-z0-9-]{1,58}[a-z0-9]$" placeholder="es. confident-romagna" />
+                <small class="muted" style="font-size:.78rem;">Solo minuscole, numeri e trattini · 3-60 caratteri · niente trattini iniziali/finali.</small>
+                <span class="text-danger" asp-validation-for="Slug"></span>
+            </div>
+            <div class="form-group full">
+                <label class="form-label" asp-for="DisplayName"></label>
+                <input class="form-control" asp-for="DisplayName" required maxlength="120" />
+                <span class="text-danger" asp-validation-for="DisplayName"></span>
+            </div>
+            <div class="form-group">
+                <label class="form-label" asp-for="PrimaryColor"></label>
+                <input class="form-control" type="color" asp-for="PrimaryColor" />
+            </div>
+            <div class="form-group full">
+                <label class="form-label" asp-for="Descrizione"></label>
+                <textarea class="form-control" asp-for="Descrizione" rows="2" maxlength="500"></textarea>
+            </div>
+        </div>
+
+        <div class="form-actions">
+            <a class="btn btn--ghost" asp-action="Impostazioni">Annulla</a>
+            <button type="submit" class="btn btn--primary">Crea workspace</button>
+        </div>
+    </form>
+</div>

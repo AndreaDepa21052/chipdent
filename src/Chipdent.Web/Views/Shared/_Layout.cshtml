@@ -9,8 +9,6 @@
                                 .Take(2)
                                 .Select(p => char.ToUpper(p[0])));
     var role = User.FindFirst(System.Security.Claims.ClaimTypes.Role)?.Value ?? "";
-    var tenantSlug = User.FindFirst("tenant_slug")?.Value ?? "confident";
-    var tenantName = "Confident";
 
     var canSeeAnagrafiche = User.IsManagement() || User.IsDirettore() || User.IsBackoffice();
     var canSeeUsers = User.IsManagement();
@@ -85,33 +83,7 @@
     <div class="app">
         <aside class="app__sidebar">
 
-            <details class="ws" data-tour="workspace">
-                <summary class="ws__chip" aria-label="Workspace switcher">
-                    <span class="ws__mark"><img src="~/img/logo.png" alt="" width="32" height="32" /></span>
-                    <span class="ws__text">
-                        <span class="ws__name">@tenantName</span>
-                        <span class="ws__slug">@(tenantSlug).chipdent.it</span>
-                    </span>
-                    <svg class="ws__chev" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M8 9l4-4 4 4"/><path d="M16 15l-4 4-4-4"/></svg>
-                </summary>
-                <div class="ws__menu" role="menu">
-                    <div class="ws__menu-title">Workspace attivo</div>
-                    <a class="ws__item is-active" href="#" role="menuitem">
-                        <span class="ws__mark ws__mark--sm"><img src="~/img/logo.png" alt="" width="22" height="22" /></span>
-                        <span style="flex:1;">@tenantName</span>
-                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4"><polyline points="20 6 9 17 4 12"/></svg>
-                    </a>
-                    <hr/>
-                    <a class="ws__item" href="#" role="menuitem">
-                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.6 1.6 0 0 0 .3 1.8l.1.1a2 2 0 1 1-2.8 2.8l-.1-.1a1.6 1.6 0 0 0-1.8-.3 1.6 1.6 0 0 0-1 1.5V21a2 2 0 1 1-4 0v-.1a1.6 1.6 0 0 0-1-1.5 1.6 1.6 0 0 0-1.8.3l-.1.1a2 2 0 1 1-2.8-2.8l.1-.1a1.6 1.6 0 0 0 .3-1.8 1.6 1.6 0 0 0-1.5-1H3a2 2 0 1 1 0-4h.1a1.6 1.6 0 0 0 1.5-1 1.6 1.6 0 0 0-.3-1.8l-.1-.1a2 2 0 1 1 2.8-2.8l.1.1a1.6 1.6 0 0 0 1.8.3H9a1.6 1.6 0 0 0 1-1.5V3a2 2 0 1 1 4 0v.1a1.6 1.6 0 0 0 1 1.5 1.6 1.6 0 0 0 1.8-.3l.1-.1a2 2 0 1 1 2.8 2.8l-.1.1a1.6 1.6 0 0 0-.3 1.8V9a1.6 1.6 0 0 0 1.5 1H21a2 2 0 1 1 0 4h-.1a1.6 1.6 0 0 0-1.5 1z"/></svg>
-                        Impostazioni workspace
-                    </a>
-                    <a class="ws__item" href="#" role="menuitem">
-                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 5v14M5 12h14"/></svg>
-                        Nuovo workspace
-                    </a>
-                </div>
-            </details>
+            @await Component.InvokeAsync("WorkspaceSwitcher")
 
             <button class="ws-search" data-search-trigger data-tour="search" type="button">
                 <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="7"/><path d="m21 21-4.3-4.3"/></svg>
