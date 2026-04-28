@@ -57,6 +57,20 @@
 </script>
 }
 
+@if (Model.ClinicheTotali == 0)
+{
+    <div class="card" style="background: linear-gradient(135deg, rgba(196,120,48,0.08), rgba(122,92,154,0.08)); border:1px solid rgba(196,120,48,0.3); margin-bottom: var(--s-4); padding: var(--s-4);">
+        <div style="display:flex; align-items:center; gap: var(--s-3); flex-wrap:wrap;">
+            <div style="font-size: 36px;">🎈</div>
+            <div style="flex:1; min-width: 200px;">
+                <div style="font-family:'Playfair Display',serif; font-size: 1.2rem; color: var(--c-ink, #2a1508);">Configura il tuo workspace in 4 passi</div>
+                <div class="muted" style="font-size:.85rem;">Branding, prima clinica, primo direttore, primo template turno.</div>
+            </div>
+            <a class="btn btn--primary" asp-controller="Onboarding" asp-action="Index">Inizia onboarding →</a>
+        </div>
+    </div>
+}
+
 <div class="grid grid--stats" data-tour="dashboard-stats" style="margin-bottom: var(--s-6);">
     <div class="stat">
         <div class="stat__label">Cliniche</div>

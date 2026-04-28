@@ -1,0 +1,185 @@
+@model Chipdent.Web.Models.OnboardingStateViewModel
+@{
+    ViewData["Title"] = "Benvenuto · " + Model.TenantNome;
+    var steps = new[]
+    {
+        new { N = 1, Label = "Branding",   Done = Model.HasLogo,     Action = "branding" },
+        new { N = 2, Label = "Prima sede", Done = Model.HasClinica,  Action = "clinica" },
+        new { N = 3, Label = "Direttore",  Done = Model.HasInvito,   Action = "invito" },
+        new { N = 4, Label = "Turni",      Done = Model.HasTemplate, Action = "template" }
+    };
+}
+
+<partial name="_Flash" />
+
+<div class="page-head">
+    <div>
+        <h2>🎈 Benvenuto su Chipdent, @Model.TenantNome</h2>
+        <p class="page-head__sub">In 4 passi rapidi configuri il workspace. Tutto è modificabile dopo.</p>
+    </div>
+    <div class="page-head__actions">
+        <a class="btn btn--ghost" asp-controller="Dashboard" asp-action="Index">Salta tutto →</a>
+    </div>
+</div>
+
+<!-- Stepper -->
+<div style="display:flex; gap: var(--s-2); margin-bottom: var(--s-5); flex-wrap: wrap;">
+    @foreach (var s in steps)
+    {
+        var active = s.N == Model.Step;
+        var bg = s.Done ? "#2d7a50" : active ? "#c47830" : "#ddd0b8";
+        var color = s.Done || active ? "#fff" : "#7a5c3a";
+        <a asp-action="Index" asp-route-step="@s.N" style="display:flex; align-items:center; gap:8px; padding: 10px 16px; border-radius: 999px; background: @bg; color: @color; text-decoration:none; font-size:.85rem; font-weight: @(active ? "700" : "500");">
+            <span style="width:22px; height:22px; border-radius:50%; background:@(s.Done ? "rgba(255,255,255,0.25)" : "rgba(255,255,255,0.2)"); display:flex; align-items:center; justify-content:center; font-weight:700;">
+                @(s.Done ? "✓" : s.N.ToString())
+            </span>
+            @s.Label
+        </a>
+    }
+</div>
+
+<div class="card" style="max-width: 720px; padding: var(--s-5);">
+
+@switch (Model.Step)
+{
+    case 1:
+        <h3 style="font-family:'Playfair Display',serif; margin-bottom: var(--s-2);">1. Personalizza il branding</h3>
+        <p class="muted" style="margin-bottom: var(--s-4);">Logo, colore primario e nome del workspace.</p>
+
+        <form asp-action="SaveBranding" method="post" enctype="multipart/form-data">
+            @Html.AntiForgeryToken()
+            <div class="form-grid">
+                <div class="form-group full">
+                    <label class="form-label">Nome workspace</label>
+                    <input class="form-control" name="DisplayName" value="@Model.Branding.DisplayName" required maxlength="120" />
+                </div>
+                <div class="form-group full">
+                    <label class="form-label">Descrizione</label>
+                    <input class="form-control" name="Descrizione" value="@Model.Branding.Descrizione" maxlength="500" />
+                </div>
+                <div class="form-group">
+                    <label class="form-label">Colore primario</label>
+                    <input class="form-control" type="color" name="PrimaryColor" value="@Model.Branding.PrimaryColor" />
+                </div>
+                <div class="form-group">
+                    <label class="form-label">Logo</label>
+                    <input class="form-control" type="file" name="Logo" accept=".png,.jpg,.jpeg,.webp,.svg" />
+                </div>
+            </div>
+            <div class="form-actions" style="display:flex; justify-content:space-between;">
+                <form asp-action="Skip" method="post" style="display:inline;">
+                    @Html.AntiForgeryToken()
+                    <input type="hidden" name="step" value="1" />
+                    <button type="submit" class="btn btn--ghost">Salta</button>
+                </form>
+                <button type="submit" class="btn btn--primary">Salva e continua →</button>
+            </div>
+        </form>
+        break;
+
+    case 2:
+        <h3 style="font-family:'Playfair Display',serif; margin-bottom: var(--s-2);">2. Aggiungi la prima clinica</h3>
+        <p class="muted" style="margin-bottom: var(--s-4);">Potrai aggiungerne altre in qualsiasi momento.</p>
+
+        <form asp-action="SaveClinica" method="post">
+            @Html.AntiForgeryToken()
+            <div class="form-grid">
+                <div class="form-group full">
+                    <label class="form-label">Nome sede</label>
+                    <input class="form-control" name="Nome" required maxlength="120" placeholder="Es. Confident Milano Centro" />
+                </div>
+                <div class="form-group">
+                    <label class="form-label">Città</label>
+                    <input class="form-control" name="Citta" required maxlength="80" />
+                </div>
+                <div class="form-group">
+                    <label class="form-label">Indirizzo</label>
+                    <input class="form-control" name="Indirizzo" required maxlength="200" />
+                </div>
+                <div class="form-group">
+                    <label class="form-label">Numero riuniti</label>
+                    <input class="form-control" type="number" name="NumeroRiuniti" min="1" max="50" value="4" required />
+                </div>
+                <div class="form-group">
+                    <label class="form-label">Organico target</label>
+                    <input class="form-control" type="number" name="OrganicoTarget" min="0" max="200" value="6" />
+                </div>
+            </div>
+            <div class="form-actions" style="display:flex; justify-content:space-between;">
+                <a class="btn btn--ghost" asp-action="Index" asp-route-step="1">← Indietro</a>
+                <button type="submit" class="btn btn--primary">Salva e continua →</button>
+            </div>
+        </form>
+        break;
+
+    case 3:
+        <h3 style="font-family:'Playfair Display',serif; margin-bottom: var(--s-2);">3. Invita il primo Direttore di sede</h3>
+        <p class="muted" style="margin-bottom: var(--s-4);">Riceverà un link per impostare la propria password.</p>
+
+        <form asp-action="SaveInvito" method="post">
+            @Html.AntiForgeryToken()
+            <div class="form-grid">
+                <div class="form-group full">
+                    <label class="form-label">Email</label>
+                    <input class="form-control" type="email" name="Email" required />
+                </div>
+                <div class="form-group full">
+                    <label class="form-label">Nome completo</label>
+                    <input class="form-control" name="FullName" required maxlength="120" />
+                </div>
+                <div class="form-group">
+                    <label class="form-label">Ruolo</label>
+                    <select class="form-control" name="Ruolo">
+                        <option value="@UserRole.Direttore" selected>Direttore di sede</option>
+                        <option value="@UserRole.Backoffice">Backoffice</option>
+                        <option value="@UserRole.Management">Management</option>
+                    </select>
+                </div>
+            </div>
+            <div class="form-actions" style="display:flex; justify-content:space-between;">
+                <form asp-action="Skip" method="post" style="display:inline;">
+                    @Html.AntiForgeryToken()
+                    <input type="hidden" name="step" value="3" />
+                    <button type="submit" class="btn btn--ghost">Salta — invito dopo</button>
+                </form>
+                <button type="submit" class="btn btn--primary">Invita e continua →</button>
+            </div>
+        </form>
+        break;
+
+    case 4:
+        <h3 style="font-family:'Playfair Display',serif; margin-bottom: var(--s-2);">4. Crea il primo template di turno</h3>
+        <p class="muted" style="margin-bottom: var(--s-4);">Per popolare velocemente il calendario con drag & drop.</p>
+
+        <form asp-action="SaveTemplate" method="post">
+            @Html.AntiForgeryToken()
+            <div class="form-grid">
+                <div class="form-group full">
+                    <label class="form-label">Nome template</label>
+                    <input class="form-control" name="Nome" value="Mattina" required maxlength="60" />
+                </div>
+                <div class="form-group">
+                    <label class="form-label">Inizio</label>
+                    <input class="form-control" type="time" name="OraInizio" value="09:00" required />
+                </div>
+                <div class="form-group">
+                    <label class="form-label">Fine</label>
+                    <input class="form-control" type="time" name="OraFine" value="13:00" required />
+                </div>
+                <div class="form-group">
+                    <label class="form-label">Colore</label>
+                    <input class="form-control" type="color" name="ColoreHex" value="#c47830" />
+                </div>
+            </div>
+            <div class="form-actions" style="display:flex; justify-content:space-between;">
+                <a class="btn btn--ghost" asp-action="Index" asp-route-step="3">← Indietro</a>
+                <button type="submit" class="btn btn--primary">🎉 Termina onboarding</button>
+            </div>
+        </form>
+        break;
+}
+</div>
+
+<div style="margin-top: var(--s-4); text-align:center; color: var(--c-ink-soft); font-size:.78rem;">
+    Step @Model.Step di 4 · @Model.Completati passi completati
+</div>
