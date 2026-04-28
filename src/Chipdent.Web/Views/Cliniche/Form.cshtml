@@ -57,6 +57,25 @@
                 <label class="form-label" asp-for="Stato">Stato</label>
                 <select class="form-control" asp-for="Stato" asp-items="Html.GetEnumSelectList<Chipdent.Web.Domain.Entities.ClinicaStato>()"></select>
             </div>
+
+            <div class="form-group">
+                <label class="form-label" asp-for="Latitudine">Latitudine</label>
+                <input class="form-control" asp-for="Latitudine" type="number" step="any" placeholder="Es. 45.4654" id="lat-input" />
+                <span class="text-danger" asp-validation-for="Latitudine"></span>
+            </div>
+
+            <div class="form-group">
+                <label class="form-label" asp-for="Longitudine">Longitudine</label>
+                <input class="form-control" asp-for="Longitudine" type="number" step="any" placeholder="Es. 9.1859" id="lng-input" />
+                <span class="text-danger" asp-validation-for="Longitudine"></span>
+            </div>
+
+            <div class="form-group full">
+                <button type="button" class="btn btn--ghost" id="geocode-btn" style="font-size: .82rem;">
+                    📍 Cerca coordinate dall'indirizzo
+                </button>
+                <span id="geocode-status" style="margin-left: 8px; font-size: .8rem; color: var(--c-ink-soft);"></span>
+            </div>
         </div>
 
         <div class="form-actions">
@@ -75,4 +94,35 @@
             Elimina clinica
         </button>
     </form>
+}
+
+@section Scripts {
+<script>
+    (function () {
+        var btn = document.getElementById('geocode-btn');
+        var status = document.getElementById('geocode-status');
+        var indirizzo = document.querySelector('[name="Indirizzo"]');
+        var citta = document.querySelector('[name="Citta"]');
+        var lat = document.getElementById('lat-input');
+        var lng = document.getElementById('lng-input');
+
+        btn.addEventListener('click', function () {
+            var query = [indirizzo.value, citta.value].filter(Boolean).join(', ');
+            if (!query) { status.textContent = 'Compila prima Indirizzo e Città.'; return; }
+            status.textContent = 'Ricerca in corso…';
+            // Nominatim — gratuito, no API key. Limite ~1 req/sec.
+            fetch('https://nominatim.openstreetmap.org/search?format=json&limit=1&q=' + encodeURIComponent(query), {
+                headers: { 'Accept': 'application/json' }
+            })
+            .then(function (r) { return r.json(); })
+            .then(function (results) {
+                if (!results || !results.length) { status.textContent = 'Nessun risultato.'; return; }
+                lat.value = parseFloat(results[0].lat).toFixed(6);
+                lng.value = parseFloat(results[0].lon).toFixed(6);
+                status.textContent = '✓ Coordinate trovate.';
+            })
+            .catch(function () { status.textContent = 'Errore di rete.'; });
+        });
+    })();
+</script>
 }

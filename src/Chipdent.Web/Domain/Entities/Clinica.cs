@@ -11,6 +11,14 @@ public class Clinica : TenantEntity
     public string? Email { get; set; }
     public int NumeroRiuniti { get; set; }
     public ClinicaStato Stato { get; set; } = ClinicaStato.Operativa;
+
+    /// <summary>Latitudine geografica (WGS84). Null = sede non geolocalizzata.</summary>
+    public double? Latitudine { get; set; }
+
+    /// <summary>Longitudine geografica (WGS84).</summary>
+    public double? Longitudine { get; set; }
+
+    public bool IsGeolocalized => Latitudine.HasValue && Longitudine.HasValue;
 }
 
 public enum ClinicaStato

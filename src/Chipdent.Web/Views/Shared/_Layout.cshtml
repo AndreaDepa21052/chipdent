@@ -37,13 +37,16 @@
     {
         ["dashboard"]      = ("Dashboard", "Dashboard"),
         ["turni"]          = ("Turni", "Turni"),
+        ["ferie"]          = ("Ferie", "Ferie"),
+        ["chat"]           = ("Chat", "Chat"),
         ["comunicazioni"]  = ("Comunicazioni", "Comunicazioni"),
         ["rls"]            = ("RLS / Sicurezza", "Rls"),
         ["documentazione"] = ("Documentazione", "Documentazione"),
         ["cliniche"]       = ("Cliniche", "Cliniche"),
         ["dottori"]        = ("Dottori", "Dottori"),
         ["dipendenti"]     = ("Dipendenti", "Dipendenti"),
-        ["users"]          = ("Utenti", "Users")
+        ["users"]          = ("Utenti", "Users"),
+        ["novita"]         = ("Novità", "WhatsNew")
     };
     sectionMap.TryGetValue(section, out var sectionInfo);
     var hasCrumb = !string.IsNullOrEmpty(crumb);
@@ -201,6 +204,10 @@
                         <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="3"/><path d="M12 1v6M12 17v6M4.22 4.22l4.24 4.24M15.54 15.54l4.24 4.24M1 12h6M17 12h6M4.22 19.78l4.24-4.24M15.54 8.46l4.24-4.24"/></svg>
                         Preferenze
                     </a>
+                    <a class="user-bar__item" asp-controller="WhatsNew" asp-action="Index">
+                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 2v4M12 18v4M4.93 4.93l2.83 2.83M16.24 16.24l2.83 2.83M2 12h4M18 12h4M4.93 19.07l2.83-2.83M16.24 7.76l2.83-2.83"/></svg>
+                        Novità
+                    </a>
                     <button type="button" class="user-bar__item" data-tour-launcher>
                         <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><path d="M9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3"/><path d="M12 17h.01"/></svg>
                         Tour guidato
@@ -282,6 +289,8 @@
             </section>
 
             <footer class="app__footer" style="padding: 14px 24px; text-align: right; font-size: 10.5px; color: var(--c-ink-soft); border-top: 1px solid var(--c-border, #e9e1d3);">
+                <a asp-controller="WhatsNew" asp-action="Index" style="color: inherit; text-decoration: none; opacity: 0.7;">@Chipdent.Web.Infrastructure.AppVersion.Display</a>
+                <span style="opacity: 0.4; margin: 0 6px;">·</span>
                 <a href="~/docs/chipdent-features.html" target="_blank" rel="noopener" style="color: inherit; text-decoration: none; opacity: 0.7;">
                     Mappa funzionale
                 </a>

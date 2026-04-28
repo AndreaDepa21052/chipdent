@@ -22,14 +22,38 @@ public class ClinicheController : Controller
     }
 
     [HttpGet("")]
-    public async Task<IActionResult> Index()
+    public async Task<IActionResult> Index(string? view = null)
     {
         var items = await _mongo.Cliniche
             .Find(c => c.TenantId == _tenant.TenantId)
             .SortBy(c => c.Nome)
             .ToListAsync();
         ViewData["Section"] = "cliniche";
+        ViewData["ViewMode"] = view == "mappa" ? "mappa" : "lista";
         return View(items);
+    }
+
+    [HttpGet("mappa.json")]
+    [Produces("application/json")]
+    public async Task<IActionResult> MapData()
+    {
+        var items = await _mongo.Cliniche
+            .Find(c => c.TenantId == _tenant.TenantId)
+            .ToListAsync();
+        var pins = items
+            .Where(c => c.IsGeolocalized)
+            .Select(c => new
+            {
+                id = c.Id,
+                nome = c.Nome,
+                citta = c.Citta,
+                indirizzo = c.Indirizzo,
+                stato = c.Stato.ToString(),
+                lat = c.Latitudine,
+                lng = c.Longitudine,
+                riuniti = c.NumeroRiuniti
+            });
+        return Json(pins);
     }
 
     [HttpGet("{id}")]

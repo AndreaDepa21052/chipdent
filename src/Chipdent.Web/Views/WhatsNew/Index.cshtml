@@ -1,0 +1,92 @@
+@model Chipdent.Web.Models.WhatsNewViewModel
+@using Chipdent.Web.Infrastructure.Changelog
+@{
+    ViewData["Title"] = "Novità";
+
+    string CategoryLabel(ChangelogCategory c) => c switch
+    {
+        ChangelogCategory.Foundation    => "Fondamenta",
+        ChangelogCategory.Anagrafiche   => "Anagrafiche",
+        ChangelogCategory.Turni         => "Turni",
+        ChangelogCategory.Ferie         => "Ferie",
+        ChangelogCategory.Compliance    => "RLS / Compliance",
+        ChangelogCategory.Documenti     => "Documenti",
+        ChangelogCategory.Comunicazioni => "Comunicazioni",
+        ChangelogCategory.Dashboard     => "Dashboard",
+        ChangelogCategory.Notifiche     => "Notifiche",
+        _ => c.ToString()
+    };
+
+    string CategoryIcon(ChangelogCategory c) => c switch
+    {
+        ChangelogCategory.Foundation    => "🧱",
+        ChangelogCategory.Anagrafiche   => "👥",
+        ChangelogCategory.Turni         => "📅",
+        ChangelogCategory.Ferie         => "🏖️",
+        ChangelogCategory.Compliance    => "⚠️",
+        ChangelogCategory.Documenti     => "📁",
+        ChangelogCategory.Comunicazioni => "✉️",
+        ChangelogCategory.Dashboard     => "📊",
+        ChangelogCategory.Notifiche     => "🔔",
+        _ => "✨"
+    };
+}
+
+<partial name="_Flash" />
+
+<div class="page-head">
+    <div>
+        <h2>Novità</h2>
+        <p class="page-head__sub">Cronologia delle funzionalità rilasciate dall'MVP in poi.</p>
+    </div>
+    <div class="page-head__actions">
+        <span class="badge @(Model.IsMvpReleased ? "badge--accent" : "")">@Model.CurrentVersion</span>
+    </div>
+</div>
+
+@if (!Model.IsMvpReleased)
+{
+    <div class="alert alert--info" style="margin-bottom: var(--s-4);">
+        <strong>Pre-release</strong> · stiamo finendo di chiudere l'MVP. Al raggiungimento di tutte le feature MVP, la prima versione sarà battezzata <strong>v1.000.0 — Tornavento</strong>.
+    </div>
+}
+
+<div class="changelog">
+    @foreach (var g in Model.Groups)
+    {
+        <section class="changelog__release">
+            <header class="changelog__release-head">
+                <h3 class="changelog__release-title">@g.Header</h3>
+                <time class="changelog__release-date" datetime="@g.Date.ToString("yyyy-MM-dd")">
+                    @g.Date.ToString("dd MMM yyyy", System.Globalization.CultureInfo.GetCultureInfo("it-IT"))
+                </time>
+            </header>
+            <ul class="changelog__list">
+                @foreach (var e in g.Entries)
+                {
+                    <li class="changelog__item">
+                        <span class="changelog__cat" title="@CategoryLabel(e.Category)">@CategoryIcon(e.Category)</span>
+                        <div class="changelog__body">
+                            <div class="changelog__title">@e.Title <span class="changelog__cat-label">· @CategoryLabel(e.Category)</span></div>
+                            <div class="changelog__desc">@e.Description</div>
+                        </div>
+                    </li>
+                }
+            </ul>
+        </section>
+    }
+</div>
+
+<style>
+    .changelog { display: flex; flex-direction: column; gap: var(--s-6); }
+    .changelog__release { background: var(--c-card, #fff); border: 1px solid var(--c-border, #e9e1d3); border-radius: 12px; padding: var(--s-5); }
+    .changelog__release-head { display: flex; justify-content: space-between; align-items: baseline; border-bottom: 1px solid var(--c-border, #e9e1d3); padding-bottom: var(--s-3); margin-bottom: var(--s-4); }
+    .changelog__release-title { font-family: 'Playfair Display', serif; font-size: 1.15rem; color: var(--c-ink); margin: 0; }
+    .changelog__release-date { font-size: .8rem; color: var(--c-ink-soft); font-family: 'JetBrains Mono', monospace; }
+    .changelog__list { list-style: none; padding: 0; margin: 0; display: flex; flex-direction: column; gap: var(--s-3); }
+    .changelog__item { display: flex; gap: var(--s-3); align-items: flex-start; padding: var(--s-2) 0; }
+    .changelog__cat { font-size: 1.4rem; flex-shrink: 0; line-height: 1; }
+    .changelog__title { font-weight: 700; color: var(--c-ink); font-size: .95rem; }
+    .changelog__cat-label { font-weight: 400; color: var(--c-ink-soft); font-size: .8rem; }
+    .changelog__desc { color: var(--c-ink-soft); font-size: .88rem; line-height: 1.5; margin-top: 2px; }
+</style>
