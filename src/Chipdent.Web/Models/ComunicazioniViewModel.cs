@@ -23,5 +23,8 @@ public class ComunicazioneFormViewModel
 
     public string? ClinicaId { get; set; }
 
+    [Display(Name = "Richiedi conferma di lettura")]
+    public bool RichiedeConferma { get; set; }
+
     public IReadOnlyList<Clinica> Cliniche { get; set; } = Array.Empty<Clinica>();
 }

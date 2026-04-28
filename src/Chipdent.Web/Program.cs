@@ -12,6 +12,7 @@ builder.Services.AddSingleton<IPasswordHasher, BCryptPasswordHasher>();
 
 builder.Services.AddScoped<ITenantContext, TenantContext>();
 builder.Services.AddSingleton<INotificationPublisher, NotificationPublisher>();
+builder.Services.AddSingleton<IChatPublisher, ChatPublisher>();
 builder.Services.AddScoped<Chipdent.Web.Infrastructure.Audit.IAuditService, Chipdent.Web.Infrastructure.Audit.AuditService>();
 
 builder.Services
@@ -75,6 +76,7 @@ app.MapControllerRoute(
     pattern: "{controller=Home}/{action=Index}/{id?}");
 
 app.MapHub<NotificationsHub>("/hubs/notifications");
+app.MapHub<ChatHub>("/hubs/chat");
 
 using (var scope = app.Services.CreateScope())
 {

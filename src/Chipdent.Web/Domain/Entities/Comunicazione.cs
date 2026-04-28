@@ -14,6 +14,12 @@ public class Comunicazione : TenantEntity
     public StatoRichiesta Stato { get; set; } = StatoRichiesta.NonApplicabile;
     public string? GestitaDaUserId { get; set; }
     public DateTime? GestitaIl { get; set; }
+
+    /// <summary>True se la comunicazione richiede una conferma di lettura esplicita dei destinatari.</summary>
+    public bool RichiedeConferma { get; set; }
+
+    /// <summary>Numero totale di destinatari per questa comunicazione (snapshot al momento dell'invio).</summary>
+    public int TotaleDestinatari { get; set; }
 }
 
 public enum CategoriaComunicazione

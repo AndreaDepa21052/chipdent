@@ -7,6 +7,15 @@
     var nextWeek = Model.WeekStart.AddDays(7);
     var restricted = (bool)(ViewData["RestrictedView"] ?? false);
     var noLink = (bool)(ViewData["NoLinkedPerson"] ?? false);
+
+    // Indicizza i conflitti per (personaId, data) per evidenziare le celle.
+    var conflittiByCell = Model.Conflitti
+        .GroupBy(c => $"{c.PersonaId}|{c.Data:yyyy-MM-dd}")
+        .ToDictionary(g => g.Key, g => g.Select(c => c.Motivo).ToList());
+
+    // Copertura per giorno (sede × giorno × tipo persona): conta turni totali per giorno per warning copertura minima.
+    var coperturaPerGiorno = Model.Days
+        .ToDictionary(d => d, d => Model.Righe.Sum(r => r.Turni.Count(t => t.Data.Date == d.Date)));
 }
 
 <partial name="_Flash" />
@@ -21,6 +30,23 @@
 {
     <div class="alert alert--info" style="margin-bottom: var(--s-4);">
         Il tuo account non è ancora collegato a un dottore o dipendente — chiedi all'amministratore di completare il collegamento per vedere i tuoi turni.
+    </div>
+}
+
+@if (Model.Conflitti.Any())
+{
+    <div class="alert alert--danger" style="margin-bottom: var(--s-4);">
+        <strong>@Model.Conflitti.Count conflitt@(Model.Conflitti.Count == 1 ? "o" : "i") rilevat@(Model.Conflitti.Count == 1 ? "o" : "i"):</strong>
+        <ul style="margin: 6px 0 0; padding-left: 20px; font-size:.85rem;">
+            @foreach (var c in Model.Conflitti.Take(5))
+            {
+                <li>@c.PersonaNome · @c.Data.ToString("dd/MM") — @c.Motivo</li>
+            }
+            @if (Model.Conflitti.Count > 5)
+            {
+                <li><em>… e altri @(Model.Conflitti.Count - 5)</em></li>
+            }
+        </ul>
     </div>
 }
 
@@ -39,9 +65,37 @@
         <a class="ibtn" asp-action="Index" asp-route-week="@nextWeek.ToString("yyyy-MM-dd")" title="Settimana successiva">
             <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M9 18l6-6-6-6"/></svg>
         </a>
-        <a class="btn btn--primary" asp-action="Create" asp-route-week="@Model.WeekStart.ToString("yyyy-MM-dd")" style="margin-left: var(--s-3);">+ Nuovo turno</a>
+        @if (Model.CanEdit)
+        {
+            <form asp-action="CopiaSettimana" method="post" style="display:inline; margin-left: var(--s-2);"
+                  onsubmit="return confirm('Copiare i turni di questa settimana nella settimana successiva?');">
+                @Html.AntiForgeryToken()
+                <input type="hidden" name="week" value="@Model.WeekStart.ToString("yyyy-MM-dd")" />
+                <button type="submit" class="btn btn--ghost" style="font-size:.82rem;">📋 Copia → settimana succ.</button>
+            </form>
+            <a class="btn btn--ghost" asp-action="Templates" style="font-size:.82rem;">⚙️ Template</a>
+            <a class="btn btn--primary" asp-action="Create" asp-route-week="@Model.WeekStart.ToString("yyyy-MM-dd")" style="margin-left: var(--s-2);">+ Nuovo turno</a>
+        }
     </div>
 </div>
+
+@if (Model.Templates.Any() && Model.CanEdit)
+{
+    <div class="card" style="padding: var(--s-3); margin-bottom: var(--s-3);">
+        <div style="display:flex; align-items:center; gap: var(--s-3); flex-wrap:wrap; font-size:.82rem;">
+            <span class="muted">Template rapidi (drag su una cella):</span>
+            @foreach (var tpl in Model.Templates)
+            {
+                <span class="tpl-pill" draggable="true"
+                      data-template-id="@tpl.Id"
+                      data-template-nome="@tpl.Nome"
+                      style="background: @(tpl.ColoreHex ?? "#c47830"); color:#fff; padding: 4px 10px; border-radius: 12px; cursor: grab; user-select:none;">
+                    @tpl.Nome · @tpl.OraInizio.ToString(@"hh\:mm")–@tpl.OraFine.ToString(@"hh\:mm")
+                </span>
+            }
+        </div>
+    </div>
+}
 
 @if (Model.Righe.Count == 0)
 {
@@ -63,9 +117,15 @@ else
             @foreach (var d in Model.Days)
             {
                 var isToday = d.Date == today;
-                <div class="@(isToday ? "today" : "")">
+                var copertura = coperturaPerGiorno[d];
+                var sotto = copertura < Model.CoperturaMinimaPerGiorno;
+                <div class="@(isToday ? "today" : "")" title="@copertura turni">
                     @d.ToString("ddd", culture)
                     <span class="day-num">@d.Day</span>
+                    @if (sotto && d.DayOfWeek != DayOfWeek.Saturday && d.DayOfWeek != DayOfWeek.Sunday)
+                    {
+                        <span title="Sotto la copertura minima (@Model.CoperturaMinimaPerGiorno)" style="color:#c47830; font-size:.7rem;">⚠</span>
+                    }
                 </div>
             }
         </div>
@@ -79,20 +139,27 @@ else
                 @foreach (var d in Model.Days)
                 {
                     var turniDelGiorno = riga.Turni.Where(t => t.Data.Date == d.Date).OrderBy(t => t.OraInizio).ToList();
+                    var conflictKey = $"{riga.Id}|{d:yyyy-MM-dd}";
+                    var hasConflict = conflittiByCell.ContainsKey(conflictKey);
                     var createUrl = Url.Action("Create", "Turni", new {
                         data = d.ToString("yyyy-MM-dd"),
                         personaId = riga.Id,
                         tipo = riga.Tipo,
                         week = Model.WeekStart.ToString("yyyy-MM-dd")
                     });
-                    <div class="cal__cell"
+                    <div class="cal__cell @(hasConflict ? "cal__cell--conflict" : "")"
+                         data-persona-id="@riga.Id"
+                         data-persona-tipo="@riga.Tipo"
+                         data-data="@d.ToString("yyyy-MM-dd")"
                          data-href="@createUrl"
-                         onclick="if(!event.target.closest('.cal__shift')) location.href=this.dataset.href;"
-                         title="Aggiungi turno">
+                         @(hasConflict ? $"title=⚠ {string.Join(" — ", conflittiByCell[conflictKey])}" : "")
+                         onclick="if(Model_canEdit && !event.target.closest('.cal__shift')) location.href=this.dataset.href;">
                         @foreach (var t in turniDelGiorno)
                         {
                             var clinicaNome = Model.ClinicheLookup.TryGetValue(t.ClinicaId, out var n) ? n : "";
                             <a class="cal__shift @(riga.Tipo == Chipdent.Web.Domain.Entities.TipoPersona.Dipendente ? "cal__shift--alt" : "")"
+                               draggable="true"
+                               data-turno-id="@t.Id"
                                asp-action="Edit"
                                asp-route-id="@t.Id"
                                asp-route-week="@Model.WeekStart.ToString("yyyy-MM-dd")">
@@ -105,4 +172,87 @@ else
             </div>
         }
     </div>
+}
+
+<style>
+    .tpl-pill[draggable="true"]:active { cursor: grabbing; }
+    .cal__cell--conflict { background: rgba(217, 107, 94, 0.08); outline: 1px dashed rgba(217, 107, 94, 0.5); outline-offset: -2px; }
+    .cal__cell.is-drop-target { background: rgba(196, 120, 48, 0.12); outline: 2px dashed var(--c-accent, #c47830); outline-offset: -2px; }
+    .cal__shift[draggable="true"] { cursor: grab; }
+    .cal__shift[draggable="true"]:active { cursor: grabbing; }
+</style>
+
+@if (Model.CanEdit)
+{
+    @section Scripts {
+    <script>
+        var Model_canEdit = @Json.Serialize(Model.CanEdit);
+
+        (function () {
+            // ── Drag & drop turni esistenti ──
+            var draggedTurnoId = null;
+            document.querySelectorAll('.cal__shift[draggable="true"]').forEach(function (el) {
+                el.addEventListener('dragstart', function (e) {
+                    draggedTurnoId = el.dataset.turnoId;
+                    e.dataTransfer.effectAllowed = 'move';
+                    e.dataTransfer.setData('text/plain', 'turno:' + draggedTurnoId);
+                });
+            });
+
+            // ── Drag template ──
+            var draggedTemplate = null;
+            document.querySelectorAll('.tpl-pill[draggable="true"]').forEach(function (el) {
+                el.addEventListener('dragstart', function (e) {
+                    draggedTemplate = el.dataset.templateId;
+                    e.dataTransfer.effectAllowed = 'copy';
+                    e.dataTransfer.setData('text/plain', 'template:' + draggedTemplate);
+                });
+            });
+
+            // ── Drop su una cella ──
+            document.querySelectorAll('.cal__cell').forEach(function (cell) {
+                cell.addEventListener('dragover', function (e) { e.preventDefault(); cell.classList.add('is-drop-target'); });
+                cell.addEventListener('dragleave', function () { cell.classList.remove('is-drop-target'); });
+                cell.addEventListener('drop', function (e) {
+                    e.preventDefault();
+                    cell.classList.remove('is-drop-target');
+                    var data = e.dataTransfer.getData('text/plain') || '';
+                    var personaId = cell.dataset.personaId;
+                    var personaTipo = cell.dataset.personaTipo;
+                    var dataIso = cell.dataset.data;
+
+                    var token = document.querySelector('input[name="__RequestVerificationToken"]')?.value || '';
+
+                    if (data.indexOf('turno:') === 0) {
+                        var id = data.substring(6);
+                        var fd = new FormData();
+                        fd.append('id', id);
+                        fd.append('data', dataIso);
+                        fd.append('personaId', personaId);
+                        fd.append('tipo', personaTipo);
+                        fd.append('__RequestVerificationToken', token);
+                        fetch('@Url.Action("Move", "Turni")', { method: 'POST', body: fd })
+                            .then(function (r) { if (r.ok) location.reload(); else alert('Spostamento fallito.'); });
+                    }
+                    else if (data.indexOf('template:') === 0) {
+                        var tid = data.substring(9);
+                        // Per usare template serve sapere la clinica → prompt rapido (in attesa di un selettore migliore)
+                        var clinicaId = prompt('ID clinica per il turno (verrà migliorato a breve):');
+                        if (!clinicaId) return;
+                        var fd2 = new FormData();
+                        fd2.append('templateId', tid);
+                        fd2.append('data', dataIso);
+                        fd2.append('personaId', personaId);
+                        fd2.append('tipo', personaTipo);
+                        fd2.append('clinicaId', clinicaId);
+                        fd2.append('__RequestVerificationToken', token);
+                        fetch('@Url.Action("Quick", "Turni")', { method: 'POST', body: fd2 })
+                            .then(function (r) { if (r.ok) location.reload(); else alert('Creazione fallita.'); });
+                    }
+                });
+            });
+        })();
+    </script>
+    <form id="afh" style="display:none;">@Html.AntiForgeryToken()</form>
+    }
 }

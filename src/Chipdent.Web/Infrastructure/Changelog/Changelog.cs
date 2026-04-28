@@ -15,6 +15,30 @@ public static class Changelog
             Version: "v0.900.0",
             Codename: "pre-Tornavento",
             Date: new DateTime(2026, 4, 28),
+            Category: ChangelogCategory.Turni,
+            Title: "Turni: drag & drop, template, conflict detection, copia settimana",
+            Description: "Editor turni potenziato con drag & drop fra celle, template orari riutilizzabili (con colori), copia settimana intera, rilevamento conflitti (sovrapposizioni e turni durante ferie approvate), avviso copertura minima per giorno."),
+
+        new(
+            Version: "v0.900.0",
+            Codename: "pre-Tornavento",
+            Date: new DateTime(2026, 4, 28),
+            Category: ChangelogCategory.Comunicazioni,
+            Title: "Conferma di lettura sulle circolari",
+            Description: "Le circolari ora possono richiedere una conferma di lettura esplicita dei destinatari. Tracciamento percentuale di lettura su totale destinatari snapshottato all'invio."),
+
+        new(
+            Version: "v0.900.0",
+            Codename: "pre-Tornavento",
+            Date: new DateTime(2026, 4, 28),
+            Category: ChangelogCategory.Comunicazioni,
+            Title: "Chat realtime 1:1 e di sede",
+            Description: "Modulo chat con messaggi diretti utente↔utente e gruppi per sede. SignalR (ChatHub) per consegna live. Inbox unica con badge messaggi non letti."),
+
+        new(
+            Version: "v0.900.0",
+            Codename: "pre-Tornavento",
+            Date: new DateTime(2026, 4, 28),
             Category: ChangelogCategory.Ferie,
             Title: "Workflow ferie completo",
             Description: "Lo Staff invia richieste di ferie/permesso/malattia, il Direttore approva o rifiuta. Saldo giorni residui aggiornato automaticamente all'approvazione e ripristinato in caso di annullamento. Calcolo giorni lavorativi (lun-ven) automatico."),

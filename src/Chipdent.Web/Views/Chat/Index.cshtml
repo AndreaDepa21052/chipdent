@@ -1,0 +1,185 @@
+@model Chipdent.Web.Models.ChatIndexViewModel
+@{
+    ViewData["Title"] = "Chat";
+}
+
+<partial name="_Flash" />
+
+<div class="page-head">
+    <div>
+        <h2>Chat</h2>
+        <p class="page-head__sub">Messaggi diretti con i colleghi e gruppi di sede.</p>
+    </div>
+</div>
+
+<div class="chat" style="display: grid; grid-template-columns: 280px 1fr; gap: var(--s-3); height: calc(100vh - 220px); min-height: 480px;">
+
+    <aside class="chat__sidebar card" style="display:flex; flex-direction:column; padding:0; overflow:hidden;">
+        <div style="padding: var(--s-3); border-bottom: 1px solid var(--c-border, #e9e1d3);">
+            <strong style="font-size:.85rem;">Conversazioni</strong>
+        </div>
+
+        <div style="overflow-y:auto; flex:1;">
+            @if (Model.ClinicheDisponibili.Any())
+            {
+                <div class="chat__group-title" style="padding: var(--s-3) var(--s-3) var(--s-1); font-size:.7rem; text-transform:uppercase; letter-spacing:1px; color:var(--c-ink-soft);">Sedi</div>
+                @foreach (var c in Model.ClinicheDisponibili)
+                {
+                    var key = $"clinica:{c.Id}";
+                    var t = Model.Threads.FirstOrDefault(x => x.Key == key);
+                    var active = Model.Active?.Key == key;
+                    <a class="chat__thread @(active ? "is-active" : "")"
+                       asp-action="ClinicaThread" asp-route-clinicaId="@c.Id"
+                       style="display:flex; gap:8px; padding: 8px var(--s-3); text-decoration:none; color:inherit; border-left: 3px solid @(active ? "var(--c-accent, #c47830)" : "transparent"); background:@(active ? "var(--c-bg-soft, #faf6f0)" : "transparent");">
+                        <span style="width:28px; height:28px; border-radius:6px; background:#2d7a50; color:#fff; display:flex; align-items:center; justify-content:center; font-size:.7rem;">🏥</span>
+                        <span style="flex:1; min-width:0;">
+                            <div style="font-weight:600; font-size:.85rem; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;">@c.Nome</div>
+                            <div style="font-size:.7rem; color:var(--c-ink-soft);">Gruppo sede</div>
+                        </span>
+                        @if (t?.NonLetti > 0)
+                        {
+                            <span class="badge badge--accent" style="font-size:.65rem;">@t.NonLetti</span>
+                        }
+                    </a>
+                }
+            }
+
+            <div class="chat__group-title" style="padding: var(--s-3) var(--s-3) var(--s-1); font-size:.7rem; text-transform:uppercase; letter-spacing:1px; color:var(--c-ink-soft);">Persone</div>
+            @foreach (var u in Model.ContattiDisponibili)
+            {
+                var key = $"dm:{(string.Compare(u.Id, Model.CurrentUserId, StringComparison.Ordinal) < 0 ? u.Id + "|" + Model.CurrentUserId : Model.CurrentUserId + "|" + u.Id)}";
+                var t = Model.Threads.FirstOrDefault(x => x.Key == key);
+                var active = Model.Active?.Key == key;
+                var initials = string.Concat(u.FullName.Split(' ', StringSplitOptions.RemoveEmptyEntries).Take(2).Select(p => char.ToUpper(p[0])));
+                <a class="chat__thread @(active ? "is-active" : "")"
+                   asp-action="DirectMessage" asp-route-userId="@u.Id"
+                   style="display:flex; gap:8px; padding: 8px var(--s-3); text-decoration:none; color:inherit; border-left: 3px solid @(active ? "var(--c-accent, #c47830)" : "transparent"); background:@(active ? "var(--c-bg-soft, #faf6f0)" : "transparent");">
+                    <span style="width:28px; height:28px; border-radius:50%; background:#c47830; color:#fff; display:flex; align-items:center; justify-content:center; font-size:.7rem; font-weight:700;">@initials</span>
+                    <span style="flex:1; min-width:0;">
+                        <div style="font-weight:600; font-size:.85rem; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;">@u.FullName</div>
+                        <div style="font-size:.7rem; color:var(--c-ink-soft);">@u.Role</div>
+                    </span>
+                    @if (t?.NonLetti > 0)
+                    {
+                        <span class="badge badge--accent" style="font-size:.65rem;">@t.NonLetti</span>
+                    }
+                </a>
+            }
+        </div>
+    </aside>
+
+    <section class="chat__pane card" style="display:flex; flex-direction:column; padding:0; overflow:hidden;">
+        @if (Model.Active is null)
+        {
+            <div class="empty" style="margin:auto;">
+                <div class="empty__icon">💬</div>
+                <h3>Seleziona una conversazione</h3>
+                <p>Scegli una persona o una sede dalla colonna a sinistra.</p>
+            </div>
+        }
+        else
+        {
+            <header style="padding: var(--s-3) var(--s-4); border-bottom: 1px solid var(--c-border, #e9e1d3);">
+                <strong style="font-size:.95rem;">@Model.Active.Title</strong>
+                <div class="muted" style="font-size:.78rem;">@Model.Active.Sottotitolo</div>
+            </header>
+
+            <div class="chat__msgs" id="chat-msgs" style="flex:1; overflow-y:auto; padding: var(--s-3) var(--s-4); display:flex; flex-direction:column; gap: 8px;">
+                @if (!Model.Messaggi.Any())
+                {
+                    <div class="muted" style="text-align:center; padding: var(--s-6) 0; font-size:.85rem;">
+                        Nessun messaggio ancora. Inizia tu la conversazione.
+                    </div>
+                }
+                else
+                {
+                    string? lastDay = null;
+                    foreach (var m in Model.Messaggi)
+                    {
+                        var dayKey = m.CreatedAt.ToString("yyyy-MM-dd");
+                        if (dayKey != lastDay)
+                        {
+                            <div style="text-align:center; font-size:.7rem; color:var(--c-ink-soft); margin: 12px 0;">@m.CreatedAt.ToString("dddd dd MMMM", new System.Globalization.CultureInfo("it-IT"))</div>
+                            lastDay = dayKey;
+                        }
+                        var mine = m.MittenteUserId == Model.CurrentUserId;
+                        <div style="display:flex; flex-direction:column; align-items: @(mine ? "flex-end" : "flex-start");">
+                            @if (!mine && Model.Active.IsClinica)
+                            {
+                                <small class="muted" style="font-size:.7rem; margin-bottom:2px;">@m.MittenteNome</small>
+                            }
+                            <div style="max-width: 70%; padding: 8px 12px; border-radius: 12px; background: @(mine ? "var(--c-accent, #c47830)" : "var(--c-bg-soft, #f3ece0)"); color: @(mine ? "#fff" : "var(--c-ink, #2a1508)");">
+                                @m.Testo
+                            </div>
+                            <small class="muted" style="font-size:.65rem; margin-top:2px;">@m.CreatedAt.ToString("HH:mm")</small>
+                        </div>
+                    }
+                }
+            </div>
+
+            <form asp-action="Send" method="post" style="padding: var(--s-3) var(--s-4); border-top: 1px solid var(--c-border, #e9e1d3); display:flex; gap:8px;">
+                @Html.AntiForgeryToken()
+                <input type="hidden" name="thread" value="@Model.Active.Key" />
+                <input class="form-control" name="testo" required maxlength="1000" placeholder="Scrivi un messaggio…" autocomplete="off" autofocus />
+                <button type="submit" class="btn btn--primary">Invia</button>
+            </form>
+        }
+    </section>
+</div>
+
+@section Scripts {
+@if (Model.Active is not null)
+{
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/microsoft-signalr/8.0.0/signalr.min.js"></script>
+    <script>
+        (function () {
+            var msgs = document.getElementById('chat-msgs');
+            if (msgs) msgs.scrollTop = msgs.scrollHeight;
+
+            var connection = new signalR.HubConnectionBuilder()
+                .withUrl('/hubs/chat')
+                .withAutomaticReconnect()
+                .build();
+
+            var activeKey = @Json.Serialize(Model.Active.Key);
+            var meId = @Json.Serialize(Model.CurrentUserId);
+
+            connection.on('NuovoMessaggio', function (m) {
+                if (m.thread !== activeKey) return;
+                if (!msgs) return;
+                var mine = m.mittenteId === meId;
+                var wrap = document.createElement('div');
+                wrap.style.display = 'flex';
+                wrap.style.flexDirection = 'column';
+                wrap.style.alignItems = mine ? 'flex-end' : 'flex-start';
+                wrap.innerHTML =
+                    (!mine && activeKey.indexOf('clinica:') === 0
+                        ? '<small class="muted" style="font-size:.7rem; margin-bottom:2px;">' + (m.mittenteNome || '') + '</small>'
+                        : '') +
+                    '<div style="max-width:70%; padding:8px 12px; border-radius:12px; background:' +
+                        (mine ? '#c47830' : '#f3ece0') + '; color:' + (mine ? '#fff' : '#2a1508') + ';">' + escapeHtml(m.testo) + '</div>' +
+                    '<small class="muted" style="font-size:.65rem; margin-top:2px;">' + new Date(m.createdAt).toLocaleTimeString('it-IT', {hour:'2-digit', minute:'2-digit'}) + '</small>';
+                msgs.appendChild(wrap);
+                msgs.scrollTop = msgs.scrollHeight;
+            });
+
+            function escapeHtml(s) {
+                return String(s).replace(/[&<>"']/g, function (c) {
+                    return { '&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;' }[c];
+                });
+            }
+
+            connection.start().then(function () {
+                if (activeKey.indexOf('clinica:') === 0) {
+                    connection.invoke('JoinClinica', activeKey.substring(8)).catch(function () {});
+                }
+
+                // marca i messaggi come letti
+                var token = document.querySelector('input[name="__RequestVerificationToken"]')?.value || '';
+                var fd = new FormData(); fd.append('__RequestVerificationToken', token);
+                fetch('/chat/' + encodeURIComponent(activeKey) + '/letto', { method: 'POST', body: fd });
+            });
+        })();
+    </script>
+}
+}

@@ -95,6 +95,10 @@ public class ComunicazioniController : Controller
         var userId = User.FindFirst(ClaimTypes.NameIdentifier)?.Value ?? string.Empty;
         var fullName = User.Identity?.Name ?? "";
 
+        // Snapshot del numero di destinatari attivi per percentuale di letture.
+        var totDestinatari = (int)await _mongo.Users
+            .CountDocumentsAsync(u => u.TenantId == _tenant.TenantId && u.IsActive && u.Id != userId);
+
         var comm = new Comunicazione
         {
             TenantId = _tenant.TenantId!,
@@ -104,6 +108,8 @@ public class ComunicazioniController : Controller
             Oggetto = vm.Oggetto,
             Corpo = vm.Corpo,
             ClinicaId = string.IsNullOrEmpty(vm.ClinicaId) ? null : vm.ClinicaId,
+            RichiedeConferma = vm.RichiedeConferma,
+            TotaleDestinatari = Math.Max(1, totDestinatari),
             Stato = vm.Categoria is CategoriaComunicazione.RichiestaFerie or CategoriaComunicazione.RichiestaPermesso
                 ? StatoRichiesta.InAttesa : StatoRichiesta.NonApplicabile,
             LettaDaUserIds = new List<string> { userId }
@@ -150,6 +156,22 @@ public class ComunicazioniController : Controller
         await _mongo.Comunicazioni.DeleteOneAsync(c => c.Id == id && c.TenantId == _tenant.TenantId);
         TempData["flash"] = "Comunicazione eliminata.";
         return RedirectToAction(nameof(Index));
+    }
+
+    /// <summary>Conferma esplicita di lettura di una circolare (l'apertura sola non basta se RichiedeConferma=true).</summary>
+    [HttpPost("{id}/conferma-lettura")]
+    [ValidateAntiForgeryToken]
+    public async Task<IActionResult> Conferma(string id)
+    {
+        var userId = User.FindFirst(ClaimTypes.NameIdentifier)?.Value ?? string.Empty;
+        if (string.IsNullOrEmpty(userId)) return Forbid();
+
+        await _mongo.Comunicazioni.UpdateOneAsync(
+            c => c.Id == id && c.TenantId == _tenant.TenantId,
+            Builders<Comunicazione>.Update.AddToSet(c => c.LettaDaUserIds, userId));
+
+        TempData["flash"] = "Lettura confermata.";
+        return RedirectToAction(nameof(Index), new { id });
     }
 
     private async Task<IActionResult> SetStato(string id, StatoRichiesta stato)

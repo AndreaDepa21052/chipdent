@@ -10,7 +10,13 @@ public class TurniWeekViewModel
 
     public IReadOnlyList<PersonaRow> Righe { get; set; } = Array.Empty<PersonaRow>();
     public IReadOnlyDictionary<string, string> ClinicheLookup { get; set; } = new Dictionary<string, string>();
+    public IReadOnlyList<TurnoTemplate> Templates { get; set; } = Array.Empty<TurnoTemplate>();
+    public IReadOnlyList<ConflittoTurno> Conflitti { get; set; } = Array.Empty<ConflittoTurno>();
+    public bool CanEdit { get; set; }
+    public int CoperturaMinimaPerGiorno { get; set; } = 2;
 }
+
+public record ConflittoTurno(string PersonaId, string PersonaNome, DateTime Data, string Motivo);
 
 public record PersonaRow(string Id, TipoPersona Tipo, string Nome, string Sotto, IReadOnlyList<Turno> Turni);
 

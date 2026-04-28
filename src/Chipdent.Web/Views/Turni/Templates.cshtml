@@ -1,0 +1,87 @@
+@model IReadOnlyList<Chipdent.Web.Domain.Entities.TurnoTemplate>
+@{
+    ViewData["Title"] = "Template turni";
+    ViewData["Crumb"] = "Turni";
+}
+
+<partial name="_Flash" />
+
+<div class="page-head">
+    <div>
+        <h2>Template turni</h2>
+        <p class="page-head__sub">Definisci fasce orarie riutilizzabili per la pianificazione (es. mattina, pomeriggio).</p>
+    </div>
+    <div class="page-head__actions">
+        <a class="btn btn--ghost" asp-action="Index">← Torna al calendario</a>
+    </div>
+</div>
+
+<div class="card" style="margin-bottom: var(--s-4);">
+    <form asp-action="CreateTemplate" method="post">
+        @Html.AntiForgeryToken()
+        <div class="form-grid">
+            <div class="form-group">
+                <label class="form-label">Nome</label>
+                <input class="form-control" name="nome" required placeholder="Es. Mattina lunga" />
+            </div>
+            <div class="form-group">
+                <label class="form-label">Inizio</label>
+                <input class="form-control" name="oraInizio" type="time" required value="08:30" />
+            </div>
+            <div class="form-group">
+                <label class="form-label">Fine</label>
+                <input class="form-control" name="oraFine" type="time" required value="13:00" />
+            </div>
+            <div class="form-group">
+                <label class="form-label">Colore</label>
+                <input class="form-control" name="coloreHex" type="color" value="#c47830" />
+            </div>
+        </div>
+        <div class="form-actions">
+            <button type="submit" class="btn btn--primary">+ Aggiungi template</button>
+        </div>
+    </form>
+</div>
+
+@if (!Model.Any())
+{
+    <div class="card">
+        <div class="empty">
+            <div class="empty__icon">⚙️</div>
+            <h3>Nessun template ancora</h3>
+            <p>Crea il primo template per accelerare l'inserimento dei turni.</p>
+        </div>
+    </div>
+}
+else
+{
+    <div class="table-wrap">
+        <table class="table">
+            <thead>
+                <tr><th>Nome</th><th>Orario</th><th>Colore</th><th></th></tr>
+            </thead>
+            <tbody>
+                @foreach (var t in Model)
+                {
+                    <tr>
+                        <td><strong>@t.Nome</strong></td>
+                        <td>@t.OraInizio.ToString(@"hh\:mm") – @t.OraFine.ToString(@"hh\:mm")</td>
+                        <td>
+                            <span style="display:inline-block; width:20px; height:20px; border-radius:4px; background:@(t.ColoreHex ?? "#c47830"); vertical-align:middle;"></span>
+                            <span class="muted" style="margin-left:6px;">@(t.ColoreHex ?? "—")</span>
+                        </td>
+                        <td>
+                            <form asp-action="DeleteTemplate" asp-route-id="@t.Id" method="post" style="display:inline;"
+                                  onsubmit="return confirm('Eliminare questo template?');">
+                                @Html.AntiForgeryToken()
+                                <button type="submit" class="ibtn" title="Elimina">
+                                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 6h18M8 6V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"/></svg>
+                                </button>
+                            </form>
+                        </td>
+                    </tr>
+                }
+            </tbody>
+        </table>
+    </div>
+}

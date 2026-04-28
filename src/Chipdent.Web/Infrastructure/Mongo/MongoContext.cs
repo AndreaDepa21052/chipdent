@@ -43,4 +43,6 @@ public class MongoContext
     public IMongoCollection<Trasferimento> Trasferimenti => Database.GetCollection<Trasferimento>("trasferimenti");
     public IMongoCollection<AuditEntry> Audit => Database.GetCollection<AuditEntry>("audit");
     public IMongoCollection<RichiestaFerie> RichiesteFerie => Database.GetCollection<RichiestaFerie>("richiesteFerie");
+    public IMongoCollection<TurnoTemplate> TurniTemplate => Database.GetCollection<TurnoTemplate>("turniTemplate");
+    public IMongoCollection<Messaggio> Messaggi => Database.GetCollection<Messaggio>("messaggi");
 }
