@@ -1,0 +1,227 @@
+@model Chipdent.Web.Models.BenchmarkViewModel
+@{
+    ViewData["Title"] = "Benchmark inter-sede";
+    var culture = new System.Globalization.CultureInfo("it-IT");
+
+    string ScoreColor(int score) => score switch
+    {
+        >= 80 => "#2d7a50",
+        >= 60 => "#c47830",
+        >= 40 => "#d9943a",
+        _     => "#a83a3a"
+    };
+
+    string DeltaPct(decimal val, decimal media)
+    {
+        if (media == 0) return "—";
+        var delta = (val - media) / media * 100;
+        var sign = delta >= 0 ? "+" : "";
+        return $"{sign}{delta:0.0}%";
+    }
+}
+
+<partial name="_Flash" />
+
+<div class="page-head">
+    <div>
+        <h2>📊 Benchmark inter-sede</h2>
+        <p class="page-head__sub">
+            Confronto KPI tra le sedi della catena · ultimo refresh @Model.CalcolatoIl.ToLocalTime().ToString("dd MMM HH:mm", culture)
+        </p>
+    </div>
+    <div class="page-head__actions">
+        <a class="btn btn--ghost" asp-action="ExportCsv">⬇ CSV</a>
+        <button type="button" class="btn btn--ghost" onclick="window.print();">🖨 Stampa / PDF</button>
+    </div>
+</div>
+
+@if (!Model.Sedi.Any())
+{
+    <div class="card">
+        <div class="empty">
+            <div class="empty__icon">📊</div>
+            <h3>Nessuna sede da confrontare</h3>
+            <p>Aggiungi almeno due cliniche per attivare il benchmark.</p>
+        </div>
+    </div>
+    return;
+}
+
+<div class="grid grid--stats" style="margin-bottom: var(--s-4);">
+    <div class="stat">
+        <div class="stat__label">Costo medio mensile</div>
+        <div class="stat__value">@Model.Benchmarks.MediaCostoMensile.ToString("N0", culture) €</div>
+    </div>
+    <div class="stat">
+        <div class="stat__label">Compliance media</div>
+        <div class="stat__value">@Model.Benchmarks.MediaCompliance.ToString("0.0", culture)%</div>
+    </div>
+    <div class="stat">
+        <div class="stat__label">Copertura target media</div>
+        <div class="stat__value">@Model.Benchmarks.MediaCoperturaTarget.ToString("0.0", culture)%</div>
+    </div>
+    <div class="stat">
+        <div class="stat__label">Ritardi medi (30g)</div>
+        <div class="stat__value">@Model.Benchmarks.MediaRitardi.ToString("0.0", culture)</div>
+    </div>
+</div>
+
+<div class="grid" style="grid-template-columns: 1fr 1fr; gap: var(--s-4); margin-bottom: var(--s-4);">
+    <div class="card" style="border-left: 4px solid #2d7a50;">
+        <div class="card__header"><h3 class="card__title">🏆 Top performer</h3></div>
+        <ul class="list">
+            @{ var rank = 1; }
+            @foreach (var t in Model.Top)
+            {
+                <li class="list__item">
+                    <div class="list__icon" style="background:#2d7a50; color:#fff; width:28px; height:28px; border-radius:50%; display:flex; align-items:center; justify-content:center; font-weight:700;">@rank</div>
+                    <div>
+                        <div class="list__title">@t.ClinicaNome</div>
+                        <div class="list__meta">@t.MotivazionePrincipale</div>
+                    </div>
+                    <div class="list__when" style="font-weight:700; color:#2d7a50;">@t.Score</div>
+                </li>
+                rank++;
+            }
+        </ul>
+    </div>
+
+    <div class="card" style="border-left: 4px solid #a83a3a;">
+        <div class="card__header"><h3 class="card__title">⚠ Aree di miglioramento</h3></div>
+        <ul class="list">
+            @foreach (var b in Model.Bottom)
+            {
+                <li class="list__item">
+                    <div class="list__icon">⚠</div>
+                    <div>
+                        <div class="list__title">@b.ClinicaNome</div>
+                        <div class="list__meta">@b.MotivazionePrincipale</div>
+                    </div>
+                    <div class="list__when" style="font-weight:700; color:#a83a3a;">@b.Score</div>
+                </li>
+            }
+        </ul>
+    </div>
+</div>
+
+<div class="card" style="margin-bottom: var(--s-4);">
+    <div class="card__header"><h3 class="card__title">Confronto dettagliato</h3></div>
+    <div class="table-wrap">
+        <table class="table">
+            <thead>
+                <tr>
+                    <th>Sede</th>
+                    <th>Score</th>
+                    <th>Compliance</th>
+                    <th>Organico (eff/target)</th>
+                    <th>Costo mensile</th>
+                    <th>vs media</th>
+                    <th>Turni sett.</th>
+                    <th>Ritardi 30g</th>
+                    <th>Ferie attese</th>
+                    <th>Segn. aperte</th>
+                </tr>
+            </thead>
+            <tbody>
+                @foreach (var s in Model.Sedi)
+                {
+                    var coperturaPct = s.Target > 0 ? Math.Min(100, (int)Math.Round(s.Effettivi * 100.0 / s.Target)) : 100;
+                    <tr>
+                        <td>
+                            <div class="strong">@s.ClinicaNome</div>
+                            <div class="muted">@s.Citta</div>
+                        </td>
+                        <td>
+                            <div style="display:flex; align-items:center; gap:8px;">
+                                <span style="background: @ScoreColor(s.OverallScore); color:#fff; padding: 2px 10px; border-radius: 12px; font-weight:700; font-size:.85rem;">@s.OverallScore</span>
+                            </div>
+                        </td>
+                        <td>
+                            <div style="display:flex; align-items:center; gap:6px;">
+                                <strong>@s.CompliancePercento%</strong>
+                                <div style="flex:1; max-width:60px; background:#ece0cc; height:5px; border-radius:3px; overflow:hidden;">
+                                    <div style="width:@(s.CompliancePercento)%; height:100%; background:@ScoreColor(s.CompliancePercento);"></div>
+                                </div>
+                            </div>
+                        </td>
+                        <td>
+                            @s.Effettivi @(s.Target > 0 ? $"/ {s.Target}" : "")
+                            @if (s.Target > 0)
+                            {
+                                <span class="muted" style="font-size:.78rem;">(@(coperturaPct)%)</span>
+                            }
+                        </td>
+                        <td>@s.CostoMensile.ToString("N0", culture) €</td>
+                        <td class="muted" style="font-size:.82rem;">@DeltaPct(s.CostoMensile, Model.Benchmarks.MediaCostoMensile)</td>
+                        <td>@s.TurniSettimana</td>
+                        <td>@(s.RitardiUltimi30g > 0 ? $"⚠ {s.RitardiUltimi30g}" : "0")</td>
+                        <td>@s.RichiesteFerieAttese</td>
+                        <td>@(s.SegnalazioniAperte > 0 ? $"⚠ {s.SegnalazioniAperte}" : "0")</td>
+                    </tr>
+                }
+            </tbody>
+        </table>
+    </div>
+</div>
+
+<div class="card">
+    <div class="card__header"><h3 class="card__title">📡 Score visuale (radar comparativo)</h3></div>
+    <div style="padding: var(--s-3); height: 420px;">
+        <canvas id="radar-chart"></canvas>
+    </div>
+</div>
+
+<div style="margin-top: var(--s-4); text-align:center; color: var(--c-ink-soft); font-size:.75rem;">
+    <span style="opacity:.7;">
+        Overall score: 30% compliance · 25% copertura target · 20% costo (inverso) · 15% ritardi (inverso) · 10% segnalazioni (inverso).
+    </span>
+</div>
+
+@section Scripts {
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
+<script>
+    (function () {
+        var palette = ['#c47830', '#3b1e0c', '#2d7a50', '#2457a4', '#7a5c9a', '#d9943a', '#a83a3a', '#5b8a72'];
+        var sedi = @Json.Serialize(Model.Sedi.Select(s => new {
+            s.ClinicaNome,
+            s.OverallScore,
+            s.CompliancePercento,
+            CoperturaTarget = s.Target > 0 ? Math.Min(100, (int)Math.Round(s.Effettivi * 100.0 / s.Target)) : 100,
+            CostoNorm = Model.Sedi.Max(x => x.CostoMensile) > 0 ? 100 - (int)Math.Round((double)s.CostoMensile / (double)Model.Sedi.Max(x => x.CostoMensile) * 100) : 50,
+            RitardiNorm = Model.Sedi.Max(x => x.RitardiUltimi30g) > 0 ? 100 - (int)Math.Round(s.RitardiUltimi30g * 100.0 / Math.Max(1, Model.Sedi.Max(x => x.RitardiUltimi30g))) : 100,
+            SegnalazioniNorm = Model.Sedi.Max(x => x.SegnalazioniAperte) > 0 ? 100 - (int)Math.Round(s.SegnalazioniAperte * 100.0 / Math.Max(1, Model.Sedi.Max(x => x.SegnalazioniAperte))) : 100
+        }));
+
+        new Chart(document.getElementById('radar-chart').getContext('2d'), {
+            type: 'radar',
+            data: {
+                labels: ['Compliance', 'Copertura target', 'Efficienza costi', 'Puntualità', 'Assenza segnalazioni'],
+                datasets: sedi.map(function (s, i) {
+                    var color = palette[i % palette.length];
+                    return {
+                        label: s.ClinicaNome,
+                        data: [s.CompliancePercento, s.CoperturaTarget, s.CostoNorm, s.RitardiNorm, s.SegnalazioniNorm],
+                        backgroundColor: color + '33',
+                        borderColor: color,
+                        borderWidth: 2,
+                        pointBackgroundColor: color
+                    };
+                })
+            },
+            options: {
+                responsive: true, maintainAspectRatio: false,
+                scales: { r: { min: 0, max: 100, ticks: { stepSize: 25 } } },
+                plugins: { legend: { position: 'bottom' } }
+            }
+        });
+    })();
+</script>
+<style>
+@@media print {
+    .app__sidebar, .app__topbar, .page-head__actions, footer { display: none !important; }
+    .app__main { padding: 0 !important; }
+    body { background: white !important; }
+    .card { box-shadow: none !important; page-break-inside: avoid; }
+}
+</style>
+}
