@@ -1,0 +1,62 @@
+<!DOCTYPE html>
+<html lang="it">
+<head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Offline · Chipdent</title>
+    <meta name="theme-color" content="#c47830" />
+    <link rel="icon" type="image/png" href="/img/logo.png" />
+    <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;700&family=Playfair+Display:wght@500;700&display=swap">
+    <style>
+        * { box-sizing: border-box; margin: 0; padding: 0; }
+        body {
+            font-family: 'Inter', sans-serif;
+            background: linear-gradient(135deg, #faf6f0 0%, #f3ece0 100%);
+            min-height: 100vh;
+            display: flex; align-items: center; justify-content: center;
+            padding: 20px;
+            color: #2a1508;
+        }
+        .card {
+            background: #fff;
+            padding: 48px 36px;
+            border-radius: 24px;
+            box-shadow: 0 20px 60px rgba(59, 30, 12, 0.15);
+            max-width: 480px;
+            text-align: center;
+        }
+        .icon { font-size: 56px; margin-bottom: 18px; }
+        h1 {
+            font-family: 'Playfair Display', serif;
+            font-size: 28px;
+            color: #3b1e0c;
+            margin-bottom: 12px;
+        }
+        p { color: #7a5c3a; font-size: 15px; line-height: 1.6; margin-bottom: 8px; }
+        .small { font-size: 12px; opacity: 0.7; margin-top: 24px; }
+        button {
+            margin-top: 24px;
+            padding: 12px 24px;
+            background: #c47830;
+            color: #fff;
+            border: 0;
+            border-radius: 10px;
+            font-size: 15px;
+            font-weight: 600;
+            cursor: pointer;
+            font-family: inherit;
+        }
+        button:hover { background: #a8631e; }
+    </style>
+</head>
+<body>
+    <div class="card">
+        <div class="icon">📡</div>
+        <h1>Sei offline</h1>
+        <p>Chipdent non riesce a raggiungere il server in questo momento.</p>
+        <p>Le pagine già visitate restano disponibili dalla cache.</p>
+        <button onclick="window.location.reload()">↻ Riprova</button>
+        <div class="small">Chipdent · Dental Suite</div>
+    </div>
+</body>
+</html>

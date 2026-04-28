@@ -528,6 +528,54 @@
         })();
     </script>
     <script src="~/js/tour.js" asp-append-version="true"></script>
+    <script>
+        // Service Worker registration (PWA)
+        if ("serviceWorker" in navigator) {
+            window.addEventListener("load", function () {
+                navigator.serviceWorker.register("/sw.js", { scope: "/" })
+                    .catch(function (err) { console.warn("SW registration failed:", err); });
+            });
+        }
+
+        // Install prompt: cattura beforeinstallprompt e mostra un toast cliccabile
+        (function () {
+            var deferredPrompt = null;
+            var bannerShown = false;
+            window.addEventListener("beforeinstallprompt", function (e) {
+                e.preventDefault();
+                deferredPrompt = e;
+                if (bannerShown) return;
+                if (sessionStorage.getItem("chipdent.installDismissed") === "1") return;
+                bannerShown = true;
+
+                var banner = document.createElement("div");
+                banner.id = "pwa-install-banner";
+                banner.style.cssText = "position:fixed; bottom:20px; right:20px; z-index:9000; background:#fff; border:1px solid #e9e1d3; border-radius:14px; padding:14px 16px; box-shadow:0 12px 36px rgba(59,30,12,0.18); max-width:340px; font-family:Inter,sans-serif; font-size:.85rem;";
+                banner.innerHTML =
+                    '<div style="display:flex; gap:10px; align-items:flex-start;">' +
+                    '<span style="font-size:24px;">📱</span>' +
+                    '<div style="flex:1;">' +
+                    '<strong style="color:#3b1e0c;">Installa Chipdent</strong>' +
+                    '<div style="color:#7a5c3a; margin-top:4px;">Aggiungi alla home screen per accesso rapido come un\'app.</div>' +
+                    '<div style="display:flex; gap:8px; margin-top:10px;">' +
+                    '<button id="pwa-install-yes" style="background:#c47830; color:#fff; border:0; padding:6px 14px; border-radius:8px; font-weight:600; cursor:pointer;">Installa</button>' +
+                    '<button id="pwa-install-no" style="background:none; border:0; color:#7a5c3a; cursor:pointer;">Più tardi</button>' +
+                    '</div></div></div>';
+                document.body.appendChild(banner);
+
+                document.getElementById("pwa-install-yes").addEventListener("click", function () {
+                    banner.remove();
+                    if (!deferredPrompt) return;
+                    deferredPrompt.prompt();
+                    deferredPrompt.userChoice.finally(function () { deferredPrompt = null; });
+                });
+                document.getElementById("pwa-install-no").addEventListener("click", function () {
+                    banner.remove();
+                    sessionStorage.setItem("chipdent.installDismissed", "1");
+                });
+            });
+        })();
+    </script>
     @await RenderSectionAsync("Scripts", required: false)
 </body>
 </html>

@@ -5,12 +5,44 @@
   "start_url": "/",
   "scope": "/",
   "display": "standalone",
+  "orientation": "any",
   "background_color": "#fbf6ec",
   "theme_color": "#c47830",
   "lang": "it-IT",
+  "categories": ["business", "productivity", "medical"],
   "icons": [
     { "src": "/img/logo.png", "sizes": "192x192", "type": "image/png", "purpose": "any" },
     { "src": "/img/logo.png", "sizes": "512x512", "type": "image/png", "purpose": "any maskable" },
     { "src": "/img/logo.svg", "sizes": "any", "type": "image/svg+xml", "purpose": "any" }
+  ],
+  "shortcuts": [
+    {
+      "name": "Le mie timbrature",
+      "short_name": "Timbra",
+      "description": "Timbra entrata/uscita dal browser",
+      "url": "/mie-timbrature",
+      "icons": [{ "src": "/img/logo.png", "sizes": "192x192" }]
+    },
+    {
+      "name": "I miei turni",
+      "short_name": "Turni",
+      "description": "Calendario turni",
+      "url": "/turni",
+      "icons": [{ "src": "/img/logo.png", "sizes": "192x192" }]
+    },
+    {
+      "name": "Kiosk timbratura",
+      "short_name": "Kiosk",
+      "description": "Modalità tablet di sede",
+      "url": "/presenze/kiosk",
+      "icons": [{ "src": "/img/logo.png", "sizes": "192x192" }]
+    },
+    {
+      "name": "Chat",
+      "short_name": "Chat",
+      "description": "Messaggistica colleghi e sede",
+      "url": "/chat",
+      "icons": [{ "src": "/img/logo.png", "sizes": "192x192" }]
+    }
   ]
 }
