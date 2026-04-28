@@ -1,0 +1,179 @@
+@model Chipdent.Web.Models.HeadcountViewModel
+@{
+    ViewData["Title"] = "Headcount & organico";
+    var culture = new System.Globalization.CultureInfo("it-IT");
+}
+
+<partial name="_Flash" />
+
+<div class="page-head">
+    <div>
+        <h2>Headcount &amp; organico</h2>
+        <p class="page-head__sub">Vista aggregata dell'organico, distribuzione per sede/ruolo, trend assunzioni e turnover.</p>
+    </div>
+    <div class="page-head__actions">
+        <a class="btn btn--ghost" asp-action="ExportCsv">⬇ Export organico CSV</a>
+        <a class="btn btn--ghost" asp-controller="Contratti" asp-action="ExportCsv">⬇ Export contratti CSV</a>
+    </div>
+</div>
+
+<div class="grid grid--stats" style="margin-bottom: var(--s-6);">
+    <div class="stat">
+        <div class="stat__label">Organico attivo</div>
+        <div class="stat__value">@Model.OrganicoTotale</div>
+        @if (Model.InOnboarding > 0)
+        {
+            <div class="stat__hint">@Model.InOnboarding in onboarding</div>
+        }
+    </div>
+    <div class="stat">
+        <div class="stat__label">Assunti (12m)</div>
+        <div class="stat__value">@Model.Assunti12m</div>
+    </div>
+    <div class="stat">
+        <div class="stat__label">Cessati (12m)</div>
+        <div class="stat__value">@Model.Cessati12m</div>
+    </div>
+    <div class="stat">
+        <div class="stat__label">Turnover</div>
+        <div class="stat__value">@(Model.TurnoverPercentuale?.ToString("0.0", culture) ?? "—")%</div>
+        <div class="stat__hint">su organico medio</div>
+    </div>
+    <div class="stat">
+        <div class="stat__label">Costo stimato/mese</div>
+        <div class="stat__value">@(Model.CostoStimatoMensile?.ToString("N0", culture) ?? "—") €</div>
+        <div class="stat__hint">contratti + euristiche CCNL</div>
+    </div>
+</div>
+
+@if (Model.Target.Any())
+{
+    <div class="card" style="margin-bottom: var(--s-4);">
+        <div class="card__header"><h3 class="card__title">Effettivi vs target per sede</h3></div>
+        <div style="padding: var(--s-3) 0;">
+            @foreach (var t in Model.Target)
+            {
+                var pct = t.Target > 0 ? Math.Min(100, (int)Math.Round(t.Effettivi * 100.0 / t.Target)) : 0;
+                var gap = t.Effettivi - t.Target;
+                var color = gap >= 0 ? "#2d7a50" : (gap == -1 ? "#c47830" : "#a83a3a");
+                <div style="margin-bottom: 14px;">
+                    <div style="display:flex; justify-content:space-between; font-size:.85rem; margin-bottom:4px;">
+                        <strong>@t.ClinicaNome</strong>
+                        <span style="color:@color;">@t.Effettivi / @t.Target (@(gap >= 0 ? "+" : "")@gap)</span>
+                    </div>
+                    <div style="background: #ece0cc; border-radius: 4px; height: 8px; overflow:hidden;">
+                        <div style="background: @color; height:100%; width: @(pct)%;"></div>
+                    </div>
+                </div>
+            }
+        </div>
+    </div>
+}
+else
+{
+    <div class="alert alert--info" style="margin-bottom: var(--s-4);">
+        Nessuna sede ha un <strong>organico target</strong> impostato. Apri la scheda della clinica e imposta il valore per attivare il confronto vs target.
+    </div>
+}
+
+<div class="grid" style="grid-template-columns: 1fr 1fr; gap: var(--s-4); margin-bottom: var(--s-4);">
+    <div class="card">
+        <div class="card__header"><h3 class="card__title">Distribuzione per sede</h3></div>
+        <div style="height: 280px; padding: var(--s-3) 0;">
+            <canvas id="chart-sede"></canvas>
+        </div>
+    </div>
+    <div class="card">
+        <div class="card__header"><h3 class="card__title">Distribuzione per ruolo</h3></div>
+        <div style="height: 280px; padding: var(--s-3) 0;">
+            <canvas id="chart-ruolo"></canvas>
+        </div>
+    </div>
+</div>
+
+<div class="grid" style="grid-template-columns: 2fr 1fr; gap: var(--s-4); margin-bottom: var(--s-4);">
+    <div class="card">
+        <div class="card__header"><h3 class="card__title">Trend organico (ultimi 12 mesi)</h3></div>
+        <div style="height: 320px; padding: var(--s-3) 0;">
+            <canvas id="chart-trend"></canvas>
+        </div>
+    </div>
+    <div class="card">
+        <div class="card__header"><h3 class="card__title">Tipo contratto</h3></div>
+        <ul class="list">
+            @foreach (var c in Model.PerTipoContratto)
+            {
+                <li class="list__item">
+                    <div class="list__icon">●</div>
+                    <div>
+                        <div class="list__title">@c.Tipo</div>
+                    </div>
+                    <div class="list__when">@c.Conteggio</div>
+                </li>
+            }
+        </ul>
+    </div>
+</div>
+
+@section Scripts {
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
+<script>
+    (function () {
+        var palette = ['#c47830', '#3b1e0c', '#2d7a50', '#2457a4', '#7a5c9a', '#d9943a', '#a83a3a', '#5b8a72'];
+
+        // Sedi
+        var sediData = @Json.Serialize(Model.PerSede.Select(s => new { label = s.ClinicaNome, value = s.Effettivi, target = s.Target }));
+        if (sediData.length) {
+            new Chart(document.getElementById('chart-sede').getContext('2d'), {
+                type: 'bar',
+                data: {
+                    labels: sediData.map(function (s) { return s.label; }),
+                    datasets: [
+                        { label: 'Effettivi', data: sediData.map(function (s) { return s.value; }), backgroundColor: '#c47830' },
+                        { label: 'Target',    data: sediData.map(function (s) { return s.target; }), backgroundColor: '#ece0cc' }
+                    ]
+                },
+                options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { position: 'bottom' } } }
+            });
+        }
+
+        // Ruoli
+        var ruoloData = @Json.Serialize(Model.PerRuolo.Select(r => new { label = r.Ruolo.ToString(), value = r.Conteggio }));
+        if (ruoloData.length) {
+            new Chart(document.getElementById('chart-ruolo').getContext('2d'), {
+                type: 'doughnut',
+                data: {
+                    labels: ruoloData.map(function (r) { return r.label; }),
+                    datasets: [{ data: ruoloData.map(function (r) { return r.value; }), backgroundColor: palette }]
+                },
+                options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { position: 'bottom' } } }
+            });
+        }
+
+        // Trend
+        var trendData = @Json.Serialize(Model.Trend12Mesi.Select(t => new { mese = t.Mese.ToString("MMM yy", System.Globalization.CultureInfo.GetCultureInfo("it-IT")), assunti = t.Assunti, cessati = t.Cessati, organico = t.OrganicoFineMese }));
+        if (trendData.length) {
+            new Chart(document.getElementById('chart-trend').getContext('2d'), {
+                type: 'bar',
+                data: {
+                    labels: trendData.map(function (t) { return t.mese; }),
+                    datasets: [
+                        { type: 'line', label: 'Organico', data: trendData.map(function (t) { return t.organico; }), borderColor: '#3b1e0c', backgroundColor: 'rgba(59,30,12,0.1)', tension: 0.25, yAxisID: 'y' },
+                        { label: 'Assunti', data: trendData.map(function (t) { return t.assunti; }), backgroundColor: '#2d7a50', yAxisID: 'y1' },
+                        { label: 'Cessati', data: trendData.map(function (t) { return t.cessati; }), backgroundColor: '#a83a3a', yAxisID: 'y1' }
+                    ]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: { legend: { position: 'bottom' } },
+                    scales: {
+                        y:  { type: 'linear', position: 'left',  beginAtZero: true, title: { display: true, text: 'Organico' } },
+                        y1: { type: 'linear', position: 'right', beginAtZero: true, grid: { drawOnChartArea: false }, title: { display: true, text: 'Movimenti' } }
+                    }
+                }
+            });
+        }
+    })();
+</script>
+}

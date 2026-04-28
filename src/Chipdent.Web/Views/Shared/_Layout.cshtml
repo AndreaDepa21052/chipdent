@@ -46,6 +46,8 @@
         ["dottori"]        = ("Dottori", "Dottori"),
         ["dipendenti"]     = ("Dipendenti", "Dipendenti"),
         ["contratti"]      = ("Contratti", "Contratti"),
+        ["headcount"]      = ("Headcount", "Headcount"),
+        ["configurazione"] = ("Configurazione", "Configurazione"),
         ["users"]          = ("Utenti", "Users"),
         ["novita"]         = ("Novità", "WhatsNew")
     };
@@ -150,6 +152,17 @@
                         <svg class="nav__icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><path d="M14 2v6h6"/><path d="M9 13h6M9 17h4"/></svg>
                         Contratti
                     </a>
+                    @if (User.IsManagement())
+                    {
+                        <a class="nav__item @(section == "headcount" ? "is-active" : "")" asp-controller="Headcount" asp-action="Index">
+                            <svg class="nav__icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 3v18h18"/><path d="M7 14l3-3 4 4 5-6"/></svg>
+                            Headcount
+                        </a>
+                        <a class="nav__item @(section == "configurazione" ? "is-active" : "")" asp-controller="Configurazione" asp-action="Index">
+                            <svg class="nav__icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.6 1.6 0 0 0 .3 1.8l.1.1a2 2 0 1 1-2.8 2.8l-.1-.1a1.6 1.6 0 0 0-1.8-.3 1.6 1.6 0 0 0-1 1.5V21a2 2 0 1 1-4 0v-.1a1.6 1.6 0 0 0-1-1.5 1.6 1.6 0 0 0-1.8.3l-.1.1a2 2 0 1 1-2.8-2.8l.1-.1a1.6 1.6 0 0 0 .3-1.8 1.6 1.6 0 0 0-1.5-1H3a2 2 0 1 1 0-4h.1a1.6 1.6 0 0 0 1.5-1 1.6 1.6 0 0 0-.3-1.8l-.1-.1a2 2 0 1 1 2.8-2.8l.1.1a1.6 1.6 0 0 0 1.8.3H9a1.6 1.6 0 0 0 1-1.5V3a2 2 0 1 1 4 0v.1a1.6 1.6 0 0 0 1 1.5 1.6 1.6 0 0 0 1.8-.3l.1-.1a2 2 0 1 1 2.8 2.8l-.1.1a1.6 1.6 0 0 0-.3 1.8V9a1.6 1.6 0 0 0 1.5 1H21a2 2 0 1 1 0 4h-.1a1.6 1.6 0 0 0-1.5 1z"/></svg>
+                            Configurazione
+                        </a>
+                    }
 
                     <div class="nav__group-title">Compliance</div>
                     <a class="nav__item @(section == "rls" ? "is-active" : "")" data-tour="nav-rls" asp-controller="Rls" asp-action="Index">

@@ -12,6 +12,9 @@ public class Clinica : TenantEntity
     public int NumeroRiuniti { get; set; }
     public ClinicaStato Stato { get; set; } = ClinicaStato.Operativa;
 
+    /// <summary>Organico target (n. dipendenti) usato dal modulo Headcount per il gap "vs target".</summary>
+    public int? OrganicoTarget { get; set; }
+
     /// <summary>Latitudine geografica (WGS84). Null = sede non geolocalizzata.</summary>
     public double? Latitudine { get; set; }
 
