@@ -1,0 +1,174 @@
+@model Chipdent.Web.Infrastructure.Insights.OptimizationProposal
+@{
+    ViewData["Title"] = "Ottimizzazione turni AI";
+    var culture = new System.Globalization.CultureInfo("it-IT");
+    var prevWeek = Model.WeekStart.AddDays(-7);
+    var nextWeek = Model.WeekStart.AddDays(7);
+    var totalOre = Model.Turni.Sum(t => Math.Max(0, (t.OraFine - t.OraInizio).TotalHours));
+    var byPersona = Model.Turni.GroupBy(t => t.DipendenteNome)
+        .Select(g => new { Nome = g.Key, Count = g.Count(), Ore = g.Sum(t => Math.Max(0, (t.OraFine - t.OraInizio).TotalHours)) })
+        .OrderByDescending(x => x.Ore).ToList();
+    var byClinica = Model.Turni.GroupBy(t => t.ClinicaNome)
+        .Select(g => new { Nome = g.Key, Count = g.Count() })
+        .OrderByDescending(x => x.Count).ToList();
+}
+
+<partial name="_Flash" />
+
+<div class="page-head">
+    <div>
+        <h2 style="display:inline-flex; align-items:center; gap:8px;">
+            <span style="background: linear-gradient(135deg, #c47830, #7a5c9a); -webkit-background-clip: text; -webkit-text-fill-color: transparent;">
+                ✨ Ottimizzazione turni AI
+            </span>
+        </h2>
+        <p class="page-head__sub">
+            Proposta di pianificazione per la settimana del @Model.WeekStart.ToString("dd MMM yyyy", culture).
+            Algoritmo greedy multifattoriale — niente ML, niente LLM.
+        </p>
+    </div>
+    <div class="page-head__actions">
+        <a class="ibtn" asp-action="Index" asp-route-week="@prevWeek.ToString("yyyy-MM-dd")" title="Settimana precedente">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M15 18l-6-6 6-6"/></svg>
+        </a>
+        <a class="ibtn" asp-action="Index" asp-route-week="@nextWeek.ToString("yyyy-MM-dd")" title="Settimana successiva">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M9 18l6-6-6-6"/></svg>
+        </a>
+        @if (Model.Turni.Count > 0)
+        {
+            <form asp-action="Applica" method="post" style="display:inline;"
+                  onsubmit="return confirm('Applicare @Model.Turni.Count turni alla settimana del @Model.WeekStart.ToString("dd/MM")?');">
+                @Html.AntiForgeryToken()
+                <input type="hidden" name="weekStart" value="@Model.WeekStart.ToString("yyyy-MM-dd")" />
+                <button type="submit" class="btn btn--primary">✓ Applica proposta (@Model.Turni.Count turni)</button>
+            </form>
+        }
+    </div>
+</div>
+
+<div class="alert" style="background: linear-gradient(135deg, rgba(196,120,48,0.08), rgba(122,92,154,0.08)); border:1px solid rgba(122,92,154,0.2); margin-bottom: var(--s-4);">
+    <strong>🧠 Come funziona:</strong> per ciascun giorno feriale, l'algoritmo guarda le <strong>soglie di copertura</strong> definite in Configurazione,
+    cerca i dipendenti con il <strong>minor carico</strong> (ore già pianificate questa settimana + storico ultimi 30 giorni),
+    esclude chi è in ferie approvate o ha altri turni nello stesso giorno, e usa il primo <strong>template orario</strong> attivo.
+    Le proposte sono ordinate per giorno e sede; la motivazione è esplicita per ogni assegnazione.
+</div>
+
+@if (Model.Avvisi.Any())
+{
+    <div class="card" style="margin-bottom: var(--s-4); border-left: 4px solid #c47830;">
+        <div class="card__header"><h3 class="card__title">⚠️ Avvisi</h3></div>
+        <ul style="padding: 0 var(--s-3) var(--s-3); margin: 0; list-style:none;">
+            @foreach (var a in Model.Avvisi)
+            {
+                <li style="padding: 4px 0; font-size:.85rem;">@a</li>
+            }
+        </ul>
+    </div>
+}
+
+@if (Model.Turni.Count == 0)
+{
+    <div class="card">
+        <div class="empty">
+            <div class="empty__icon">✨</div>
+            <h3>Nulla da proporre per questa settimana</h3>
+            <p>
+                Le soglie di copertura attuali sono già soddisfatte, oppure non ci sono soglie attive.
+                Definisci soglie in <a asp-controller="Configurazione" asp-action="Index">Configurazione → Soglie copertura</a>
+                e crea almeno un <a asp-controller="Turni" asp-action="Templates">template orario</a>.
+            </p>
+        </div>
+    </div>
+}
+else
+{
+    <div class="grid grid--stats" style="margin-bottom: var(--s-4);">
+        <div class="stat">
+            <div class="stat__label">Turni proposti</div>
+            <div class="stat__value">@Model.Turni.Count</div>
+        </div>
+        <div class="stat">
+            <div class="stat__label">Ore totali</div>
+            <div class="stat__value">@totalOre.ToString("0", culture) h</div>
+        </div>
+        <div class="stat">
+            <div class="stat__label">Persone coinvolte</div>
+            <div class="stat__value">@byPersona.Count</div>
+        </div>
+        <div class="stat">
+            <div class="stat__label">Sedi coperte</div>
+            <div class="stat__value">@byClinica.Count</div>
+        </div>
+    </div>
+
+    <div class="card" style="margin-bottom: var(--s-4);">
+        <div class="card__header"><h3 class="card__title">Proposta dettagliata</h3></div>
+        <table class="table">
+            <thead>
+                <tr>
+                    <th>Giorno</th>
+                    <th>Sede</th>
+                    <th>Dipendente</th>
+                    <th>Ruolo</th>
+                    <th>Orario</th>
+                    <th>Motivazione</th>
+                </tr>
+            </thead>
+            <tbody>
+                @foreach (var grp in Model.Turni.GroupBy(t => t.Data.Date).OrderBy(g => g.Key))
+                {
+                    foreach (var p in grp.OrderBy(t => t.ClinicaNome).ThenBy(t => t.DipendenteNome))
+                    {
+                        <tr>
+                            <td><strong>@p.Data.ToString("ddd dd/MM", culture)</strong></td>
+                            <td>@p.ClinicaNome</td>
+                            <td>@p.DipendenteNome</td>
+                            <td>@p.Ruolo</td>
+                            <td>@p.OraInizio.ToString(@"hh\:mm") – @p.OraFine.ToString(@"hh\:mm")</td>
+                            <td class="muted" style="font-size:.82rem;">✨ @p.Motivazione</td>
+                        </tr>
+                    }
+                }
+            </tbody>
+        </table>
+    </div>
+
+    <div class="grid" style="grid-template-columns: 1fr 1fr; gap: var(--s-4);">
+        <div class="card">
+            <div class="card__header"><h3 class="card__title">Distribuzione ore per persona</h3></div>
+            <ul class="list">
+                @foreach (var p in byPersona)
+                {
+                    <li class="list__item">
+                        <div class="list__icon">●</div>
+                        <div>
+                            <div class="list__title">@p.Nome</div>
+                            <div class="list__meta">@p.Count turn@(p.Count == 1 ? "o" : "i")</div>
+                        </div>
+                        <div class="list__when">@p.Ore.ToString("0", culture) h</div>
+                    </li>
+                }
+            </ul>
+        </div>
+
+        <div class="card">
+            <div class="card__header"><h3 class="card__title">Distribuzione per sede</h3></div>
+            <ul class="list">
+                @foreach (var c in byClinica)
+                {
+                    <li class="list__item">
+                        <div class="list__icon">🏥</div>
+                        <div>
+                            <div class="list__title">@c.Nome</div>
+                        </div>
+                        <div class="list__when">@c.Count turni</div>
+                    </li>
+                }
+            </ul>
+        </div>
+    </div>
+}
+
+<div style="margin-top: var(--s-4); text-align:center; color: var(--c-ink-soft); font-size:.75rem;">
+    <span style="opacity:.7;">Powered by Chipdent Intelligence · ottimizzatore deterministico · non sostituisce il giudizio del Direttore.</span>
+</div>
