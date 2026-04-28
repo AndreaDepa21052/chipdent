@@ -11,4 +11,12 @@
     <PackageReference Include="MongoDB.Driver" Version="2.28.0" />
   </ItemGroup>
 
+  <!-- Mantiene wwwroot/docs/chipdent-features.html sincronizzato con docs/chipdent-features.html -->
+  <Target Name="SyncFunctionalMap" BeforeTargets="BeforeBuild">
+    <Copy SourceFiles="..\..\docs\chipdent-features.html"
+          DestinationFolder="$(MSBuildProjectDirectory)\wwwroot\docs"
+          SkipUnchangedFiles="true"
+          Condition="Exists('..\..\docs\chipdent-features.html')" />
+  </Target>
+
 </Project>
