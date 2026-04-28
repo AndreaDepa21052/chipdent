@@ -1,0 +1,117 @@
+@model Chipdent.Web.Models.FormazioneIndexViewModel
+@{
+    ViewData["Title"] = "Formazione & ECM";
+
+    string Badge(Chipdent.Web.Models.EcmStato s) => s switch
+    {
+        Chipdent.Web.Models.EcmStato.InRegola       => "<span class='badge badge--success'><span class='dot'></span>in regola</span>",
+        Chipdent.Web.Models.EcmStato.InRitardo      => "<span class='badge badge--warning'><span class='dot'></span>in ritardo</span>",
+        Chipdent.Web.Models.EcmStato.Critico        => "<span class='badge badge--danger'><span class='dot'></span>critico</span>",
+        Chipdent.Web.Models.EcmStato.NonConfigurato => "<span class='badge'><span class='dot'></span>non config.</span>",
+        _ => "—"
+    };
+}
+
+<partial name="_Flash" />
+
+<div class="page-head">
+    <div>
+        <h2>Formazione &amp; ECM</h2>
+        <p class="page-head__sub">Tracciamento crediti ECM dei medici (default 150 crediti per triennio AGENAS).</p>
+    </div>
+    <div class="page-head__actions">
+        <a class="btn btn--ghost" asp-action="ExportCsv">⬇ Export CSV</a>
+    </div>
+</div>
+
+<div class="grid grid--stats" style="margin-bottom: var(--s-6);">
+    <div class="stat">
+        <div class="stat__label">Medici totali</div>
+        <div class="stat__value">@Model.Dottori.Count</div>
+    </div>
+    <div class="stat">
+        <div class="stat__label">In regola</div>
+        <div class="stat__value">@Model.InRegola</div>
+        <div class="stat__hint"><span class="badge badge--success"><span class="dot"></span>OK</span></div>
+    </div>
+    <div class="stat">
+        <div class="stat__label">In ritardo</div>
+        <div class="stat__value">@Model.InRitardo</div>
+        <div class="stat__hint"><span class="badge badge--warning"><span class="dot"></span>recuperabile</span></div>
+    </div>
+    <div class="stat">
+        <div class="stat__label">Critici</div>
+        <div class="stat__value">@Model.Critici</div>
+        <div class="stat__hint"><span class="badge badge--danger"><span class="dot"></span>azione richiesta</span></div>
+    </div>
+</div>
+
+@if (!Model.Dottori.Any())
+{
+    <div class="card">
+        <div class="empty">
+            <div class="empty__icon">🎓</div>
+            <h3>Nessun medico registrato</h3>
+            <p>Aggiungi medici dalla sezione Dottori per gestirne la formazione ECM.</p>
+        </div>
+    </div>
+}
+else
+{
+    <div class="table-wrap">
+        <table class="table">
+            <thead>
+                <tr>
+                    <th>Medico</th>
+                    <th>Albo</th>
+                    <th>Crediti acquisiti</th>
+                    <th>Soglia</th>
+                    <th>Triennio</th>
+                    <th>Stato</th>
+                    <th>Aggiorna</th>
+                </tr>
+            </thead>
+            <tbody>
+                @foreach (var row in Model.Dottori)
+                {
+                    var d = row.Dottore;
+                    var pct = row.CreditiRichiesti > 0 ? Math.Min(100, (int)Math.Round(row.CreditiAcquisiti * 100.0 / row.CreditiRichiesti)) : 0;
+                    var color = row.Stato switch
+                    {
+                        Chipdent.Web.Models.EcmStato.InRegola => "#2d7a50",
+                        Chipdent.Web.Models.EcmStato.InRitardo => "#c47830",
+                        Chipdent.Web.Models.EcmStato.Critico => "#a83a3a",
+                        _ => "#7a5c3a"
+                    };
+                    <tr>
+                        <td>
+                            <div class="strong">@d.NomeCompleto</div>
+                            <div class="muted">@d.Specializzazione</div>
+                        </td>
+                        <td>@d.NumeroAlbo</td>
+                        <td>
+                            <div style="display:flex; align-items:center; gap:8px;">
+                                <strong>@row.CreditiAcquisiti</strong>
+                                <div style="flex:1; max-width:120px; background: #ece0cc; border-radius: 4px; height: 6px; overflow:hidden;">
+                                    <div style="background: @color; height:100%; width: @(pct)%;"></div>
+                                </div>
+                            </div>
+                        </td>
+                        <td>@row.CreditiRichiesti</td>
+                        <td>@(row.AnnoFineTriennio?.ToString() ?? "—")</td>
+                        <td>@Html.Raw(Badge(row.Stato))</td>
+                        <td>
+                            <form asp-action="UpdateEcm" asp-route-id="@d.Id" method="post" style="display:flex; gap:6px; align-items:center;">
+                                @Html.AntiForgeryToken()
+                                <input class="form-control" type="number" name="crediti" value="@row.CreditiAcquisiti" min="0" style="width: 80px;" title="Crediti acquisiti" />
+                                <input class="form-control" type="number" name="annoFine" value="@row.AnnoFineTriennio" min="2024" max="2099" style="width: 90px;" title="Anno fine triennio" placeholder="anno" />
+                                <input class="form-control" type="number" name="richiesti" value="@row.CreditiRichiesti" min="0" style="width: 80px;" title="Soglia richiesta" />
+                                <button type="submit" class="ibtn" title="Salva">✓</button>
+                            </form>
+                        </td>
+                    </tr>
+                }
+            </tbody>
+        </table>
+    </div>
+}

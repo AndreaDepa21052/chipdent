@@ -9,6 +9,57 @@ public static class Changelog
     public static readonly IReadOnlyList<ChangelogEntry> Entries = new List<ChangelogEntry>
     {
         // ───────────────────────────────────────────────────────────────────
+        // 🏢 v1.100.0 — Tornavento+Management
+        // ───────────────────────────────────────────────────────────────────
+        new(
+            Version: "v1.100.0",
+            Codename: "Tornavento+Management",
+            Date: new DateTime(2026, 4, 28),
+            Category: ChangelogCategory.Foundation,
+            Title: "🏢 v1.100.0 «Tornavento+Management» — chiusura del livello Management",
+            Description: "Tutti i moduli Management della mappa funzionale sono ora implementati: configurazione di rete, contratti & scadenze, headcount & organico con analytics, report & analytics esportabili, formazione & ECM."),
+
+        new(
+            Version: "v1.100.0",
+            Codename: "Tornavento+Management",
+            Date: new DateTime(2026, 4, 28),
+            Category: ChangelogCategory.Dashboard,
+            Title: "Report & analytics con export CSV e stampa PDF",
+            Description: "Vista Report mensile per il Management: presenze e turni per sede, costo personale aggregato (con totale catena), indice compliance per sede (visite + corsi + documenti), turnover 12 mesi. Export CSV per ogni tabella e CSS print-friendly per stampa/PDF dal browser."),
+
+        new(
+            Version: "v1.100.0",
+            Codename: "Tornavento+Management",
+            Date: new DateTime(2026, 4, 28),
+            Category: ChangelogCategory.Anagrafiche,
+            Title: "Headcount & organico con grafici",
+            Description: "Modulo Headcount con KPI organico, distribuzione per sede e ruolo, trend assunzioni/cessazioni 12 mesi, effettivi vs target per sede (con barra di progresso), stima costo mensile (da contratti reali + euristiche CCNL). Grafici Chart.js."),
+
+        new(
+            Version: "v1.100.0",
+            Codename: "Tornavento+Management",
+            Date: new DateTime(2026, 4, 28),
+            Category: ChangelogCategory.Anagrafiche,
+            Title: "Contratti dipendenti con alert scadenze",
+            Description: "Nuovo modulo Contratti: tipo, livello CCNL, retribuzione, date inizio/fine, allegato firmato (PDF). Alert automatici a 90/30/7 giorni dalla scadenza con tab di filtro dedicate. Export CSV per consulente del lavoro."),
+
+        new(
+            Version: "v1.100.0",
+            Codename: "Tornavento+Management",
+            Date: new DateTime(2026, 4, 28),
+            Category: ChangelogCategory.Compliance,
+            Title: "Formazione & ECM dottori",
+            Description: "Tracciamento crediti ECM dei medici (default 150 nel triennio AGENAS). Stato calcolato automaticamente come «in regola / in ritardo / critico» rispetto al passo previsto. Aggiornamento crediti inline in tabella, export CSV."),
+
+        new(
+            Version: "v1.100.0",
+            Codename: "Tornavento+Management",
+            Date: new DateTime(2026, 4, 28),
+            Category: ChangelogCategory.Foundation,
+            Title: "Configurazione rete centralizzata",
+            Description: "Pagina Configurazione (solo Management) per definire: workflow approvazioni (escalation ferie lunghe, conferma circolari), categorie documento obbligatorie per sede (con stato caricato/mancante), soglie copertura minima per sede×ruolo×giorno. Le soglie alimentano i warning del calendario turni."),
+
+        // ───────────────────────────────────────────────────────────────────
         // 🌳 v1.000.0 — Tornavento  (MVP chiuso)
         // ───────────────────────────────────────────────────────────────────
         new(

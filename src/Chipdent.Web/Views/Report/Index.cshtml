@@ -1,0 +1,134 @@
+@model Chipdent.Web.Models.ReportIndexViewModel
+@{
+    ViewData["Title"] = "Report & analytics";
+    var culture = new System.Globalization.CultureInfo("it-IT");
+}
+
+<partial name="_Flash" />
+
+<div class="page-head">
+    <div>
+        <h2>Report &amp; analytics</h2>
+        <p class="page-head__sub">Dati aggregati per il management — esportabili in CSV o stampabili in PDF dal browser.</p>
+    </div>
+    <div class="page-head__actions">
+        <form method="get" style="display:inline-flex; gap:8px; align-items:center;">
+            <label class="muted" style="font-size:.82rem;">Mese:</label>
+            <input class="form-control" type="month" name="mese" value="@Model.Mese.ToString("yyyy-MM")" onchange="this.form.submit();" style="width: 160px;" />
+        </form>
+        <button type="button" class="btn btn--ghost" onclick="window.print();">🖨 Stampa / Salva PDF</button>
+    </div>
+</div>
+
+<div class="grid grid--stats" style="margin-bottom: var(--s-6);">
+    <div class="stat">
+        <div class="stat__label">Turnover (12m)</div>
+        <div class="stat__value">@(Model.Turnover.Percentuale?.ToString("0.0", culture) ?? "—")%</div>
+        <div class="stat__hint">@Model.Turnover.Assunti assunti · @Model.Turnover.Cessati cessati</div>
+    </div>
+    <div class="stat">
+        <div class="stat__label">Sedi nel report</div>
+        <div class="stat__value">@Model.PresenzeMese.Count</div>
+    </div>
+    <div class="stat">
+        <div class="stat__label">Costo totale stimato</div>
+        <div class="stat__value">@Model.CostoPersonale.Sum(r => r.CostoMensileLordo).ToString("N0", culture) €</div>
+        <div class="stat__hint">@Model.Mese.ToString("MMMM yyyy", culture)</div>
+    </div>
+    <div class="stat">
+        <div class="stat__label">Compliance medio</div>
+        @{
+            var avgCompl = Model.ComplianceIndex.Any() ? Model.ComplianceIndex.Average(c => c.Punteggio100) : 0;
+        }
+        <div class="stat__value">@avgCompl.ToString("0", culture)%</div>
+    </div>
+</div>
+
+<div class="card" style="margin-bottom: var(--s-4);">
+    <div class="card__header">
+        <h3 class="card__title">Presenze del mese — @Model.Mese.ToString("MMMM yyyy", culture)</h3>
+        <a class="muted" asp-action="PresenzeCsv" asp-route-mese="@Model.Mese.ToString("yyyy-MM")" style="font-size:.85rem;">⬇ CSV</a>
+    </div>
+    @if (Model.PresenzeMese.Any())
+    {
+        <table class="table">
+            <thead>
+                <tr><th>Sede</th><th>Ore lavorate</th><th>Turni</th><th>Giorni ferie approvate</th></tr>
+            </thead>
+            <tbody>
+                @foreach (var r in Model.PresenzeMese)
+                {
+                    <tr>
+                        <td><strong>@r.ClinicaNome</strong></td>
+                        <td>@r.OreLavorate</td>
+                        <td>@r.Turni</td>
+                        <td>@r.GiorniFerie</td>
+                    </tr>
+                }
+            </tbody>
+        </table>
+    }
+    else
+    {
+        <p class="muted" style="padding: var(--s-3) 0;">Nessun dato.</p>
+    }
+</div>
+
+<div class="grid" style="grid-template-columns: 1fr 1fr; gap: var(--s-4); margin-bottom: var(--s-4);">
+    <div class="card">
+        <div class="card__header">
+            <h3 class="card__title">Costo personale aggregato</h3>
+            <a class="muted" asp-action="CostoCsv" asp-route-mese="@Model.Mese.ToString("yyyy-MM")" style="font-size:.85rem;">⬇ CSV</a>
+        </div>
+        <table class="table">
+            <thead><tr><th>Sede</th><th>Dipendenti</th><th>Costo mensile</th></tr></thead>
+            <tbody>
+                @foreach (var r in Model.CostoPersonale)
+                {
+                    <tr>
+                        <td><strong>@r.ClinicaNome</strong></td>
+                        <td>@r.Dipendenti</td>
+                        <td>@r.CostoMensileLordo.ToString("N0", culture) €</td>
+                    </tr>
+                }
+                <tr style="font-weight:700; background: var(--c-bg-soft, #faf6f0);">
+                    <td>Totale</td>
+                    <td>@Model.CostoPersonale.Sum(r => r.Dipendenti)</td>
+                    <td>@Model.CostoPersonale.Sum(r => r.CostoMensileLordo).ToString("N0", culture) €</td>
+                </tr>
+            </tbody>
+        </table>
+    </div>
+
+    <div class="card">
+        <div class="card__header">
+            <h3 class="card__title">Indice compliance per sede</h3>
+            <a class="muted" asp-action="ComplianceCsv" style="font-size:.85rem;">⬇ CSV</a>
+        </div>
+        @foreach (var r in Model.ComplianceIndex)
+        {
+            var color = r.Punteggio100 >= 90 ? "#2d7a50" : r.Punteggio100 >= 70 ? "#c47830" : "#a83a3a";
+            <div style="margin: var(--s-3); padding: var(--s-3); border: 1px solid var(--c-border, #e9e1d3); border-radius: 8px;">
+                <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom: 6px;">
+                    <strong>@r.ClinicaNome</strong>
+                    <span style="color:@color; font-weight:700;">@r.Punteggio100%</span>
+                </div>
+                <div style="background: #ece0cc; border-radius: 4px; height: 6px; overflow:hidden; margin-bottom: 8px;">
+                    <div style="background: @color; height:100%; width: @(r.Punteggio100)%;"></div>
+                </div>
+                <div class="muted" style="font-size:.78rem;">
+                    Visite: @r.VisiteOk OK / @r.VisiteScadute scadute · Corsi: @r.CorsiOk / @r.CorsiScaduti · Doc: @r.DocsOk / @r.DocsScaduti
+                </div>
+            </div>
+        }
+    </div>
+</div>
+
+<style>
+@@media print {
+    .app__sidebar, .app__topbar, .page-head__actions, footer { display: none !important; }
+    .app__main { padding: 0 !important; }
+    body { background: white !important; }
+    .card { box-shadow: none !important; page-break-inside: avoid; }
+}
+</style>

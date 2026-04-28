@@ -39,6 +39,14 @@ public class Dottore : TenantEntity
     public string? ClinicaPrincipaleId { get; set; }
     public bool Attivo { get; set; } = true;
 
+    // ECM (Educazione Continua in Medicina)
+    /// <summary>Crediti ECM acquisiti nel triennio in corso.</summary>
+    public int CreditiEcmTriennio { get; set; }
+    /// <summary>Anno (4 cifre) in cui scade il triennio ECM corrente. Es. 2026.</summary>
+    public int? AnnoFineTriennioEcm { get; set; }
+    /// <summary>Soglia minima crediti ECM nel triennio (default 150 — normativa AGENAS).</summary>
+    public int CreditiEcmRichiestiTriennio { get; set; } = 150;
+
     // Annotazioni
     public string? Note { get; set; }
 
