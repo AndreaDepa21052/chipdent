@@ -1,0 +1,69 @@
+@model Chipdent.Web.Models.NuovaSostituzioneViewModel
+@{
+    ViewData["Title"] = "Nuova sostituzione";
+    ViewData["Crumb"] = "Sostituzioni";
+}
+
+<partial name="_Flash" />
+
+<div class="page-head">
+    <div>
+        <h2>Nuova sostituzione urgente</h2>
+        <p class="page-head__sub">Indica chi è assente, quando, e per quale motivo. Al passo successivo proporrai un sostituto fra i disponibili.</p>
+    </div>
+    <div class="page-head__actions">
+        <a class="btn btn--ghost" asp-action="Index">← Indietro</a>
+    </div>
+</div>
+
+<div class="card" style="max-width: 760px;">
+    <form asp-action="Create" method="post">
+        @Html.AntiForgeryToken()
+        <input type="hidden" asp-for="TurnoOrigineId" />
+
+        <div asp-validation-summary="ModelOnly" class="alert alert--danger" style="display:@(ViewData.ModelState.ErrorCount > 0 ? "block" : "none");"></div>
+
+        <div class="form-grid">
+            <div class="form-group full">
+                <label class="form-label" asp-for="AssenteDipendenteId">Dipendente assente</label>
+                <select class="form-control" asp-for="AssenteDipendenteId" required>
+                    <option value="">— seleziona —</option>
+                    @foreach (var d in Model.Dipendenti)
+                    {
+                        <option value="@d.Id" selected="@(d.Id == Model.AssenteDipendenteId)">@d.NomeCompleto · @d.Ruolo</option>
+                    }
+                </select>
+                <span class="text-danger" asp-validation-for="AssenteDipendenteId"></span>
+            </div>
+
+            <div class="form-group">
+                <label class="form-label" asp-for="Data">Data assenza</label>
+                <input class="form-control" asp-for="Data" type="date" required />
+            </div>
+            <div class="form-group">
+                <label class="form-label" asp-for="Motivo">Motivo</label>
+                <select class="form-control" asp-for="Motivo" asp-items="Html.GetEnumSelectList<Chipdent.Web.Domain.Entities.MotivoAssenza>()"></select>
+            </div>
+
+            <div class="form-group">
+                <label class="form-label" asp-for="OraInizio">Dalle</label>
+                <input class="form-control" asp-for="OraInizio" type="time" required />
+            </div>
+            <div class="form-group">
+                <label class="form-label" asp-for="OraFine">Alle</label>
+                <input class="form-control" asp-for="OraFine" type="time" required />
+                <span class="text-danger" asp-validation-for="OraFine"></span>
+            </div>
+
+            <div class="form-group full">
+                <label class="form-label" asp-for="Descrizione">Note (opzionale)</label>
+                <textarea class="form-control" asp-for="Descrizione" rows="3" maxlength="500" placeholder="Es. assenza per visita ortopedica improvvisa"></textarea>
+            </div>
+        </div>
+
+        <div class="form-actions">
+            <a class="btn btn--ghost" asp-action="Index">Annulla</a>
+            <button type="submit" class="btn btn--primary">Cerca candidati →</button>
+        </div>
+    </form>
+</div>

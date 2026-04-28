@@ -39,6 +39,9 @@
         ["turni"]          = ("Turni", "Turni"),
         ["ferie"]          = ("Ferie", "Ferie"),
         ["cambio-turno"]   = ("Cambio turno", "CambioTurno"),
+        ["sostituzioni"]   = ("Sostituzioni", "Sostituzioni"),
+        ["dpi"]            = ("DPI", "Dpi"),
+        ["presenze"]       = ("Presenze", "Presenze"),
         ["miei-documenti"] = ("I miei documenti", "MieiDocumenti"),
         ["segnalazioni"]   = ("Segnalazioni", "Segnalazioni"),
         ["chat"]           = ("Chat", "Chat"),
@@ -132,6 +135,10 @@
                 <a class="nav__item @(section == "cambio-turno" ? "is-active" : "")" asp-controller="CambioTurno" asp-action="Index">
                     <svg class="nav__icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M17 1l4 4-4 4"/><path d="M3 11V9a4 4 0 0 1 4-4h14"/><path d="M7 23l-4-4 4-4"/><path d="M21 13v2a4 4 0 0 1-4 4H3"/></svg>
                     Cambio turno
+                </a>
+                <a class="nav__item @(section == "sostituzioni" ? "is-active" : "")" asp-controller="Sostituzioni" asp-action="Index">
+                    <svg class="nav__icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 2v4M12 18v4M4.93 4.93l2.83 2.83M16.24 16.24l2.83 2.83M2 12h4M18 12h4"/><circle cx="12" cy="12" r="4"/></svg>
+                    Sostituzioni
                 </a>
                 <a class="nav__item @(section == "miei-documenti" ? "is-active" : "")" asp-controller="MieiDocumenti" asp-action="Index">
                     <svg class="nav__icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><path d="M14 2v6h6"/><path d="M9 13h6M9 17h4"/></svg>

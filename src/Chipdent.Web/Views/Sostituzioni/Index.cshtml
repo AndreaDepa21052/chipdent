@@ -1,0 +1,150 @@
+@model Chipdent.Web.Models.SostituzioniIndexViewModel
+@{
+    ViewData["Title"] = "Sostituzioni urgenti";
+
+    string MotivoIcon(MotivoAssenza m) => m switch
+    {
+        MotivoAssenza.Malattia          => "🤒",
+        MotivoAssenza.Infortunio        => "🩹",
+        MotivoAssenza.Lutto             => "🕯️",
+        MotivoAssenza.EmergenzaFamiliare => "🆘",
+        MotivoAssenza.Permesso          => "📅",
+        _ => "❓"
+    };
+
+    string Header(Chipdent.Web.Models.SostituzioneRow r)
+        => $"{MotivoIcon(r.Richiesta.Motivo)} {r.Richiesta.AssenteNome} · {r.ClinicaNome} · {r.Richiesta.Data:dd/MM} {r.Richiesta.OraInizio:hh\\:mm}–{r.Richiesta.OraFine:hh\\:mm}";
+}
+
+<partial name="_Flash" />
+
+<div class="page-head">
+    <div>
+        <h2>Sostituzioni urgenti</h2>
+        <p class="page-head__sub">Coperture per assenze improvvise. Apri una richiesta e proponi un sostituto fra i candidati disponibili.</p>
+    </div>
+    @if (Model.CanManage)
+    {
+        <div class="page-head__actions">
+            <a class="btn btn--primary" asp-action="Create">+ Nuova sostituzione</a>
+        </div>
+    }
+</div>
+
+@if (Model.InArrivo.Any())
+{
+    <div class="card" style="margin-bottom: var(--s-4); border: 2px solid #c47830;">
+        <div class="card__header"><h3 class="card__title">⚡ Ti hanno proposto una sostituzione</h3></div>
+        <table class="table">
+            <thead><tr><th>Quando</th><th>Per chi</th><th>Motivo</th><th></th></tr></thead>
+            <tbody>
+                @foreach (var row in Model.InArrivo)
+                {
+                    var s = row.Richiesta;
+                    <tr>
+                        <td><strong>@s.Data.ToString("dd/MM")</strong> @s.OraInizio.ToString(@"hh\:mm")–@s.OraFine.ToString(@"hh\:mm")</td>
+                        <td>@s.AssenteNome <span class="muted">· @row.ClinicaNome</span></td>
+                        <td>@MotivoIcon(s.Motivo) @s.Motivo</td>
+                        <td>
+                            <form asp-action="Accetta" asp-route-id="@s.Id" method="post" style="display:inline;"
+                                  onsubmit="return confirm('Accetti di coprire questo turno?');">
+                                @Html.AntiForgeryToken()
+                                <button type="submit" class="btn btn--primary" style="padding:4px 10px; font-size:.78rem;">✓ Accetto</button>
+                            </form>
+                            <form asp-action="Rifiuta" asp-route-id="@s.Id" method="post" style="display:inline;">
+                                @Html.AntiForgeryToken()
+                                <button type="submit" class="btn btn--ghost" style="padding:4px 10px; font-size:.78rem;">✕ Declino</button>
+                            </form>
+                        </td>
+                    </tr>
+                }
+            </tbody>
+        </table>
+    </div>
+}
+
+@if (Model.Aperte.Any())
+{
+    <div class="card" style="margin-bottom: var(--s-4);">
+        <div class="card__header"><h3 class="card__title">🔥 Aperte / in attesa</h3></div>
+        <table class="table">
+            <thead><tr><th>Sostituzione</th><th>Stato</th><th>Sostituto proposto</th><th></th></tr></thead>
+            <tbody>
+                @foreach (var row in Model.Aperte)
+                {
+                    var s = row.Richiesta;
+                    <tr>
+                        <td>@Header(row)<div class="muted" style="font-size:.78rem;">@s.Descrizione</div></td>
+                        <td>
+                            @if (s.Stato == StatoSostituzione.Aperta) { <span class="badge badge--warning">cercando…</span> }
+                            else { <span class="badge">in attesa risposta</span> }
+                        </td>
+                        <td>@(s.SostitutoNome ?? "—")</td>
+                        <td>
+                            @if (Model.CanManage)
+                            {
+                                <a class="btn btn--primary" asp-action="Candidati" asp-route-id="@s.Id" style="padding:4px 10px; font-size:.78rem;">Candidati →</a>
+                                <form asp-action="Escala" asp-route-id="@s.Id" method="post" style="display:inline;"
+                                      onsubmit="return confirm('Escalare al Management?');">
+                                    @Html.AntiForgeryToken()
+                                    <button type="submit" class="btn btn--ghost" style="padding:4px 10px; font-size:.78rem;">🚨 Escala</button>
+                                </form>
+                                <form asp-action="Annulla" asp-route-id="@s.Id" method="post" style="display:inline;"
+                                      onsubmit="return confirm('Annullare la richiesta?');">
+                                    @Html.AntiForgeryToken()
+                                    <button type="submit" class="ibtn" title="Annulla">✕</button>
+                                </form>
+                            }
+                        </td>
+                    </tr>
+                }
+            </tbody>
+        </table>
+    </div>
+}
+
+@if (Model.Escalate.Any())
+{
+    <div class="card" style="margin-bottom: var(--s-4); background: rgba(217,107,94,0.05);">
+        <div class="card__header"><h3 class="card__title">🚨 Escalate al Management</h3></div>
+        <table class="table">
+            <thead><tr><th>Sostituzione</th><th>Da</th><th>Quando escalata</th></tr></thead>
+            <tbody>
+                @foreach (var row in Model.Escalate)
+                {
+                    var s = row.Richiesta;
+                    <tr>
+                        <td>@Header(row)</td>
+                        <td>@s.CreatoDaNome</td>
+                        <td>@s.DataEscalation?.ToLocalTime().ToString("dd/MM HH:mm")</td>
+                    </tr>
+                }
+            </tbody>
+        </table>
+    </div>
+}
+
+<div class="card">
+    <div class="card__header"><h3 class="card__title">✓ Coperte di recente</h3></div>
+    @if (!Model.Coperte.Any())
+    {
+        <p class="muted" style="padding: var(--s-3) 0;">Nessuna sostituzione completata.</p>
+    }
+    else
+    {
+        <table class="table">
+            <thead><tr><th>Sostituzione</th><th>Sostituto</th><th>Coperta il</th></tr></thead>
+            <tbody>
+                @foreach (var row in Model.Coperte)
+                {
+                    var s = row.Richiesta;
+                    <tr>
+                        <td>@Header(row)</td>
+                        <td>@s.SostitutoNome</td>
+                        <td>@s.DataAccettazione?.ToLocalTime().ToString("dd/MM HH:mm")</td>
+                    </tr>
+                }
+            </tbody>
+        </table>
+    }
+</div>

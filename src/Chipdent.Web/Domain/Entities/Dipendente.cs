@@ -41,6 +41,9 @@ public class Dipendente : TenantEntity
     public int GiorniFerieResidui { get; set; } = 26;
     public StatoDipendente Stato { get; set; } = StatoDipendente.Attivo;
 
+    /// <summary>PIN numerico (4-6 cifre) per la timbratura presenze da kiosk di sede. Null = nessuna timbratura PIN abilitata.</summary>
+    public string? PinTimbratura { get; set; }
+
     // Annotazioni
     public string? Note { get; set; }
 

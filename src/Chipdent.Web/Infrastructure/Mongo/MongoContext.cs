@@ -51,4 +51,8 @@ public class MongoContext
     public IMongoCollection<Contratto> Contratti => Database.GetCollection<Contratto>("contratti");
     public IMongoCollection<RichiestaCambioTurno> RichiesteCambioTurno => Database.GetCollection<RichiestaCambioTurno>("richiesteCambioTurno");
     public IMongoCollection<Segnalazione> Segnalazioni => Database.GetCollection<Segnalazione>("segnalazioni");
+    public IMongoCollection<RichiestaSostituzione> Sostituzioni => Database.GetCollection<RichiestaSostituzione>("sostituzioni");
+    public IMongoCollection<Dpi> Dpi => Database.GetCollection<Dpi>("dpi");
+    public IMongoCollection<ConsegnaDpi> ConsegneDpi => Database.GetCollection<ConsegnaDpi>("consegneDpi");
+    public IMongoCollection<Timbratura> Timbrature => Database.GetCollection<Timbratura>("timbrature");
 }

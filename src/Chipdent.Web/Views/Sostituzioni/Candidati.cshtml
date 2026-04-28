@@ -1,0 +1,80 @@
+@model Chipdent.Web.Models.SostituzioneCandidatiViewModel
+@{
+    ViewData["Title"] = "Scegli sostituto";
+    ViewData["Crumb"] = "Sostituzioni";
+    var s = Model.Richiesta;
+}
+
+<partial name="_Flash" />
+
+<div class="page-head">
+    <div>
+        <h2>Candidati per la sostituzione</h2>
+        <p class="page-head__sub">
+            <strong>@Model.AssenteNome</strong> assente il <strong>@s.Data.ToString("dd/MM/yyyy")</strong>
+            dalle @s.OraInizio.ToString(@"hh\:mm") alle @s.OraFine.ToString(@"hh\:mm") · @Model.ClinicaNome · motivo: @s.Motivo
+        </p>
+    </div>
+    <div class="page-head__actions">
+        <a class="btn btn--ghost" asp-action="Index">← Indietro</a>
+    </div>
+</div>
+
+@if (!Model.Candidati.Any())
+{
+    <div class="card">
+        <div class="empty">
+            <div class="empty__icon">😶</div>
+            <h3>Nessun candidato</h3>
+            <p>Non ci sono altri @s.RuoloRichiesto in questa sede. Prova ad escalare al Management.</p>
+        </div>
+    </div>
+}
+else
+{
+    <div class="grid" style="grid-template-columns: repeat(auto-fill, minmax(280px, 1fr)); gap: var(--s-3);">
+        @foreach (var c in Model.Candidati)
+        {
+            var disponibile = c.MotivoNonDisponibile is null;
+            var bg = disponibile ? "var(--c-card, #fff)" : "rgba(217, 107, 94, 0.04)";
+            var border = disponibile ? "1px solid var(--c-border, #e9e1d3)" : "1px solid rgba(217, 107, 94, 0.3)";
+            var initials = string.Concat(c.Nome.Split(' ', StringSplitOptions.RemoveEmptyEntries).Take(2).Select(p => char.ToUpper(p[0])));
+            <div class="card" style="padding: var(--s-3); background: @bg; border: @border;">
+                <div style="display:flex; gap: var(--s-2); align-items:flex-start; margin-bottom: var(--s-2);">
+                    <div style="width:36px; height:36px; border-radius:50%; background: @(disponibile ? "#2d7a50" : "#a83a3a"); color:#fff; display:flex; align-items:center; justify-content:center; font-weight:700;">@initials</div>
+                    <div style="flex:1;">
+                        <div style="font-weight:700;">@c.Nome</div>
+                        <div class="muted" style="font-size:.78rem;">@c.Ruolo</div>
+                    </div>
+                </div>
+
+                @if (disponibile)
+                {
+                    <div class="badge badge--success" style="margin-bottom: var(--s-2);">✓ disponibile</div>
+                    <form asp-action="Proponi" asp-route-id="@s.Id" method="post">
+                        @Html.AntiForgeryToken()
+                        <input type="hidden" name="dipendenteId" value="@c.DipendenteId" />
+                        <button type="submit" class="btn btn--primary btn--block">Proponi a @c.Nome.Split(' ').First()</button>
+                    </form>
+                    @if (c.UserId is null)
+                    {
+                        <small class="muted" style="font-size:.7rem;">⚠ Nessun account collegato — riceverà solo notifica visiva al prossimo login.</small>
+                    }
+                }
+                else
+                {
+                    <div class="badge badge--danger" style="margin-bottom: var(--s-2);">✕ @c.MotivoNonDisponibile</div>
+                    <button type="button" class="btn btn--ghost btn--block" disabled>Non proponibile</button>
+                }
+            </div>
+        }
+    </div>
+
+    <div style="margin-top: var(--s-4); text-align:right;">
+        <form asp-action="Escala" asp-route-id="@s.Id" method="post" style="display:inline;"
+              onsubmit="return confirm('Escalare la sostituzione al Management?');">
+            @Html.AntiForgeryToken()
+            <button type="submit" class="btn btn--ghost">🚨 Escala al Management</button>
+        </form>
+    </div>
+}
