@@ -10,6 +10,8 @@ public class VisitaMedica : TenantEntity
     public DateTime? ScadenzaIdoneita { get; set; }
     public string? Note { get; set; }
     public string? AllegatoNome { get; set; }
+    public string? AllegatoPath { get; set; }
+    public long? AllegatoSize { get; set; }
 }
 
 public enum EsitoVisita
@@ -28,6 +30,9 @@ public class Corso : TenantEntity
     public DateTime DataConseguimento { get; set; }
     public DateTime? Scadenza { get; set; }
     public string? Note { get; set; }
+    public string? AttestatoNome { get; set; }
+    public string? AttestatoPath { get; set; }
+    public long? AttestatoSize { get; set; }
 }
 
 public enum DestinatarioCorso

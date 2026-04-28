@@ -1,0 +1,163 @@
+@model Chipdent.Web.Models.MieiDocumentiViewModel
+@{
+    ViewData["Title"] = "I miei documenti";
+    var culture = new System.Globalization.CultureInfo("it-IT");
+}
+
+<partial name="_Flash" />
+
+<div class="page-head">
+    <div>
+        <h2>I miei documenti</h2>
+        <p class="page-head__sub">Il tuo fascicolo personale: contratto, attestati corsi, idoneità mediche.</p>
+    </div>
+</div>
+
+@if (!Model.HasLinkedPerson)
+{
+    <div class="card">
+        <div class="empty">
+            <div class="empty__icon">📁</div>
+            <h3>Account non collegato a un dipendente</h3>
+            <p>Per vedere i tuoi documenti chiedi all'amministratore di collegare l'account a un profilo dipendente.</p>
+        </div>
+    </div>
+    return;
+}
+
+<div class="card" style="margin-bottom: var(--s-4);">
+    <div style="padding: var(--s-3); display:flex; gap: var(--s-3); align-items:center; flex-wrap:wrap;">
+        <div style="width:40px; height:40px; border-radius:50%; background: var(--c-accent, #c47830); color:#fff; display:flex; align-items:center; justify-content:center; font-weight:700;">
+            @(string.Concat(Model.DipendenteNome.Split(' ', StringSplitOptions.RemoveEmptyEntries).Take(2).Select(p => char.ToUpper(p[0]))))
+        </div>
+        <div>
+            <div style="font-weight:700;">@Model.DipendenteNome</div>
+            <div class="muted" style="font-size:.85rem;">@Model.RuoloDipendente · @Model.ClinicaNome</div>
+        </div>
+    </div>
+</div>
+
+<!-- Contratto -->
+<div class="card" style="margin-bottom: var(--s-4);">
+    <div class="card__header"><h3 class="card__title">📋 Contratto</h3></div>
+    @if (Model.ContrattoAttuale is null)
+    {
+        <p class="muted" style="padding: var(--s-3) 0;">Nessun contratto attualmente attivo registrato a tuo nome.</p>
+    }
+    else
+    {
+        var c = Model.ContrattoAttuale;
+        <div style="padding: var(--s-3) 0;">
+            <div style="display:flex; gap: var(--s-4); align-items: flex-start; flex-wrap: wrap;">
+                <div style="flex:1; min-width:240px;">
+                    <div style="font-weight:700; font-size:1.1rem; margin-bottom:6px;">@c.Tipo @(c.Livello is null ? "" : "· " + c.Livello)</div>
+                    <div class="muted">Dal @c.DataInizio.ToString("dd/MM/yyyy") @(c.DataFine is null ? "(tempo indeterminato)" : "al " + c.DataFine?.ToString("dd/MM/yyyy"))</div>
+                    @if (c.RetribuzioneMensileLorda is not null)
+                    {
+                        <div class="muted">Retribuzione mensile lorda: <strong>@c.RetribuzioneMensileLorda?.ToString("N0", culture) €</strong></div>
+                    }
+                </div>
+                @if (!string.IsNullOrEmpty(c.AllegatoPath))
+                {
+                    <a class="btn btn--ghost" asp-action="ScaricaContratto" asp-route-id="@c.Id" target="_blank">⬇ @c.AllegatoNome</a>
+                }
+            </div>
+        </div>
+    }
+
+    @if (Model.ContrattiStorici.Any())
+    {
+        <details style="padding: 0 var(--s-3) var(--s-3); margin-top: var(--s-2);">
+            <summary class="muted" style="cursor:pointer; font-size:.85rem;">Storico contratti (@Model.ContrattiStorici.Count)</summary>
+            <ul class="list" style="margin-top: var(--s-2);">
+                @foreach (var c in Model.ContrattiStorici)
+                {
+                    <li class="list__item">
+                        <div class="list__icon">📋</div>
+                        <div>
+                            <div class="list__title">@c.Tipo @(c.Livello is null ? "" : "· " + c.Livello)</div>
+                            <div class="list__meta">@c.DataInizio.ToString("dd/MM/yyyy") → @(c.DataFine?.ToString("dd/MM/yyyy") ?? "—")</div>
+                        </div>
+                        @if (!string.IsNullOrEmpty(c.AllegatoPath))
+                        {
+                            <a asp-action="ScaricaContratto" asp-route-id="@c.Id" target="_blank">⬇</a>
+                        }
+                    </li>
+                }
+            </ul>
+        </details>
+    }
+</div>
+
+<div class="grid" style="grid-template-columns: 1fr 1fr; gap: var(--s-4);">
+
+    <!-- Visite mediche -->
+    <div class="card">
+        <div class="card__header"><h3 class="card__title">🩺 Idoneità mediche</h3></div>
+        @if (!Model.Visite.Any())
+        {
+            <p class="muted" style="padding: var(--s-3) 0;">Nessuna visita registrata.</p>
+        }
+        else
+        {
+            <ul class="list">
+                @foreach (var v in Model.Visite)
+                {
+                    var scaduta = v.ScadenzaIdoneita is not null && v.ScadenzaIdoneita < DateTime.UtcNow;
+                    <li class="list__item">
+                        <div class="list__icon">@(scaduta ? "⚠" : "✓")</div>
+                        <div>
+                            <div class="list__title">
+                                @v.Esito
+                                @if (scaduta) { <span class="badge badge--danger" style="margin-left:6px;">scaduta</span> }
+                            </div>
+                            <div class="list__meta">
+                                Visita del @v.Data.ToString("dd/MM/yyyy")
+                                @if (v.ScadenzaIdoneita is not null) { <text> · scadenza @v.ScadenzaIdoneita?.ToString("dd/MM/yyyy")</text> }
+                            </div>
+                        </div>
+                        @if (!string.IsNullOrEmpty(v.AllegatoPath))
+                        {
+                            <a asp-action="ScaricaVisita" asp-route-id="@v.Id" target="_blank">⬇</a>
+                        }
+                    </li>
+                }
+            </ul>
+        }
+    </div>
+
+    <!-- Corsi -->
+    <div class="card">
+        <div class="card__header"><h3 class="card__title">🎓 Attestati corsi</h3></div>
+        @if (!Model.Corsi.Any())
+        {
+            <p class="muted" style="padding: var(--s-3) 0;">Nessun corso registrato.</p>
+        }
+        else
+        {
+            <ul class="list">
+                @foreach (var c in Model.Corsi)
+                {
+                    var scaduto = c.Scadenza is not null && c.Scadenza < DateTime.UtcNow;
+                    <li class="list__item">
+                        <div class="list__icon">🎓</div>
+                        <div>
+                            <div class="list__title">
+                                @c.Tipo
+                                @if (scaduto) { <span class="badge badge--danger" style="margin-left:6px;">scaduto</span> }
+                            </div>
+                            <div class="list__meta">
+                                Conseguito il @c.DataConseguimento.ToString("dd/MM/yyyy")
+                                @if (c.Scadenza is not null) { <text> · scadenza @c.Scadenza?.ToString("dd/MM/yyyy")</text> }
+                            </div>
+                        </div>
+                        @if (!string.IsNullOrEmpty(c.AttestatoPath))
+                        {
+                            <a asp-action="ScaricaCorso" asp-route-id="@c.Id" target="_blank">⬇</a>
+                        }
+                    </li>
+                }
+            </ul>
+        }
+    </div>
+</div>
