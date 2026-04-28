@@ -12,6 +12,15 @@
             @DateTime.Now.ToString("dddd d MMMM yyyy", new System.Globalization.CultureInfo("it-IT"))
         </p>
     </div>
+    <form asp-controller="Dashboard" asp-action="Ping" method="post" style="display:inline;">
+        @Html.AntiForgeryToken()
+        <button type="submit" class="btn btn--primary">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <path d="M22 2L11 13"/><path d="m22 2-7 20-4-9-9-4 20-7z"/>
+            </svg>
+            Test notifica live
+        </button>
+    </form>
 </div>
 
 <div class="grid grid--stats" data-tour="dashboard-stats" style="margin-bottom: var(--s-6);">

@@ -8,7 +8,7 @@ using MongoDB.Driver;
 
 namespace Chipdent.Web.Controllers;
 
-[Authorize(Policy = Policies.RequireBackoffice)]
+[Authorize]
 [Route("audit")]
 public class AuditController : Controller
 {
@@ -21,6 +21,7 @@ public class AuditController : Controller
         _tenant = tenant;
     }
 
+    [Authorize(Policy = Policies.RequireBackoffice)]
     [HttpGet("")]
     public async Task<IActionResult> Index(string? entityType = null, string? user = null,
                                            AuditAction? action = null, int page = 1)
@@ -50,5 +51,32 @@ public class AuditController : Controller
         ViewData["UserFilter"] = user;
         ViewData["ActionFilter"] = action;
         return View(entries);
+    }
+
+    /// <summary>
+    /// Ultime ~20 voci audit del tenant, formato JSON minimale per la campanella notifiche.
+    /// Accessibile a chiunque sia autenticato sul tenant (gli eventi sono già scoped per tenant).
+    /// </summary>
+    [HttpGet("recent.json")]
+    [Produces("application/json")]
+    public async Task<IActionResult> Recent(int limit = 20)
+    {
+        if (string.IsNullOrEmpty(_tenant.TenantId)) return Json(Array.Empty<object>());
+        limit = Math.Clamp(limit, 1, 50);
+        var entries = await _mongo.Audit
+            .Find(a => a.TenantId == _tenant.TenantId)
+            .SortByDescending(a => a.CreatedAt)
+            .Limit(limit)
+            .ToListAsync();
+        var payload = entries.Select(e => new
+        {
+            kind = "audit",
+            action = e.Action.ToString(),
+            entityType = e.EntityType,
+            entityLabel = e.EntityLabel,
+            user = e.UserName,
+            when = e.CreatedAt
+        });
+        return Json(payload);
     }
 }

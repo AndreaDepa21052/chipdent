@@ -47,7 +47,7 @@
         if (bellDot) bellDot.hidden = true;
     }
 
-    function pushBell(kind, title, subtitle) {
+    function pushBell(kind, title, subtitle, when, silent) {
         if (!bellBody) return;
         if (bellEmpty) bellEmpty.hidden = true;
         var item = document.createElement("div");
@@ -61,16 +61,48 @@
             '<time class="bell__time"></time>';
         item.querySelector(".bell__title").textContent = title || "";
         item.querySelector(".bell__sub").textContent = subtitle || "";
-        item.querySelector(".bell__time").textContent = timeAgo();
+        item.querySelector(".bell__time").textContent = formatWhen(when);
         item.querySelector(".bell__icon").textContent = ({
             audit: "▤", shift: "📅", comm: "💬", ping: "•"
         })[kind] || "●";
         bellBody.insertBefore(item, bellBody.firstChild.nextSibling || null);
-        bumpUnread();
+        if (!silent) bumpUnread();
 
         // Keep at most 50 items
         var items = bellBody.querySelectorAll(".bell__item");
         if (items.length > 50) items[items.length - 1].remove();
+    }
+
+    function formatWhen(when) {
+        if (!when) return timeAgo();
+        try {
+            var d = new Date(when);
+            if (isNaN(d.getTime())) return timeAgo();
+            var now = new Date();
+            var sameDay = d.getFullYear() === now.getFullYear() && d.getMonth() === now.getMonth() && d.getDate() === now.getDate();
+            return sameDay
+                ? d.toLocaleTimeString("it-IT", { hour: "2-digit", minute: "2-digit" })
+                : d.toLocaleDateString("it-IT", { day: "2-digit", month: "short" }) + " · " +
+                  d.toLocaleTimeString("it-IT", { hour: "2-digit", minute: "2-digit" });
+        } catch (e) { return timeAgo(); }
+    }
+
+    var historyLoaded = false;
+    function loadHistoryOnce() {
+        if (historyLoaded) return;
+        historyLoaded = true;
+        fetch("/audit/recent.json?limit=20", { credentials: "same-origin" })
+            .then(function (r) { return r.ok ? r.json() : []; })
+            .then(function (entries) {
+                if (!Array.isArray(entries) || entries.length === 0) return;
+                // Inserisci dal più vecchio al più recente, in modo che le voci più nuove restino in cima.
+                entries.slice().reverse().forEach(function (e) {
+                    var title = (e.action || "") + " · " + (e.entityType || "");
+                    var sub = e.entityLabel ? (e.entityLabel + " — " + (e.user || "")) : (e.user || "");
+                    pushBell(e.kind || "audit", title, sub, e.when, /*silent*/ true);
+                });
+            })
+            .catch(function () { /* il bell continua a funzionare con gli eventi live */ });
     }
 
     if (bellMark) {
@@ -81,7 +113,10 @@
     }
     if (bellRoot) {
         bellRoot.addEventListener("toggle", function () {
-            if (bellRoot.open) clearUnread();
+            if (bellRoot.open) {
+                loadHistoryOnce();
+                clearUnread();
+            }
         });
     }
 
