@@ -133,17 +133,17 @@ public class ComunicazioniController : Controller
     }
 
     [HttpPost("{id}/approva")]
-    [Authorize(Policy = Policies.RequireManager)]
+    [Authorize(Policy = Policies.RequireDirettore)]
     [ValidateAntiForgeryToken]
     public async Task<IActionResult> Approva(string id) => await SetStato(id, StatoRichiesta.Approvata);
 
     [HttpPost("{id}/rifiuta")]
-    [Authorize(Policy = Policies.RequireManager)]
+    [Authorize(Policy = Policies.RequireDirettore)]
     [ValidateAntiForgeryToken]
     public async Task<IActionResult> Rifiuta(string id) => await SetStato(id, StatoRichiesta.Rifiutata);
 
     [HttpPost("{id}/elimina")]
-    [Authorize(Policy = Policies.RequireAdmin)]
+    [Authorize(Policy = Policies.RequireManagement)]
     [ValidateAntiForgeryToken]
     public async Task<IActionResult> Delete(string id)
     {

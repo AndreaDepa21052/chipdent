@@ -2,6 +2,12 @@
 @{
     ViewData["Title"] = Model.FullName;
     ViewData["Crumb"] = "Utenti";
+
+    string RoleLabel(UserRole r) => r switch
+    {
+        UserRole.Direttore => "Direttore di sede",
+        _ => r.ToString()
+    };
 }
 
 <partial name="_Flash" />
@@ -43,7 +49,12 @@
             </div>
             <div class="form-group">
                 <label class="form-label" asp-for="Role">Ruolo</label>
-                <select class="form-control" asp-for="Role" asp-items="Html.GetEnumSelectList<Chipdent.Web.Domain.Entities.UserRole>()"></select>
+                <select class="form-control" asp-for="Role" id="roleSelect">
+                    @foreach (var r in Enum.GetValues<UserRole>())
+                    {
+                        <option value="@r" selected="@(r == Model.Role)">@RoleLabel(r)</option>
+                    }
+                </select>
                 <span class="text-danger" asp-validation-for="Role"></span>
             </div>
             <div class="form-group">
@@ -60,12 +71,32 @@
                 </label>
             </div>
 
+            <div class="form-group full" id="clinicheGroup">
+                <label class="form-label" asp-for="ClinicaIds">Cliniche assegnate</label>
+                <div class="checkbox-list">
+                    @foreach (var c in Model.Cliniche)
+                    {
+                        var sel = Model.ClinicaIds.Contains(c.Id);
+                        <label class="form-check" style="display:inline-flex; margin-right: var(--s-3); margin-bottom: var(--s-2);">
+                            <input type="checkbox" name="ClinicaIds" value="@c.Id" checked="@sel" />
+                            @c.Nome <span class="muted" style="margin-left:4px;">@c.Citta</span>
+                        </label>
+                    }
+                </div>
+                <span class="text-danger" asp-validation-for="ClinicaIds"></span>
+                <p style="color: var(--c-ink-soft); font-size:.82rem; margin-top: 4px;">
+                    <strong>Direttore</strong>: obbligatorio assegnare almeno una clinica (vedrà solo quelle).
+                    <strong>Management/Owner</strong>: lascia vuoto per visibilità su tutte le sedi.
+                    <strong>Backoffice/Staff</strong>: opzionale.
+                </p>
+            </div>
+
             <div class="form-group">
                 <label class="form-label" asp-for="LinkedPersonType">Collegamento a persona</label>
                 <select class="form-control" asp-for="LinkedPersonType" id="linkedTipo">
-                    <option value="None" selected="@(Model.LinkedPersonType == Chipdent.Web.Domain.Entities.LinkedPersonType.None)">— nessuno —</option>
-                    <option value="Dottore" selected="@(Model.LinkedPersonType == Chipdent.Web.Domain.Entities.LinkedPersonType.Dottore)">Dottore</option>
-                    <option value="Dipendente" selected="@(Model.LinkedPersonType == Chipdent.Web.Domain.Entities.LinkedPersonType.Dipendente)">Dipendente</option>
+                    <option value="None" selected="@(Model.LinkedPersonType == LinkedPersonType.None)">— nessuno —</option>
+                    <option value="Dottore" selected="@(Model.LinkedPersonType == LinkedPersonType.Dottore)">Dottore</option>
+                    <option value="Dipendente" selected="@(Model.LinkedPersonType == LinkedPersonType.Dipendente)">Dipendente</option>
                 </select>
             </div>
             <div class="form-group">
@@ -75,13 +106,13 @@
                     <optgroup label="Dottori" data-tipo="Dottore">
                         @foreach (var d in Model.Dottori)
                         {
-                            <option value="@d.Id" data-tipo="Dottore" selected="@(d.Id == Model.LinkedPersonId && Model.LinkedPersonType == Chipdent.Web.Domain.Entities.LinkedPersonType.Dottore)">@d.NomeCompleto · @d.Specializzazione</option>
+                            <option value="@d.Id" data-tipo="Dottore" selected="@(d.Id == Model.LinkedPersonId && Model.LinkedPersonType == LinkedPersonType.Dottore)">@d.NomeCompleto · @d.Specializzazione</option>
                         }
                     </optgroup>
                     <optgroup label="Dipendenti" data-tipo="Dipendente">
                         @foreach (var p in Model.Dipendenti)
                         {
-                            <option value="@p.Id" data-tipo="Dipendente" selected="@(p.Id == Model.LinkedPersonId && Model.LinkedPersonType == Chipdent.Web.Domain.Entities.LinkedPersonType.Dipendente)">@p.NomeCompleto · @p.Ruolo</option>
+                            <option value="@p.Id" data-tipo="Dipendente" selected="@(p.Id == Model.LinkedPersonId && Model.LinkedPersonType == LinkedPersonType.Dipendente)">@p.NomeCompleto · @p.Ruolo</option>
                         }
                     </optgroup>
                 </select>
@@ -89,8 +120,9 @@
             </div>
             <div class="form-group full" style="margin-top: -8px;">
                 <p style="color: var(--c-ink-soft); font-size:.82rem; margin:0;">
-                    Collegando l'account a una persona, l'utente vedrà solo i dati relativi al proprio profilo
-                    (es. solo i propri turni nel calendario). Non si applica a Manager/Admin/Owner che hanno comunque visibilità completa.
+                    Collegando l'account a una persona, lo Staff vedrà solo i dati relativi al proprio profilo
+                    (es. solo i propri turni nel calendario). Non si applica a Direttore/Management/Owner che hanno
+                    visibilità più ampia.
                 </p>
             </div>
         </div>

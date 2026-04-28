@@ -8,7 +8,7 @@ using MongoDB.Driver;
 
 namespace Chipdent.Web.Controllers;
 
-[Authorize(Roles = Policies.StaffRoles)]
+[Authorize(Policy = Policies.RequireBackoffice)]
 [Route("cliniche")]
 public class ClinicheController : Controller
 {
@@ -53,7 +53,7 @@ public class ClinicheController : Controller
     }
 
     [HttpGet("nuova")]
-    [Authorize(Policy = Policies.RequireManager)]
+    [Authorize(Policy = Policies.RequireManagement)]
     public IActionResult Create()
     {
         ViewData["Section"] = "cliniche";
@@ -62,7 +62,7 @@ public class ClinicheController : Controller
     }
 
     [HttpPost("nuova")]
-    [Authorize(Policy = Policies.RequireManager)]
+    [Authorize(Policy = Policies.RequireManagement)]
     [ValidateAntiForgeryToken]
     public async Task<IActionResult> Create(Clinica model)
     {
@@ -80,7 +80,7 @@ public class ClinicheController : Controller
     }
 
     [HttpGet("{id}/modifica")]
-    [Authorize(Policy = Policies.RequireManager)]
+    [Authorize(Policy = Policies.RequireManagement)]
     public async Task<IActionResult> Edit(string id)
     {
         var clinica = await Load(id);
@@ -91,7 +91,7 @@ public class ClinicheController : Controller
     }
 
     [HttpPost("{id}/modifica")]
-    [Authorize(Policy = Policies.RequireManager)]
+    [Authorize(Policy = Policies.RequireManagement)]
     [ValidateAntiForgeryToken]
     public async Task<IActionResult> Edit(string id, Clinica model)
     {
@@ -113,7 +113,7 @@ public class ClinicheController : Controller
     }
 
     [HttpPost("{id}/elimina")]
-    [Authorize(Policy = Policies.RequireAdmin)]
+    [Authorize(Policy = Policies.RequireManagement)]
     [ValidateAntiForgeryToken]
     public async Task<IActionResult> Delete(string id)
     {

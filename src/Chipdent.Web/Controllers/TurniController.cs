@@ -45,10 +45,10 @@ public class TurniController : Controller
 
         var linkedPersonId = User.LinkedPersonId();
         var linkedPersonType = User.LinkedPersonType();
-        var restrictToSelf = !User.IsFullAccess()
-                             && !User.IsInRole("Manager")
-                             && !User.IsInRole("HR")
-                             && linkedPersonId is not null;
+        // Solo Staff "puro" (senza ruolo operativo) vede esclusivamente i propri turni.
+        // Management/Direttore/Backoffice hanno la vista completa del calendario.
+        var canSeeAll = User.IsManagement() || User.IsDirettore() || User.IsBackoffice();
+        var restrictToSelf = !canSeeAll && linkedPersonId is not null;
 
         var righe = new List<PersonaRow>();
         foreach (var d in dottori)
@@ -66,7 +66,7 @@ public class TurniController : Controller
 
         ViewData["Section"] = "turni";
         ViewData["RestrictedView"] = restrictToSelf;
-        ViewData["NoLinkedPerson"] = !User.IsFullAccess() && !User.IsInRole("Manager") && !User.IsInRole("HR") && linkedPersonId is null;
+        ViewData["NoLinkedPerson"] = !canSeeAll && linkedPersonId is null;
         return View(new TurniWeekViewModel
         {
             WeekStart = weekStart,
@@ -76,7 +76,7 @@ public class TurniController : Controller
     }
 
     [HttpGet("nuovo")]
-    [Authorize(Policy = Policies.RequireManager)]
+    [Authorize(Policy = Policies.RequireDirettore)]
     public async Task<IActionResult> Create(DateTime? data, string? personaId, TipoPersona tipo = TipoPersona.Dottore, DateTime? week = null)
     {
         ViewData["Section"] = "turni";
@@ -93,7 +93,7 @@ public class TurniController : Controller
     }
 
     [HttpPost("nuovo")]
-    [Authorize(Policy = Policies.RequireManager)]
+    [Authorize(Policy = Policies.RequireDirettore)]
     [ValidateAntiForgeryToken]
     public async Task<IActionResult> Create(TurnoFormViewModel vm)
     {
@@ -131,7 +131,7 @@ public class TurniController : Controller
     }
 
     [HttpGet("{id}/modifica")]
-    [Authorize(Policy = Policies.RequireManager)]
+    [Authorize(Policy = Policies.RequireDirettore)]
     public async Task<IActionResult> Edit(string id, DateTime? week = null)
     {
         var t = await _mongo.Turni
@@ -158,7 +158,7 @@ public class TurniController : Controller
     }
 
     [HttpPost("{id}/modifica")]
-    [Authorize(Policy = Policies.RequireManager)]
+    [Authorize(Policy = Policies.RequireDirettore)]
     [ValidateAntiForgeryToken]
     public async Task<IActionResult> Edit(string id, TurnoFormViewModel vm)
     {
@@ -186,7 +186,7 @@ public class TurniController : Controller
     }
 
     [HttpPost("{id}/elimina")]
-    [Authorize(Policy = Policies.RequireManager)]
+    [Authorize(Policy = Policies.RequireDirettore)]
     [ValidateAntiForgeryToken]
     public async Task<IActionResult> Delete(string id, DateTime? week = null)
     {

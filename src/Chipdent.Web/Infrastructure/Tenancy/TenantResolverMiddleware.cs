@@ -6,10 +6,11 @@ namespace Chipdent.Web.Infrastructure.Tenancy;
 
 public class TenantResolverMiddleware
 {
-    public const string TenantIdClaim = "tenant_id";
-    public const string TenantSlugClaim = "tenant_slug";
+    public const string TenantIdClaim         = "tenant_id";
+    public const string TenantSlugClaim       = "tenant_slug";
+    public const string ClinicaIdsClaim       = "clinica_ids";
     public const string LinkedPersonTypeClaim = "linked_person_type";
-    public const string LinkedPersonIdClaim = "linked_person_id";
+    public const string LinkedPersonIdClaim   = "linked_person_id";
 
     private readonly RequestDelegate _next;
 
@@ -24,7 +25,11 @@ public class TenantResolverMiddleware
             var tenantSlug = user.FindFirst(TenantSlugClaim)?.Value;
             if (!string.IsNullOrEmpty(tenantId) && !string.IsNullOrEmpty(tenantSlug))
             {
-                tenantContext.Set(tenantId, tenantSlug);
+                var clinicaIdsRaw = user.FindFirst(ClinicaIdsClaim)?.Value;
+                var clinicaIds = string.IsNullOrEmpty(clinicaIdsRaw)
+                    ? Array.Empty<string>()
+                    : clinicaIdsRaw.Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries);
+                tenantContext.Set(tenantId, tenantSlug, clinicaIds);
             }
         }
         else if (context.Request.Headers.TryGetValue("X-Tenant", out var headerSlug))

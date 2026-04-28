@@ -8,7 +8,14 @@ public class User : TenantEntity
     public string PasswordHash { get; set; } = string.Empty;
     public string FullName { get; set; } = string.Empty;
     public string? Phone { get; set; }
-    public UserRole Role { get; set; } = UserRole.Operatore;
+    public UserRole Role { get; set; } = UserRole.Staff;
+
+    /// <summary>
+    /// Cliniche assegnate all'utente. Vuoto = visibilità su tutte le sedi del tenant
+    /// (tipico di Management/Owner). Per i Direttori contiene 1+ cliniche.
+    /// </summary>
+    public List<string> ClinicaIds { get; set; } = new();
+
     public bool IsActive { get; set; } = true;
     public DateTime? LastLoginAt { get; set; }
     public LinkedPersonType LinkedPersonType { get; set; } = LinkedPersonType.None;
@@ -26,12 +33,16 @@ public class UserPreferences
     public string Densita { get; set; } = "comoda";   // comoda | compatta
 }
 
+/// <summary>
+/// Ruoli applicativi allineati alla mappa funzionale Chipdent.
+/// I valori numerici sono stabili per la persistenza Mongo.
+/// </summary>
 public enum UserRole
 {
-    Operatore = 0,
-    HR = 10,
-    Manager = 20,
-    Admin = 30,
+    Staff = 0,
+    Backoffice = 10,
+    Direttore = 20,
+    Management = 30,
     Owner = 99
 }
 

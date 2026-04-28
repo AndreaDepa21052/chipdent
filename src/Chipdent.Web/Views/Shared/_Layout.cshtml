@@ -12,15 +12,25 @@
     var tenantSlug = User.FindFirst("tenant_slug")?.Value ?? "confident";
     var tenantName = "Confident Dental";
 
-    var canSeeAnagrafiche = User.IsInRole("Owner") || User.IsInRole("Admin")
-                            || User.IsInRole("Manager") || User.IsInRole("HR");
-    var canSeeUsers = User.IsInRole("Owner") || User.IsInRole("Admin");
-    var isFullAccess = User.IsInRole("Owner") || User.IsInRole("Admin");
+    var canSeeAnagrafiche = User.IsManagement() || User.IsDirettore() || User.IsBackoffice();
+    var canSeeUsers = User.IsManagement();
+    var isFullAccess = User.IsManagement();
     var roleClass = role switch
     {
-        "Owner" => "role-badge--owner",
-        "Admin" => "role-badge--admin",
+        "Owner"      => "role-badge--owner",
+        "Management" => "role-badge--admin",
+        "Direttore"  => "role-badge--manager",
+        "Backoffice" => "role-badge--hr",
         _ => ""
+    };
+    var roleLabel = role switch
+    {
+        "Owner"      => "Owner",
+        "Management" => "Management",
+        "Direttore"  => "Direttore di sede",
+        "Backoffice" => "Backoffice",
+        "Staff"      => "Staff",
+        _ => role
     };
 
     var sectionMap = new Dictionary<string, (string label, string controller)>
@@ -160,7 +170,7 @@
                     <span class="user-bar__text">
                         <span class="user-bar__name">@fullName</span>
                         <span class="user-bar__role">
-                            <span class="role-badge @roleClass">@role</span>
+                            <span class="role-badge @roleClass">@roleLabel</span>
                         </span>
                     </span>
                     <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="5" cy="12" r="1.5"/><circle cx="12" cy="12" r="1.5"/><circle cx="19" cy="12" r="1.5"/></svg>
@@ -174,12 +184,12 @@
                         @if (isFullAccess)
                         {
                             <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4"><polyline points="20 6 9 17 4 12"/></svg>
-                            <span><strong>@role · accesso completo</strong> — vedi tutti i dati del workspace</span>
+                            <span><strong>@roleLabel · accesso completo</strong> — vedi tutti i dati del workspace</span>
                         }
                         else
                         {
                             <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="9"/><path d="M12 8v4M12 16h.01"/></svg>
-                            <span><strong>@role · vista limitata</strong> — alcune sezioni non sono disponibili</span>
+                            <span><strong>@roleLabel · vista limitata</strong> — alcune sezioni non sono disponibili</span>
                         }
                     </div>
                     <hr/>

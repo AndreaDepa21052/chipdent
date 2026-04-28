@@ -85,8 +85,7 @@
                 <h3 style="margin-bottom: var(--s-4);">@c.Oggetto</h3>
                 <div class="body">@c.Corpo</div>
 
-                @if (c.Stato == Chipdent.Web.Domain.Entities.StatoRichiesta.InAttesa &&
-                     (User.IsInRole("Owner") || User.IsInRole("Admin") || User.IsInRole("Manager")))
+                @if (c.Stato == Chipdent.Web.Domain.Entities.StatoRichiesta.InAttesa && User.CanApprove())
                 {
                     <div class="actions-row">
                         <form asp-action="Approva" asp-route-id="@c.Id" method="post" style="display:inline;">

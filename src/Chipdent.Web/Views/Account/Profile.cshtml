@@ -96,7 +96,7 @@
         <div class="card">
             <div class="card__header"><h3 class="card__title">Identità nel workspace</h3></div>
             <dl class="kv">
-                <dt>Ruolo</dt><dd><span class="badge @(Model.Role == Chipdent.Web.Domain.Entities.UserRole.Owner ? "badge--accent" : "")">@Model.Role</span></dd>
+                <dt>Ruolo</dt><dd><span class="badge @(Model.Role == UserRole.Owner || Model.Role == UserRole.Management ? "badge--accent" : "")">@(Model.Role switch { UserRole.Direttore => "Direttore di sede", _ => Model.Role.ToString() })</span></dd>
                 <dt>Persona collegata</dt>
                 <dd>
                     @if (Model.LinkedPersonName is not null)

@@ -64,14 +64,24 @@ arrivano solo agli utenti del tenant corretto.
 
 ## RBAC
 
+Cinque ruoli applicativi (`UserRole` in `Domain/Entities/User.cs`) allineati alla mappa funzionale (`docs/chipdent-features.html`):
+
+| Ruolo        | Descrizione                                                  |
+|--------------|--------------------------------------------------------------|
+| `Owner`      | tecnico — last-owner-guard del workspace                     |
+| `Management` | direzione catena (CEO/COO/HR Director/CFO)                   |
+| `Direttore`  | responsabile di sede, scope `User.ClinicaIds`                |
+| `Backoffice` | anagrafiche/compliance cross-sede (ex HR)                    |
+| `Staff`      | receptionist/ASO/igienista — app personale, propri turni     |
+
 Quattro policy in `Infrastructure/Identity/Policies.cs`:
 
 - `RequireOwner` — solo Owner
-- `RequireAdmin` — Owner + Admin (gestione utenti, delete entità)
-- `RequireManager` — Owner + Admin + Manager (turni, edit cliniche)
-- `RequireHR` — + HR (anagrafiche dottori/dipendenti)
+- `RequireManagement` — Owner + Management (gestione utenti, delete entità)
+- `RequireDirettore` — Owner + Management + Direttore (turni, comunicazioni mgmt, documenti)
+- `RequireBackoffice` — + Backoffice + Direttore (anagrafiche, RLS)
 
-I controller decorano gli endpoint sensibili con `[Authorize(Policy = …)]`.
+Direttore e Backoffice sono peer: il primo è clinic-scoped, il secondo cross-sede.
 
 ## Invito utenti
 
@@ -85,8 +95,11 @@ Workflow:
 ## Demo seed (al primo avvio)
 
 - 1 tenant (`Confident Dental`)
-- 1 owner (`owner@chipdent.it` / `chipdent`)
 - 3 cliniche (Milano, Roma, Torino)
+- 3 utenti demo (password comune `chipdent`):
+  - `owner@chipdent.it` — Owner
+  - `direttore.milano@chipdent.it` — Direttore (scope: Milano)
+  - `backoffice@chipdent.it` — Backoffice
 - 3 dottori (con scadenza albo per testare gli alert)
 - 3 dipendenti (uno in onboarding, ferie residue diverse)
 

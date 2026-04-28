@@ -66,6 +66,7 @@ public class AccountController : Controller
             new(ClaimTypes.Role, user.Role.ToString()),
             new(TenantResolverMiddleware.TenantIdClaim, tenant.Id),
             new(TenantResolverMiddleware.TenantSlugClaim, tenant.Slug),
+            new(TenantResolverMiddleware.ClinicaIdsClaim, string.Join(",", user.ClinicaIds ?? new())),
             new(TenantResolverMiddleware.LinkedPersonTypeClaim, user.LinkedPersonType.ToString()),
             new(TenantResolverMiddleware.LinkedPersonIdClaim, user.LinkedPersonId ?? string.Empty)
         };
@@ -287,6 +288,7 @@ public class AccountController : Controller
             FullName = invito.FullName,
             PasswordHash = _hasher.Hash(vm.Password),
             Role = invito.Ruolo,
+            ClinicaIds = invito.ClinicaIds?.ToList() ?? new(),
             IsActive = true
         };
         await _mongo.Users.InsertOneAsync(user);
