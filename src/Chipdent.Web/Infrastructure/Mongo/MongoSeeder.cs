@@ -18,7 +18,7 @@ public static class MongoSeeder
                 tenant = new Tenant
                 {
                     Slug = "confident",
-                    DisplayName = "Confident Dental",
+                    DisplayName = "Confident",
                     PrimaryColor = "#c47830",
                     IsActive = true
                 };
@@ -200,6 +200,12 @@ public static class MongoSeeder
     {
         try
         {
+            // Rinomina tenant "Confident Dental" → "Confident" (una tantum, idempotente).
+            await ctx.Tenants.UpdateManyAsync(
+                t => t.DisplayName == "Confident Dental",
+                Builders<Tenant>.Update.Set(t => t.DisplayName, "Confident"),
+                cancellationToken: ct);
+
             // I valori numerici stabili — lo stesso enum coincide con la persistenza:
             //   Staff=0   (era Operatore=0)
             //   Backoffice=10 (era HR=10)

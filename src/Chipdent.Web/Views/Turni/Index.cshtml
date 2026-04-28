@@ -2,7 +2,9 @@
 @{
     ViewData["Title"] = "Turni";
     var culture = new System.Globalization.CultureInfo("it-IT");
-    var today = DateTime.Today;
+    // Usa UTC come Turno.Data per evitare mismatch di fuso orario nel confronto
+    // delle celle giornaliere (Turno.Data è salvato come UTC midnight).
+    var today = DateTime.UtcNow.Date;
     var prevWeek = Model.WeekStart.AddDays(-7);
     var nextWeek = Model.WeekStart.AddDays(7);
     var restricted = (bool)(ViewData["RestrictedView"] ?? false);

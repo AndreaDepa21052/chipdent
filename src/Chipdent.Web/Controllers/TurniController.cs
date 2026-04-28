@@ -28,7 +28,7 @@ public class TurniController : Controller
     [HttpGet("")]
     public async Task<IActionResult> Index(DateTime? week = null)
     {
-        var weekStart = StartOfWeek(week ?? DateTime.Today);
+        var weekStart = StartOfWeek(week ?? DateTime.UtcNow.Date);
         var weekEnd = weekStart.AddDays(7);
 
         var dottori = await _mongo.Dottori
@@ -121,7 +121,7 @@ public class TurniController : Controller
         var turno = new Turno
         {
             TenantId = _tenant.TenantId!,
-            Data = vm.Data.Date,
+            Data = UtcDate(vm.Data),
             OraInizio = vm.OraInizio,
             OraFine = vm.OraFine,
             ClinicaId = vm.ClinicaId,
@@ -184,7 +184,7 @@ public class TurniController : Controller
         }
 
         var update = Builders<Turno>.Update
-            .Set(t => t.Data, vm.Data.Date)
+            .Set(t => t.Data, UtcDate(vm.Data))
             .Set(t => t.OraInizio, vm.OraInizio)
             .Set(t => t.OraFine, vm.OraFine)
             .Set(t => t.ClinicaId, vm.ClinicaId!)
@@ -215,7 +215,7 @@ public class TurniController : Controller
     public async Task<IActionResult> Move([FromForm] string id, [FromForm] DateTime data, [FromForm] string? personaId, [FromForm] TipoPersona? tipo)
     {
         var update = Builders<Turno>.Update
-            .Set(t => t.Data, data.Date)
+            .Set(t => t.Data, UtcDate(data))
             .Set(t => t.UpdatedAt, DateTime.UtcNow);
         if (!string.IsNullOrEmpty(personaId))
         {
@@ -239,7 +239,7 @@ public class TurniController : Controller
         var turno = new Turno
         {
             TenantId = _tenant.TenantId!,
-            Data = data.Date,
+            Data = UtcDate(data),
             OraInizio = tpl.OraInizio,
             OraFine = tpl.OraFine,
             ClinicaId = clinicaId,
@@ -274,7 +274,7 @@ public class TurniController : Controller
         var copies = sourceTurni.Select(t => new Turno
         {
             TenantId = t.TenantId,
-            Data = t.Data.AddDays(7),
+            Data = UtcDate(t.Data.AddDays(7)),
             OraInizio = t.OraInizio,
             OraFine = t.OraFine,
             ClinicaId = t.ClinicaId,
@@ -394,6 +394,9 @@ public class TurniController : Controller
     {
         var d = date.Date;
         var diff = ((int)d.DayOfWeek - (int)DayOfWeek.Monday + 7) % 7;
-        return d.AddDays(-diff);
+        return DateTime.SpecifyKind(d.AddDays(-diff), DateTimeKind.Utc);
     }
+
+    /// <summary>Normalizza una data in UTC midnight per evitare shift di fuso orario su MongoDB.</summary>
+    private static DateTime UtcDate(DateTime d) => DateTime.SpecifyKind(d.Date, DateTimeKind.Utc);
 }

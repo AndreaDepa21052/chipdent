@@ -10,7 +10,7 @@
                                 .Select(p => char.ToUpper(p[0])));
     var role = User.FindFirst(System.Security.Claims.ClaimTypes.Role)?.Value ?? "";
     var tenantSlug = User.FindFirst("tenant_slug")?.Value ?? "confident";
-    var tenantName = "Confident Dental";
+    var tenantName = "Confident";
 
     var canSeeAnagrafiche = User.IsManagement() || User.IsDirettore() || User.IsBackoffice();
     var canSeeUsers = User.IsManagement();

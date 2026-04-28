@@ -94,7 +94,7 @@ Workflow:
 
 ## Demo seed (al primo avvio)
 
-- 1 tenant (`Confident Dental`)
+- 1 tenant (`Confident`)
 - 3 cliniche (Milano, Roma, Torino)
 - 3 utenti demo (password comune `chipdent`):
   - `owner@chipdent.it` — Owner

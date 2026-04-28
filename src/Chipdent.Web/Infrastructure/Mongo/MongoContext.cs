@@ -45,4 +45,8 @@ public class MongoContext
     public IMongoCollection<RichiestaFerie> RichiesteFerie => Database.GetCollection<RichiestaFerie>("richiesteFerie");
     public IMongoCollection<TurnoTemplate> TurniTemplate => Database.GetCollection<TurnoTemplate>("turniTemplate");
     public IMongoCollection<Messaggio> Messaggi => Database.GetCollection<Messaggio>("messaggi");
+    public IMongoCollection<SogliaCopertura> SoglieCopertura => Database.GetCollection<SogliaCopertura>("soglieCopertura");
+    public IMongoCollection<CategoriaDocumentoObbligatoria> CategorieDocumentoObbligatorie => Database.GetCollection<CategoriaDocumentoObbligatoria>("categorieDocumentoObbligatorie");
+    public IMongoCollection<WorkflowConfiguration> WorkflowConfigs => Database.GetCollection<WorkflowConfiguration>("workflowConfigs");
+    public IMongoCollection<Contratto> Contratti => Database.GetCollection<Contratto>("contratti");
 }
