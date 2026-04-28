@@ -42,4 +42,7 @@ public record CandidatoSostituzione(
     RuoloDipendente Ruolo,
     bool LiberoInQuelMomento,
     bool InFerie,
-    string? MotivoNonDisponibile);
+    string? MotivoNonDisponibile,
+    int AiScore = 0,
+    string? AiMotivazione = null,
+    int CarichoOreSettimana = 0);

@@ -16,6 +16,7 @@ builder.Services.AddSingleton<IChatPublisher, ChatPublisher>();
 builder.Services.AddSingleton<Chipdent.Web.Infrastructure.Storage.IFileStorage, Chipdent.Web.Infrastructure.Storage.LocalFileStorage>();
 builder.Services.AddSingleton<Chipdent.Web.Infrastructure.Notifications.IEmailSender, Chipdent.Web.Infrastructure.Notifications.LogOnlyEmailSender>();
 builder.Services.AddHostedService<Chipdent.Web.Infrastructure.Notifications.DigestEmailService>();
+builder.Services.AddScoped<Chipdent.Web.Infrastructure.Insights.AiInsightsEngine>();
 builder.Services.AddScoped<Chipdent.Web.Infrastructure.Audit.IAuditService, Chipdent.Web.Infrastructure.Audit.AuditService>();
 
 builder.Services

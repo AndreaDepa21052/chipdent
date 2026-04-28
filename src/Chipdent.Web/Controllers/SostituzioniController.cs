@@ -2,6 +2,7 @@ using System.Security.Claims;
 using Chipdent.Web.Domain.Entities;
 using Chipdent.Web.Hubs;
 using Chipdent.Web.Infrastructure.Identity;
+using Chipdent.Web.Infrastructure.Insights;
 using Chipdent.Web.Infrastructure.Mongo;
 using Chipdent.Web.Infrastructure.Tenancy;
 using Chipdent.Web.Models;
@@ -18,11 +19,13 @@ public class SostituzioniController : Controller
     private readonly MongoContext _mongo;
     private readonly ITenantContext _tenant;
     private readonly INotificationPublisher _publisher;
+    private readonly AiInsightsEngine _ai;
 
-    public SostituzioniController(MongoContext mongo, ITenantContext tenant, INotificationPublisher publisher)
+    public SostituzioniController(MongoContext mongo, ITenantContext tenant, INotificationPublisher publisher, AiInsightsEngine ai)
     {
         _mongo = mongo;
         _tenant = tenant;
+        _ai = ai;
         _publisher = publisher;
     }
 
@@ -173,6 +176,11 @@ public class SostituzioniController : Controller
                        && r.DataInizio <= dayStart && r.DataFine >= dayStart)
             .ToListAsync();
 
+        // AI score per tutti i candidati (anche quelli non disponibili, per sapere chi sarebbe stato il migliore)
+        var aiScores = await _ai.ScoreCandidatiAsync(tid,
+            candidatiBase.Select(x => x.Id).ToList(),
+            s.Data, s.OraInizio, s.OraFine);
+
         var candidati = new List<CandidatoSostituzione>();
         foreach (var c in candidatiBase)
         {
@@ -182,6 +190,7 @@ public class SostituzioniController : Controller
             string? motivo = inFerie ? "in ferie" : sovrapposto ? "ha già un turno sovrapposto" : null;
 
             var u = await _mongo.Users.Find(x => x.TenantId == tid && x.LinkedPersonId == c.Id && x.LinkedPersonType == LinkedPersonType.Dipendente && x.IsActive).FirstOrDefaultAsync();
+            var ai = aiScores.GetValueOrDefault(c.Id);
             candidati.Add(new CandidatoSostituzione(
                 DipendenteId: c.Id,
                 UserId: u?.Id,
@@ -189,10 +198,15 @@ public class SostituzioniController : Controller
                 Ruolo: c.Ruolo,
                 LiberoInQuelMomento: !sovrapposto,
                 InFerie: inFerie,
-                MotivoNonDisponibile: motivo));
+                MotivoNonDisponibile: motivo,
+                AiScore: ai?.Score ?? 0,
+                AiMotivazione: ai?.Motivazione,
+                CarichoOreSettimana: ai?.CarichoOreSettimana ?? 0));
         }
-        // Ordino per disponibilità (liberi primi)
-        candidati = candidati.OrderByDescending(x => x.MotivoNonDisponibile is null).ThenBy(x => x.Nome).ToList();
+        // Ordino: prima disponibili, poi per AI score discendente
+        candidati = candidati.OrderByDescending(x => x.MotivoNonDisponibile is null)
+                             .ThenByDescending(x => x.AiScore)
+                             .ThenBy(x => x.Nome).ToList();
 
         ViewData["Section"] = "sostituzioni";
         return View(new SostituzioneCandidatiViewModel

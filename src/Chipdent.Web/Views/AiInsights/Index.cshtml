@@ -1,0 +1,155 @@
+@model Chipdent.Web.Infrastructure.Insights.AiInsightsSnapshot
+@using Chipdent.Web.Infrastructure.Insights
+@{
+    ViewData["Title"] = "AI Insights";
+    var culture = new System.Globalization.CultureInfo("it-IT");
+}
+
+<partial name="_Flash" />
+
+<div class="page-head">
+    <div>
+        <h2 style="display:inline-flex; align-items:center; gap:8px;">
+            <span style="background: linear-gradient(135deg, #c47830, #7a5c9a); -webkit-background-clip: text; -webkit-text-fill-color: transparent;">✨ AI Insights</span>
+        </h2>
+        <p class="page-head__sub">
+            Previsioni e raccomandazioni generate dal motore Chipdent Intelligence sui dati operativi della catena.
+            <span class="muted" style="font-size:.78rem;">· ultimo refresh @Model.CalcolatoIl.ToLocalTime().ToString("dd MMM HH:mm", culture)</span>
+        </p>
+    </div>
+</div>
+
+<div class="alert" style="background: linear-gradient(135deg, rgba(196,120,48,0.08), rgba(122,92,154,0.08)); border:1px solid rgba(122,92,154,0.2); margin-bottom: var(--s-4);">
+    <strong>🧠 Come leggere queste card:</strong> il motore aggrega segnali da turni, ferie, cambi turno, timbrature, contratti e
+    li combina con euristiche multifattoriali. Le percentuali di confidenza riflettono la quantità di dati storici disponibili,
+    non un grado di certezza assoluta. Usa queste raccomandazioni come spunto, non come decisioni automatiche.
+</div>
+
+<!-- ── 🔮 Forecast organico ── -->
+<div class="card" style="margin-bottom: var(--s-4);">
+    <div class="card__header">
+        <h3 class="card__title">🔮 Forecast organico — prossimi 3 mesi</h3>
+    </div>
+    <div class="grid" style="grid-template-columns: repeat(3, 1fr); gap: var(--s-3); padding: var(--s-3);">
+        @foreach (var f in Model.Forecast)
+        {
+            var sign = f.DeltaStimato >= 0 ? "+" : "";
+            var color = f.DeltaStimato > 0 ? "#2d7a50" : f.DeltaStimato < 0 ? "#a83a3a" : "#7a5c3a";
+            <div style="border:1px solid var(--c-border, #e9e1d3); border-radius:10px; padding: var(--s-3);">
+                <div class="muted" style="font-size:.8rem; text-transform:uppercase; letter-spacing:1px;">@f.Mese.ToString("MMMM yyyy", culture)</div>
+                <div style="font-family:'Playfair Display',serif; font-size:32px; color: var(--c-ink, #2a1508); margin-top:6px;">@f.OrganicoStimato</div>
+                <div style="color: @color; font-weight:700;">@sign@f.DeltaStimato sul corrente</div>
+                <div class="muted" style="font-size:.72rem; margin-top:8px;">confidenza: @f.Confidenza%</div>
+                <div style="background: #ece0cc; border-radius: 4px; height: 4px; overflow:hidden; margin-top:4px;">
+                    <div style="background: linear-gradient(90deg, #c47830, #7a5c9a); height:100%; width: @(f.Confidenza)%;"></div>
+                </div>
+            </div>
+        }
+    </div>
+</div>
+
+<div class="grid" style="grid-template-columns: 1fr 1fr; gap: var(--s-4); margin-bottom: var(--s-4);">
+
+    <!-- ── ⚠️ Risk turnover ── -->
+    <div class="card">
+        <div class="card__header">
+            <h3 class="card__title">⚠️ Risk score turnover</h3>
+        </div>
+        @if (!Model.TurnoverRisks.Any())
+        {
+            <p class="muted" style="padding: var(--s-3);">Nessun segnale di rischio rilevato sulla popolazione attuale. 👍</p>
+        }
+        else
+        {
+            <div style="padding: var(--s-2);">
+                @foreach (var r in Model.TurnoverRisks)
+                {
+                    var color = r.Livello switch { "Alto" => "#a83a3a", "Medio" => "#c47830", _ => "#7a5c3a" };
+                    <details style="margin-bottom: 8px; padding: 10px 12px; border-radius:8px; border:1px solid var(--c-border, #e9e1d3); background:#fff;">
+                        <summary style="cursor:pointer; display:flex; gap:8px; align-items:center;">
+                            <div style="width:36px; height:36px; border-radius:50%; background: @color; color:#fff; font-weight:700; display:flex; align-items:center; justify-content:center;">@r.Score</div>
+                            <div style="flex:1;">
+                                <div style="font-weight:700;">@r.Nome</div>
+                                <div class="muted" style="font-size:.78rem;">@r.Ruolo · @r.ClinicaNome</div>
+                            </div>
+                            <span class="badge" style="background: @color; color:#fff;">@r.Livello</span>
+                        </summary>
+                        <div style="padding: 8px 0 0 44px;">
+                            <div class="muted" style="font-size:.78rem; margin-bottom:4px;">Fattori rilevati:</div>
+                            <ul style="margin:0; padding-left:18px; font-size:.82rem;">
+                                @foreach (var f in r.Fattori)
+                                {
+                                    <li>@f</li>
+                                }
+                            </ul>
+                        </div>
+                    </details>
+                }
+            </div>
+        }
+    </div>
+
+    <!-- ── 📈 Anomalie presenze ── -->
+    <div class="card">
+        <div class="card__header">
+            <h3 class="card__title">📈 Anomaly detection — presenze</h3>
+        </div>
+        @if (!Model.Anomalie.Any())
+        {
+            <p class="muted" style="padding: var(--s-3);">Nessuna anomalia significativa nelle ultime due settimane. 👍</p>
+        }
+        else
+        {
+            <ul class="list">
+                @foreach (var a in Model.Anomalie)
+                {
+                    <li class="list__item">
+                        <div class="list__icon">⚠</div>
+                        <div>
+                            <div class="list__title">@a.Nome <span class="muted" style="font-weight:400;">· @a.ClinicaNome</span></div>
+                            <div class="list__meta">@a.Descrizione</div>
+                        </div>
+                        <div class="list__when">@a.Quando.ToLocalTime().ToString("dd/MM HH:mm")</div>
+                    </li>
+                }
+            </ul>
+        }
+    </div>
+</div>
+
+<!-- ── 💡 Smart staffing ── -->
+<div class="card">
+    <div class="card__header">
+        <h3 class="card__title">💡 Smart staffing — fabbisogno previsto (prossimi 30 giorni)</h3>
+    </div>
+    @if (!Model.Staffing.Any())
+    {
+        <p class="muted" style="padding: var(--s-3);">La pianificazione corrente è in linea con il pattern storico per ogni sede e ruolo.</p>
+    }
+    else
+    {
+        <table class="table">
+            <thead>
+                <tr><th>Sede</th><th>Ruolo</th><th>Pianificati</th><th>Attesi (storico)</th><th>Gap</th><th>Raccomandazione</th></tr>
+            </thead>
+            <tbody>
+                @foreach (var s in Model.Staffing)
+                {
+                    var gapColor = s.GapPercentuale < 0 ? "#a83a3a" : "#2d7a50";
+                    <tr>
+                        <td><strong>@s.ClinicaNome</strong></td>
+                        <td>@s.Ruolo</td>
+                        <td>@s.TurniPianificati</td>
+                        <td>@s.TurniAttesiStorico</td>
+                        <td style="color: @gapColor; font-weight:700;">@(s.GapPercentuale > 0 ? "+" : "")@s.GapPercentuale%</td>
+                        <td>@s.Raccomandazione</td>
+                    </tr>
+                }
+            </tbody>
+        </table>
+    }
+</div>
+
+<div style="margin-top: var(--s-4); text-align:center; color: var(--c-ink-soft); font-size:.75rem;">
+    <span style="opacity:.7;">Powered by Chipdent Intelligence · motore deterministico · nessun dato esce dal tenant.</span>
+</div>

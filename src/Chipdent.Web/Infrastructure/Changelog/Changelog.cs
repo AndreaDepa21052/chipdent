@@ -9,6 +9,25 @@ public static class Changelog
     public static readonly IReadOnlyList<ChangelogEntry> Entries = new List<ChangelogEntry>
     {
         // ───────────────────────────────────────────────────────────────────
+        // ✨ v1.400.0 — Tornavento Intelligence
+        // ───────────────────────────────────────────────────────────────────
+        new(
+            Version: "v1.400.0",
+            Codename: "Tornavento Intelligence",
+            Date: new DateTime(2026, 4, 28),
+            Category: ChangelogCategory.Dashboard,
+            Title: "✨ AI Insights — risk turnover, forecast, anomalie, smart staffing",
+            Description: "Nuova pagina /ai-insights (Management) con previsioni e raccomandazioni generate dal motore Chipdent Intelligence: risk score turnover per dipendente con fattori esplicabili, forecast organico a 3 mesi con confidenza, anomaly detection sui ritardi (oltre 2σ dalla media personale), smart staffing che confronta la pianificazione futura con la baseline storica per sede×ruolo. Motore deterministico basato su euristiche multifattoriali — nessun dato esce dal tenant, nessun LLM coinvolto."),
+
+        new(
+            Version: "v1.400.0",
+            Codename: "Tornavento Intelligence",
+            Date: new DateTime(2026, 4, 28),
+            Category: ChangelogCategory.Turni,
+            Title: "AI score sui candidati sostituzione",
+            Description: "Quando il Direttore cerca un sostituto, ogni candidato riceve un punteggio AI 0-100 calcolato su carico ore della settimana, storico di accettazioni, affinità con l'orario tipico. I migliori candidati sono evidenziati in viola e suggeriti per primi."),
+
+        // ───────────────────────────────────────────────────────────────────
         // 🌟 v1.300.0 — Tornavento Completo  (chiusura mappa funzionale)
         // ───────────────────────────────────────────────────────────────────
         new(

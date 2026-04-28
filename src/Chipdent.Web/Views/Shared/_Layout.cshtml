@@ -52,6 +52,7 @@
         ["dottori"]        = ("Dottori", "Dottori"),
         ["dipendenti"]     = ("Dipendenti", "Dipendenti"),
         ["contratti"]      = ("Contratti", "Contratti"),
+        ["ai-insights"]    = ("AI Insights", "AiInsights"),
         ["headcount"]      = ("Headcount", "Headcount"),
         ["formazione"]     = ("Formazione", "Formazione"),
         ["report"]         = ("Report", "Report"),
@@ -190,6 +191,10 @@
                     </a>
                     @if (User.IsManagement())
                     {
+                        <a class="nav__item @(section == "ai-insights" ? "is-active" : "")" asp-controller="AiInsights" asp-action="Index" style="background: linear-gradient(90deg, rgba(196,120,48,0.1), rgba(122,92,154,0.1));">
+                            <svg class="nav__icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 2l2 7h7l-5.5 4 2 7-5.5-4-5.5 4 2-7L3 9h7z"/></svg>
+                            ✨ AI Insights
+                        </a>
                         <a class="nav__item @(section == "headcount" ? "is-active" : "")" asp-controller="Headcount" asp-action="Index">
                             <svg class="nav__icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 3v18h18"/><path d="M7 14l3-3 4 4 5-6"/></svg>
                             Headcount

@@ -48,6 +48,15 @@ else
                     </div>
                 </div>
 
+                @if (c.AiScore > 0)
+                {
+                    var aiColor = c.AiScore >= 75 ? "#7a5c9a" : c.AiScore >= 50 ? "#c47830" : "#7a5c3a";
+                    <div style="display:flex; align-items:center; gap:6px; margin-bottom: var(--s-2); font-size:.78rem;" title="@c.AiMotivazione">
+                        <span style="background: linear-gradient(135deg, #c47830, #7a5c9a); color:#fff; padding: 2px 8px; border-radius: 12px; font-weight:700;">✨ AI @c.AiScore</span>
+                        <span class="muted">@c.CarichoOreSettimana h questa settimana</span>
+                    </div>
+                }
+
                 @if (disponibile)
                 {
                     <div class="badge badge--success" style="margin-bottom: var(--s-2);">✓ disponibile</div>
@@ -56,6 +65,10 @@ else
                         <input type="hidden" name="dipendenteId" value="@c.DipendenteId" />
                         <button type="submit" class="btn btn--primary btn--block">Proponi a @c.Nome.Split(' ').First()</button>
                     </form>
+                    @if (c.AiScore >= 75)
+                    {
+                        <small class="muted" style="font-size:.7rem;">💡 Suggerimento Chipdent Intelligence: @c.AiMotivazione</small>
+                    }
                     @if (c.UserId is null)
                     {
                         <small class="muted" style="font-size:.7rem;">⚠ Nessun account collegato — riceverà solo notifica visiva al prossimo login.</small>
