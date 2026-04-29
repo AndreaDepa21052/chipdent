@@ -1,0 +1,77 @@
+@model Chipdent.Web.Models.FeedbackSubmitViewModel
+@{
+    Layout = null;
+}
+<!DOCTYPE html>
+<html lang="it">
+<head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Come è andata? · @Model.ClinicaNome</title>
+    <meta name="robots" content="noindex,nofollow" />
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Playfair+Display:wght@500;600;700&display=swap">
+    <style>
+        * { box-sizing: border-box; margin: 0; padding: 0; }
+        body { font-family: 'Inter', system-ui, sans-serif; background: linear-gradient(135deg, #f5e8d0 0%, #e9d6b4 100%); min-height: 100vh; padding: 24px 16px; color: #3b1e0c; }
+        .wrap { max-width: 560px; margin: 0 auto; background: #fff; border-radius: 16px; padding: 28px; box-shadow: 0 10px 40px rgba(0,0,0,0.08); }
+        h1 { font-family: 'Playfair Display', serif; font-size: 1.8rem; margin-bottom: 6px; }
+        .sede { color: #c47830; font-weight: 600; margin-bottom: 18px; font-size: 0.95rem; }
+        p.intro { font-size: 1rem; line-height: 1.5; margin-bottom: 20px; color: #6b4226; }
+        label.lbl { display: block; font-weight: 600; margin: 16px 0 8px; font-size: 0.9rem; }
+        select, textarea { width: 100%; border: 1px solid #d6c4a4; padding: 10px 12px; border-radius: 8px; font-family: inherit; font-size: 0.95rem; background: #fffdf8; }
+        .scores { display: grid; grid-template-columns: repeat(11, 1fr); gap: 4px; margin: 8px 0; }
+        .scores label { aspect-ratio: 1; display: flex; align-items: center; justify-content: center; cursor: pointer; border: 1px solid #d6c4a4; border-radius: 8px; font-weight: 600; transition: all .15s; user-select: none; font-size: 0.85rem; }
+        .scores input { display: none; }
+        .scores label:hover { border-color: #c47830; }
+        .scores input:checked + label { background: #c47830; color: #fff; border-color: #c47830; transform: scale(1.05); }
+        .scale-hint { display: flex; justify-content: space-between; font-size: 0.75rem; color: #8a6c43; margin: 4px 0 12px; }
+        button { width: 100%; padding: 14px; background: #3b1e0c; color: #f5e8d0; border: 0; border-radius: 8px; font-weight: 600; font-size: 1rem; cursor: pointer; margin-top: 18px; }
+        button:hover { background: #c47830; }
+        textarea { min-height: 90px; resize: vertical; }
+        .priv { font-size: 0.7rem; color: #8a6c43; margin-top: 14px; text-align: center; }
+    </style>
+</head>
+<body>
+    <div class="wrap">
+        <h1>Come è andata?</h1>
+        <div class="sede">@Model.ClinicaNome · @Model.TenantNome</div>
+        <p class="intro">La tua opinione ci aiuta a migliorare. È <strong>completamente anonima</strong>: non chiediamo nome, email o telefono.</p>
+
+        <form method="post" asp-action="Submit" asp-route-tenantSlug="@Model.TenantSlug" asp-route-clinicaId="@Model.ClinicaId">
+            @Html.AntiForgeryToken()
+
+            <label class="lbl">In una scala 0–10, quanto ci consiglieresti?</label>
+            <div class="scores">
+                @for (int i = 0; i <= 10; i++)
+                {
+                    <input type="radio" name="score" id="s@(i)" value="@i" required />
+                    <label for="s@(i)">@i</label>
+                }
+            </div>
+            <div class="scale-hint">
+                <span>Per nulla</span><span>Sicuramente</span>
+            </div>
+
+            @if (Model.Dottori.Count > 0)
+            {
+                <label class="lbl" for="dot">Hai visto un dottore in particolare? <span style="font-weight:400; color:#8a6c43;">(facoltativo)</span></label>
+                <select id="dot" name="dottoreId">
+                    <option value="">— Non specifico —</option>
+                    @foreach (var d in Model.Dottori)
+                    {
+                        <option value="@d.Id">Dr. @d.Cognome @d.Nome</option>
+                    }
+                </select>
+            }
+
+            <label class="lbl" for="cmt">Vuoi aggiungere un commento? <span style="font-weight:400; color:#8a6c43;">(facoltativo)</span></label>
+            <textarea id="cmt" name="commento" maxlength="500" placeholder="Cosa ha funzionato bene? Cosa possiamo migliorare?"></textarea>
+
+            <button type="submit">Invia feedback</button>
+            <p class="priv">🔒 Nessun dato personale viene memorizzato. Nemmeno il tuo IP.</p>
+        </form>
+    </div>
+</body>
+</html>

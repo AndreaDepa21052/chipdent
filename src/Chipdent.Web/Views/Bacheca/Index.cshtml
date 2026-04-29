@@ -1,0 +1,146 @@
+@model Chipdent.Web.Models.BachecaViewModel
+@{
+    Layout = null;
+    var oggi = DateTime.Now;
+}
+<!DOCTYPE html>
+<html lang="it">
+<head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Bacheca · @Model.ClinicaNome</title>
+    <meta name="robots" content="noindex,nofollow" />
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Playfair+Display:wght@500;600;700&display=swap">
+    <style>
+        * { box-sizing: border-box; margin: 0; padding: 0; }
+        html, body { height: 100%; }
+        body {
+            font-family: 'Inter', system-ui, sans-serif;
+            color: #f5e8d0;
+            background:
+                radial-gradient(1200px 800px at 80% -10%, rgba(196, 120, 48, 0.35), transparent 60%),
+                radial-gradient(1000px 700px at -10% 110%, rgba(122, 169, 201, 0.20), transparent 60%),
+                #1f1108;
+            overflow: hidden;
+        }
+        .wrap { display: grid; grid-template-rows: auto 1fr auto; height: 100vh; padding: 32px 48px; gap: 28px; }
+        header { display: flex; justify-content: space-between; align-items: flex-end; }
+        h1 { font-family: 'Playfair Display', serif; font-size: 3.4rem; line-height: 1; }
+        h1 small { display:block; font-family: 'Inter'; font-size: 1.1rem; opacity: 0.7; font-weight: 400; margin-top: 8px; letter-spacing: 0.5px; }
+        .clock { text-align: right; }
+        .clock__time { font-size: 4.2rem; font-weight: 700; line-height: 1; letter-spacing: -2px; }
+        .clock__date { font-size: 1.1rem; opacity: 0.7; margin-top: 6px; text-transform: capitalize; }
+        main { display: grid; grid-template-columns: 1.4fr 1fr; gap: 32px; min-height: 0; }
+        section { background: rgba(255,255,255,0.05); border: 1px solid rgba(255,255,255,0.08); border-radius: 16px; padding: 24px; display: flex; flex-direction: column; min-height: 0; }
+        section h2 { font-family: 'Playfair Display', serif; font-size: 1.8rem; margin-bottom: 16px; color: #f5e8d0; display:flex; align-items:center; gap:10px; }
+        section h2 .badge { font-family: 'Inter'; font-size: 0.85rem; opacity: 0.6; font-weight: 500; }
+        ul.turni { list-style: none; flex: 1; overflow-y: auto; display: flex; flex-direction: column; gap: 12px; }
+        ul.turni li { display: grid; grid-template-columns: 130px 1fr; gap: 18px; padding: 14px 16px; background: rgba(255,255,255,0.04); border-left: 3px solid #c47830; border-radius: 8px; align-items:center; }
+        ul.turni li .ora { font-size: 1.5rem; font-weight: 600; letter-spacing: -0.5px; }
+        ul.turni li .nome { font-size: 1.25rem; font-weight: 600; }
+        ul.turni li .ruolo { font-size: 0.95rem; opacity: 0.6; margin-top: 2px; }
+        ul.com { list-style: none; flex: 1; overflow-y: auto; display: flex; flex-direction: column; gap: 14px; }
+        ul.com li { padding: 14px 16px; background: rgba(255,255,255,0.04); border-radius: 8px; }
+        ul.com li.urgente { border-left: 3px solid #d96666; background: rgba(217, 102, 102, 0.10); }
+        ul.com li .cat { font-size: 0.7rem; text-transform: uppercase; letter-spacing: 1.5px; opacity: 0.55; margin-bottom: 6px; }
+        ul.com li .ogg { font-weight: 600; font-size: 1.1rem; margin-bottom: 4px; }
+        ul.com li .ant { font-size: 0.95rem; opacity: 0.75; line-height: 1.4; }
+        .empty { opacity: 0.5; font-style: italic; padding: 20px; text-align: center; }
+        footer { display:flex; justify-content: space-between; align-items: center; opacity: 0.5; font-size: 0.85rem; }
+        footer .live { display:inline-flex; align-items:center; gap:6px; }
+        footer .live::before { content:''; width: 8px; height: 8px; border-radius:50%; background: #4caf50; box-shadow: 0 0 10px #4caf50; animation: pulse 2s infinite; }
+        @@keyframes pulse { 50% { opacity: 0.4; } }
+        @@media (max-width: 1100px) { main { grid-template-columns: 1fr; } h1 { font-size: 2.4rem; } .clock__time { font-size: 3rem; } }
+    </style>
+</head>
+<body>
+    <div class="wrap">
+        <header>
+            <div>
+                <h1>@Model.ClinicaNome
+                    <small>@(Model.ClinicaCitta ?? "") · @Model.TenantNome</small>
+                </h1>
+            </div>
+            <div class="clock">
+                <div class="clock__time" id="clk-time">@oggi.ToString("HH:mm")</div>
+                <div class="clock__date" id="clk-date">@oggi.ToString("dddd dd MMMM yyyy", new System.Globalization.CultureInfo("it-IT"))</div>
+            </div>
+        </header>
+
+        <main>
+            <section>
+                <h2>📅 Turni di oggi <span class="badge">· @Model.Turni.Count</span></h2>
+                @if (Model.Turni.Count == 0)
+                {
+                    <p class="empty">Nessun turno pianificato per oggi.</p>
+                }
+                else
+                {
+                    <ul class="turni">
+                        @foreach (var t in Model.Turni)
+                        {
+                            <li>
+                                <div class="ora">@t.From.ToString(@"hh\:mm")–@t.To.ToString(@"hh\:mm")</div>
+                                <div>
+                                    <div class="nome">@t.Nome</div>
+                                    <div class="ruolo">@t.Ruolo</div>
+                                </div>
+                            </li>
+                        }
+                    </ul>
+                }
+            </section>
+
+            <section>
+                <h2>📢 Comunicazioni <span class="badge">· ultima settimana</span></h2>
+                @if (Model.Comunicazioni.Count == 0)
+                {
+                    <p class="empty">Nessuna comunicazione recente.</p>
+                }
+                else
+                {
+                    <ul class="com">
+                        @foreach (var c in Model.Comunicazioni)
+                        {
+                            <li class="@(c.Categoria == "UrgenzaOperativa" ? "urgente" : "")">
+                                <div class="cat">@c.Categoria · @c.Quando.ToLocalTime().ToString("dd MMM HH:mm")</div>
+                                <div class="ogg">@c.Oggetto</div>
+                                <div class="ant">@c.Anteprima</div>
+                            </li>
+                        }
+                    </ul>
+                }
+            </section>
+        </main>
+
+        <footer>
+            <span class="live">Aggiornamento live</span>
+            <span>Bacheca @Model.ClinicaNome · @Model.TenantNome</span>
+        </footer>
+    </div>
+
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/microsoft-signalr/8.0.0/signalr.min.js"></script>
+    <script>
+        // Orologio realtime
+        function updateClock() {
+            var d = new Date();
+            var hh = String(d.getHours()).padStart(2, '0');
+            var mm = String(d.getMinutes()).padStart(2, '0');
+            var t = document.getElementById('clk-time');
+            if (t) t.textContent = hh + ':' + mm;
+        }
+        setInterval(updateClock, 30000);
+
+        // Connessione SignalR anonima al hub notifications usa solo il gruppo per tenant.
+        // La pagina ascolta gli eventi "activity"/"comunicazione" e si auto-ricarica per riprendere i dati freschi.
+        // Se SignalR non è disponibile (network/proxy che blocca WS), fallback su refresh ogni 60s.
+        var refreshTimer = setTimeout(function () { location.reload(); }, 60000);
+        try {
+            // Hub richiede autenticazione per il bind al group "tenant:". Per la bacheca anonima usiamo polling puro.
+            // (Lo step successivo è esporre /bacheca/poll.json e long-polling, ma per ora il refresh 60s è sufficiente.)
+        } catch (_) { }
+    </script>
+</body>
+</html>

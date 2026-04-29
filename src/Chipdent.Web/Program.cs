@@ -20,6 +20,8 @@ builder.Services.AddHostedService<Chipdent.Web.Infrastructure.Notifications.Dige
 builder.Services.AddHostedService<Chipdent.Web.Infrastructure.Notifications.TimbraturaWatchdog>();
 builder.Services.AddScoped<Chipdent.Web.Infrastructure.Insights.AiInsightsEngine>();
 builder.Services.AddScoped<Chipdent.Web.Infrastructure.Insights.TurniOptimizer>();
+builder.Services.AddScoped<Chipdent.Web.Infrastructure.Insights.AssenzePredictor>();
+builder.Services.AddSingleton<Chipdent.Web.Infrastructure.Insights.OcrScadenzeExtractor>();
 builder.Services.AddScoped<Chipdent.Web.Infrastructure.Audit.IAuditService, Chipdent.Web.Infrastructure.Audit.AuditService>();
 
 builder.Services

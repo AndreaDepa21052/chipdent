@@ -1,0 +1,107 @@
+@model Chipdent.Web.Models.ScadenziarioViewModel
+@{
+    ViewData["Title"] = "Scadenziario unificato";
+
+    string ImpattoBadge(Chipdent.Web.Models.ImpattoScadenza i) => i switch
+    {
+        Chipdent.Web.Models.ImpattoScadenza.Critico => "<span class='badge badge--danger'>🚨 critico</span>",
+        Chipdent.Web.Models.ImpattoScadenza.Alto    => "<span class='badge badge--warning'>↑ alto</span>",
+        Chipdent.Web.Models.ImpattoScadenza.Medio   => "<span class='badge'>medio</span>",
+        _ => "<span class='badge'>basso</span>"
+    };
+
+    string GiorniLabel(int gg) => gg switch
+    {
+        < 0 => $"<strong style='color:#a83a3a;'>scaduto da {-gg}gg</strong>",
+        0   => "<strong style='color:#c47830;'>oggi</strong>",
+        1   => "<strong style='color:#c47830;'>domani</strong>",
+        <= 7 => $"<strong style='color:#c47830;'>fra {gg}gg</strong>",
+        _   => $"fra {gg}gg"
+    };
+
+    var oggi = DateTime.UtcNow.Date;
+}
+
+<partial name="_Flash" />
+
+<div class="page-head">
+    <div>
+        <h2>📅 Scadenziario unificato</h2>
+        <p class="page-head__sub">Tutte le scadenze del tenant in un'unica vista, ordinate per impatto × urgenza. Visite mediche, corsi, DVR, contratti, documenti, albo.</p>
+    </div>
+    <div class="page-head__actions">
+        <form method="get" style="display:flex; gap:8px; align-items:center;">
+            <label class="muted" for="orz">Orizzonte:</label>
+            <select id="orz" name="orizzonte" class="form-control" onchange="this.form.submit()" style="width: auto;">
+                @foreach (var d in new[] { 30, 60, 90, 180, 365 })
+                {
+                    <option value="@d" selected="@(d == Model.Orizzonte)">@d giorni</option>
+                }
+            </select>
+        </form>
+    </div>
+</div>
+
+<div class="grid grid--stats" style="margin-bottom: var(--s-4);">
+    <div class="stat">
+        <div class="stat__label">Scadute</div>
+        <div class="stat__value" style="color: @(Model.Scadute > 0 ? "#a83a3a" : "inherit");">@Model.Scadute</div>
+    </div>
+    <div class="stat">
+        <div class="stat__label">Entro 30 giorni</div>
+        <div class="stat__value" style="color: @(Model.Imminenti > 0 ? "#c47830" : "inherit");">@Model.Imminenti</div>
+    </div>
+    <div class="stat">
+        <div class="stat__label">Impatto critico</div>
+        <div class="stat__value">@Model.Critiche</div>
+    </div>
+    <div class="stat">
+        <div class="stat__label">Totale</div>
+        <div class="stat__value">@Model.Scadenze.Count</div>
+    </div>
+</div>
+
+@if (Model.Scadenze.Count == 0)
+{
+    <div class="card">
+        <p class="muted">🎉 Nessuna scadenza nei prossimi @Model.Orizzonte giorni.</p>
+    </div>
+}
+else
+{
+    <div class="card" style="padding:0; overflow:auto;">
+        <table class="table">
+            <thead>
+                <tr>
+                    <th>Score</th>
+                    <th>Categoria</th>
+                    <th>Soggetto</th>
+                    <th>Data</th>
+                    <th>Quando</th>
+                    <th>Impatto</th>
+                    <th></th>
+                </tr>
+            </thead>
+            <tbody>
+                @foreach (var s in Model.Scadenze)
+                {
+                    var gg = (int)(s.Data.Date - oggi).TotalDays;
+                    <tr style="@(s.Data < oggi ? "background: rgba(168, 58, 58, 0.05);" : "")">
+                        <td><strong>@s.ScoreUrgenza</strong></td>
+                        <td>@s.Categoria</td>
+                        <td><strong>@s.Soggetto</strong></td>
+                        <td>@s.Data.ToLocalTime().ToString("dd MMM yyyy")</td>
+                        <td>@Html.Raw(GiorniLabel(gg))</td>
+                        <td>@Html.Raw(ImpattoBadge(s.Impatto))</td>
+                        <td><a class="btn btn--ghost btn--sm" href="@s.DettaglioUrl">Apri</a></td>
+                    </tr>
+                }
+            </tbody>
+        </table>
+    </div>
+}
+
+<p class="muted" style="margin-top: var(--s-3); font-size: 0.85rem;">
+    💡 Lo score combina <strong>impatto</strong> (Critico/Alto/Medio/Basso) e <strong>urgenza</strong> (giorni rimanenti, con bonus per scadute).
+    Più alto è il numero, più vicino è il rischio di non-conformità.
+</p>

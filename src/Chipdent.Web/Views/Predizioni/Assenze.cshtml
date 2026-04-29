@@ -1,0 +1,101 @@
+@model Chipdent.Web.Models.PredizioneAssenzeViewModel
+@{
+    ViewData["Title"] = "Predizione assenze";
+
+    string ScoreBadge(int s) => s switch
+    {
+        >= 70 => $"<span class='badge badge--danger'>🚨 {s}</span>",
+        >= 50 => $"<span class='badge badge--warning'>⚠️ {s}</span>",
+        >= 30 => $"<span class='badge'>{s}</span>",
+        _     => $"<span class='badge badge--success'>{s}</span>"
+    };
+
+    var culture = new System.Globalization.CultureInfo("it-IT");
+}
+
+<partial name="_Flash" />
+
+<div class="page-head">
+    <div>
+        <h2>🔮 Predizione assenze</h2>
+        <p class="page-head__sub">Score di rischio per ogni turno pianificato nei prossimi @Model.Orizzonte giorni. Algoritmo deterministico basato su pattern storici (no ML, niente black-box).</p>
+    </div>
+    <div class="page-head__actions">
+        <form method="get" style="display:flex; gap:8px; align-items:center;">
+            <label class="muted" for="orz">Orizzonte:</label>
+            <select id="orz" name="orizzonte" class="form-control" onchange="this.form.submit()" style="width: auto;">
+                @foreach (var d in new[] { 3, 7, 14, 21, 30 })
+                {
+                    <option value="@d" selected="@(d == Model.Orizzonte)">@d giorni</option>
+                }
+            </select>
+        </form>
+    </div>
+</div>
+
+<div class="grid grid--stats" style="margin-bottom: var(--s-4);">
+    <div class="stat">
+        <div class="stat__label">Turni a rischio</div>
+        <div class="stat__value">@Model.Rischi.Count</div>
+    </div>
+    <div class="stat">
+        <div class="stat__label">Score medio</div>
+        <div class="stat__value">@Model.ScoreMedio</div>
+    </div>
+    <div class="stat">
+        <div class="stat__label">Critici (≥60)</div>
+        <div class="stat__value" style="color: @(Model.Critici > 0 ? "#a83a3a" : "inherit");">@Model.Critici</div>
+    </div>
+</div>
+
+@if (Model.Rischi.Count == 0)
+{
+    <div class="card">
+        <p class="muted">Nessun rischio significativo nei prossimi @Model.Orizzonte giorni. 🎉</p>
+        <p class="muted" style="font-size: 0.85rem;">Il predittore richiede storico di almeno 4-8 settimane per produrre score affidabili.</p>
+    </div>
+}
+else
+{
+    <div class="card" style="padding:0; overflow:auto;">
+        <table class="table">
+            <thead>
+                <tr><th>Score</th><th>Quando</th><th>Dipendente</th><th>Sede</th><th>Fattori (esplicabili)</th></tr>
+            </thead>
+            <tbody>
+                @foreach (var r in Model.Rischi)
+                {
+                    <tr>
+                        <td>@Html.Raw(ScoreBadge(r.Rischio.Score))</td>
+                        <td>
+                            <strong>@r.Rischio.Data.ToString("ddd dd MMM", culture)</strong>
+                            <div class="muted" style="font-size:0.8rem;">@r.Rischio.Data.DayOfWeek.ToString().ToLower()</div>
+                        </td>
+                        <td>@r.Rischio.DipendenteNome</td>
+                        <td>@r.ClinicaNome</td>
+                        <td class="muted" style="font-size:0.85rem;">
+                            @if (r.Rischio.Fattori.Count == 0)
+                            {
+                                <span>—</span>
+                            }
+                            else
+                            {
+                                <ul style="margin:0; padding-left: 18px;">
+                                    @foreach (var f in r.Rischio.Fattori)
+                                    {
+                                        <li>@f</li>
+                                    }
+                                </ul>
+                            }
+                        </td>
+                    </tr>
+                }
+            </tbody>
+        </table>
+    </div>
+
+    <p class="muted" style="margin-top: var(--s-3); font-size: 0.85rem;">
+        💡 Lo score è <strong>esplicabile</strong>: per ogni turno vedi i fattori che l'hanno alzato. Niente black-box.
+        Usa la lista per pianificare un'eventuale copertura preventiva (sostituzioni o turni di reperibilità).
+    </p>
+}

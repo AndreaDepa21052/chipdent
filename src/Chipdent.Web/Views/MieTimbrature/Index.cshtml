@@ -68,12 +68,14 @@
             <div class="muted" style="font-size:.85rem; margin-top:4px;">@DateTime.Now.ToString("dddd dd MMMM · HH:mm", culture)</div>
         </div>
 
-        <div style="display:flex; gap:8px; flex-wrap:wrap;">
+        <div style="display:flex; gap:8px; flex-wrap:wrap;" data-punch-area>
             @if (Model.StatoCorrente == StatoTimbraturaCorrente.Fuori)
             {
-                <form asp-action="Punch" method="post" style="display:inline;">
+                <form asp-action="Punch" method="post" enctype="multipart/form-data" style="display:inline;" data-punch-form>
                     @Html.AntiForgeryToken()
                     <input type="hidden" name="tipo" value="@TipoTimbratura.CheckIn" />
+                    <input type="hidden" name="latitudine" data-geo-lat />
+                    <input type="hidden" name="longitudine" data-geo-lon />
                     <button type="submit" class="btn btn--primary" style="padding: 12px 24px; font-size:1rem;">▶ Inizia turno</button>
                 </form>
                 <form asp-action="Punch" method="post" style="display:inline;">
@@ -85,26 +87,52 @@
             }
             else if (Model.StatoCorrente == StatoTimbraturaCorrente.AlLavoro)
             {
-                <form asp-action="Punch" method="post" style="display:inline;">
+                <form asp-action="Punch" method="post" enctype="multipart/form-data" style="display:inline;" data-punch-form>
                     @Html.AntiForgeryToken()
                     <input type="hidden" name="tipo" value="@TipoTimbratura.PauseStart" />
+                    <input type="hidden" name="latitudine" data-geo-lat />
+                    <input type="hidden" name="longitudine" data-geo-lon />
                     <button type="submit" class="btn btn--ghost" style="padding: 12px 20px;">☕ Inizia pausa</button>
                 </form>
-                <form asp-action="Punch" method="post" style="display:inline;">
+                <form asp-action="Punch" method="post" enctype="multipart/form-data" style="display:inline;" data-punch-form>
                     @Html.AntiForgeryToken()
                     <input type="hidden" name="tipo" value="@TipoTimbratura.CheckOut" />
+                    <input type="hidden" name="latitudine" data-geo-lat />
+                    <input type="hidden" name="longitudine" data-geo-lon />
                     <button type="submit" class="btn btn--primary" style="padding: 12px 24px;">⏹ Fine turno</button>
                 </form>
             }
             else if (Model.StatoCorrente == StatoTimbraturaCorrente.InPausa)
             {
-                <form asp-action="Punch" method="post" style="display:inline;">
+                <form asp-action="Punch" method="post" enctype="multipart/form-data" style="display:inline;" data-punch-form>
                     @Html.AntiForgeryToken()
                     <input type="hidden" name="tipo" value="@TipoTimbratura.PauseEnd" />
+                    <input type="hidden" name="latitudine" data-geo-lat />
+                    <input type="hidden" name="longitudine" data-geo-lon />
                     <button type="submit" class="btn btn--primary" style="padding: 12px 24px;">▶ Riprendi lavoro</button>
                 </form>
             }
         </div>
+
+        <p class="muted" id="geo-status" style="margin-top:8px; font-size: 0.78rem;">📍 Posizione: in attesa…</p>
+
+        <script>
+            // Geofencing client-side: chiede la posizione (consenso utente) e popola gli hidden delle form di timbratura.
+            // Se l'utente nega o il device non ha GPS, il submit prosegue senza coordinate (lato server: nessun check geofencing).
+            (function () {
+                var status = document.getElementById("geo-status");
+                if (!("geolocation" in navigator)) { if (status) status.textContent = "📍 Posizione non supportata dal device."; return; }
+                navigator.geolocation.getCurrentPosition(function (pos) {
+                    var lat = pos.coords.latitude.toFixed(6);
+                    var lon = pos.coords.longitude.toFixed(6);
+                    document.querySelectorAll("[data-geo-lat]").forEach(function (i) { i.value = lat; });
+                    document.querySelectorAll("[data-geo-lon]").forEach(function (i) { i.value = lon; });
+                    if (status) status.textContent = "📍 Posizione catturata (precisione ~" + Math.round(pos.coords.accuracy) + "m).";
+                }, function () {
+                    if (status) status.textContent = "⚠️ Posizione non disponibile (consenso negato o GPS off). La timbratura sarà comunque registrata.";
+                }, { enableHighAccuracy: true, timeout: 8000, maximumAge: 30000 });
+            })();
+        </script>
     </div>
 </div>
 

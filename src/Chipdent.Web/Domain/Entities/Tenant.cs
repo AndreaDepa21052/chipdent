@@ -27,6 +27,12 @@ public class Tenant : Entity
     /// <summary>Fuso orario IANA (es. "Europe/Rome"). Default: Europe/Rome.</summary>
     public string FusoOrario { get; set; } = "Europe/Rome";
 
+    /// <summary>Raggio (metri) entro cui la timbratura web è considerata "in area"; 0 disabilita il check.</summary>
+    public int RaggioGeofencingMetri { get; set; } = 200;
+
+    /// <summary>True per richiedere il selfie alla timbratura web (audit). Default false.</summary>
+    public bool SelfieTimbraturaRichiesto { get; set; } = false;
+
     // Provenienza
     public DateTime? DataAttivazione { get; set; }
     public string? CreatoDaUserId { get; set; }

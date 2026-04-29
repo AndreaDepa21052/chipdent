@@ -9,6 +9,65 @@ public static class Changelog
     public static readonly IReadOnlyList<ChangelogEntry> Entries = new List<ChangelogEntry>
     {
         // ───────────────────────────────────────────────────────────────────
+        // 🌟 v1.900.0 — Tornavento Distinctive
+        // ───────────────────────────────────────────────────────────────────
+        new(
+            Version: "v1.900.0",
+            Codename: "Tornavento Distinctive",
+            Date: new DateTime(2026, 4, 29),
+            Category: ChangelogCategory.Foundation,
+            Title: "🌟 v1.900.0 «Tornavento Distinctive» — sei feature distintive in un colpo solo",
+            Description: "Sei feature pensate per differenziare Chipdent dagli HR-tool generalisti: bacheca TV per sede, anti-frode timbrature, NPS pazienti, operations da retail, predizione assenze, scadenziario unificato con OCR-ready."),
+
+        new(
+            Version: "v1.900.0",
+            Codename: "Tornavento Distinctive",
+            Date: new DateTime(2026, 4, 29),
+            Category: ChangelogCategory.Comunicazioni,
+            Title: "📺 Bacheca TV per sede",
+            Description: "Pagina full-screen anonima /bacheca/{tenant}/{clinica} con turni del giorno e comunicazioni recenti. Pensata per uno schermo passivo in sala riposo. Auto-refresh 60s, niente PII, link rapido dal dettaglio clinica per il direttore."),
+
+        new(
+            Version: "v1.900.0",
+            Codename: "Tornavento Distinctive",
+            Date: new DateTime(2026, 4, 29),
+            Category: ChangelogCategory.Turni,
+            Title: "📍 Anti-frode timbrature: geofencing GPS + selfie",
+            Description: "Le timbrature web catturano lat/lon dal browser (con consenso); il server calcola la distanza dalla sede via Haversine e marca le timbrature fuori raggio (default 200m, configurabile per tenant). Selfie facoltativo come ulteriore prova di presenza fisica. Smart-working bypassa il check."),
+
+        new(
+            Version: "v1.900.0",
+            Codename: "Tornavento Distinctive",
+            Date: new DateTime(2026, 4, 29),
+            Category: ChangelogCategory.Comunicazioni,
+            Title: "💬 NPS pazienti via QR a fine visita",
+            Description: "Form pubblico anonimo /feedback/{tenant}/{clinica} che il paziente scansiona via QR. Score 0-10 + commento, dottore facoltativo. Dashboard riservata Direttore/Management con NPS calcolato (promotori-detrattori), aggregazione per sede e dottore, alert realtime sui feedback critici (≤6)."),
+
+        new(
+            Version: "v1.900.0",
+            Codename: "Tornavento Distinctive",
+            Date: new DateTime(2026, 4, 29),
+            Category: ChangelogCategory.Compliance,
+            Title: "🔐 Operations: ronda sicurezza + inventario consumabili",
+            Description: "Ronda apertura/chiusura sede con checklist firmata digitalmente (allarme, frigo farmaci, autoclave, accessi…) e segnalazione anomalie. Inventario consumabili con giacenza/soglia minima, movimenti di carico/scarico/rettifica e alert riordino automatici quando si scende sotto la soglia."),
+
+        new(
+            Version: "v1.900.0",
+            Codename: "Tornavento Distinctive",
+            Date: new DateTime(2026, 4, 29),
+            Category: ChangelogCategory.Dashboard,
+            Title: "🔮 Predizione assenze (deterministica)",
+            Description: "Score di rischio per ogni turno pianificato nei prossimi 7-30 giorni, basato su pattern storici personali: tasso medio assenze, giorno della settimana sfavorevole, lunedì/venerdì adiacenti al weekend, prossimità a ferie approvate. Esplicabile (mostra i fattori), no ML, no black-box."),
+
+        new(
+            Version: "v1.900.0",
+            Codename: "Tornavento Distinctive",
+            Date: new DateTime(2026, 4, 29),
+            Category: ChangelogCategory.Compliance,
+            Title: "📅 Scadenziario unificato + OCR-ready",
+            Description: "Vista cross-modulo con TUTTE le scadenze del tenant (visite mediche, corsi, DVR, contratti, documenti clinica, albo dottori) ordinate per score impatto×urgenza. Estrattore regex/keyword di date integrato (italiano), pronto per swap con Azure Document Intelligence quando serve OCR vero su PDF."),
+
+        // ───────────────────────────────────────────────────────────────────
         // 📞 v1.800.0 — Tornavento Live
         // ───────────────────────────────────────────────────────────────────
         new(

@@ -19,12 +19,15 @@ public class MieTimbratureController : Controller
     private readonly MongoContext _mongo;
     private readonly ITenantContext _tenant;
     private readonly INotificationPublisher _publisher;
+    private readonly Chipdent.Web.Infrastructure.Storage.IFileStorage _storage;
 
-    public MieTimbratureController(MongoContext mongo, ITenantContext tenant, INotificationPublisher publisher)
+    public MieTimbratureController(MongoContext mongo, ITenantContext tenant, INotificationPublisher publisher,
+        Chipdent.Web.Infrastructure.Storage.IFileStorage storage)
     {
         _mongo = mongo;
         _tenant = tenant;
         _publisher = publisher;
+        _storage = storage;
     }
 
     [HttpGet("")]
@@ -93,10 +96,12 @@ public class MieTimbratureController : Controller
 
     [HttpPost("punch")]
     [ValidateAntiForgeryToken]
-    public async Task<IActionResult> Punch(TipoTimbratura tipo, bool remoto = false)
+    [RequestSizeLimit(5 * 1024 * 1024)]
+    public async Task<IActionResult> Punch(TipoTimbratura tipo, bool remoto = false,
+        double? latitudine = null, double? longitudine = null, Microsoft.AspNetCore.Http.IFormFile? selfie = null)
     {
         var tid = _tenant.TenantId!;
-        var (dip, _) = await ResolveLinkedDipendenteAsync(tid);
+        var (dip, clinica) = await ResolveLinkedDipendenteAsync(tid);
         if (dip is null) return Forbid();
 
         // Validazione stato: non si può fare CheckIn se sei già al lavoro, ecc.
@@ -116,6 +121,30 @@ public class MieTimbratureController : Controller
             return RedirectToAction(nameof(Index));
         }
 
+        // Geofencing: confronto coordinate device con sede. In smart-working il check è bypassato.
+        var tenant = await _mongo.Tenants.Find(x => x.Id == tid).FirstOrDefaultAsync();
+        var raggio = tenant?.RaggioGeofencingMetri ?? 200;
+        double? distanza = null;
+        var fuoriArea = false;
+        if (!remoto && latitudine.HasValue && longitudine.HasValue && clinica is not null && clinica.IsGeolocalized)
+        {
+            distanza = Geo.HaversineMetri(latitudine.Value, longitudine.Value, clinica.Latitudine!.Value, clinica.Longitudine!.Value);
+            if (raggio > 0 && distanza > raggio) fuoriArea = true;
+        }
+
+        // Selfie facoltativo (audit, non visibile in UI standard).
+        string? selfiePath = null;
+        if (selfie is { Length: > 0 } && selfie.Length <= 5 * 1024 * 1024)
+        {
+            var ext = Path.GetExtension(selfie.FileName).ToLowerInvariant();
+            if (ext is ".jpg" or ".jpeg" or ".png" or ".webp")
+            {
+                await using var s = selfie.OpenReadStream();
+                var stored = await _storage.SaveAsync(tid, "timbrature", $"{dip.Id}_{DateTime.UtcNow:yyyyMMddHHmmss}{ext}", s, selfie.ContentType);
+                selfiePath = stored.RelativePath;
+            }
+        }
+
         var meId = User.FindFirst(ClaimTypes.NameIdentifier)?.Value ?? "";
         var t = new Timbratura
         {
@@ -126,7 +155,12 @@ public class MieTimbratureController : Controller
             Timestamp = DateTime.UtcNow,
             Metodo = MetodoTimbratura.Web,
             Remoto = remoto,
-            RegistrataDaUserId = meId
+            RegistrataDaUserId = meId,
+            Latitudine = latitudine,
+            Longitudine = longitudine,
+            DistanzaMetri = distanza,
+            FuoriArea = fuoriArea,
+            SelfiePath = selfiePath
         };
         await _mongo.Timbrature.InsertOneAsync(t);
 
@@ -138,15 +172,18 @@ public class MieTimbratureController : Controller
             TipoTimbratura.PauseEnd   => "Ripresa",
             _ => tipo.ToString()
         };
+        var fuoriAreaTxt = fuoriArea ? $" · ⚠️ fuori area ({distanza:F0}m)" : "";
         await _publisher.PublishAsync(tid, "activity", new
         {
             kind = "shift",
             title = $"{label}: {dip.NomeCompleto}",
-            description = DateTime.Now.ToString("HH:mm") + (remoto ? " · da remoto" : ""),
+            description = DateTime.Now.ToString("HH:mm") + (remoto ? " · da remoto" : "") + fuoriAreaTxt,
             when = DateTime.UtcNow
         });
 
-        TempData["flash"] = $"✓ {label} alle {DateTime.Now:HH:mm}.";
+        TempData["flash"] = fuoriArea
+            ? $"⚠️ {label} alle {DateTime.Now:HH:mm} · fuori dal raggio della sede ({distanza:F0}m). La timbratura è stata registrata e segnalata al direttore."
+            : $"✓ {label} alle {DateTime.Now:HH:mm}.";
         return RedirectToAction(nameof(Index));
     }
 

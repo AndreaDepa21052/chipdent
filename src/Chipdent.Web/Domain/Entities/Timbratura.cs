@@ -24,6 +24,22 @@ public class Timbratura : TenantEntity
 
     /// <summary>True se il dipendente sta lavorando in remoto (smart working).</summary>
     public bool Remoto { get; set; }
+
+    // ───── Anti-frode (timbrature web) ─────
+
+    /// <summary>Lat/lon catturati dal browser al momento della timbratura. Null se non concessi o non disponibili.</summary>
+    public double? Latitudine { get; set; }
+    public double? Longitudine { get; set; }
+
+    /// <summary>Distanza in metri dalla sede (calcolata server-side al momento della timbratura).</summary>
+    public double? DistanzaMetri { get; set; }
+
+    /// <summary>True se la timbratura è risultata "fuori area": geofencing fallito ma timbratura accettata
+    /// (perché smart-working o sede non geolocalizzata) — aiuta il direttore a filtrare le anomalie.</summary>
+    public bool FuoriArea { get; set; }
+
+    /// <summary>Selfie facoltativo (relativeStoragePath gestito da IFileStorage). Audit-only, non visibile in UI standard.</summary>
+    public string? SelfiePath { get; set; }
 }
 
 public enum TipoTimbratura

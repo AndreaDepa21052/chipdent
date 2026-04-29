@@ -1,0 +1,57 @@
+@model Chipdent.Web.Models.RondaFormViewModel
+@using Chipdent.Web.Domain.Entities
+@{
+    ViewData["Title"] = $"Nuova ronda · {Model.Tipo}";
+}
+
+<partial name="_Flash" />
+
+<div class="page-head">
+    <div>
+        <h2>@(Model.Tipo == TipoRonda.Apertura ? "☀️ Apertura sede" : "🌙 Chiusura sede")</h2>
+        <p class="page-head__sub">Spunta ogni voce solo dopo verifica fisica. Le anomalie segnano la ronda come "da approfondire".</p>
+    </div>
+    <div class="page-head__actions">
+        <a class="btn btn--ghost" asp-action="RondaIndex">← Annulla</a>
+    </div>
+</div>
+
+<form method="post" class="card" style="max-width: 760px;">
+    @Html.AntiForgeryToken()
+    <input type="hidden" asp-for="Tipo" />
+
+    <div class="form-row">
+        <label asp-for="ClinicaId" class="form-label">Sede</label>
+        <select asp-for="ClinicaId" class="form-control">
+            <option value="">— Seleziona —</option>
+            @foreach (var c in Model.Cliniche)
+            {
+                <option value="@c.Id" selected="@(c.Id == Model.ClinicaId)">@c.Nome</option>
+            }
+        </select>
+        <span asp-validation-for="ClinicaId" class="text-danger"></span>
+    </div>
+
+    <h3 style="margin-top: var(--s-4);">Checklist</h3>
+    <ul style="list-style:none; padding:0; margin: var(--s-2) 0;">
+        @for (int i = 0; i < Model.Items.Count; i++)
+        {
+            <li style="display:grid; grid-template-columns: auto 1fr 1fr; gap:12px; padding: 10px 0; border-bottom: 1px solid #eee;">
+                <input type="hidden" name="Items[@i].Label" value="@Model.Items[i].Label" />
+                <input type="checkbox" name="Items[@i].Ok" value="true" id="ok-@i" checked style="width:20px; height:20px; align-self:center;" />
+                <label for="ok-@i" style="align-self:center; cursor:pointer;">@Model.Items[i].Label</label>
+                <input type="text" name="Items[@i].Nota" placeholder="Nota (se anomalia)" class="form-control" />
+            </li>
+        }
+    </ul>
+
+    <div class="form-row" style="margin-top: var(--s-3);">
+        <label asp-for="Note" class="form-label">Note generali (facoltative)</label>
+        <textarea asp-for="Note" class="form-control" rows="2" placeholder="Es. ho trovato finestra del bagno aperta, chiusa subito"></textarea>
+    </div>
+
+    <div class="form-actions">
+        <button type="submit" class="btn btn--primary">Firma e completa</button>
+        <a class="btn btn--ghost" asp-action="RondaIndex">Annulla</a>
+    </div>
+</form>

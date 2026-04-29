@@ -55,6 +55,10 @@
         ["ai-insights"]    = ("AI Insights", "AiInsights"),
         ["ottimizzazione"] = ("Ottimizzazione AI", "Ottimizzazione"),
         ["benchmark"]      = ("Benchmark sedi", "Benchmark"),
+        ["predizioni"]     = ("Predizione assenze", "Predizioni"),
+        ["scadenziario"]   = ("Scadenziario", "Scadenziario"),
+        ["operations"]     = ("Operations", "Operations"),
+        ["feedback"]       = ("Feedback pazienti", "Feedback"),
         ["whistleblowing"] = ("Whistleblowing", "Whistleblowing"),
         ["headcount"]      = ("Headcount", "Headcount"),
         ["formazione"]     = ("Formazione", "Formazione"),
@@ -243,6 +247,14 @@
                                 <svg class="nav__icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/></svg>
                                 Benchmark sedi
                             </a>
+                            <a class="nav__item @(section == "predizioni" ? "is-active" : "")" asp-controller="Predizioni" asp-action="Assenze">
+                                <svg class="nav__icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 2v4M12 18v4M4.93 4.93l2.83 2.83M16.24 16.24l2.83 2.83M2 12h4M18 12h4M4.93 19.07l2.83-2.83M16.24 7.76l2.83-2.83"/></svg>
+                                🔮 Predizione assenze
+                            </a>
+                            <a class="nav__item @(section == "feedback" ? "is-active" : "")" asp-controller="Feedback" asp-action="Index">
+                                <svg class="nav__icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/><path d="M9 10l2 2 4-4"/></svg>
+                                Feedback pazienti
+                            </a>
                             <a class="nav__item @(section == "headcount" ? "is-active" : "")" asp-controller="Headcount" asp-action="Index">
                                 <svg class="nav__icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 3v18h18"/><path d="M7 14l3-3 4 4 5-6"/></svg>
                                 Headcount
@@ -266,6 +278,14 @@
                         <a class="nav__item @(section == "documentazione" ? "is-active" : "")" data-tour="nav-documentazione" asp-controller="Documentazione" asp-action="Index">
                             <svg class="nav__icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><path d="M14 2v6h6"/></svg>
                             Documentazione
+                        </a>
+                        <a class="nav__item @(section == "scadenziario" ? "is-active" : "")" asp-controller="Scadenziario" asp-action="Index">
+                            <svg class="nav__icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>
+                            📅 Scadenziario
+                        </a>
+                        <a class="nav__item @(section == "operations" ? "is-active" : "")" asp-controller="Operations" asp-action="RondaIndex">
+                            <svg class="nav__icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M22 12h-4l-3 9L9 3l-3 9H2"/></svg>
+                            Operations
                         </a>
                         <a class="nav__item @(section == "audit" ? "is-active" : "")" data-tour="nav-audit" asp-controller="Audit" asp-action="Index">
                             <svg class="nav__icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M9 11l3 3L22 4"/><path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11"/></svg>

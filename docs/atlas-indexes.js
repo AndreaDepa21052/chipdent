@@ -64,6 +64,20 @@ db.whistleblowing.createIndex({ tenantId: 1, stato: 1 });
 db.richiesteAssistenza.createIndex({ tenantId: 1, stato: 1, priorita: -1, createdAt: -1 });
 db.richiesteAssistenza.createIndex({ tenantId: 1, richiedenteUserId: 1, createdAt: -1 });
 
+// Feedback NPS pazienti — aggregazioni dashboard per periodo/sede/dottore
+db.feedbackPazienti.createIndex({ tenantId: 1, clinicaId: 1, createdAt: -1 });
+db.feedbackPazienti.createIndex({ tenantId: 1, dottoreId: 1, createdAt: -1 });
+db.feedbackPazienti.createIndex({ tenantId: 1, daApprofondire: 1, createdAt: -1 });
+
+// Operations: ronde sicurezza + inventario
+db.rondeSicurezza.createIndex({ tenantId: 1, clinicaId: 1, dataOra: -1 });
+db.rondeSicurezza.createIndex({ tenantId: 1, haAnomalie: 1, dataOra: -1 });
+db.consumabili.createIndex({ tenantId: 1, clinicaId: 1, attivo: 1, nome: 1 });
+db.movimentiConsumabili.createIndex({ tenantId: 1, consumabileId: 1, createdAt: -1 });
+
+// Timbrature anti-frode: query per filtro fuoriArea su periodo
+db.timbrature.createIndex({ tenantId: 1, fuoriArea: 1, timestamp: -1 });
+
 // Configurazione
 db.soglieCopertura.createIndex({ tenantId: 1, clinicaId: 1, ruolo: 1 });
 db.categorieDocumentoObbligatorie.createIndex({ tenantId: 1, clinicaId: 1, tipo: 1 });

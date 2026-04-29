@@ -1,0 +1,140 @@
+@model Chipdent.Web.Models.FeedbackDashboardViewModel
+@using Chipdent.Web.Domain.Entities
+@{
+    ViewData["Title"] = "Feedback pazienti";
+
+    string NpsBadge(int nps) => nps switch
+    {
+        >= 50 => $"<span class='badge badge--success'>NPS {nps}</span>",
+        >= 30 => $"<span class='badge'>NPS {nps}</span>",
+        >= 0  => $"<span class='badge badge--warning'>NPS {nps}</span>",
+        _     => $"<span class='badge badge--danger'>NPS {nps}</span>"
+    };
+
+    string ScoreEmoji(int s) => s >= 9 ? "🌟" : s >= 7 ? "🙂" : s >= 4 ? "😐" : "😞";
+}
+
+<partial name="_Flash" />
+
+<div class="page-head">
+    <div>
+        <h2>Feedback pazienti · NPS</h2>
+        <p class="page-head__sub">Aggregati anonimi raccolti via QR a fine visita. Ultimi @Model.Giorni giorni.</p>
+    </div>
+    <div class="page-head__actions">
+        <details class="ws" style="position:relative;">
+            <summary class="btn">📱 QR per sede</summary>
+            <div class="ws__menu" style="right:0; left:auto; min-width:280px;">
+                <div class="ws__menu-title">URL pubblici da stampare</div>
+                @{
+                    var slug = User.FindFirst("tenant_slug")?.Value ?? "";
+                }
+                @foreach (var c in Model.Cliniche)
+                {
+                    var url = Url.Action("Submit", "Feedback", new { tenantSlug = slug, clinicaId = c.Id }, Context.Request.Scheme);
+                    <a class="ws__item" href="https://api.qrserver.com/v1/create-qr-code/?size=400x400&data=@(Uri.EscapeDataString(url ?? ""))" target="_blank" rel="noopener">
+                        <strong>@c.Nome</strong>
+                        <span class="muted" style="margin-left:auto; font-size:0.7rem;">QR</span>
+                    </a>
+                }
+            </div>
+        </details>
+    </div>
+</div>
+
+<div class="grid grid--stats" style="margin-bottom: var(--s-4);">
+    <div class="stat">
+        <div class="stat__label">NPS totale</div>
+        <div class="stat__value" style="color: @(Model.NpsTotale >= 30 ? "#3a8a3a" : Model.NpsTotale >= 0 ? "#c47830" : "#a83a3a");">@Model.NpsTotale</div>
+    </div>
+    <div class="stat">
+        <div class="stat__label">Voto medio</div>
+        <div class="stat__value">@Model.MediaTotale.ToString("0.0")<span style="font-size:1rem; opacity:.5;">/10</span></div>
+    </div>
+    <div class="stat">
+        <div class="stat__label">Risposte</div>
+        <div class="stat__value">@Model.CountTotale</div>
+    </div>
+    <div class="stat">
+        <div class="stat__label">Critici</div>
+        <div class="stat__value" style="color: @(Model.CountCritici > 0 ? "#a83a3a" : "inherit");">@Model.CountCritici</div>
+    </div>
+</div>
+
+<div class="grid" style="grid-template-columns: 1fr 1fr; gap: var(--s-4); margin-bottom: var(--s-4);">
+    <div class="card">
+        <h3 style="margin-top:0;">Per sede</h3>
+        @if (Model.PerSede.Count == 0)
+        {
+            <p class="muted">Nessuna risposta nel periodo.</p>
+        }
+        else
+        {
+            <table class="table">
+                <thead><tr><th>Sede</th><th>NPS</th><th class="text-right">Voto</th><th class="text-right">Risposte</th></tr></thead>
+                <tbody>
+                    @foreach (var p in Model.PerSede)
+                    {
+                        <tr>
+                            <td><strong>@p.Nome</strong></td>
+                            <td>@Html.Raw(NpsBadge(p.Nps))</td>
+                            <td class="text-right">@p.Media.ToString("0.0")</td>
+                            <td class="text-right">@p.Totale</td>
+                        </tr>
+                    }
+                </tbody>
+            </table>
+        }
+    </div>
+
+    <div class="card">
+        <h3 style="margin-top:0;">Per dottore</h3>
+        @if (Model.PerDottore.Count == 0)
+        {
+            <p class="muted">Nessun feedback con dottore selezionato.</p>
+        }
+        else
+        {
+            <table class="table">
+                <thead><tr><th>Dottore</th><th>NPS</th><th class="text-right">Voto</th><th class="text-right">Risposte</th></tr></thead>
+                <tbody>
+                    @foreach (var p in Model.PerDottore)
+                    {
+                        <tr>
+                            <td><strong>@p.Nome</strong></td>
+                            <td>@Html.Raw(NpsBadge(p.Nps))</td>
+                            <td class="text-right">@p.Media.ToString("0.0")</td>
+                            <td class="text-right">@p.Totale</td>
+                        </tr>
+                    }
+                </tbody>
+            </table>
+        }
+    </div>
+</div>
+
+<div class="card" style="padding:0; overflow:auto;">
+    <h3 style="padding: var(--s-4) var(--s-4) 0;">Risposte recenti</h3>
+    @if (Model.Feedbacks.Count == 0)
+    {
+        <p class="muted" style="padding: var(--s-4);">Nessuna risposta nel periodo.</p>
+    }
+    else
+    {
+        <table class="table">
+            <thead><tr><th>Quando</th><th>Sede</th><th>Dottore</th><th>Voto</th><th>Commento</th></tr></thead>
+            <tbody>
+                @foreach (var r in Model.Feedbacks)
+                {
+                    <tr style="@(r.Feedback.DaApprofondire ? "background: rgba(168, 58, 58, 0.05);" : "")">
+                        <td class="muted">@r.Feedback.CreatedAt.ToLocalTime().ToString("dd MMM HH:mm")</td>
+                        <td>@r.ClinicaNome</td>
+                        <td>@(r.DottoreNome ?? "—")</td>
+                        <td>@ScoreEmoji(r.Feedback.Score) <strong>@r.Feedback.Score</strong>/10</td>
+                        <td>@(string.IsNullOrEmpty(r.Feedback.Commento) ? "—" : r.Feedback.Commento)</td>
+                    </tr>
+                }
+            </tbody>
+        </table>
+    }
+</div>

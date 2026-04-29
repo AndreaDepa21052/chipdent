@@ -1,0 +1,70 @@
+@model Chipdent.Web.Models.ConsumabileFormViewModel
+@{
+    ViewData["Title"] = "Nuovo consumabile";
+}
+
+<partial name="_Flash" />
+
+<div class="page-head">
+    <div>
+        <h2>+ Nuovo consumabile</h2>
+        <p class="page-head__sub">Inseriscilo a magazzino con giacenza e soglia di riordino.</p>
+    </div>
+    <div class="page-head__actions">
+        <a class="btn btn--ghost" asp-action="InventarioIndex">← Annulla</a>
+    </div>
+</div>
+
+<form method="post" class="card" style="max-width: 720px;">
+    @Html.AntiForgeryToken()
+    <div asp-validation-summary="ModelOnly" class="text-danger"></div>
+
+    <div class="form-row">
+        <label asp-for="Nome" class="form-label">Nome</label>
+        <input asp-for="Nome" class="form-control" placeholder="Es. Guanti monouso S" />
+        <span asp-validation-for="Nome" class="text-danger"></span>
+    </div>
+
+    <div class="form-row">
+        <label asp-for="ClinicaId" class="form-label">Sede</label>
+        <select asp-for="ClinicaId" class="form-control">
+            <option value="">— Seleziona —</option>
+            @foreach (var c in Model.Cliniche)
+            {
+                <option value="@c.Id">@c.Nome</option>
+            }
+        </select>
+    </div>
+
+    <div class="form-grid" style="display:grid; grid-template-columns: 1fr 1fr; gap: var(--s-3);">
+        <div class="form-row">
+            <label asp-for="Categoria" class="form-label">Categoria</label>
+            <input asp-for="Categoria" class="form-control" placeholder="Es. DPI" />
+        </div>
+        <div class="form-row">
+            <label asp-for="UnitaMisura" class="form-label">Unità di misura</label>
+            <input asp-for="UnitaMisura" class="form-control" placeholder="pz / conf / ml" />
+        </div>
+        <div class="form-row">
+            <label asp-for="GiacenzaCorrente" class="form-label">Giacenza iniziale</label>
+            <input asp-for="GiacenzaCorrente" class="form-control" type="number" min="0" />
+        </div>
+        <div class="form-row">
+            <label asp-for="SogliaMinima" class="form-label">Soglia minima (alert)</label>
+            <input asp-for="SogliaMinima" class="form-control" type="number" min="0" />
+        </div>
+        <div class="form-row">
+            <label asp-for="Fornitore" class="form-label">Fornitore</label>
+            <input asp-for="Fornitore" class="form-control" />
+        </div>
+        <div class="form-row">
+            <label asp-for="CodiceFornitore" class="form-label">Codice fornitore</label>
+            <input asp-for="CodiceFornitore" class="form-control" />
+        </div>
+    </div>
+
+    <div class="form-actions">
+        <button type="submit" class="btn btn--primary">Salva</button>
+        <a class="btn btn--ghost" asp-action="InventarioIndex">Annulla</a>
+    </div>
+</form>

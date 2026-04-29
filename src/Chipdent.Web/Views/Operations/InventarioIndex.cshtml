@@ -1,0 +1,74 @@
+@model Chipdent.Web.Models.InventarioIndexViewModel
+@{
+    ViewData["Title"] = "Inventario consumabili";
+}
+
+<partial name="_Flash" />
+
+<div class="page-head">
+    <div>
+        <h2>📦 Inventario consumabili</h2>
+        <p class="page-head__sub">Giacenze per sede con alert sotto-soglia automatici.</p>
+    </div>
+    <div class="page-head__actions">
+        <a class="btn btn--ghost" asp-action="RondaIndex">🔐 Ronda sicurezza</a>
+        @if (User.IsBackoffice() || User.IsManagement())
+        {
+            <a class="btn btn--primary" asp-action="ConsumabileNuovo">+ Nuovo consumabile</a>
+        }
+    </div>
+</div>
+
+@if (Model.SottoSoglia > 0)
+{
+    <div class="card" style="background: rgba(196, 120, 48, 0.08); border-left: 3px solid #c47830; margin-bottom: var(--s-4);">
+        <strong>⚠️ @Model.SottoSoglia consumabili sotto soglia</strong> — verifica e ordina ai fornitori.
+    </div>
+}
+
+@if (Model.Items.Count == 0)
+{
+    <div class="card"><p class="muted">Nessun consumabile configurato.</p></div>
+}
+else
+{
+    <div class="card" style="padding:0; overflow:auto;">
+        <table class="table">
+            <thead><tr><th>Nome</th><th>Sede</th><th>Categoria</th><th class="text-right">Giacenza</th><th class="text-right">Soglia</th><th>Fornitore</th><th>Azione</th></tr></thead>
+            <tbody>
+                @foreach (var r in Model.Items)
+                {
+                    var sottoSoglia = r.Consumabile.GiacenzaCorrente <= r.Consumabile.SogliaMinima;
+                    <tr style="@(sottoSoglia ? "background: rgba(196, 120, 48, 0.06);" : "")">
+                        <td><strong>@r.Consumabile.Nome</strong></td>
+                        <td>@r.ClinicaNome</td>
+                        <td class="muted">@(r.Consumabile.Categoria ?? "—")</td>
+                        <td class="text-right" style="color: @(sottoSoglia ? "#a83a3a" : "inherit"); font-weight: @(sottoSoglia ? 700 : 400);">
+                            @r.Consumabile.GiacenzaCorrente @r.Consumabile.UnitaMisura
+                        </td>
+                        <td class="text-right muted">@r.Consumabile.SogliaMinima</td>
+                        <td class="muted">@(r.Consumabile.Fornitore ?? "—")</td>
+                        <td>
+                            <details class="ws" style="position:relative;">
+                                <summary class="btn btn--ghost btn--sm">Movimento</summary>
+                                <div class="ws__menu" style="right:0; left:auto; min-width:280px; padding: 12px;">
+                                    <form method="post" asp-action="Movimento" asp-route-id="@r.Consumabile.Id" style="display:flex; gap:6px; flex-direction:column;">
+                                        @Html.AntiForgeryToken()
+                                        <select name="tipo" class="form-control">
+                                            <option value="Carico">Carico (arrivo merce)</option>
+                                            <option value="Scarico">Scarico (uso)</option>
+                                            <option value="Rettifica">Rettifica (giacenza esatta)</option>
+                                        </select>
+                                        <input type="number" name="quantita" min="1" required placeholder="Quantità" class="form-control" />
+                                        <input type="text" name="motivo" placeholder="Motivo (facoltativo)" class="form-control" />
+                                        <button type="submit" class="btn btn--primary btn--sm">Registra</button>
+                                    </form>
+                                </div>
+                            </details>
+                        </td>
+                    </tr>
+                }
+            </tbody>
+        </table>
+    </div>
+}

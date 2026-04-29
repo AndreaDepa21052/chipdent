@@ -1,0 +1,69 @@
+@model Chipdent.Web.Models.RondaIndexViewModel
+@using Chipdent.Web.Domain.Entities
+@{
+    ViewData["Title"] = "Ronda sicurezza";
+}
+
+<partial name="_Flash" />
+
+<div class="page-head">
+    <div>
+        <h2>🔐 Ronda sicurezza</h2>
+        <p class="page-head__sub">Checklist firmata digitalmente per apertura e chiusura sede. Audit-ready.</p>
+    </div>
+    <div class="page-head__actions">
+        <a class="btn btn--ghost" asp-action="InventarioIndex">📦 Inventario</a>
+        <a class="btn btn--ghost" asp-action="RondaNuova" asp-route-tipo="Chiusura">🌙 Chiusura</a>
+        <a class="btn btn--primary" asp-action="RondaNuova" asp-route-tipo="Apertura">☀️ Apertura</a>
+    </div>
+</div>
+
+<div class="grid grid--stats" style="margin-bottom: var(--s-4);">
+    <div class="stat">
+        <div class="stat__label">Apertura oggi</div>
+        <div class="stat__value">@(Model.AperturaOggi ? "✓" : "—")</div>
+    </div>
+    <div class="stat">
+        <div class="stat__label">Chiusura oggi</div>
+        <div class="stat__value">@(Model.ChiusuraOggi ? "✓" : "—")</div>
+    </div>
+    <div class="stat">
+        <div class="stat__label">Anomalie ultimi @Model.Giorni gg</div>
+        <div class="stat__value" style="color: @(Model.AnomalieAperte > 0 ? "#a83a3a" : "inherit");">@Model.AnomalieAperte</div>
+    </div>
+</div>
+
+@if (Model.Ronde.Count == 0)
+{
+    <div class="card"><p class="muted">Nessuna ronda registrata negli ultimi @Model.Giorni giorni.</p></div>
+}
+else
+{
+    <div class="card" style="padding:0; overflow:auto;">
+        <table class="table">
+            <thead><tr><th>Quando</th><th>Tipo</th><th>Sede</th><th>Operatore</th><th>Esito</th><th>Note</th></tr></thead>
+            <tbody>
+                @foreach (var r in Model.Ronde)
+                {
+                    <tr style="@(r.Ronda.HaAnomalie ? "background: rgba(168, 58, 58, 0.05);" : "")">
+                        <td class="muted">@r.Ronda.DataOra.ToLocalTime().ToString("dd MMM HH:mm")</td>
+                        <td>@(r.Ronda.Tipo == TipoRonda.Apertura ? "☀️ Apertura" : "🌙 Chiusura")</td>
+                        <td>@r.ClinicaNome</td>
+                        <td>@r.Ronda.EseguitaDaNome</td>
+                        <td>
+                            @if (r.Ronda.HaAnomalie)
+                            {
+                                <span class="badge badge--danger">⚠️ @r.Ronda.Items.Count(i => !i.Ok) anomalie</span>
+                            }
+                            else
+                            {
+                                <span class="badge badge--success">✓ tutto ok</span>
+                            }
+                        </td>
+                        <td class="muted" style="max-width:240px;">@(r.Ronda.Note ?? "—")</td>
+                    </tr>
+                }
+            </tbody>
+        </table>
+    </div>
+}

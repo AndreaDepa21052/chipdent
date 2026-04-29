@@ -14,6 +14,8 @@
     </div>
     <div class="page-head__actions">
         <a class="btn btn--ghost" asp-action="Index">← Cliniche</a>
+        <a class="btn btn--ghost" target="_blank" rel="noopener"
+           href="@Url.Action("Index", "Bacheca", new { tenantSlug = User.FindFirst("tenant_slug")?.Value, clinicaId = Model.Id })">📺 Apri bacheca TV</a>
         <a class="btn btn--primary" asp-action="Edit" asp-route-id="@Model.Id">Modifica</a>
     </div>
 </div>

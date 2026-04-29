@@ -59,4 +59,8 @@ public class MongoContext
     public IMongoCollection<ApprovazioneTimesheet> ApprovazioniTimesheet => Database.GetCollection<ApprovazioneTimesheet>("approvazioniTimesheet");
     public IMongoCollection<SegnalazioneWhistleblowing> Whistleblowing => Database.GetCollection<SegnalazioneWhistleblowing>("whistleblowing");
     public IMongoCollection<RichiestaAssistenza> RichiesteAssistenza => Database.GetCollection<RichiestaAssistenza>("richiesteAssistenza");
+    public IMongoCollection<FeedbackPaziente> FeedbackPazienti => Database.GetCollection<FeedbackPaziente>("feedbackPazienti");
+    public IMongoCollection<RondaSicurezza> RondeSicurezza => Database.GetCollection<RondaSicurezza>("rondeSicurezza");
+    public IMongoCollection<Consumabile> Consumabili => Database.GetCollection<Consumabile>("consumabili");
+    public IMongoCollection<MovimentoConsumabile> MovimentiConsumabili => Database.GetCollection<MovimentoConsumabile>("movimentiConsumabili");
 }
