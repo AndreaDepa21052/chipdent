@@ -24,8 +24,8 @@
             hero: true,
             title: "Benvenuto in Chipdent",
             body:
-                "In meno di un minuto ti mostriamo come muoverti nel portale: " +
-                "<strong>cliniche, dottori, turni, comunicazioni, compliance</strong> e tanto altro. " +
+                "In un paio di minuti ti mostriamo tutto: <strong>turni, presenze, compliance, " +
+                "videoassistenza, NPS pazienti, predizioni, ronde di sicurezza</strong> e molto altro. " +
                 "Puoi interrompere il tour quando vuoi.",
             primaryLabel: "Inizia il tour",
             secondaryLabel: "Salta"
@@ -100,6 +100,30 @@
                 "con notifiche live e tracciamento di chi ha letto cosa."
         },
         {
+            id: "videoassistenza",
+            route: "/videoassistenza",
+            target: "[data-tour='nav-videoassistenza']",
+            position: "right",
+            title: "📞 Videoassistenza on-demand",
+            body:
+                "Da qui Staff e Direttori aprono una <strong>richiesta di assistenza al Backoffice</strong>. " +
+                "Tutti gli operatori online ricevono un toast realtime con tasto «Rispondi»: alla presa in carico " +
+                "si apre una <strong>videocall Jitsi</strong> per entrambi nella stessa stanza.",
+            requiresElement: "[data-tour='nav-videoassistenza']"
+        },
+        {
+            id: "mie-timbrature",
+            route: "/mie-timbrature",
+            target: "[data-tour='nav-mie-timbrature']",
+            position: "right",
+            title: "⏱ Timbrature self-service (con anti-frode)",
+            body:
+                "Inizio/fine turno, pause e smart-working dal browser. " +
+                "Le timbrature web catturano <strong>posizione GPS</strong> con consenso del dipendente " +
+                "e marcano «fuori area» quelle oltre il raggio della sede (configurabile).",
+            requiresElement: "[data-tour='nav-mie-timbrature']"
+        },
+        {
             id: "cliniche",
             route: "/cliniche",
             target: "[data-tour='nav-cliniche']",
@@ -151,6 +175,66 @@
             requiresElement: "[data-tour='nav-documentazione']"
         },
         {
+            id: "scadenziario",
+            route: "/scadenziario",
+            target: "[data-tour='nav-scadenziario']",
+            position: "right",
+            title: "📅 Scadenziario unificato",
+            body:
+                "<strong>Tutte</strong> le scadenze del workspace in un'unica vista — visite mediche, corsi, " +
+                "DVR, contratti, documenti, albo dottori — ordinate per <strong>impatto × urgenza</strong>. " +
+                "Niente più scadenze sparse in 8 pagine.",
+            requiresElement: "[data-tour='nav-scadenziario']"
+        },
+        {
+            id: "operations",
+            route: "/operations/ronda",
+            target: "[data-tour='nav-operations']",
+            position: "right",
+            title: "🔐 Operations: ronda + inventario",
+            body:
+                "<strong>Ronda apertura/chiusura sede</strong> con checklist firmata digitalmente " +
+                "(allarme, frigo farmaci, autoclave) e <strong>inventario consumabili</strong> con alert " +
+                "automatico al riordino sotto-soglia.",
+            requiresElement: "[data-tour='nav-operations']"
+        },
+        {
+            id: "predizioni",
+            route: "/predizioni/assenze",
+            target: "[data-tour='nav-predizioni']",
+            position: "right",
+            title: "🔮 Predizione assenze",
+            body:
+                "Score di rischio <strong>esplicabile</strong> per ogni turno futuro, basato sui pattern " +
+                "storici personali (giorno della settimana sfavorevole, ponti, prossimità a ferie). " +
+                "Niente ML black-box: vedi sempre i fattori che alzano il punteggio.",
+            requiresElement: "[data-tour='nav-predizioni']"
+        },
+        {
+            id: "feedback",
+            route: "/feedback",
+            target: "[data-tour='nav-feedback']",
+            position: "right",
+            title: "💬 Feedback NPS pazienti",
+            body:
+                "Genera un <strong>QR per sede</strong> da esporre a fine visita: i pazienti rispondono " +
+                "anonimamente (0–10 + commento), tu vedi NPS aggregato per sede e dottore con alert sui " +
+                "feedback critici (≤6).",
+            requiresElement: "[data-tour='nav-feedback']"
+        },
+        {
+            id: "bacheca-tv",
+            route: "/cliniche",
+            hero: true,
+            title: "📺 Bacheca TV per sede",
+            body:
+                "Per ogni clinica puoi attivare una <strong>bacheca anonima full-screen</strong> da " +
+                "proiettare su un monitor in sala riposo: turni del giorno e comunicazioni recenti, " +
+                "auto-aggiornata. Apri il dettaglio di una clinica e usa il tasto " +
+                "«📺 Apri bacheca TV».",
+            requiresElement: "[data-tour='nav-cliniche']"
+        },
+        {
             id: "audit",
             route: "/audit",
             target: "[data-tour='nav-audit']",
@@ -167,8 +251,8 @@
             position: "right",
             title: "Utenti e ruoli",
             body:
-                "Inviti, ruoli (Owner, Admin, Manager, HR) e matrice dei permessi: " +
-                "qui controlli chi vede cosa nel workspace.",
+                "Inviti, ruoli (<strong>Owner, Management, Direttore, Backoffice, Staff</strong>) e " +
+                "matrice dei permessi: qui controlli chi vede cosa nel workspace.",
             requiresElement: "[data-tour='nav-users']"
         },
         {
@@ -196,8 +280,9 @@
             hero: true,
             title: "Tutto pronto",
             body:
-                "Hai completato l'onboarding di Chipdent. Puoi sempre riavviare questo tour dal " +
-                "<strong>menu utente</strong>. Buon lavoro!",
+                "Hai visto tutto il portale: turni, presenze, compliance, comunicazioni, " +
+                "videoassistenza, scadenziario, NPS, predizioni, ronda e bacheca TV. " +
+                "Puoi sempre riavviare questo tour dal <strong>menu utente</strong>. Buon lavoro!",
             primaryLabel: "Inizia",
             secondaryLabel: null
         }
