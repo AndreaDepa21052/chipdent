@@ -60,6 +60,10 @@ db.segnalazioni.createIndex({ tenantId: 1, stato: 1, createdAt: -1 });
 db.whistleblowing.createIndex({ codiceTracciamento: 1 }, { unique: true });
 db.whistleblowing.createIndex({ tenantId: 1, stato: 1 });
 
+// Videoassistenza — coda Backoffice e dettaglio per richiedente
+db.richiesteAssistenza.createIndex({ tenantId: 1, stato: 1, priorita: -1, createdAt: -1 });
+db.richiesteAssistenza.createIndex({ tenantId: 1, richiedenteUserId: 1, createdAt: -1 });
+
 // Configurazione
 db.soglieCopertura.createIndex({ tenantId: 1, clinicaId: 1, ruolo: 1 });
 db.categorieDocumentoObbligatorie.createIndex({ tenantId: 1, clinicaId: 1, tipo: 1 });

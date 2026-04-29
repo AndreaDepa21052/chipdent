@@ -9,6 +9,41 @@ public static class Changelog
     public static readonly IReadOnlyList<ChangelogEntry> Entries = new List<ChangelogEntry>
     {
         // ───────────────────────────────────────────────────────────────────
+        // 📞 v1.800.0 — Tornavento Live
+        // ───────────────────────────────────────────────────────────────────
+        new(
+            Version: "v1.800.0",
+            Codename: "Tornavento Live",
+            Date: new DateTime(2026, 4, 29),
+            Category: ChangelogCategory.Foundation,
+            Title: "📞 v1.800.0 «Tornavento Live» — collaborazione realtime",
+            Description: "Suite di funzionalità realtime per ridurre la distanza tra sede e Backoffice: presence stile Slack, videoassistenza on-demand con sala Jitsi e densità UI ottimizzata per power-user."),
+
+        new(
+            Version: "v1.800.0",
+            Codename: "Tornavento Live",
+            Date: new DateTime(2026, 4, 29),
+            Category: ChangelogCategory.Comunicazioni,
+            Title: "📞 Videoassistenza on-demand (Jitsi)",
+            Description: "Lo Staff o il Direttore di sede apre una richiesta di videoassistenza dalla sidebar; tutti i Backoffice/Management online ricevono un toast realtime con tasto «Rispondi». Alla presa in carico, il richiedente entra automaticamente nella stessa sala Jitsi (audio/video/screen-sharing/chat). Workflow InAttesa → InCorso → Chiusa con priorità, motivo e note di chiusura per audit."),
+
+        new(
+            Version: "v1.800.0",
+            Codename: "Tornavento Live",
+            Date: new DateTime(2026, 4, 29),
+            Category: ChangelogCategory.Notifiche,
+            Title: "🟢 Presence realtime: toast «utente collegato»",
+            Description: "Tracker in-memory dei connessi SignalR per (tenant × user): quando un utente passa da offline a online, gli altri membri del workspace vedono un toast e una voce nel bell. Niente spam su tab multipli o reload — un solo evento per transizione reale."),
+
+        new(
+            Version: "v1.800.0",
+            Codename: "Tornavento Live",
+            Date: new DateTime(2026, 4, 29),
+            Category: ChangelogCategory.Foundation,
+            Title: "🔠 Densità UI globale -20%",
+            Description: "Riduzione globale del font-size (html 12.8px, body 11.2-12px) per maggiore densità informativa nelle tabelle e nei pannelli direzionali. Tutti i valori in rem scalano automaticamente."),
+
+        // ───────────────────────────────────────────────────────────────────
         // ⏱ v1.700.0 — Tornavento Time Pro
         // ───────────────────────────────────────────────────────────────────
         new(

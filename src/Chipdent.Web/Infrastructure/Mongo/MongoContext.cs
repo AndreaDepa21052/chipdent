@@ -58,4 +58,5 @@ public class MongoContext
     public IMongoCollection<CorrezioneTimbratura> CorrezioniTimbrature => Database.GetCollection<CorrezioneTimbratura>("correzioniTimbrature");
     public IMongoCollection<ApprovazioneTimesheet> ApprovazioniTimesheet => Database.GetCollection<ApprovazioneTimesheet>("approvazioniTimesheet");
     public IMongoCollection<SegnalazioneWhistleblowing> Whistleblowing => Database.GetCollection<SegnalazioneWhistleblowing>("whistleblowing");
+    public IMongoCollection<RichiestaAssistenza> RichiesteAssistenza => Database.GetCollection<RichiestaAssistenza>("richiesteAssistenza");
 }

@@ -183,6 +183,35 @@
         pushBell("ping", name, sub, p && p.when);
     });
 
+    // Videoassistenza: nuova richiesta dallo Staff/Direttore (visibile a Backoffice/Management).
+    connection.on("assistenza-nuova", function (p) {
+        var who = (p && p.richiedente) || "Un utente";
+        var clinica = p && p.clinica ? (p.clinica + " · ") : "";
+        var prio = p && p.priorita ? (" · " + p.priorita) : "";
+        var title = "📞 Richiesta videoassistenza";
+        var sub = who + " · " + clinica + (p && p.motivo ? p.motivo : "") + prio;
+        // Toast con CTA "Rispondi" cliccabile.
+        if (window.Chipdent && typeof Chipdent.toastAction === "function" && p && p.url) {
+            Chipdent.toastAction(title, sub, "Rispondi", p.url);
+        } else {
+            Chipdent.toast(title, sub);
+        }
+        pushBell("comm", title, sub, p && p.when);
+        if (typeof browserNotify === "function") browserNotify(title, sub);
+    });
+
+    // Videoassistenza: l'operatore Backoffice ha preso in carico → richiedente entra in sala.
+    connection.on("assistenza-presa", function (p) {
+        var meId = (window.Chipdent && Chipdent.currentUserId) || "";
+        if (p && p.richiedenteUserId && meId && p.richiedenteUserId === meId && p.url) {
+            Chipdent.toast("📞 " + (p.operatore || "Operatore") + " sta entrando", "Apertura videocall…");
+            window.location.href = p.url;
+            return;
+        }
+        // Per gli altri utenti: solo voce nel bell, niente redirect.
+        pushBell("comm", "Assistenza presa in carico", (p && p.operatore) || "", p && p.when);
+    });
+
     setState("connecting");
     connection.start()
         .then(function () { setState("connected"); })

@@ -1,0 +1,117 @@
+@model Chipdent.Web.Models.VideoassistenzaIndexViewModel
+@using Chipdent.Web.Domain.Entities
+@{
+    ViewData["Title"] = "Videoassistenza";
+
+    string StatoBadge(StatoAssistenza s) => s switch
+    {
+        StatoAssistenza.InAttesa  => "<span class='badge badge--warning'><span class='dot'></span>in attesa</span>",
+        StatoAssistenza.InCorso   => "<span class='badge badge--success'><span class='dot'></span>in corso</span>",
+        StatoAssistenza.Chiusa    => "<span class='badge'><span class='dot'></span>chiusa</span>",
+        StatoAssistenza.Annullata => "<span class='badge'><span class='dot'></span>annullata</span>",
+        _ => "—"
+    };
+
+    string PrioritaBadge(PrioritaAssistenza p) => p switch
+    {
+        PrioritaAssistenza.Urgente => "<span class='badge badge--danger'>🚨 urgente</span>",
+        PrioritaAssistenza.Alta    => "<span class='badge badge--warning'>↑ alta</span>",
+        PrioritaAssistenza.Media   => "<span class='badge'>media</span>",
+        _ => "<span class='badge'>bassa</span>"
+    };
+}
+
+<partial name="_Flash" />
+
+<div class="page-head">
+    <div>
+        <h2>Videoassistenza</h2>
+        <p class="page-head__sub">@(Model.CanHandle ? "Coda richieste in arrivo dallo Staff e dai Direttori." : "Apri una nuova chiamata o riprendi una sessione in corso.")</p>
+    </div>
+    <div class="page-head__actions">
+        <a class="btn btn--primary" asp-action="Create">📞 Chiedi assistenza</a>
+    </div>
+</div>
+
+<div class="grid grid--stats" style="margin-bottom: var(--s-4);">
+    <div class="stat">
+        <div class="stat__label">In attesa</div>
+        <div class="stat__value" style="color: @(Model.InAttesa > 0 ? "#c47830" : "inherit");">@Model.InAttesa</div>
+    </div>
+    <div class="stat">
+        <div class="stat__label">In corso</div>
+        <div class="stat__value">@Model.InCorso</div>
+    </div>
+    <div class="stat">
+        <div class="stat__label">Urgenti</div>
+        <div class="stat__value" style="color: @(Model.Urgenti > 0 ? "#a83a3a" : "inherit");">@Model.Urgenti</div>
+    </div>
+</div>
+
+<div class="seg" style="display:inline-flex; gap:0; border:1px solid var(--c-border, #e9e1d3); border-radius: 8px; overflow:hidden; margin-bottom: var(--s-4); flex-wrap:wrap;">
+    <a class="btn btn--ghost @(!Model.Filter.HasValue ? "btn--active" : "")" asp-action="Index" style="border-radius:0;">Tutte</a>
+    <a class="btn btn--ghost @(Model.Filter == StatoAssistenza.InAttesa ? "btn--active" : "")" asp-action="Index" asp-route-filter="@StatoAssistenza.InAttesa" style="border-radius:0;">In attesa</a>
+    <a class="btn btn--ghost @(Model.Filter == StatoAssistenza.InCorso ? "btn--active" : "")" asp-action="Index" asp-route-filter="@StatoAssistenza.InCorso" style="border-radius:0;">In corso</a>
+    <a class="btn btn--ghost @(Model.Filter == StatoAssistenza.Chiusa ? "btn--active" : "")" asp-action="Index" asp-route-filter="@StatoAssistenza.Chiusa" style="border-radius:0;">Chiuse</a>
+</div>
+
+@if (Model.Richieste.Count == 0)
+{
+    <div class="card">
+        <p class="muted" style="margin:0;">Nessuna richiesta @(Model.Filter.HasValue ? Model.Filter.ToString().ToLower() : "presente").</p>
+    </div>
+}
+else
+{
+    <div class="card" style="padding:0; overflow:auto;">
+        <table class="table">
+            <thead>
+                <tr>
+                    <th>Stato</th>
+                    <th>Priorità</th>
+                    <th>Richiedente</th>
+                    <th>Sede</th>
+                    <th>Motivo</th>
+                    <th>Quando</th>
+                    <th></th>
+                </tr>
+            </thead>
+            <tbody>
+                @foreach (var r in Model.Richieste)
+                {
+                    <tr>
+                        <td>@Html.Raw(StatoBadge(r.Stato))</td>
+                        <td>@Html.Raw(PrioritaBadge(r.Priorita))</td>
+                        <td>
+                            <strong>@r.RichiedenteNome</strong>
+                            @if (!string.IsNullOrEmpty(r.RichiedenteRuolo)) { <div class="muted">@r.RichiedenteRuolo</div> }
+                        </td>
+                        <td>@(r.ClinicaNome ?? "—")</td>
+                        <td>
+                            <div>@r.Motivo</div>
+                            @if (!string.IsNullOrEmpty(r.OperatoreNome)) { <div class="muted">↪ @r.OperatoreNome</div> }
+                        </td>
+                        <td class="muted">@r.CreatedAt.ToLocalTime().ToString("dd MMM HH:mm")</td>
+                        <td style="text-align:right; white-space:nowrap;">
+                            @if (r.Stato == StatoAssistenza.InAttesa && Model.CanHandle)
+                            {
+                                <form method="post" asp-action="Rispondi" asp-route-id="@r.Id" style="display:inline;">
+                                    @Html.AntiForgeryToken()
+                                    <button class="btn btn--primary btn--sm" type="submit">📞 Rispondi</button>
+                                </form>
+                            }
+                            else if (r.Stato == StatoAssistenza.InCorso || r.Stato == StatoAssistenza.InAttesa)
+                            {
+                                <a class="btn btn--sm" asp-action="Sala" asp-route-id="@r.Id">Apri sala</a>
+                            }
+                            else
+                            {
+                                <a class="btn btn--ghost btn--sm" asp-action="Sala" asp-route-id="@r.Id">Dettaglio</a>
+                            }
+                        </td>
+                    </tr>
+                }
+            </tbody>
+        </table>
+    </div>
+}

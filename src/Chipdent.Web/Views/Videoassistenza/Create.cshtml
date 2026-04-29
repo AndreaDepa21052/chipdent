@@ -1,0 +1,57 @@
+@model Chipdent.Web.Models.NuovaAssistenzaViewModel
+@using Chipdent.Web.Domain.Entities
+@{
+    ViewData["Title"] = "Chiedi assistenza";
+}
+
+<partial name="_Flash" />
+
+<div class="page-head">
+    <div>
+        <h2>📞 Chiedi videoassistenza</h2>
+        <p class="page-head__sub">La richiesta arriva al Backoffice in tempo reale. Quando un operatore entra, ricevi la notifica e si apre la videocall.</p>
+    </div>
+    <div class="page-head__actions">
+        <a class="btn btn--ghost" asp-action="Index">← Torna alla coda</a>
+    </div>
+</div>
+
+<form method="post" asp-action="Create" class="card" style="max-width: 720px;">
+    @Html.AntiForgeryToken()
+    <div asp-validation-summary="ModelOnly" class="text-danger" style="margin-bottom: var(--s-3);"></div>
+
+    <div class="form-row">
+        <label asp-for="Motivo" class="form-label">Motivo (breve)</label>
+        <input asp-for="Motivo" class="form-control" placeholder="Es. Problema configurazione XDENT" autofocus />
+        <span asp-validation-for="Motivo" class="text-danger"></span>
+    </div>
+
+    <div class="form-row">
+        <label asp-for="Priorita" class="form-label">Priorità</label>
+        <select asp-for="Priorita" class="form-control" asp-items="Html.GetEnumSelectList<PrioritaAssistenza>()"></select>
+    </div>
+
+    @if (Model.Cliniche.Count > 0)
+    {
+        <div class="form-row">
+            <label asp-for="ClinicaId" class="form-label">Sede coinvolta (opzionale)</label>
+            <select asp-for="ClinicaId" class="form-control">
+                <option value="">— Generica / nessuna sede specifica —</option>
+                @foreach (var c in Model.Cliniche)
+                {
+                    <option value="@c.Id" selected="@(c.Id == Model.ClinicaId)">@c.Nome</option>
+                }
+            </select>
+        </div>
+    }
+
+    <div class="form-row">
+        <label asp-for="Descrizione" class="form-label">Dettagli (facoltativi)</label>
+        <textarea asp-for="Descrizione" class="form-control" rows="4" placeholder="Cosa stai vedendo? Cosa hai già provato?"></textarea>
+    </div>
+
+    <div class="form-actions">
+        <button type="submit" class="btn btn--primary">📞 Avvia richiesta</button>
+        <a class="btn btn--ghost" asp-action="Index">Annulla</a>
+    </div>
+</form>

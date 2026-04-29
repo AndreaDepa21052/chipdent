@@ -1,0 +1,113 @@
+@model Chipdent.Web.Models.SalaAssistenzaViewModel
+@using Chipdent.Web.Domain.Entities
+@{
+    ViewData["Title"] = "Sala assistenza";
+    var r = Model.Richiesta;
+    // Prefisso "chipdent-" per evitare collisioni casuali con stanze pubbliche su meet.jit.si.
+    var roomName = $"chipdent-{r.TenantId}-{r.RoomId}";
+    var inAttesa = r.Stato == StatoAssistenza.InAttesa;
+    var inCorso  = r.Stato == StatoAssistenza.InCorso;
+    var chiusa   = r.Stato == StatoAssistenza.Chiusa || r.Stato == StatoAssistenza.Annullata;
+}
+
+<partial name="_Flash" />
+
+<div class="page-head">
+    <div>
+        <h2>📞 Videoassistenza · @r.Motivo</h2>
+        <p class="page-head__sub">
+            Richiesta da <strong>@r.RichiedenteNome</strong>
+            @if (!string.IsNullOrEmpty(r.ClinicaNome)) { <text> · sede @r.ClinicaNome</text> }
+            @if (!string.IsNullOrEmpty(r.OperatoreNome)) { <text> · operatore @r.OperatoreNome</text> }
+            · stato <strong>@r.Stato</strong>
+        </p>
+    </div>
+    <div class="page-head__actions">
+        <a class="btn btn--ghost" asp-action="Index">← Coda</a>
+        @if (!chiusa)
+        {
+            <form method="post" asp-action="Chiudi" asp-route-id="@r.Id" style="display:inline;"
+                  onsubmit="return confirm('Chiudere la sessione di assistenza?');">
+                @Html.AntiForgeryToken()
+                <button class="btn btn--primary" type="submit">Chiudi sessione</button>
+            </form>
+        }
+    </div>
+</div>
+
+@if (chiusa)
+{
+    <div class="card">
+        <p>Sessione <strong>@r.Stato</strong>@(r.ChiusaAt.HasValue ? $" il {r.ChiusaAt.Value.ToLocalTime():dd MMM HH:mm}" : "").</p>
+        @if (!string.IsNullOrEmpty(r.NoteChiusura))
+        {
+            <p class="muted">Note: @r.NoteChiusura</p>
+        }
+    </div>
+}
+else if (inAttesa && !Model.CanHandle)
+{
+    <div class="card" style="text-align:center;">
+        <h3 style="margin-top:0;">⏳ In attesa di un operatore Backoffice…</h3>
+        <p class="muted">Stiamo notificando il team. Resta su questa pagina, la chiamata si apre automaticamente appena qualcuno entra.</p>
+        <div aria-hidden="true" style="width:48px; height:48px; margin: var(--s-4) auto; border:4px solid #e9e1d3; border-top-color:#c47830; border-radius:50%; animation: cd-spin 1s linear infinite;"></div>
+        <style>@@keyframes cd-spin { to { transform: rotate(360deg); } }</style>
+        <form method="post" asp-action="Annulla" asp-route-id="@r.Id" style="margin-top: var(--s-3);">
+            @Html.AntiForgeryToken()
+            <button class="btn btn--ghost" type="submit">Annulla richiesta</button>
+        </form>
+    </div>
+}
+else
+{
+    <div id="jitsi-container" data-room="@roomName"
+         data-display="@Model.UserDisplayName"
+         data-email="@(Model.UserEmail ?? "")"
+         data-handler="@(Model.CanHandle.ToString().ToLower())"
+         style="height: 70vh; min-height: 480px; border-radius: 12px; overflow:hidden; background:#1a1a1a;">
+    </div>
+
+    <p class="muted" style="margin-top: var(--s-2); font-size: 0.85rem;">
+        La chiamata usa Jitsi Meet. Audio e video restano peer-to-peer dove possibile.
+    </p>
+
+    <script src="https://meet.jit.si/external_api.js"></script>
+    <script>
+        (function () {
+            var box = document.getElementById("jitsi-container");
+            if (!box || typeof JitsiMeetExternalAPI === "undefined") return;
+
+            var domain = "meet.jit.si";
+            var options = {
+                roomName: box.dataset.room,
+                parentNode: box,
+                width: "100%",
+                height: "100%",
+                userInfo: {
+                    displayName: box.dataset.display || "Utente",
+                    email: box.dataset.email || ""
+                },
+                configOverwrite: {
+                    prejoinPageEnabled: false,
+                    startWithAudioMuted: false,
+                    startWithVideoMuted: false,
+                    disableDeepLinking: true
+                },
+                interfaceConfigOverwrite: {
+                    SHOW_JITSI_WATERMARK: false,
+                    SHOW_WATERMARK_FOR_GUESTS: false,
+                    DEFAULT_BACKGROUND: "#1a1a1a"
+                }
+            };
+            try {
+                var api = new JitsiMeetExternalAPI(domain, options);
+                api.addListener("readyToClose", function () {
+                    // Quando l'utente lascia la call dall'UI Jitsi, torna alla coda.
+                    window.location.href = "@Url.Action("Index")";
+                });
+            } catch (e) {
+                box.innerHTML = '<div style="color:#fff; padding:2rem; text-align:center;">Impossibile avviare la videocall: ' + (e && e.message ? e.message : e) + '</div>';
+            }
+        })();
+    </script>
+}
