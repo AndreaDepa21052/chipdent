@@ -1,25 +1,26 @@
 @model Chipdent.Web.Models.ScadenziarioViewModel
+@using Chipdent.Web.Models
 @{
     ViewData["Title"] = "Scadenziario unificato";
-
-    string ImpattoBadge(Chipdent.Web.Models.ImpattoScadenza i) => i switch
-    {
-        Chipdent.Web.Models.ImpattoScadenza.Critico => "<span class='badge badge--danger'>🚨 critico</span>",
-        Chipdent.Web.Models.ImpattoScadenza.Alto    => "<span class='badge badge--warning'>↑ alto</span>",
-        Chipdent.Web.Models.ImpattoScadenza.Medio   => "<span class='badge'>medio</span>",
-        _ => "<span class='badge'>basso</span>"
-    };
-
-    string GiorniLabel(int gg) => gg switch
-    {
-        < 0 => $"<strong style='color:#a83a3a;'>scaduto da {-gg}gg</strong>",
-        0   => "<strong style='color:#c47830;'>oggi</strong>",
-        1   => "<strong style='color:#c47830;'>domani</strong>",
-        <= 7 => $"<strong style='color:#c47830;'>fra {gg}gg</strong>",
-        _   => $"fra {gg}gg"
-    };
-
     var oggi = DateTime.UtcNow.Date;
+}
+@functions {
+    string ImpattoBadge(ImpattoScadenza i)
+    {
+        if (i == ImpattoScadenza.Critico) return "<span class='badge badge--danger'>🚨 critico</span>";
+        if (i == ImpattoScadenza.Alto)    return "<span class='badge badge--warning'>↑ alto</span>";
+        if (i == ImpattoScadenza.Medio)   return "<span class='badge'>medio</span>";
+        return "<span class='badge'>basso</span>";
+    }
+
+    string GiorniLabel(int gg)
+    {
+        if (gg < 0)  return $"<strong style='color:#a83a3a;'>scaduto da {-gg}gg</strong>";
+        if (gg == 0) return "<strong style='color:#c47830;'>oggi</strong>";
+        if (gg == 1) return "<strong style='color:#c47830;'>domani</strong>";
+        if (gg <= 7) return $"<strong style='color:#c47830;'>fra {gg}gg</strong>";
+        return $"fra {gg}gg";
+    }
 }
 
 <partial name="_Flash" />
