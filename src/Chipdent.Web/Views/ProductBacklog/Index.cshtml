@@ -1,0 +1,241 @@
+@model Chipdent.Web.Models.ProductBacklogIndexViewModel
+@{
+    ViewData["Title"] = "Backlog di prodotto";
+
+    string StatoBadge(StatoBacklog s) => s switch
+    {
+        StatoBacklog.Proposta      => "<span class='badge'><span class='dot'></span>proposta</span>",
+        StatoBacklog.InEsame       => "<span class='badge badge--warning'><span class='dot'></span>in esame</span>",
+        StatoBacklog.InLavorazione => "<span class='badge badge--success'><span class='dot'></span>in lavorazione</span>",
+        StatoBacklog.Completata    => "<span class='badge badge--success'>✓ completata</span>",
+        StatoBacklog.Scartata      => "<span class='badge'>scartata</span>",
+        _ => "—"
+    };
+
+    string ImpattoBadge(ImpattoBacklog i) => i switch
+    {
+        ImpattoBacklog.Critico => "<span class='badge badge--danger'>🚨 critico</span>",
+        ImpattoBacklog.Alto    => "<span class='badge badge--warning'>↑ alto</span>",
+        ImpattoBacklog.Medio   => "<span class='badge'>medio</span>",
+        _ => "<span class='badge'>basso</span>"
+    };
+
+    string CategoriaIcon(CategoriaBacklog c) => c switch
+    {
+        CategoriaBacklog.NuovaFunzionalita => "✨",
+        CategoriaBacklog.Miglioramento     => "🔧",
+        CategoriaBacklog.Bug               => "🐛",
+        CategoriaBacklog.Integrazione      => "🔗",
+        CategoriaBacklog.Performance       => "⚡",
+        CategoriaBacklog.UX                => "🎨",
+        CategoriaBacklog.Reportistica      => "📊",
+        CategoriaBacklog.Compliance        => "🛡️",
+        _ => "💡"
+    };
+}
+
+<partial name="_Flash" />
+
+<div class="page-head">
+    <div>
+        <h2>Backlog di prodotto</h2>
+        <p class="page-head__sub">Proponi nuove funzionalità in formato agile, vota le idee della rete, segui cosa l'Owner sta promuovendo a sprint.</p>
+    </div>
+    <div class="page-head__actions">
+        <a class="btn btn--primary" asp-action="Create">+ Nuova richiesta</a>
+    </div>
+</div>
+
+<div class="grid grid--stats" style="margin-bottom: var(--s-4);">
+    <div class="stat">
+        <div class="stat__label">Da valutare</div>
+        <div class="stat__value">@Model.TotaleProposte</div>
+    </div>
+    <div class="stat">
+        <div class="stat__label">In lavorazione</div>
+        <div class="stat__value" style="color:#3a7d44;">@Model.TotaleInLavorazione</div>
+    </div>
+    <div class="stat">
+        <div class="stat__label">Completate</div>
+        <div class="stat__value">@Model.TotaleCompletate</div>
+    </div>
+    <div class="stat">
+        <div class="stat__label">Voti totali</div>
+        <div class="stat__value">@Model.VotiTotali</div>
+    </div>
+</div>
+
+<div style="display:flex; gap:var(--s-3); flex-wrap:wrap; margin-bottom: var(--s-4); align-items:center;">
+    <div class="seg" style="display:inline-flex; gap:0; border:1px solid var(--c-border, #e9e1d3); border-radius:8px; overflow:hidden;">
+        <a class="btn @(Model.Filter == null ? "btn--primary" : "btn--ghost")" asp-action="Index" asp-route-area="@Model.AreaFilter" asp-route-sort="@Model.Sort" style="border-radius:0;">Tutte</a>
+        <a class="btn @(Model.Filter == StatoBacklog.Proposta ? "btn--primary" : "btn--ghost")" asp-action="Index" asp-route-filter="@StatoBacklog.Proposta" asp-route-area="@Model.AreaFilter" asp-route-sort="@Model.Sort" style="border-radius:0;">Proposte</a>
+        <a class="btn @(Model.Filter == StatoBacklog.InEsame ? "btn--primary" : "btn--ghost")" asp-action="Index" asp-route-filter="@StatoBacklog.InEsame" asp-route-area="@Model.AreaFilter" asp-route-sort="@Model.Sort" style="border-radius:0;">In esame</a>
+        <a class="btn @(Model.Filter == StatoBacklog.InLavorazione ? "btn--primary" : "btn--ghost")" asp-action="Index" asp-route-filter="@StatoBacklog.InLavorazione" asp-route-area="@Model.AreaFilter" asp-route-sort="@Model.Sort" style="border-radius:0;">In lavorazione</a>
+        <a class="btn @(Model.Filter == StatoBacklog.Completata ? "btn--primary" : "btn--ghost")" asp-action="Index" asp-route-filter="@StatoBacklog.Completata" asp-route-area="@Model.AreaFilter" asp-route-sort="@Model.Sort" style="border-radius:0;">Completate</a>
+    </div>
+
+    <form method="get" asp-action="Index" style="display:flex; gap:8px; align-items:center;">
+        <input type="hidden" name="filter" value="@Model.Filter" />
+        <select name="area" class="form-control" style="min-width: 160px;" onchange="this.form.submit()">
+            <option value="">Tutte le aree</option>
+            @foreach (var a in Enum.GetValues<AreaBacklog>())
+            {
+                <option value="@a" selected="@(Model.AreaFilter == a)">@a</option>
+            }
+        </select>
+        <select name="sort" class="form-control" style="min-width: 160px;" onchange="this.form.submit()">
+            <option value="voti" selected="@(Model.Sort == "voti")">↓ Più votate</option>
+            <option value="recenti" selected="@(Model.Sort == "recenti")">↓ Più recenti</option>
+            <option value="impatto" selected="@(Model.Sort == "impatto")">↓ Impatto maggiore</option>
+        </select>
+    </form>
+</div>
+
+@if (!Model.Items.Any())
+{
+    <div class="card">
+        <div class="empty">
+            <div class="empty__icon">💡</div>
+            <h3>Nessuna richiesta ancora</h3>
+            <p>Apri la prima proposta di backlog per la piattaforma. Sarà visibile a tutta la rete e potrà essere votata.</p>
+            <a class="btn btn--primary" asp-action="Create" style="margin-top: var(--s-3);">+ Nuova richiesta</a>
+        </div>
+    </div>
+}
+else
+{
+    <div style="display:flex; flex-direction:column; gap: var(--s-3);">
+        @foreach (var row in Model.Items)
+        {
+            var item = row.Item;
+            var borderColor = item.Stato switch
+            {
+                StatoBacklog.InLavorazione => "#3a7d44",
+                StatoBacklog.Completata    => "#7a5c3a",
+                StatoBacklog.Scartata      => "#c8c0b0",
+                _ => item.Impatto switch
+                {
+                    ImpattoBacklog.Critico => "#a83a3a",
+                    ImpattoBacklog.Alto    => "#c47830",
+                    _ => "#ddd0b8"
+                }
+            };
+
+            <div class="card" style="padding: var(--s-3); border-left: 4px solid @borderColor;">
+                <div style="display:flex; justify-content:space-between; align-items:flex-start; gap: var(--s-3); flex-wrap: wrap;">
+                    <div style="flex:1; min-width: 260px;">
+                        <div style="font-weight:700; font-size:1rem; margin-bottom: 6px; line-height:1.4;">
+                            <span style="margin-right:6px;">@CategoriaIcon(item.Categoria)</span>
+                            <a asp-action="Details" asp-route-id="@item.Id" style="color: inherit; text-decoration: none;">
+                                <span style="color: var(--c-ink-soft, #7a5c3a); font-weight:500;">Come</span>
+                                <strong>@item.ComeRuolo</strong>
+                                <span style="color: var(--c-ink-soft, #7a5c3a); font-weight:500;">vorrei</span>
+                                @item.Vorrei
+                            </a>
+                        </div>
+                        <div style="font-size:.88rem; margin-bottom:8px; color: var(--c-ink-soft, #7a5c3a);">
+                            <em>così che @item.CosiChe</em>
+                        </div>
+                        <div class="muted" style="font-size:.78rem;">
+                            da <strong>@item.AutoreNome</strong>
+                            <span class="role-badge" style="margin-left:4px; font-size:.7rem; padding:1px 6px;">@item.AutoreRuolo</span>
+                            · @item.CreatedAt.ToLocalTime().ToString("dd MMM yyyy", new System.Globalization.CultureInfo("it-IT"))
+                            · area <strong>@item.Area</strong>
+                            @if (!string.IsNullOrEmpty(item.SprintTarget))
+                            {
+                                <text> · 🎯 <strong>@item.SprintTarget</strong></text>
+                            }
+                        </div>
+                        @if (!string.IsNullOrEmpty(item.Commento))
+                        {
+                            <div class="muted" style="margin-top: 6px; font-size:.85rem; padding: 6px 10px; background: var(--c-bg-soft, #faf6f0); border-radius: 6px; white-space: pre-wrap;">
+                                @item.Commento
+                            </div>
+                        }
+                        @if (!string.IsNullOrEmpty(item.NotaOwner))
+                        {
+                            <div style="margin-top: 8px; font-size:.85rem; padding: 8px 12px; background: #fff8ed; border-left: 3px solid #c47830; border-radius: 4px;">
+                                <strong>Nota Owner</strong>
+                                @if (!string.IsNullOrEmpty(item.GestitaDaNome)) { <span class="muted"> · @item.GestitaDaNome</span> }
+                                <div style="margin-top:4px; white-space: pre-wrap;">@item.NotaOwner</div>
+                            </div>
+                        }
+                    </div>
+
+                    <div style="display:flex; flex-direction:column; gap:6px; align-items:flex-end; min-width: 140px;">
+                        @Html.Raw(StatoBadge(item.Stato))
+                        @Html.Raw(ImpattoBadge(item.Impatto))
+
+                        <form asp-action="ToggleVote" asp-route-id="@item.Id" method="post" style="display:inline;">
+                            @Html.AntiForgeryToken()
+                            <button type="submit"
+                                    class="btn @(row.VotatoDaMe ? "btn--primary" : "btn--ghost")"
+                                    style="padding: 4px 12px; font-size:.82rem; display:flex; align-items:center; gap:6px;"
+                                    title="@(row.VotatoDaMe ? "Rimuovi il tuo voto" : "Vota questa richiesta")">
+                                <svg width="14" height="14" viewBox="0 0 24 24" fill="@(row.VotatoDaMe ? "currentColor" : "none")" stroke="currentColor" stroke-width="2">
+                                    <path d="M7 10v12M15 5.88L14 10h5.83a2 2 0 0 1 1.92 2.56l-2.33 8A2 2 0 0 1 17.5 22H4a2 2 0 0 1-2-2v-8a2 2 0 0 1 2-2h2.76a2 2 0 0 0 1.79-1.11L12 2h0a3.13 3.13 0 0 1 3 3.88z"/>
+                                </svg>
+                                <strong>@item.VotantiUserIds.Count</strong>
+                            </button>
+                        </form>
+                    </div>
+                </div>
+
+                @if (Model.IsOwner && (item.Stato == StatoBacklog.Proposta || item.Stato == StatoBacklog.InEsame))
+                {
+                    <details style="margin-top: var(--s-2); border-top: 1px dashed var(--c-border, #e9e1d3); padding-top: var(--s-2);">
+                        <summary style="cursor:pointer; font-size:.82rem; font-weight:600; color: var(--c-accent, #c47830);">
+                            🔒 Azioni Owner
+                        </summary>
+                        <div style="display:flex; gap:8px; margin-top: var(--s-2); flex-wrap:wrap;">
+                            <form asp-action="Promuovi" asp-route-id="@item.Id" method="post" style="display:inline-flex; gap:6px; align-items:center;">
+                                @Html.AntiForgeryToken()
+                                <input class="form-control" name="sprintTarget" placeholder="Sprint target (es. Sprint 7)" style="padding:4px 8px; font-size:.78rem; width: 180px;" />
+                                <input class="form-control" name="notaOwner" placeholder="Nota (opzionale)" style="padding:4px 8px; font-size:.78rem; width: 220px;" />
+                                <button type="submit" class="btn btn--primary" style="padding:4px 10px; font-size:.78rem;">🚀 Manda in lavorazione</button>
+                            </form>
+                            <form asp-action="InEsame" asp-route-id="@item.Id" method="post" style="display:inline-flex; gap:6px;">
+                                @Html.AntiForgeryToken()
+                                <input class="form-control" name="notaOwner" placeholder="Nota (opzionale)" style="padding:4px 8px; font-size:.78rem; width: 220px;" />
+                                <button type="submit" class="btn btn--ghost" style="padding:4px 10px; font-size:.78rem;">👀 In esame</button>
+                            </form>
+                            <form asp-action="Scarta" asp-route-id="@item.Id" method="post" style="display:inline-flex; gap:6px;"
+                                  onsubmit="return confirm('Scartare questa richiesta?');">
+                                @Html.AntiForgeryToken()
+                                <input class="form-control" name="notaOwner" placeholder="Motivo (opzionale)" style="padding:4px 8px; font-size:.78rem; width: 220px;" />
+                                <button type="submit" class="btn btn--ghost" style="padding:4px 10px; font-size:.78rem;">✕ Scarta</button>
+                            </form>
+                        </div>
+                    </details>
+                }
+                else if (Model.IsOwner)
+                {
+                    <details style="margin-top: var(--s-2); border-top: 1px dashed var(--c-border, #e9e1d3); padding-top: var(--s-2);">
+                        <summary style="cursor:pointer; font-size:.82rem; font-weight:600; color: var(--c-accent, #c47830);">
+                            🔒 Azioni Owner
+                        </summary>
+                        <div style="display:flex; gap:8px; margin-top: var(--s-2); flex-wrap:wrap;">
+                            @if (item.Stato == StatoBacklog.InLavorazione)
+                            {
+                                <form asp-action="Completata" asp-route-id="@item.Id" method="post" style="display:inline-flex; gap:6px;">
+                                    @Html.AntiForgeryToken()
+                                    <input class="form-control" name="notaOwner" placeholder="Nota di rilascio (opzionale)" style="padding:4px 8px; font-size:.78rem; width: 240px;" />
+                                    <button type="submit" class="btn btn--primary" style="padding:4px 10px; font-size:.78rem;">✓ Marca completata</button>
+                                </form>
+                            }
+                            <form asp-action="Riapri" asp-route-id="@item.Id" method="post" style="display:inline;">
+                                @Html.AntiForgeryToken()
+                                <button type="submit" class="btn btn--ghost" style="padding:4px 10px; font-size:.78rem;">↶ Riapri</button>
+                            </form>
+                            <form asp-action="Elimina" asp-route-id="@item.Id" method="post" style="display:inline;"
+                                  onsubmit="return confirm('Eliminare definitivamente questa richiesta? L\'azione è irreversibile.');">
+                                @Html.AntiForgeryToken()
+                                <button type="submit" class="ibtn" title="Elimina">🗑</button>
+                            </form>
+                        </div>
+                    </details>
+                }
+            </div>
+        }
+    </div>
+}

@@ -63,4 +63,5 @@ public class MongoContext
     public IMongoCollection<RondaSicurezza> RondeSicurezza => Database.GetCollection<RondaSicurezza>("rondeSicurezza");
     public IMongoCollection<Consumabile> Consumabili => Database.GetCollection<Consumabile>("consumabili");
     public IMongoCollection<MovimentoConsumabile> MovimentiConsumabili => Database.GetCollection<MovimentoConsumabile>("movimentiConsumabili");
+    public IMongoCollection<ProductBacklogItem> ProductBacklog => Database.GetCollection<ProductBacklogItem>("productBacklog");
 }
