@@ -17,7 +17,7 @@
 </div>
 
 <div class="card" style="max-width: 820px;" x-data="backlogWizard()">
-    <form asp-action="Create" method="post" @@submit="onSubmit($event)">
+    <form asp-action="Create" method="post">
         @Html.AntiForgeryToken()
 
         <div asp-validation-summary="ModelOnly" class="alert alert--danger"
@@ -259,9 +259,6 @@
                     }
                 }
                 return true;
-            },
-            onSubmit(e) {
-                // L'ultimo step ha già la validazione browser; il submit prosegue normalmente
             }
         };
     }
