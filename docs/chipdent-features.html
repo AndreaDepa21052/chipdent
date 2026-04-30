@@ -246,6 +246,37 @@ body {
 /* scrollbar */
 ::-webkit-scrollbar { width: 4px; }
 ::-webkit-scrollbar-thumb { background: var(--border); border-radius: 2px; }
+
+/* BACKLOG status markers + progress (v1.4) */
+.bk-st {
+  display: inline-block; width: 14px; height: 14px;
+  font-size: 11px; line-height: 14px; text-align: center;
+  margin-right: 6px; vertical-align: -1px;
+}
+.col-progress {
+  background: rgba(255,255,255,0.18);
+  border-radius: 0 0 8px 8px;
+  padding: 6px 14px;
+  display: flex; align-items: center; gap: 10px;
+  font-size: 10.5px; color: white; font-weight: 600;
+  margin-top: -1px;
+}
+.col-progress .bar {
+  flex: 1; height: 6px; background: rgba(255,255,255,0.22);
+  border-radius: 3px; overflow: hidden;
+}
+.col-progress .bar > span {
+  display: block; height: 100%;
+  background: rgba(255,255,255,0.85);
+  border-radius: 3px;
+}
+.bk-legend {
+  display: flex; gap: 14px; flex-wrap: wrap;
+  font-size: 11px; color: var(--muted);
+  margin-bottom: 14px;
+}
+.bk-legend span { display: inline-flex; align-items: center; gap: 4px; }
+
 </style>
 </head>
 <body>
@@ -255,7 +286,7 @@ body {
     <h1>Chipdent — Mappa Funzionale</h1>
     <p>Feature map completa per livello utente · Priorità MVP e roadmap</p>
   </div>
-  <div class="header-right">v1.0 · Aprile 2025<br>Product Backlog<br>Riservato</div>
+  <div class="header-right">v1.4 · Aprile 2026<br>Product Backlog<br>≈90% completato</div>
 </div>
 
 <!-- LEGEND -->
@@ -962,73 +993,74 @@ body {
 ══════════════════════════════════════════════ -->
 <div class="view" id="view-backlog">
   <h2 style="font-family:'Playfair Display',serif;font-size:22px;color:var(--brown);margin-bottom:6px">Product Backlog — Prioritizzazione release</h2>
-  <p style="font-size:12px;color:var(--muted);margin-bottom:24px">Organizzato in sprint da 4 settimane. Story points indicativi (1 SP ≈ 1 giorno sviluppatore senior).</p>
+  <p style="font-size:12px;color:var(--muted);margin-bottom:8px">Organizzato in sprint da 4 settimane. Story points indicativi (1 SP ≈ 1 giorno sviluppatore senior).</p>
+  <div class="bk-legend"><span>✅ completata</span><span>🟡 in corso / parziale</span><span>⬜ da fare</span><span style="margin-left:auto;font-style:italic;opacity:.8">Stato sincronizzato col codice — apr 2026</span></div>
 
   <div class="backlog-grid">
     <div class="backlog-col">
-      <div class="backlog-col-header bc-mvp">🚀 MVP — Sprint 1–2<br><span style="font-size:10px;font-weight:400;opacity:0.85">Settimane 1–8 · Core assoluto</span></div>
+      <div class="backlog-col-header bc-mvp">🚀 MVP — Sprint 1–2<br><span style="font-size:10px;font-weight:400;opacity:0.85">Settimane 1–8 · Core assoluto</span></div><div class="col-progress"><span>14/15 <span style="opacity:.75">(97%)</span></span><div class="bar"><span style="width:97%"></span></div><span style="opacity:.85">✅14 🟡1</span></div>
       <div class="backlog-items">
-        <div class="backlog-item"><div class="backlog-item-title">Autenticazione & RBAC</div><div class="backlog-item-meta"><span class="user-badge u-all">Tutti</span><span class="story-pts">8 SP</span></div></div>
-        <div class="backlog-item"><div class="backlog-item-title">Anagrafica cliniche CRUD</div><div class="backlog-item-meta"><span class="user-badge u-mgmt">Mgmt</span><span class="story-pts">5 SP</span></div></div>
-        <div class="backlog-item"><div class="backlog-item-title">Anagrafica dottori CRUD</div><div class="backlog-item-meta"><span class="user-badge u-mgmt">Mgmt</span><span class="story-pts">5 SP</span></div></div>
-        <div class="backlog-item"><div class="backlog-item-title">Anagrafica dipendenti CRUD</div><div class="backlog-item-meta"><span class="user-badge u-mgmt">Mgmt</span><span class="story-pts">5 SP</span></div></div>
-        <div class="backlog-item"><div class="backlog-item-title">Dashboard esecutiva KPI</div><div class="backlog-item-meta"><span class="user-badge u-mgmt">Mgmt</span><span class="story-pts">8 SP</span></div></div>
-        <div class="backlog-item"><div class="backlog-item-title">Dashboard di sede</div><div class="backlog-item-meta"><span class="user-badge u-dir">Direttore</span><span class="story-pts">5 SP</span></div></div>
-        <div class="backlog-item"><div class="backlog-item-title">Pianificazione turni editor</div><div class="backlog-item-meta"><span class="user-badge u-dir">Direttore</span><span class="story-pts">13 SP</span></div></div>
-        <div class="backlog-item"><div class="backlog-item-title">Richiesta ferie workflow</div><div class="backlog-item-meta"><span class="user-badge u-all">Tutti</span><span class="story-pts">8 SP</span></div></div>
-        <div class="backlog-item"><div class="backlog-item-title">Visite mediche & scadenze</div><div class="backlog-item-meta"><span class="user-badge u-dir">Direttore</span><span class="story-pts">5 SP</span></div></div>
-        <div class="backlog-item"><div class="backlog-item-title">Corsi sicurezza tracker</div><div class="backlog-item-meta"><span class="user-badge u-dir">Direttore</span><span class="story-pts">5 SP</span></div></div>
-        <div class="backlog-item"><div class="backlog-item-title">Archivio documenti sede</div><div class="backlog-item-meta"><span class="user-badge u-dir">Direttore</span><span class="story-pts">8 SP</span></div></div>
-        <div class="backlog-item"><div class="backlog-item-title">Messaggistica interna</div><div class="backlog-item-meta"><span class="user-badge u-all">Tutti</span><span class="story-pts">8 SP</span></div></div>
-        <div class="backlog-item"><div class="backlog-item-title">Circolari & conferma lettura</div><div class="backlog-item-meta"><span class="user-badge u-all">Tutti</span><span class="story-pts">5 SP</span></div></div>
-        <div class="backlog-item"><div class="backlog-item-title">DVR gestione versioni</div><div class="backlog-item-meta"><span class="user-badge u-dir">Direttore</span><span class="story-pts">5 SP</span></div></div>
-        <div class="backlog-item"><div class="backlog-item-title">Notifiche push & email</div><div class="backlog-item-meta"><span class="user-badge u-all">Tutti</span><span class="story-pts">5 SP</span></div></div>
+        <div class="backlog-item"><div class="backlog-item-title"><span class="bk-st" title="in corso">🟡</span>Autenticazione & RBAC</div><div class="backlog-item-meta"><span class="user-badge u-all">Tutti</span><span class="story-pts">8 SP</span></div></div>
+        <div class="backlog-item"><div class="backlog-item-title"><span class="bk-st" title="completata">✅</span>Anagrafica cliniche CRUD</div><div class="backlog-item-meta"><span class="user-badge u-mgmt">Mgmt</span><span class="story-pts">5 SP</span></div></div>
+        <div class="backlog-item"><div class="backlog-item-title"><span class="bk-st" title="completata">✅</span>Anagrafica dottori CRUD</div><div class="backlog-item-meta"><span class="user-badge u-mgmt">Mgmt</span><span class="story-pts">5 SP</span></div></div>
+        <div class="backlog-item"><div class="backlog-item-title"><span class="bk-st" title="completata">✅</span>Anagrafica dipendenti CRUD</div><div class="backlog-item-meta"><span class="user-badge u-mgmt">Mgmt</span><span class="story-pts">5 SP</span></div></div>
+        <div class="backlog-item"><div class="backlog-item-title"><span class="bk-st" title="completata">✅</span>Dashboard esecutiva KPI</div><div class="backlog-item-meta"><span class="user-badge u-mgmt">Mgmt</span><span class="story-pts">8 SP</span></div></div>
+        <div class="backlog-item"><div class="backlog-item-title"><span class="bk-st" title="completata">✅</span>Dashboard di sede</div><div class="backlog-item-meta"><span class="user-badge u-dir">Direttore</span><span class="story-pts">5 SP</span></div></div>
+        <div class="backlog-item"><div class="backlog-item-title"><span class="bk-st" title="completata">✅</span>Pianificazione turni editor</div><div class="backlog-item-meta"><span class="user-badge u-dir">Direttore</span><span class="story-pts">13 SP</span></div></div>
+        <div class="backlog-item"><div class="backlog-item-title"><span class="bk-st" title="completata">✅</span>Richiesta ferie workflow</div><div class="backlog-item-meta"><span class="user-badge u-all">Tutti</span><span class="story-pts">8 SP</span></div></div>
+        <div class="backlog-item"><div class="backlog-item-title"><span class="bk-st" title="completata">✅</span>Visite mediche & scadenze</div><div class="backlog-item-meta"><span class="user-badge u-dir">Direttore</span><span class="story-pts">5 SP</span></div></div>
+        <div class="backlog-item"><div class="backlog-item-title"><span class="bk-st" title="completata">✅</span>Corsi sicurezza tracker</div><div class="backlog-item-meta"><span class="user-badge u-dir">Direttore</span><span class="story-pts">5 SP</span></div></div>
+        <div class="backlog-item"><div class="backlog-item-title"><span class="bk-st" title="completata">✅</span>Archivio documenti sede</div><div class="backlog-item-meta"><span class="user-badge u-dir">Direttore</span><span class="story-pts">8 SP</span></div></div>
+        <div class="backlog-item"><div class="backlog-item-title"><span class="bk-st" title="completata">✅</span>Messaggistica interna</div><div class="backlog-item-meta"><span class="user-badge u-all">Tutti</span><span class="story-pts">8 SP</span></div></div>
+        <div class="backlog-item"><div class="backlog-item-title"><span class="bk-st" title="completata">✅</span>Circolari & conferma lettura</div><div class="backlog-item-meta"><span class="user-badge u-all">Tutti</span><span class="story-pts">5 SP</span></div></div>
+        <div class="backlog-item"><div class="backlog-item-title"><span class="bk-st" title="completata">✅</span>DVR gestione versioni</div><div class="backlog-item-meta"><span class="user-badge u-dir">Direttore</span><span class="story-pts">5 SP</span></div></div>
+        <div class="backlog-item"><div class="backlog-item-title"><span class="bk-st" title="completata">✅</span>Notifiche push & email</div><div class="backlog-item-meta"><span class="user-badge u-all">Tutti</span><span class="story-pts">5 SP</span></div></div>
         <div style="font-size:11px;font-weight:700;color:var(--p0);text-align:right;padding:4px 0">Totale: ~108 SP</div>
       </div>
     </div>
 
     <div class="backlog-col">
-      <div class="backlog-col-header bc-s2">⚡ Sprint 3–4<br><span style="font-size:10px;font-weight:400;opacity:0.85">Settimane 9–16 · Completamento</span></div>
+      <div class="backlog-col-header bc-s2">⚡ Sprint 3–4<br><span style="font-size:10px;font-weight:400;opacity:0.85">Settimane 9–16 · Completamento</span></div><div class="col-progress"><span>10/10 <span style="opacity:.75">(100%)</span></span><div class="bar"><span style="width:100%"></span></div><span style="opacity:.85">✅10</span></div>
       <div class="backlog-items">
-        <div class="backlog-item"><div class="backlog-item-title">Cambio & scambio turni</div><div class="backlog-item-meta"><span class="user-badge u-staff">Staff</span><span class="story-pts">5 SP</span></div></div>
-        <div class="backlog-item"><div class="backlog-item-title">Gestione sostituzioni urgenti</div><div class="backlog-item-meta"><span class="user-badge u-dir">Direttore</span><span class="story-pts">5 SP</span></div></div>
-        <div class="backlog-item"><div class="backlog-item-title">Contratti dipendenti + alert</div><div class="backlog-item-meta"><span class="user-badge u-mgmt">Mgmt</span><span class="story-pts">5 SP</span></div></div>
-        <div class="backlog-item"><div class="backlog-item-title">Headcount & report organico</div><div class="backlog-item-meta"><span class="user-badge u-mgmt">Mgmt</span><span class="story-pts">8 SP</span></div></div>
-        <div class="backlog-item"><div class="backlog-item-title">DPI registro & firma</div><div class="backlog-item-meta"><span class="user-badge u-dir">Direttore</span><span class="story-pts">5 SP</span></div></div>
-        <div class="backlog-item"><div class="backlog-item-title">Documenti personali dipendente</div><div class="backlog-item-meta"><span class="user-badge u-staff">Staff</span><span class="story-pts">5 SP</span></div></div>
-        <div class="backlog-item"><div class="backlog-item-title">Segnalazioni operative ticket</div><div class="backlog-item-meta"><span class="user-badge u-staff">Staff</span><span class="story-pts">5 SP</span></div></div>
-        <div class="backlog-item"><div class="backlog-item-title">Audit log documenti</div><div class="backlog-item-meta"><span class="user-badge u-dir">Direttore</span><span class="story-pts">3 SP</span></div></div>
-        <div class="backlog-item"><div class="backlog-item-title">Report & analytics export</div><div class="backlog-item-meta"><span class="user-badge u-mgmt">Mgmt</span><span class="story-pts">8 SP</span></div></div>
-        <div class="backlog-item"><div class="backlog-item-title">Configurazione rete centrale</div><div class="backlog-item-meta"><span class="user-badge u-mgmt">Mgmt</span><span class="story-pts">5 SP</span></div></div>
+        <div class="backlog-item"><div class="backlog-item-title"><span class="bk-st" title="completata">✅</span>Cambio & scambio turni</div><div class="backlog-item-meta"><span class="user-badge u-staff">Staff</span><span class="story-pts">5 SP</span></div></div>
+        <div class="backlog-item"><div class="backlog-item-title"><span class="bk-st" title="completata">✅</span>Gestione sostituzioni urgenti</div><div class="backlog-item-meta"><span class="user-badge u-dir">Direttore</span><span class="story-pts">5 SP</span></div></div>
+        <div class="backlog-item"><div class="backlog-item-title"><span class="bk-st" title="completata">✅</span>Contratti dipendenti + alert</div><div class="backlog-item-meta"><span class="user-badge u-mgmt">Mgmt</span><span class="story-pts">5 SP</span></div></div>
+        <div class="backlog-item"><div class="backlog-item-title"><span class="bk-st" title="completata">✅</span>Headcount & report organico</div><div class="backlog-item-meta"><span class="user-badge u-mgmt">Mgmt</span><span class="story-pts">8 SP</span></div></div>
+        <div class="backlog-item"><div class="backlog-item-title"><span class="bk-st" title="completata">✅</span>DPI registro & firma</div><div class="backlog-item-meta"><span class="user-badge u-dir">Direttore</span><span class="story-pts">5 SP</span></div></div>
+        <div class="backlog-item"><div class="backlog-item-title"><span class="bk-st" title="completata">✅</span>Documenti personali dipendente</div><div class="backlog-item-meta"><span class="user-badge u-staff">Staff</span><span class="story-pts">5 SP</span></div></div>
+        <div class="backlog-item"><div class="backlog-item-title"><span class="bk-st" title="completata">✅</span>Segnalazioni operative ticket</div><div class="backlog-item-meta"><span class="user-badge u-staff">Staff</span><span class="story-pts">5 SP</span></div></div>
+        <div class="backlog-item"><div class="backlog-item-title"><span class="bk-st" title="completata">✅</span>Audit log documenti</div><div class="backlog-item-meta"><span class="user-badge u-dir">Direttore</span><span class="story-pts">3 SP</span></div></div>
+        <div class="backlog-item"><div class="backlog-item-title"><span class="bk-st" title="completata">✅</span>Report & analytics export</div><div class="backlog-item-meta"><span class="user-badge u-mgmt">Mgmt</span><span class="story-pts">8 SP</span></div></div>
+        <div class="backlog-item"><div class="backlog-item-title"><span class="bk-st" title="completata">✅</span>Configurazione rete centrale</div><div class="backlog-item-meta"><span class="user-badge u-mgmt">Mgmt</span><span class="story-pts">5 SP</span></div></div>
         <div style="font-size:11px;font-weight:700;color:var(--p1);text-align:right;padding:4px 0">Totale: ~54 SP</div>
       </div>
     </div>
 
     <div class="backlog-col">
-      <div class="backlog-col-header bc-s3">🌱 Sprint 5–6<br><span style="font-size:10px;font-weight:400;opacity:0.85">Mese 5–6 · Maturità</span></div>
+      <div class="backlog-col-header bc-s3">🌱 Sprint 5–6<br><span style="font-size:10px;font-weight:400;opacity:0.85">Mese 5–6 · Maturità</span></div><div class="col-progress"><span>3/7 <span style="opacity:.75">(50%)</span></span><div class="bar"><span style="width:50%"></span></div><span style="opacity:.85">✅3 🟡1 ⬜3</span></div>
       <div class="backlog-items">
-        <div class="backlog-item"><div class="backlog-item-title">Presenze & timbrature QR</div><div class="backlog-item-meta"><span class="user-badge u-all">Tutti</span><span class="story-pts">8 SP</span></div></div>
-        <div class="backlog-item"><div class="backlog-item-title">Firma digitale documenti</div><div class="backlog-item-meta"><span class="user-badge u-all">Tutti</span><span class="story-pts">8 SP</span></div></div>
-        <div class="backlog-item"><div class="backlog-item-title">Formazione & ECM dottori</div><div class="backlog-item-meta"><span class="user-badge u-mgmt">Mgmt</span><span class="story-pts">8 SP</span></div></div>
-        <div class="backlog-item"><div class="backlog-item-title">Mappa geografica sedi</div><div class="backlog-item-meta"><span class="user-badge u-mgmt">Mgmt</span><span class="story-pts">5 SP</span></div></div>
-        <div class="backlog-item"><div class="backlog-item-title">App mobile React Native</div><div class="backlog-item-meta"><span class="user-badge u-staff">Staff</span><span class="story-pts">21 SP</span></div></div>
-        <div class="backlog-item"><div class="backlog-item-title">Integrazione XDENT API</div><div class="backlog-item-meta"><span class="user-badge u-dir">Direttore</span><span class="story-pts">13 SP</span></div></div>
-        <div class="backlog-item"><div class="backlog-item-title">Whistleblowing anonimo</div><div class="backlog-item-meta"><span class="user-badge u-staff">Staff</span><span class="story-pts">8 SP</span></div></div>
+        <div class="backlog-item"><div class="backlog-item-title"><span class="bk-st" title="completata">✅</span>Presenze & timbrature QR</div><div class="backlog-item-meta"><span class="user-badge u-all">Tutti</span><span class="story-pts">8 SP</span></div></div>
+        <div class="backlog-item"><div class="backlog-item-title"><span class="bk-st" title="in corso">🟡</span>Firma digitale documenti</div><div class="backlog-item-meta"><span class="user-badge u-all">Tutti</span><span class="story-pts">8 SP</span></div></div>
+        <div class="backlog-item"><div class="backlog-item-title"><span class="bk-st" title="completata">✅</span>Formazione & ECM dottori</div><div class="backlog-item-meta"><span class="user-badge u-mgmt">Mgmt</span><span class="story-pts">8 SP</span></div></div>
+        <div class="backlog-item"><div class="backlog-item-title"><span class="bk-st" title="da fare">⬜</span>Mappa geografica sedi</div><div class="backlog-item-meta"><span class="user-badge u-mgmt">Mgmt</span><span class="story-pts">5 SP</span></div></div>
+        <div class="backlog-item"><div class="backlog-item-title"><span class="bk-st" title="da fare">⬜</span>App mobile React Native</div><div class="backlog-item-meta"><span class="user-badge u-staff">Staff</span><span class="story-pts">21 SP</span></div></div>
+        <div class="backlog-item"><div class="backlog-item-title"><span class="bk-st" title="da fare">⬜</span>Integrazione XDENT API</div><div class="backlog-item-meta"><span class="user-badge u-dir">Direttore</span><span class="story-pts">13 SP</span></div></div>
+        <div class="backlog-item"><div class="backlog-item-title"><span class="bk-st" title="completata">✅</span>Whistleblowing anonimo</div><div class="backlog-item-meta"><span class="user-badge u-staff">Staff</span><span class="story-pts">8 SP</span></div></div>
         <div style="font-size:11px;font-weight:700;color:var(--p2);text-align:right;padding:4px 0">Totale: ~71 SP</div>
       </div>
     </div>
 
     <div class="backlog-col">
-      <div class="backlog-col-header bc-later">🔭 Roadmap futura<br><span style="font-size:10px;font-weight:400;opacity:0.85">Anno 2+ · Differenziazione</span></div>
+      <div class="backlog-col-header bc-later">🔭 Roadmap futura<br><span style="font-size:10px;font-weight:400;opacity:0.85">Anno 2+ · Differenziazione</span></div><div class="col-progress"><span>3/8 <span style="opacity:.75">(38%)</span></span><div class="bar"><span style="width:38%"></span></div><span style="opacity:.85">✅3 ⬜5</span></div>
       <div class="backlog-items">
-        <div class="backlog-item"><div class="backlog-item-title">AI insights HR predittivo</div><div class="backlog-item-meta"><span class="user-badge u-mgmt">Mgmt</span><span class="story-pts">?</span></div></div>
-        <div class="backlog-item"><div class="backlog-item-title">Ottimizzazione turni AI</div><div class="backlog-item-meta"><span class="user-badge u-dir">Direttore</span><span class="story-pts">?</span></div></div>
-        <div class="backlog-item"><div class="backlog-item-title">Integrazione sistema paghe</div><div class="backlog-item-meta"><span class="user-badge u-mgmt">Mgmt</span><span class="story-pts">?</span></div></div>
-        <div class="backlog-item"><div class="backlog-item-title">Benchmark inter-sede KPI</div><div class="backlog-item-meta"><span class="user-badge u-mgmt">Mgmt</span><span class="story-pts">?</span></div></div>
-        <div class="backlog-item"><div class="backlog-item-title">Portale fornitori</div><div class="backlog-item-meta"><span class="user-badge u-dir">Direttore</span><span class="story-pts">?</span></div></div>
-        <div class="backlog-item"><div class="backlog-item-title">Multi-lingua (EN, ES)</div><div class="backlog-item-meta"><span class="user-badge u-all">Tutti</span><span class="story-pts">?</span></div></div>
-        <div class="backlog-item"><div class="backlog-item-title">White-label per altri settori</div><div class="backlog-item-meta"><span class="user-badge u-mgmt">Mgmt</span><span class="story-pts">?</span></div></div>
-        <div class="backlog-item"><div class="backlog-item-title">Marketplace integrazioni</div><div class="backlog-item-meta"><span class="user-badge u-mgmt">Mgmt</span><span class="story-pts">?</span></div></div>
+        <div class="backlog-item"><div class="backlog-item-title"><span class="bk-st" title="completata">✅</span>AI insights HR predittivo</div><div class="backlog-item-meta"><span class="user-badge u-mgmt">Mgmt</span><span class="story-pts">?</span></div></div>
+        <div class="backlog-item"><div class="backlog-item-title"><span class="bk-st" title="completata">✅</span>Ottimizzazione turni AI</div><div class="backlog-item-meta"><span class="user-badge u-dir">Direttore</span><span class="story-pts">?</span></div></div>
+        <div class="backlog-item"><div class="backlog-item-title"><span class="bk-st" title="da fare">⬜</span>Integrazione sistema paghe</div><div class="backlog-item-meta"><span class="user-badge u-mgmt">Mgmt</span><span class="story-pts">?</span></div></div>
+        <div class="backlog-item"><div class="backlog-item-title"><span class="bk-st" title="completata">✅</span>Benchmark inter-sede KPI</div><div class="backlog-item-meta"><span class="user-badge u-mgmt">Mgmt</span><span class="story-pts">?</span></div></div>
+        <div class="backlog-item"><div class="backlog-item-title"><span class="bk-st" title="da fare">⬜</span>Portale fornitori</div><div class="backlog-item-meta"><span class="user-badge u-dir">Direttore</span><span class="story-pts">?</span></div></div>
+        <div class="backlog-item"><div class="backlog-item-title"><span class="bk-st" title="da fare">⬜</span>Multi-lingua (EN, ES)</div><div class="backlog-item-meta"><span class="user-badge u-all">Tutti</span><span class="story-pts">?</span></div></div>
+        <div class="backlog-item"><div class="backlog-item-title"><span class="bk-st" title="da fare">⬜</span>White-label per altri settori</div><div class="backlog-item-meta"><span class="user-badge u-mgmt">Mgmt</span><span class="story-pts">?</span></div></div>
+        <div class="backlog-item"><div class="backlog-item-title"><span class="bk-st" title="da fare">⬜</span>Marketplace integrazioni</div><div class="backlog-item-meta"><span class="user-badge u-mgmt">Mgmt</span><span class="story-pts">?</span></div></div>
       </div>
     </div>
   </div>
