@@ -14,6 +14,7 @@ public static class Policies
     public const string RequireManagement = nameof(RequireManagement);
     public const string RequireDirettore  = nameof(RequireDirettore);
     public const string RequireBackoffice = nameof(RequireBackoffice);
+    public const string RequireFornitore  = nameof(RequireFornitore);
 
     public static class Names
     {
@@ -22,6 +23,7 @@ public static class Policies
         public const string Direttore  = "Direttore";
         public const string Backoffice = "Backoffice";
         public const string Staff      = "Staff";
+        public const string Fornitore  = "Fornitore";
     }
 
     public static void Configure(AuthorizationOptions o)
@@ -39,6 +41,10 @@ public static class Policies
         // Backoffice: anagrafiche e compliance (dottori/dipendenti/RLS).
         // Il Direttore è incluso: può gestire le anagrafiche della propria sede.
         o.AddPolicy(RequireBackoffice, p => p.RequireRole(Names.Owner, Names.Management, Names.Backoffice, Names.Direttore));
+
+        // Fornitore: utente esterno autenticato con accesso al solo portale /fornitori.
+        // Non viene MAI incluso nelle altre policy: vede solo i propri dati.
+        o.AddPolicy(RequireFornitore, p => p.RequireRole(Names.Fornitore));
     }
 }
 
@@ -58,6 +64,9 @@ public static class UserAccess
 
     public static bool IsStaff(this ClaimsPrincipal? user) =>
         user?.IsInRole(Policies.Names.Staff) == true;
+
+    public static bool IsFornitore(this ClaimsPrincipal? user) =>
+        user?.IsInRole(Policies.Names.Fornitore) == true;
 
     /// <summary>
     /// Vero se l'utente ha visibilità completa su tutto il tenant (Management/Owner).

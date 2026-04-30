@@ -1,0 +1,100 @@
+@model Chipdent.Web.Models.FornitoreUploadFatturaViewModel
+@using Chipdent.Web.Domain.Entities
+@{
+    ViewData["Title"] = "Carica fattura";
+}
+
+<partial name="_Flash" />
+
+<div style="margin-bottom: 24px;">
+    <h2 style="margin: 0 0 4px;">📤 Carica una nuova fattura</h2>
+    <p class="muted">Inserisci i dati della fattura e (consigliato) carica il PDF o l'XML SDI. La fattura entrerà in stato "in revisione" finché l'amministrazione non la approverà.</p>
+</div>
+
+<form method="post" enctype="multipart/form-data" class="card" style="padding: 24px;">
+    @Html.AntiForgeryToken()
+
+    <div asp-validation-summary="ModelOnly" class="alert alert--danger" style="display:@(ViewData.ModelState.ErrorCount > 0 ? "block" : "none");"></div>
+
+    <div class="grid" style="grid-template-columns: 1fr 1fr; gap: 12px;">
+        <div class="form-group">
+            <label class="form-label" asp-for="ClinicaId">Sede destinataria *</label>
+            <select class="form-control" asp-for="ClinicaId" required>
+                <option value="">— seleziona la sede —</option>
+                @foreach (var c in Model.Cliniche)
+                {
+                    <option value="@c.Id" selected="@(Model.ClinicaId == c.Id)">@c.Nome</option>
+                }
+            </select>
+            <span class="text-danger" asp-validation-for="ClinicaId"></span>
+        </div>
+
+        <div class="form-group">
+            <label class="form-label" asp-for="Numero">Numero fattura *</label>
+            <input class="form-control" asp-for="Numero" required />
+            <span class="text-danger" asp-validation-for="Numero"></span>
+        </div>
+
+        <div class="form-group">
+            <label class="form-label" asp-for="DataEmissione">Data emissione *</label>
+            <input class="form-control" type="date" asp-for="DataEmissione" required />
+        </div>
+
+        <div class="form-group">
+            <label class="form-label" asp-for="MeseCompetenza">Competenza</label>
+            <input class="form-control" type="month" name="MeseCompetenza" value="@Model.MeseCompetenza.ToString("yyyy-MM")" />
+        </div>
+
+        <div class="form-group">
+            <label class="form-label" asp-for="Categoria">Categoria di spesa</label>
+            <select class="form-control" asp-for="Categoria">
+                @foreach (var v in Enum.GetValues<CategoriaSpesa>())
+                {
+                    <option value="@v" selected="@(Model.Categoria == v)">@v</option>
+                }
+            </select>
+        </div>
+
+        <div class="form-group">
+            <label class="form-label" asp-for="Metodo">Metodo pagamento concordato</label>
+            <select class="form-control" asp-for="Metodo">
+                @foreach (var v in Enum.GetValues<MetodoPagamento>())
+                {
+                    <option value="@v" selected="@(Model.Metodo == v)">@v</option>
+                }
+            </select>
+        </div>
+
+        <div class="form-group">
+            <label class="form-label" asp-for="Imponibile">Imponibile (€) *</label>
+            <input class="form-control" type="number" step="0.01" asp-for="Imponibile" required />
+        </div>
+
+        <div class="form-group">
+            <label class="form-label" asp-for="Iva">IVA (€)</label>
+            <input class="form-control" type="number" step="0.01" asp-for="Iva" />
+        </div>
+
+        <div class="form-group">
+            <label class="form-label" asp-for="DataScadenza">Data scadenza proposta *</label>
+            <input class="form-control" type="date" asp-for="DataScadenza" required />
+            <span class="muted" style="font-size:.78rem;">L'amministrazione potrà confermarla o modificarla.</span>
+        </div>
+    </div>
+
+    <div class="form-group">
+        <label class="form-label" asp-for="Allegato">PDF o XML SDI (consigliato)</label>
+        <input class="form-control" type="file" asp-for="Allegato" accept=".pdf,.png,.jpg,.jpeg,.xml,.p7m" />
+        <span class="muted" style="font-size:.78rem;">Max 25 MB. Formati: PDF, JPG, PNG, XML SDI, P7M.</span>
+    </div>
+
+    <div class="form-group">
+        <label class="form-label" asp-for="Note">Note</label>
+        <textarea class="form-control" asp-for="Note" rows="2" placeholder="es. fattura relativa al mese di marzo"></textarea>
+    </div>
+
+    <div style="display:flex; gap:8px; justify-content:flex-end; margin-top: 16px;">
+        <a class="btn btn--ghost" asp-action="Index">Annulla</a>
+        <button type="submit" class="btn btn--primary">📤 Invia fattura</button>
+    </div>
+</form>

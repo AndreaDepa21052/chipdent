@@ -212,11 +212,156 @@ public static class MongoSeeder
             }
 
             await SeedHistoricalAiDataAsync(ctx, tenant, logger, ct);
+            await SeedTesoreriaAsync(ctx, hasher, tenant, cliniche, logger, ct);
         }
         catch (Exception ex)
         {
             logger.LogWarning(ex, "Mongo seed skipped: {Message}", ex.Message);
         }
+    }
+
+    /// <summary>
+    /// Seed demo del modulo Tesoreria: fornitori, fatture, scadenze (passato + presente + futuro).
+    /// Crea anche un utente di portale per il primo fornitore (lereti@demo.it / chipdent).
+    /// Idempotente: salta se ci sono già fornitori per il tenant.
+    /// </summary>
+    private static async Task SeedTesoreriaAsync(MongoContext ctx, IPasswordHasher hasher, Tenant tenant, List<Clinica> cliniche, ILogger logger, CancellationToken ct)
+    {
+        if (await ctx.Fornitori.Find(f => f.TenantId == tenant.Id).AnyAsync(ct)) return;
+        if (cliniche.Count == 0) return;
+
+        var oggi = DateTime.UtcNow.Date;
+
+        var fornitori = new[]
+        {
+            new Fornitore { TenantId = tenant.Id, RagioneSociale = "LERETI spa",                    PartitaIva = "01234567890", EmailContatto = "lereti@demo.it",  Iban = "IT42G0569610901000009101X54", CategoriaDefault = CategoriaSpesa.Acqua,            Stato = StatoFornitore.Attivo },
+            new Fornitore { TenantId = tenant.Id, RagioneSociale = "EniMoov S.p.A.",                PartitaIva = "09876543210", EmailContatto = "fatt@enimoov.it", Iban = "IT11A0123412345000000099999",  CategoriaDefault = CategoriaSpesa.Trasporti,        Stato = StatoFornitore.Attivo },
+            new Fornitore { TenantId = tenant.Id, RagioneSociale = "Lyreco Italia srl",             PartitaIva = "11122233344", EmailContatto = "ufficio@lyreco.it",Iban = "IT88B0306904012000000123456",  CategoriaDefault = CategoriaSpesa.Cancelleria,      Stato = StatoFornitore.Attivo },
+            new Fornitore { TenantId = tenant.Id, RagioneSociale = "Q-Print srl",                   PartitaIva = "44455566677", EmailContatto = "info@qprint.it",  Iban = "IT98Y0503450112000000001360",  CategoriaDefault = CategoriaSpesa.AltreSpeseFisse, Stato = StatoFornitore.Attivo },
+            new Fornitore { TenantId = tenant.Id, RagioneSociale = "CVZ Antincendi S.A.S.",         PartitaIva = "55566677788", EmailContatto = "info@cvzantinc.it",Iban = "IT54S0306922800100000069338",  CategoriaDefault = CategoriaSpesa.Manutenzione,    Stato = StatoFornitore.Attivo },
+            new Fornitore { TenantId = tenant.Id, RagioneSociale = "Sapia Pratesi & Partners srl",  PartitaIva = "22233344455", EmailContatto = "studio@sapia.it", Iban = "IT22T0103412345000000088888",  CategoriaDefault = CategoriaSpesa.Consulenze,      Stato = StatoFornitore.Attivo },
+            new Fornitore { TenantId = tenant.Id, RagioneSociale = "Plastigomma s.r.l.",            PartitaIva = "33344455566", EmailContatto = "info@plastigomma.it", Iban = "IT44U0306904012000000099111", CategoriaDefault = CategoriaSpesa.MaterialiClinici, Stato = StatoFornitore.Attivo }
+        };
+        await ctx.Fornitori.InsertManyAsync(fornitori, cancellationToken: ct);
+        logger.LogInformation("Seeded {Count} fornitori", fornitori.Length);
+
+        // Account portale per LERETI (demo del portale fornitore)
+        var lereti = fornitori[0];
+        const string portaleEmail = "lereti@demo.it";
+        if (!await ctx.Users.Find(u => u.Email == portaleEmail).AnyAsync(ct))
+        {
+            await ctx.Users.InsertOneAsync(new User
+            {
+                TenantId = tenant.Id,
+                Email = portaleEmail,
+                PasswordHash = hasher.Hash("chipdent"),
+                FullName = lereti.RagioneSociale,
+                Role = UserRole.Fornitore,
+                LinkedPersonType = LinkedPersonType.Fornitore,
+                LinkedPersonId = lereti.Id,
+                IsActive = true
+            }, cancellationToken: ct);
+            logger.LogInformation("Seeded fornitore portal user {Email}", portaleEmail);
+        }
+
+        // Mix di fatture/scadenze: ~40 totali, distribuite tra passato/presente/futuro,
+        // con metodi e stati vari, per dare la dashboard piena di dati al primo avvio.
+        var rng = new Random(7);
+        var fatture = new List<FatturaFornitore>();
+        var scadenze = new List<ScadenzaPagamento>();
+        var metodi = new[] { MetodoPagamento.Bonifico, MetodoPagamento.Rid, MetodoPagamento.Riba, MetodoPagamento.CartaCredito };
+
+        var counter = 0;
+        for (var i = 0; i < 40; i++)
+        {
+            var f = fornitori[rng.Next(fornitori.Length)];
+            var c = cliniche[rng.Next(cliniche.Count)];
+            // Distribuzione: 60% nei 12 mesi passati, 40% prossimi 90gg
+            var giornoOffset = rng.NextDouble() < 0.6 ? -rng.Next(0, 365) : rng.Next(1, 90);
+            var dataEm = oggi.AddDays(giornoOffset - rng.Next(15, 35));
+            var dataScad = oggi.AddDays(giornoOffset);
+            var imponibile = (decimal)Math.Round(rng.NextDouble() * 2000 + 30, 2);
+            var iva = Math.Round(imponibile * 0.22m, 2);
+            var totale = imponibile + iva;
+
+            counter++;
+            var fattura = new FatturaFornitore
+            {
+                TenantId = tenant.Id,
+                FornitoreId = f.Id,
+                ClinicaId = c.Id,
+                Numero = $"{dataEm.Year}-FE{1000 + counter}",
+                DataEmissione = DateTime.SpecifyKind(dataEm, DateTimeKind.Utc),
+                MeseCompetenza = DateTime.SpecifyKind(new DateTime(dataEm.Year, dataEm.Month, 1), DateTimeKind.Utc),
+                Categoria = f.CategoriaDefault,
+                Imponibile = imponibile,
+                Iva = iva,
+                Totale = totale,
+                Stato = StatoFattura.Approvata,
+                ApprovataIl = dataEm.AddDays(2),
+                Origine = OrigineFattura.ImportExcel,
+                Note = $"Fornitura {f.CategoriaDefault.ToString().ToLowerInvariant()} {dataEm:MMM yy}"
+            };
+            fatture.Add(fattura);
+
+            var metodo = metodi[rng.Next(metodi.Length)];
+            var stato = giornoOffset < -10 ? StatoScadenza.Pagato
+                      : giornoOffset < 0 ? (rng.NextDouble() < 0.3 ? StatoScadenza.DaPagare : StatoScadenza.Pagato)  // qualche scaduto
+                      : giornoOffset <= 7 ? (rng.NextDouble() < 0.5 ? StatoScadenza.Programmato : StatoScadenza.DaPagare)
+                      : StatoScadenza.DaPagare;
+
+            scadenze.Add(new ScadenzaPagamento
+            {
+                TenantId = tenant.Id,
+                FatturaId = fattura.Id,
+                FornitoreId = f.Id,
+                ClinicaId = c.Id,
+                Categoria = fattura.Categoria,
+                DataScadenza = DateTime.SpecifyKind(dataScad, DateTimeKind.Utc),
+                Importo = totale,
+                Metodo = metodo,
+                Iban = f.Iban,
+                Stato = stato,
+                DataPagamento = stato == StatoScadenza.Pagato ? DateTime.SpecifyKind(dataScad.AddDays(rng.Next(-2, 3)), DateTimeKind.Utc) : null,
+                DataProgrammata = stato == StatoScadenza.Programmato ? DateTime.SpecifyKind(dataScad, DateTimeKind.Utc) : null,
+                RiferimentoPagamento = stato == StatoScadenza.Pagato ? $"CRO-{rng.Next(1000000, 9999999)}" : null
+            });
+        }
+
+        // Una fattura del portale fornitore "in attesa di approvazione" per mostrare il flusso
+        var pending = new FatturaFornitore
+        {
+            TenantId = tenant.Id,
+            FornitoreId = lereti.Id,
+            ClinicaId = cliniche[0].Id,
+            Numero = $"{oggi.Year}-FE-PORT-001",
+            DataEmissione = DateTime.SpecifyKind(oggi.AddDays(-2), DateTimeKind.Utc),
+            MeseCompetenza = DateTime.SpecifyKind(new DateTime(oggi.Year, oggi.Month, 1), DateTimeKind.Utc),
+            Categoria = CategoriaSpesa.Acqua,
+            Imponibile = 84.50m, Iva = 18.59m, Totale = 103.09m,
+            Stato = StatoFattura.Caricata,
+            Origine = OrigineFattura.PortaleFornitore,
+            Note = "Caricata dal portale — bolletta acqua aprile"
+        };
+        fatture.Add(pending);
+        scadenze.Add(new ScadenzaPagamento
+        {
+            TenantId = tenant.Id,
+            FatturaId = pending.Id,
+            FornitoreId = lereti.Id,
+            ClinicaId = pending.ClinicaId,
+            Categoria = pending.Categoria,
+            DataScadenza = DateTime.SpecifyKind(oggi.AddDays(28), DateTimeKind.Utc),
+            Importo = pending.Totale,
+            Metodo = MetodoPagamento.Bonifico,
+            Iban = lereti.Iban,
+            Stato = StatoScadenza.DaPagare,
+            Note = "Proposta dal fornitore — in attesa di approvazione fattura."
+        });
+
+        await ctx.Fatture.InsertManyAsync(fatture, cancellationToken: ct);
+        await ctx.ScadenzePagamento.InsertManyAsync(scadenze, cancellationToken: ct);
+        logger.LogInformation("Seeded tesoreria: {F} fatture, {S} scadenze", fatture.Count, scadenze.Count);
     }
 
     /// <summary>

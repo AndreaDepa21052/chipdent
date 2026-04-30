@@ -19,6 +19,7 @@
         "Management" => "role-badge--admin",
         "Direttore"  => "role-badge--manager",
         "Backoffice" => "role-badge--hr",
+        "Fornitore"  => "role-badge--supplier",
         _ => ""
     };
     var roleLabel = role switch
@@ -28,6 +29,7 @@
         "Direttore"  => "Direttore di sede",
         "Backoffice" => "Backoffice",
         "Staff"      => "Staff",
+        "Fornitore"  => "Fornitore",
         _ => role
     };
 
@@ -58,6 +60,7 @@
         ["benchmark"]      = ("Benchmark sedi", "Benchmark"),
         ["predizioni"]     = ("Predizione assenze", "Predizioni"),
         ["scadenziario"]   = ("Scadenziario", "Scadenziario"),
+        ["tesoreria"]      = ("Tesoreria", "Tesoreria"),
         ["operations"]     = ("Operations", "Operations"),
         ["feedback"]       = ("Feedback pazienti", "Feedback"),
         ["whistleblowing"] = ("Whistleblowing", "Whistleblowing"),
@@ -268,6 +271,13 @@
                                 <svg class="nav__icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><path d="M14 2v6h6"/><path d="M16 13H8M16 17H8M10 9H8"/></svg>
                                 Report
                             </a>
+                            @if (User.IsOwner())
+                            {
+                                <a class="nav__item @(section == "tesoreria" ? "is-active" : "")" asp-controller="Tesoreria" asp-action="Index">
+                                    <svg class="nav__icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="12" y1="1" x2="12" y2="23"/><path d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/></svg>
+                                    💰 Tesoreria
+                                </a>
+                            }
                         </details>
                     }
 

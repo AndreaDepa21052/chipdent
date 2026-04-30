@@ -113,9 +113,13 @@ public class AccountController : Controller
             u => u.Id == user.Id,
             Builders<Chipdent.Web.Domain.Entities.User>.Update.Set(u => u.LastLoginAt, DateTime.UtcNow));
 
+        // Fornitori: non hanno accesso alla dashboard interna, vengono mandati al portale dedicato.
+        var defaultLanding = user.Role == UserRole.Fornitore
+            ? Url.Action("Index", "FornitoriPortal")!
+            : Url.Action("Index", "Dashboard")!;
         var destination = (!string.IsNullOrEmpty(vm.ReturnUrl) && Url.IsLocalUrl(vm.ReturnUrl))
             ? vm.ReturnUrl
-            : Url.Action("Index", "Dashboard")!;
+            : defaultLanding;
 
         return RedirectToAction(nameof(Loading), new { next = destination });
     }

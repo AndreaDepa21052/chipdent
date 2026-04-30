@@ -1557,6 +1557,7 @@ h3 { font-size: 1.15rem; }
 }
 .role-badge--owner { background: var(--c-accent-soft); color: var(--c-accent-strong); border-color: rgba(196, 120, 48, 0.4); }
 .role-badge--admin { background: rgba(74, 130, 163, 0.12); color: var(--c-info); border-color: rgba(74, 130, 163, 0.4); }
+.role-badge--supplier { background: rgba(122, 92, 154, 0.10); color: #5b3a82; border-color: rgba(122, 92, 154, 0.35); }
 
 .access-pill {
     display: flex;

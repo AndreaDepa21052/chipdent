@@ -39,6 +39,8 @@ public class UserPreferences
 /// </summary>
 public enum UserRole
 {
+    /// <summary>Utenti esterni (fornitori) con accesso al solo portale /fornitori.</summary>
+    Fornitore = -10,
     Staff = 0,
     Backoffice = 10,
     Direttore = 20,
@@ -50,5 +52,6 @@ public enum LinkedPersonType
 {
     None,
     Dottore,
-    Dipendente
+    Dipendente,
+    Fornitore
 }

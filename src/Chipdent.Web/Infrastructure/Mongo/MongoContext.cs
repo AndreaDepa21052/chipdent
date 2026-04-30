@@ -64,4 +64,7 @@ public class MongoContext
     public IMongoCollection<Consumabile> Consumabili => Database.GetCollection<Consumabile>("consumabili");
     public IMongoCollection<MovimentoConsumabile> MovimentiConsumabili => Database.GetCollection<MovimentoConsumabile>("movimentiConsumabili");
     public IMongoCollection<ProductBacklogItem> ProductBacklog => Database.GetCollection<ProductBacklogItem>("productBacklog");
+    public IMongoCollection<Fornitore> Fornitori => Database.GetCollection<Fornitore>("fornitori");
+    public IMongoCollection<FatturaFornitore> Fatture => Database.GetCollection<FatturaFornitore>("fatture");
+    public IMongoCollection<ScadenzaPagamento> ScadenzePagamento => Database.GetCollection<ScadenzaPagamento>("scadenzePagamento");
 }

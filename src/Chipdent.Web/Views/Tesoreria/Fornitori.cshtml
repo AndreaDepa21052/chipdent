@@ -1,0 +1,84 @@
+@model Chipdent.Web.Models.FornitoriIndexViewModel
+@using Chipdent.Web.Domain.Entities
+@using System.Globalization
+@{
+    ViewData["Title"] = "Fornitori";
+    ViewData["Crumb"] = "Tesoreria";
+    var it = new CultureInfo("it-IT");
+}
+
+<partial name="_Flash" />
+
+<div class="page-head">
+    <div>
+        <h2>👥 Fornitori</h2>
+        <p class="page-head__sub">Anagrafica passiva. Ogni fornitore può essere abilitato al portale per caricare le proprie fatture e consultare lo stato dei pagamenti.</p>
+    </div>
+    <div class="page-head__actions">
+        <a class="btn btn--ghost" asp-action="Index">← Tesoreria</a>
+        <a class="btn btn--primary" asp-action="NuovoFornitore">＋ Nuovo fornitore</a>
+    </div>
+</div>
+
+@if (Model.Fornitori.Count == 0)
+{
+    <div class="card">
+        <p class="muted">Nessun fornitore registrato. Inizia da "Nuovo fornitore" o usa il seed dimostrativo.</p>
+    </div>
+}
+else
+{
+    <div class="card" style="padding:0; overflow:auto;">
+        <table class="table">
+            <thead>
+                <tr>
+                    <th>Ragione sociale</th>
+                    <th>P.IVA</th>
+                    <th>Categoria</th>
+                    <th>Stato</th>
+                    <th>Portale</th>
+                    <th style="text-align:right;">Esposto</th>
+                    <th style="text-align:right;">Fatture YTD</th>
+                    <th></th>
+                </tr>
+            </thead>
+            <tbody>
+            @foreach (var r in Model.Fornitori)
+            {
+                <tr>
+                    <td><strong>@r.Fornitore.RagioneSociale</strong></td>
+                    <td class="muted">@(r.Fornitore.PartitaIva ?? "—")</td>
+                    <td>@r.Fornitore.CategoriaDefault</td>
+                    <td>
+                        @if (r.Fornitore.Stato == StatoFornitore.Attivo)
+                        {
+                            <span class="badge" style="background:#dff5e6; color:#1f6e3a;">attivo</span>
+                        }
+                        else if (r.Fornitore.Stato == StatoFornitore.Sospeso)
+                        {
+                            <span class="badge" style="background:#fff2dd; color:#a86010;">sospeso</span>
+                        }
+                        else
+                        {
+                            <span class="badge" style="background:#eee; color:#666;">cessato</span>
+                        }
+                    </td>
+                    <td>
+                        @if (r.HaUtentePortale)
+                        {
+                            <span class="badge" style="background:#e3edff; color:#2457a4;">🔓 abilitato</span>
+                        }
+                        else
+                        {
+                            <span class="muted">—</span>
+                        }
+                    </td>
+                    <td style="text-align:right;"><strong>@r.EspostoCorrente.ToString("N0", it) €</strong></td>
+                    <td style="text-align:right;">@r.FatturePeriodoCorrente</td>
+                    <td><a class="btn btn--ghost btn--sm" asp-action="EditFornitore" asp-route-id="@r.Fornitore.Id">Apri</a></td>
+                </tr>
+            }
+            </tbody>
+        </table>
+    </div>
+}

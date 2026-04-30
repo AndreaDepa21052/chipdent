@@ -1,0 +1,450 @@
+@model Chipdent.Web.Models.TesoreriaIndexViewModel
+@using Chipdent.Web.Models
+@using Chipdent.Web.Domain.Entities
+@using System.Globalization
+@{
+    ViewData["Title"] = "Tesoreria — Scadenziario pagamenti";
+    var oggi = DateTime.UtcNow.Date;
+    var it = new CultureInfo("it-IT");
+}
+
+@functions {
+    string Eur(decimal v) => v.ToString("N0", new CultureInfo("it-IT")) + " €";
+    string EurDec(decimal v) => v.ToString("N2", new CultureInfo("it-IT")) + " €";
+
+    string StatoBadge(StatoScadenza s) => s switch
+    {
+        StatoScadenza.Pagato => "<span class='badge' style='background:#dff5e6; color:#1f6e3a;'>✓ pagato</span>",
+        StatoScadenza.Programmato => "<span class='badge' style='background:#e3edff; color:#2457a4;'>📅 programmato</span>",
+        StatoScadenza.DaPagare => "<span class='badge' style='background:#fff2dd; color:#a86010;'>● da pagare</span>",
+        StatoScadenza.Insoluto => "<span class='badge' style='background:#fbe1e1; color:#a83a3a;'>⚠ scaduto</span>",
+        StatoScadenza.Annullato => "<span class='badge' style='background:#eee; color:#666;'>annullato</span>",
+        _ => $"<span class='badge'>{s}</span>"
+    };
+}
+
+<partial name="_Flash" />
+
+<div class="page-head">
+    <div>
+        <h2>💰 Tesoreria — Scadenziario pagamenti</h2>
+        <p class="page-head__sub">Vista unificata di fatture passive e scadenze fornitori. KPI, grafici, e azioni rapide su pagamenti.</p>
+    </div>
+    <div class="page-head__actions">
+        <a class="btn btn--ghost" asp-action="Fornitori">👥 Fornitori</a>
+        <a class="btn btn--ghost" asp-action="ExportCsv">⬇ Export CSV</a>
+        <a class="btn btn--primary" asp-action="NuovaFattura">＋ Nuova fattura</a>
+    </div>
+</div>
+
+@if (Model.CountFattureInApprovazione > 0)
+{
+    <div class="alert alert--info" style="margin-bottom: var(--s-4);">
+        📥 <strong>@Model.CountFattureInApprovazione</strong> fatture caricate dai fornitori sono <strong>in attesa di approvazione</strong>.
+        Filtra la tabella per <em>stato = DaPagare</em> e cerca le righe contrassegnate "Proposta dal fornitore".
+    </div>
+}
+
+<div class="grid grid--stats" style="margin-bottom: var(--s-4);">
+    <div class="stat">
+        <div class="stat__label">Esposto prossimi 30gg</div>
+        <div class="stat__value">@Eur(Model.EspostoProssimi30gg)</div>
+    </div>
+    <div class="stat">
+        <div class="stat__label">Scaduto / insoluto</div>
+        <div class="stat__value" style="color:@(Model.CountScadute > 0 ? "#a83a3a" : "inherit");">@Eur(Model.ImportoScaduto)</div>
+        @if (Model.CountScadute > 0)
+        {
+            <div class="stat__hint">@Model.CountScadute scadenze rosse</div>
+        }
+    </div>
+    <div class="stat">
+        <div class="stat__label">Da programmare (settimana)</div>
+        <div class="stat__value">@Eur(Model.DaProgrammareSettimana)</div>
+        <div class="stat__hint">@Model.CountDaProgrammareSettimana scadenze</div>
+    </div>
+    <div class="stat">
+        <div class="stat__label">Pagato MTD</div>
+        <div class="stat__value">@Eur(Model.PagatoMeseCorrente)</div>
+        <div class="stat__hint">mese in corso</div>
+    </div>
+</div>
+
+<div class="grid" style="grid-template-columns: 2fr 1fr; gap: var(--s-4); margin-bottom: var(--s-4);">
+    <div class="card">
+        <div class="card__header">
+            <h3 class="card__title">Cash-out previsto (90 giorni)</h3>
+            <span class="muted" style="font-size:.85rem;">Aggregato per mese</span>
+        </div>
+        <div style="height: 280px; padding: var(--s-3);">
+            <canvas id="chart-cashout"></canvas>
+        </div>
+    </div>
+    <div class="card">
+        <div class="card__header"><h3 class="card__title">Stati scadenze</h3></div>
+        <div style="height: 280px; padding: var(--s-3);">
+            <canvas id="chart-stati"></canvas>
+        </div>
+    </div>
+</div>
+
+<div class="grid" style="grid-template-columns: 1fr 1fr; gap: var(--s-4); margin-bottom: var(--s-4);">
+    <div class="card">
+        <div class="card__header"><h3 class="card__title">Spesa per categoria (12m)</h3></div>
+        <div style="height: 260px; padding: var(--s-3);">
+            <canvas id="chart-categoria"></canvas>
+        </div>
+    </div>
+    <div class="card">
+        <div class="card__header"><h3 class="card__title">Spesa per sede (12m)</h3></div>
+        <div style="height: 260px; padding: var(--s-3);">
+            <canvas id="chart-sede"></canvas>
+        </div>
+    </div>
+</div>
+
+<div class="grid" style="grid-template-columns: 3fr 1fr; gap: var(--s-4); margin-bottom: var(--s-4);">
+    <div class="card" style="padding:0;">
+        <div class="card__header" style="padding: var(--s-3) var(--s-3) 0;">
+            <h3 class="card__title">Scadenze</h3>
+            <span class="muted" style="font-size:.85rem;">@Model.Righe.Count righe</span>
+        </div>
+
+        <form method="get" style="display:flex; flex-wrap:wrap; gap:8px; padding: var(--s-3); align-items:end; border-bottom: 1px solid var(--c-border, #ece0cc);">
+            <div>
+                <label class="muted" style="font-size:.75rem;">Ricerca</label>
+                <input class="form-control" name="Q" value="@Model.Filtro.Q" placeholder="Fornitore, n° doc, note…" style="width: 200px;" />
+            </div>
+            <div>
+                <label class="muted" style="font-size:.75rem;">Fornitore</label>
+                <select class="form-control" name="FornitoreId" style="width: 180px;">
+                    <option value="">Tutti</option>
+                    @foreach (var f in Model.FornitoriLookup)
+                    {
+                        <option value="@f.Id" selected="@(Model.Filtro.FornitoreId == f.Id)">@f.Nome</option>
+                    }
+                </select>
+            </div>
+            <div>
+                <label class="muted" style="font-size:.75rem;">Sede</label>
+                <select class="form-control" name="ClinicaId" style="width: 150px;">
+                    <option value="">Tutte</option>
+                    @foreach (var c in Model.CliniceLookup)
+                    {
+                        <option value="@c.Id" selected="@(Model.Filtro.ClinicaId == c.Id)">@c.Nome</option>
+                    }
+                </select>
+            </div>
+            <div>
+                <label class="muted" style="font-size:.75rem;">Categoria</label>
+                <select class="form-control" name="Categoria" style="width: 160px;">
+                    <option value="">Tutte</option>
+                    @foreach (var v in Enum.GetValues<CategoriaSpesa>())
+                    {
+                        <option value="@v" selected="@(Model.Filtro.Categoria == v)">@v</option>
+                    }
+                </select>
+            </div>
+            <div>
+                <label class="muted" style="font-size:.75rem;">Stato</label>
+                <select class="form-control" name="Stato" style="width: 130px;">
+                    <option value="">Tutti</option>
+                    @foreach (var v in Enum.GetValues<StatoScadenza>())
+                    {
+                        <option value="@v" selected="@(Model.Filtro.Stato == v)">@v</option>
+                    }
+                </select>
+            </div>
+            <div>
+                <label class="muted" style="font-size:.75rem;">Metodo</label>
+                <select class="form-control" name="Metodo" style="width: 120px;">
+                    <option value="">Tutti</option>
+                    @foreach (var v in Enum.GetValues<MetodoPagamento>())
+                    {
+                        <option value="@v" selected="@(Model.Filtro.Metodo == v)">@v</option>
+                    }
+                </select>
+            </div>
+            <div>
+                <label class="muted" style="font-size:.75rem;">Dal</label>
+                <input class="form-control" type="date" name="Dal" value="@Model.Filtro.Dal?.ToString("yyyy-MM-dd")" />
+            </div>
+            <div>
+                <label class="muted" style="font-size:.75rem;">Al</label>
+                <input class="form-control" type="date" name="Al" value="@Model.Filtro.Al?.ToString("yyyy-MM-dd")" />
+            </div>
+            <button type="submit" class="btn btn--primary btn--sm">Filtra</button>
+            <a class="btn btn--ghost btn--sm" asp-action="Index">Reset</a>
+        </form>
+
+        <div style="overflow:auto;">
+            <table class="table">
+                <thead>
+                    <tr>
+                        <th>Data</th>
+                        <th>Comp.</th>
+                        <th>LOC</th>
+                        <th>N° Doc</th>
+                        <th>Fornitore</th>
+                        <th style="text-align:right;">Imp.</th>
+                        <th style="text-align:right;">IVA</th>
+                        <th style="text-align:right;">Totale</th>
+                        <th>Met.</th>
+                        <th>Stato</th>
+                        <th>Categoria</th>
+                        <th></th>
+                    </tr>
+                </thead>
+                <tbody>
+                @foreach (var r in Model.Righe)
+                {
+                    var rowStyle = r.Stato == StatoScadenza.Insoluto ? "background: rgba(168,58,58,0.06);" : "";
+                    <tr style="@rowStyle">
+                        <td>@r.DataScadenza.ToString("dd/MM/yy")</td>
+                        <td class="muted">@r.MeseCompetenza</td>
+                        <td><code>@r.Loc</code></td>
+                        <td>
+                            @r.NumeroDoc
+                            @if (r.HasAllegato)
+                            {
+                                <a class="muted" href="@Url.Action("ScaricaAllegatoFattura", new { id = r.FatturaId })" title="Scarica allegato">📎</a>
+                            }
+                        </td>
+                        <td><strong>@r.FornitoreNome</strong></td>
+                        <td style="text-align:right;">@EurDec(r.Imponibile)</td>
+                        <td style="text-align:right;">@EurDec(r.Iva)</td>
+                        <td style="text-align:right;"><strong>@EurDec(r.Totale)</strong></td>
+                        <td><span class="badge">@r.Metodo</span></td>
+                        <td>@Html.Raw(StatoBadge(r.Stato))</td>
+                        <td class="muted">@r.Categoria</td>
+                        <td style="white-space:nowrap;">
+                            @if (r.Stato == StatoScadenza.DaPagare || r.Stato == StatoScadenza.Insoluto)
+                            {
+                                <button type="button" class="btn btn--ghost btn--sm" data-pay-trigger data-id="@r.ScadenzaId" title="Segna pagato">✓</button>
+                                <button type="button" class="btn btn--ghost btn--sm" data-schedule-trigger data-id="@r.ScadenzaId" title="Programma">📅</button>
+                            }
+                            else if (r.Stato == StatoScadenza.Programmato)
+                            {
+                                <button type="button" class="btn btn--ghost btn--sm" data-pay-trigger data-id="@r.ScadenzaId" title="Conferma pagato">✓</button>
+                            }
+                            @if (r.Stato != StatoScadenza.Pagato && r.Stato != StatoScadenza.Annullato)
+                            {
+                                <form asp-action="AnnullaScadenza" asp-route-id="@r.ScadenzaId" method="post" style="display:inline;" onsubmit="return confirm('Annullare la scadenza?');">
+                                    @Html.AntiForgeryToken()
+                                    <button type="submit" class="btn btn--ghost btn--sm" title="Annulla">✕</button>
+                                </form>
+                            }
+                        </td>
+                    </tr>
+                }
+                @if (Model.Righe.Count == 0)
+                {
+                    <tr><td colspan="12" class="muted" style="text-align:center; padding: var(--s-5);">Nessuna scadenza per i filtri impostati.</td></tr>
+                }
+                </tbody>
+            </table>
+        </div>
+    </div>
+
+    <div>
+        <div class="card" style="margin-bottom: var(--s-4);">
+            <div class="card__header"><h3 class="card__title">Top fornitori — esposto</h3></div>
+            <ul class="list" style="margin: 0;">
+                @foreach (var t in Model.TopFornitori)
+                {
+                    <li class="list__item">
+                        <div class="list__icon">●</div>
+                        <div>
+                            <div class="list__title"><strong>@t.Nome</strong></div>
+                            <div class="muted" style="font-size:.78rem;">@t.NumeroScadenze scadenze aperte</div>
+                        </div>
+                        <div class="list__when"><strong>@Eur(t.Esposto)</strong></div>
+                    </li>
+                }
+                @if (Model.TopFornitori.Count == 0)
+                {
+                    <li class="muted" style="padding: var(--s-3);">Nessun esposto aperto.</li>
+                }
+            </ul>
+        </div>
+
+        <div class="card">
+            <div class="card__header"><h3 class="card__title">Calendario @oggi.ToString("MMMM yyyy", it)</h3></div>
+            <div id="mini-cal" style="padding: var(--s-3);"></div>
+        </div>
+    </div>
+</div>
+
+<!-- ── Modali pagamento ──────────────────────────────────────── -->
+<dialog id="dlg-paga" style="border:0; border-radius: 12px; padding: 0; max-width: 420px; box-shadow: 0 20px 60px rgba(0,0,0,0.18);">
+    <form id="form-paga" method="post" style="padding: var(--s-4);">
+        @Html.AntiForgeryToken()
+        <h3 style="margin: 0 0 var(--s-3);">✓ Segna pagato</h3>
+        <div class="form-group">
+            <label class="form-label">Data pagamento</label>
+            <input class="form-control" type="date" name="dataPagamento" value="@oggi.ToString("yyyy-MM-dd")" />
+        </div>
+        <div class="form-group">
+            <label class="form-label">Riferimento (CRO/Bonifico)</label>
+            <input class="form-control" type="text" name="riferimento" placeholder="es. CRO 1234567" />
+        </div>
+        <div style="display:flex; gap:8px; justify-content:flex-end; margin-top: var(--s-3);">
+            <button type="button" class="btn btn--ghost" data-close-dlg>Annulla</button>
+            <button type="submit" class="btn btn--primary">Conferma pagato</button>
+        </div>
+    </form>
+</dialog>
+
+<dialog id="dlg-prog" style="border:0; border-radius: 12px; padding: 0; max-width: 420px; box-shadow: 0 20px 60px rgba(0,0,0,0.18);">
+    <form id="form-prog" method="post" style="padding: var(--s-4);">
+        @Html.AntiForgeryToken()
+        <h3 style="margin: 0 0 var(--s-3);">📅 Programma pagamento</h3>
+        <div class="form-group">
+            <label class="form-label">Data programmata</label>
+            <input class="form-control" type="date" name="dataProgrammata" value="@oggi.AddDays(7).ToString("yyyy-MM-dd")" required />
+        </div>
+        <div class="form-group">
+            <label class="form-label">Riferimento (distinta)</label>
+            <input class="form-control" type="text" name="riferimento" placeholder="es. Distinta-2025-04" />
+        </div>
+        <div style="display:flex; gap:8px; justify-content:flex-end; margin-top: var(--s-3);">
+            <button type="button" class="btn btn--ghost" data-close-dlg>Annulla</button>
+            <button type="submit" class="btn btn--primary">Programma</button>
+        </div>
+    </form>
+</dialog>
+
+@section Scripts {
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
+<script>
+    (function () {
+        var palette = ['#c47830', '#3b1e0c', '#2d7a50', '#2457a4', '#7a5c9a', '#d9943a', '#a83a3a', '#5b8a72', '#a86010', '#1f6e3a', '#666', '#aaa'];
+
+        // Cash-out 90gg
+        var cashout = @Json.Serialize(Model.CashOutFuturo90gg);
+        if (cashout.length) {
+            new Chart(document.getElementById('chart-cashout').getContext('2d'), {
+                type: 'bar',
+                data: {
+                    labels: cashout.map(function (m) { return m.mese; }),
+                    datasets: [{ label: 'Esposto', data: cashout.map(function (m) { return m.valore; }), backgroundColor: '#c47830' }]
+                },
+                options: {
+                    responsive: true, maintainAspectRatio: false,
+                    plugins: { legend: { display: false }, tooltip: { callbacks: { label: function (ctx) { return ctx.parsed.y.toLocaleString('it-IT') + ' €'; } } } },
+                    scales: { y: { beginAtZero: true, ticks: { callback: function (v) { return v.toLocaleString('it-IT') + ' €'; } } } }
+                }
+            });
+        }
+
+        // Stati
+        var stati = @Json.Serialize(Model.RipartizioneStati);
+        var statiKeys = Object.keys(stati);
+        if (statiKeys.length) {
+            new Chart(document.getElementById('chart-stati').getContext('2d'), {
+                type: 'doughnut',
+                data: {
+                    labels: statiKeys,
+                    datasets: [{ data: statiKeys.map(function (k) { return stati[k]; }), backgroundColor: palette }]
+                },
+                options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { position: 'bottom' } } }
+            });
+        }
+
+        // Categoria
+        var cat = @Json.Serialize(Model.SpesaPerCategoria12m);
+        if (cat.length) {
+            new Chart(document.getElementById('chart-categoria').getContext('2d'), {
+                type: 'bar',
+                data: {
+                    labels: cat.map(function (m) { return m.mese; }),
+                    datasets: [{ label: 'Spesa', data: cat.map(function (m) { return m.valore; }), backgroundColor: palette }]
+                },
+                options: {
+                    indexAxis: 'y',
+                    responsive: true, maintainAspectRatio: false,
+                    plugins: { legend: { display: false } },
+                    scales: { x: { beginAtZero: true, ticks: { callback: function (v) { return v.toLocaleString('it-IT') + ' €'; } } } }
+                }
+            });
+        }
+
+        // Sede
+        var sede = @Json.Serialize(Model.SpesaPerSede);
+        if (sede.length) {
+            new Chart(document.getElementById('chart-sede').getContext('2d'), {
+                type: 'bar',
+                data: {
+                    labels: sede.map(function (s) { return s.sigla + ' · ' + s.nome; }),
+                    datasets: [{ label: 'Spesa', data: sede.map(function (s) { return s.valore; }), backgroundColor: '#3b1e0c' }]
+                },
+                options: {
+                    responsive: true, maintainAspectRatio: false,
+                    plugins: { legend: { display: false } },
+                    scales: { y: { beginAtZero: true, ticks: { callback: function (v) { return v.toLocaleString('it-IT') + ' €'; } } } }
+                }
+            });
+        }
+
+        // Mini calendario con pallini sui giorni con scadenze
+        var dotsByDay = {};
+        @foreach (var r in Model.Righe.Where(x => x.Stato != StatoScadenza.Pagato && x.Stato != StatoScadenza.Annullato).OrderBy(x => x.DataScadenza))
+        {
+            <text>
+            (function () {
+                var k = '@r.DataScadenza.ToString("yyyy-MM-dd")';
+                if (!dotsByDay[k]) dotsByDay[k] = { count: 0, total: 0, status: '@r.Stato' };
+                dotsByDay[k].count++;
+                dotsByDay[k].total += @r.Totale.ToString("0.##", System.Globalization.CultureInfo.InvariantCulture);
+                if ('@r.Stato' === 'Insoluto') dotsByDay[k].status = 'Insoluto';
+            })();
+            </text>
+        }
+
+        var cal = document.getElementById('mini-cal');
+        var oggi = new Date();
+        var anno = oggi.getFullYear(), mese = oggi.getMonth();
+        var primo = new Date(anno, mese, 1);
+        var ultimo = new Date(anno, mese + 1, 0);
+        var startDow = (primo.getDay() + 6) % 7; // lunedì = 0
+        var html = '<div style="display:grid; grid-template-columns: repeat(7, 1fr); gap:2px; font-size:.72rem;">';
+        ['L','M','M','G','V','S','D'].forEach(function (d) { html += '<div style="text-align:center; color:#999; padding:4px 0;">' + d + '</div>'; });
+        for (var i = 0; i < startDow; i++) html += '<div></div>';
+        for (var d = 1; d <= ultimo.getDate(); d++) {
+            var ds = new Date(anno, mese, d);
+            var iso = ds.toISOString().slice(0, 10);
+            var info = dotsByDay[iso];
+            var isToday = (d === oggi.getDate());
+            var bg = isToday ? '#fff2dd' : '';
+            var color = info ? (info.status === 'Insoluto' ? '#a83a3a' : '#c47830') : '#ddd';
+            html += '<div title="' + iso + (info ? ' · ' + info.count + ' scadenze · ' + info.total.toLocaleString('it-IT') + ' €' : '') + '" style="aspect-ratio:1; display:flex; flex-direction:column; align-items:center; justify-content:center; border-radius: 6px; background:' + bg + '; cursor:default;">';
+            html += '<span style="font-weight:' + (isToday ? '700' : '500') + ';">' + d + '</span>';
+            if (info) html += '<span style="height:6px; width:6px; border-radius:50%; background:' + color + '; margin-top:2px;"></span>';
+            html += '</div>';
+        }
+        html += '</div>';
+        cal.innerHTML = html;
+
+        // Modali
+        var dlgPaga = document.getElementById('dlg-paga');
+        var dlgProg = document.getElementById('dlg-prog');
+        var formPaga = document.getElementById('form-paga');
+        var formProg = document.getElementById('form-prog');
+        document.querySelectorAll('[data-pay-trigger]').forEach(function (btn) {
+            btn.addEventListener('click', function () {
+                formPaga.action = '/tesoreria/scadenza/' + btn.dataset.id + '/paga';
+                dlgPaga.showModal();
+            });
+        });
+        document.querySelectorAll('[data-schedule-trigger]').forEach(function (btn) {
+            btn.addEventListener('click', function () {
+                formProg.action = '/tesoreria/scadenza/' + btn.dataset.id + '/programma';
+                dlgProg.showModal();
+            });
+        });
+        document.querySelectorAll('[data-close-dlg]').forEach(function (b) {
+            b.addEventListener('click', function () { b.closest('dialog').close(); });
+        });
+    })();
+</script>
+}

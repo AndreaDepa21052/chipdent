@@ -1,0 +1,74 @@
+@{
+    var section = (ViewData["Section"] as string) ?? "";
+    var title = ViewData["Title"] as string ?? "Portale fornitori";
+    var fullName = User.Identity?.Name ?? "Fornitore";
+}
+<!DOCTYPE html>
+<html lang="it">
+<head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>@title · Portale fornitori — Chipdent</title>
+    <meta name="robots" content="noindex, nofollow, noarchive" />
+    <meta name="theme-color" content="#3b1e0c" />
+    <link rel="icon" type="image/png" href="~/img/logo.png" />
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap">
+    <link rel="stylesheet" href="~/css/site.css" asp-append-version="true" />
+    <style>
+        body { background: #f5e8d0; }
+        .portal-wrap { min-height: 100vh; }
+        .portal-top {
+            background: #3b1e0c; color: #f5e8d0;
+            padding: 14px 32px; display:flex; align-items:center; justify-content:space-between;
+            box-shadow: 0 2px 12px rgba(0,0,0,0.08);
+        }
+        .portal-top__brand { display:flex; align-items:center; gap: 12px; font-weight: 700; }
+        .portal-top__brand img { width: 28px; height: 28px; }
+        .portal-top__nav { display:flex; gap: 18px; }
+        .portal-top__nav a {
+            color: #e9d4ad; text-decoration:none; font-size: .9rem; padding: 6px 10px; border-radius: 6px;
+            transition: background 0.12s, color 0.12s;
+        }
+        .portal-top__nav a:hover, .portal-top__nav a.is-active { background: rgba(196,120,48,0.25); color: #fff; }
+        .portal-top__user { display:flex; align-items:center; gap: 12px; font-size: .85rem; }
+        .portal-top__user form { margin: 0; }
+        .portal-top__user button {
+            background: rgba(245,232,208,0.12); color:#f5e8d0; border: 1px solid rgba(245,232,208,0.25);
+            border-radius: 8px; padding: 6px 12px; font-size: .8rem; cursor:pointer;
+        }
+        .portal-content { max-width: 1180px; margin: 32px auto; padding: 0 24px 60px; }
+        .portal-foot { text-align:center; color: #7a5c3a; font-size: .75rem; padding: 20px; }
+    </style>
+</head>
+<body>
+<div class="portal-wrap">
+    <header class="portal-top">
+        <div class="portal-top__brand">
+            <img src="~/img/logo.png" alt="Chipdent" />
+            <span>Portale fornitori</span>
+        </div>
+        <nav class="portal-top__nav">
+            <a class="@(section == "fornitori-dashboard" ? "is-active" : "")" asp-controller="FornitoriPortal" asp-action="Index">📊 Dashboard</a>
+            <a class="@(section == "fornitori-upload" ? "is-active" : "")" asp-controller="FornitoriPortal" asp-action="NuovaFattura">📤 Carica fattura</a>
+            <a class="@(section == "fornitori-anagrafica" ? "is-active" : "")" asp-controller="FornitoriPortal" asp-action="Anagrafica">🏢 La mia anagrafica</a>
+        </nav>
+        <div class="portal-top__user">
+            <span>👋 @fullName</span>
+            <form asp-controller="Account" asp-action="Logout" method="post">
+                @Html.AntiForgeryToken()
+                <button type="submit">Esci</button>
+            </form>
+        </div>
+    </header>
+    <main class="portal-content">
+        @RenderBody()
+    </main>
+    <footer class="portal-foot">
+        Portale Chipdent — area riservata fornitori. I dati visualizzati sono limitati alle tue scadenze.
+    </footer>
+</div>
+@await RenderSectionAsync("Scripts", required: false)
+</body>
+</html>

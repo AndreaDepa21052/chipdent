@@ -1,0 +1,198 @@
+@model Chipdent.Web.Models.PortaleFornitoreDashboardViewModel
+@using Chipdent.Web.Domain.Entities
+@using System.Globalization
+@{
+    ViewData["Title"] = "Dashboard";
+    var it = new CultureInfo("it-IT");
+}
+
+@functions {
+    string Eur(decimal v) => v.ToString("N2", new CultureInfo("it-IT")) + " €";
+
+    string StatoBadge(StatoScadenza s) => s switch
+    {
+        StatoScadenza.Pagato => "<span class='badge' style='background:#dff5e6; color:#1f6e3a;'>✓ pagato</span>",
+        StatoScadenza.Programmato => "<span class='badge' style='background:#e3edff; color:#2457a4;'>📅 programmato</span>",
+        StatoScadenza.DaPagare => "<span class='badge' style='background:#fff2dd; color:#a86010;'>● da pagare</span>",
+        StatoScadenza.Insoluto => "<span class='badge' style='background:#fbe1e1; color:#a83a3a;'>⚠ scaduto</span>",
+        StatoScadenza.Annullato => "<span class='badge' style='background:#eee; color:#666;'>annullato</span>",
+        _ => $"<span class='badge'>{s}</span>"
+    };
+
+    string StatoFatturaBadge(StatoFattura s) => s switch
+    {
+        StatoFattura.Approvata => "<span class='badge' style='background:#dff5e6; color:#1f6e3a;'>✓ approvata</span>",
+        StatoFattura.Caricata => "<span class='badge' style='background:#fff2dd; color:#a86010;'>⏳ in revisione</span>",
+        StatoFattura.Rifiutata => "<span class='badge' style='background:#fbe1e1; color:#a83a3a;'>✕ rifiutata</span>",
+        _ => $"<span class='badge'>{s}</span>"
+    };
+}
+
+<partial name="_Flash" />
+
+<div style="margin-bottom: 24px;">
+    <h2 style="margin: 0 0 4px;">Benvenuto, @Model.Fornitore.RagioneSociale</h2>
+    <p class="muted">Qui trovi le tue scadenze, lo stato delle fatture caricate e puoi inviarne di nuove.</p>
+</div>
+
+<div class="grid grid--stats" style="margin-bottom: 24px;">
+    <div class="stat">
+        <div class="stat__label">Esposto aperto</div>
+        <div class="stat__value">@Eur(Model.EspostoApertoTotale)</div>
+    </div>
+    <div class="stat">
+        <div class="stat__label">Fatturato @DateTime.UtcNow.Year</div>
+        <div class="stat__value">@Eur(Model.TotaleFatturatoYTD)</div>
+    </div>
+    <div class="stat">
+        <div class="stat__label">In attesa di approvazione</div>
+        <div class="stat__value">@Model.FattureInApprovazione</div>
+    </div>
+    <div class="stat">
+        <div class="stat__label">Scadenze a 30gg</div>
+        <div class="stat__value">@Model.ScadenzeProssime30</div>
+        @if (Model.ScadenzeScadute > 0)
+        {
+            <div class="stat__hint" style="color:#a83a3a;">@Model.ScadenzeScadute scadute</div>
+        }
+    </div>
+</div>
+
+<div style="display:flex; gap: 12px; margin-bottom: 24px;">
+    <a class="btn btn--primary" asp-action="NuovaFattura">📤 Carica nuova fattura</a>
+    <a class="btn btn--ghost" asp-action="Anagrafica">🏢 Anagrafica e IBAN</a>
+</div>
+
+<div class="card" style="padding:0; margin-bottom: 24px;">
+    <div class="card__header" style="padding: 16px;">
+        <h3 class="card__title">Scadenze aperte</h3>
+        <span class="muted">@Model.ScadenzeAperte.Count righe</span>
+    </div>
+    @if (Model.ScadenzeAperte.Count == 0)
+    {
+        <p class="muted" style="padding: 24px; text-align:center;">🎉 Nessuna scadenza aperta. Tutto in regola.</p>
+    }
+    else
+    {
+        <div style="overflow:auto;">
+            <table class="table">
+                <thead>
+                    <tr>
+                        <th>Data</th>
+                        <th>N° fattura</th>
+                        <th>Sede</th>
+                        <th style="text-align:right;">Importo</th>
+                        <th>Metodo</th>
+                        <th>Stato</th>
+                    </tr>
+                </thead>
+                <tbody>
+                @foreach (var s in Model.ScadenzeAperte)
+                {
+                    var rowStyle = s.Stato == StatoScadenza.Insoluto ? "background: rgba(168,58,58,0.06);" : "";
+                    <tr style="@rowStyle">
+                        <td>@s.DataScadenza.ToString("dd/MM/yyyy")</td>
+                        <td><strong>@s.NumeroFattura</strong></td>
+                        <td>@s.ClinicaNome</td>
+                        <td style="text-align:right;"><strong>@Eur(s.Importo)</strong></td>
+                        <td>@s.Metodo</td>
+                        <td>
+                            @Html.Raw(StatoBadge(s.Stato))
+                            @if (s.DataProgrammata.HasValue)
+                            {
+                                <div class="muted" style="font-size:.78rem;">programmato @s.DataProgrammata.Value.ToString("dd/MM/yy")</div>
+                            }
+                        </td>
+                    </tr>
+                }
+                </tbody>
+            </table>
+        </div>
+    }
+</div>
+
+<div class="card" style="padding:0; margin-bottom: 24px;">
+    <div class="card__header" style="padding: 16px;">
+        <h3 class="card__title">Fatture caricate</h3>
+        <span class="muted">@Model.Fatture.Count fatture</span>
+    </div>
+    @if (Model.Fatture.Count == 0)
+    {
+        <p class="muted" style="padding: 24px; text-align:center;">Non hai ancora caricato fatture. <a asp-action="NuovaFattura">Caricane una</a>.</p>
+    }
+    else
+    {
+        <div style="overflow:auto;">
+            <table class="table">
+                <thead>
+                    <tr>
+                        <th>N° fattura</th>
+                        <th>Data emissione</th>
+                        <th>Sede</th>
+                        <th style="text-align:right;">Totale</th>
+                        <th>Stato</th>
+                        <th></th>
+                    </tr>
+                </thead>
+                <tbody>
+                @foreach (var f in Model.Fatture)
+                {
+                    <tr>
+                        <td><strong>@f.Numero</strong></td>
+                        <td>@f.DataEmissione.ToString("dd/MM/yyyy")</td>
+                        <td>@f.ClinicaNome</td>
+                        <td style="text-align:right;"><strong>@Eur(f.Totale)</strong></td>
+                        <td>
+                            @Html.Raw(StatoFatturaBadge(f.Stato))
+                            @if (f.Stato == StatoFattura.Rifiutata && !string.IsNullOrEmpty(f.MotivoRifiuto))
+                            {
+                                <div class="muted" style="font-size:.78rem;">↳ @f.MotivoRifiuto</div>
+                            }
+                        </td>
+                        <td>
+                            @if (f.HasAllegato)
+                            {
+                                <a class="btn btn--ghost btn--sm" asp-action="ScaricaAllegato" asp-route-id="@f.Id">📎 PDF</a>
+                            }
+                        </td>
+                    </tr>
+                }
+                </tbody>
+            </table>
+        </div>
+    }
+</div>
+
+@if (Model.ScadenzePassate.Count > 0)
+{
+    <details class="card" style="padding: 16px;">
+        <summary style="cursor:pointer; font-weight:600;">📚 Storico scadenze passate (@Model.ScadenzePassate.Count)</summary>
+        <div style="overflow:auto; margin-top: 12px;">
+            <table class="table">
+                <thead>
+                    <tr>
+                        <th>Data scadenza</th>
+                        <th>Pagato il</th>
+                        <th>N° fattura</th>
+                        <th>Sede</th>
+                        <th style="text-align:right;">Importo</th>
+                        <th>Stato</th>
+                    </tr>
+                </thead>
+                <tbody>
+                @foreach (var s in Model.ScadenzePassate)
+                {
+                    <tr>
+                        <td>@s.DataScadenza.ToString("dd/MM/yyyy")</td>
+                        <td>@(s.DataPagamento?.ToString("dd/MM/yyyy") ?? "—")</td>
+                        <td>@s.NumeroFattura</td>
+                        <td>@s.ClinicaNome</td>
+                        <td style="text-align:right;">@Eur(s.Importo)</td>
+                        <td>@Html.Raw(StatoBadge(s.Stato))</td>
+                    </tr>
+                }
+                </tbody>
+            </table>
+        </div>
+    </details>
+}

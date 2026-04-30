@@ -1,0 +1,70 @@
+@model Chipdent.Web.Models.FornitoreSelfAnagraficaViewModel
+@{
+    ViewData["Title"] = "La mia anagrafica";
+}
+
+<partial name="_Flash" />
+
+<div style="margin-bottom: 24px;">
+    <h2 style="margin: 0 0 4px;">🏢 La mia anagrafica</h2>
+    <p class="muted">Aggiorna i dati fiscali e l'IBAN per i bonifici. Le modifiche all'IBAN verranno verificate dall'amministrazione prima del prossimo pagamento.</p>
+</div>
+
+<form method="post" class="card" style="padding: 24px;">
+    @Html.AntiForgeryToken()
+
+    <div asp-validation-summary="ModelOnly" class="alert alert--danger" style="display:@(ViewData.ModelState.ErrorCount > 0 ? "block" : "none");"></div>
+
+    <div class="form-group">
+        <label class="form-label" asp-for="RagioneSociale">Ragione sociale *</label>
+        <input class="form-control" asp-for="RagioneSociale" required />
+    </div>
+
+    <div class="grid" style="grid-template-columns: 1fr 1fr 1fr; gap: 12px;">
+        <div class="form-group">
+            <label class="form-label" asp-for="PartitaIva">P. IVA</label>
+            <input class="form-control" asp-for="PartitaIva" />
+        </div>
+        <div class="form-group">
+            <label class="form-label" asp-for="CodiceFiscale">Codice fiscale</label>
+            <input class="form-control" asp-for="CodiceFiscale" />
+        </div>
+        <div class="form-group">
+            <label class="form-label" asp-for="CodiceSdi">Codice SDI</label>
+            <input class="form-control" asp-for="CodiceSdi" />
+        </div>
+    </div>
+
+    <div class="grid" style="grid-template-columns: 1fr 1fr; gap: 12px;">
+        <div class="form-group">
+            <label class="form-label" asp-for="Pec">PEC</label>
+            <input class="form-control" type="email" asp-for="Pec" />
+        </div>
+        <div class="form-group">
+            <label class="form-label" asp-for="EmailContatto">Email di contatto</label>
+            <input class="form-control" type="email" asp-for="EmailContatto" />
+        </div>
+    </div>
+
+    <div class="grid" style="grid-template-columns: 1fr 2fr; gap: 12px;">
+        <div class="form-group">
+            <label class="form-label" asp-for="Telefono">Telefono</label>
+            <input class="form-control" asp-for="Telefono" />
+        </div>
+        <div class="form-group">
+            <label class="form-label" asp-for="Indirizzo">Indirizzo sede legale</label>
+            <input class="form-control" asp-for="Indirizzo" />
+        </div>
+    </div>
+
+    <div class="form-group">
+        <label class="form-label" asp-for="Iban">IBAN per bonifici</label>
+        <input class="form-control" asp-for="Iban" placeholder="IT…" />
+        <span class="muted" style="font-size:.78rem;">⚠️ Le modifiche all'IBAN verranno notificate all'amministrazione e verificate prima del prossimo bonifico.</span>
+    </div>
+
+    <div style="display:flex; gap:8px; justify-content:flex-end; margin-top: 16px;">
+        <a class="btn btn--ghost" asp-action="Index">Indietro</a>
+        <button type="submit" class="btn btn--primary">Salva</button>
+    </div>
+</form>

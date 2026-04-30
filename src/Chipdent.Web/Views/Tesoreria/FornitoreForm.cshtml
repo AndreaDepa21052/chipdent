@@ -1,0 +1,128 @@
+@model Chipdent.Web.Models.FornitoreFormViewModel
+@using Chipdent.Web.Domain.Entities
+@{
+    var isNew = string.IsNullOrEmpty(Model.Id);
+    ViewData["Title"] = isNew ? "Nuovo fornitore" : Model.RagioneSociale;
+    ViewData["Crumb"] = "Tesoreria";
+}
+
+<partial name="_Flash" />
+
+<div class="page-head">
+    <div>
+        <h2>@(isNew ? "＋ Nuovo fornitore" : "✎ " + Model.RagioneSociale)</h2>
+        <p class="page-head__sub">Anagrafica fiscale + opzionale abilitazione del portale fornitori.</p>
+    </div>
+    <div class="page-head__actions">
+        <a class="btn btn--ghost" asp-action="Fornitori">← Lista</a>
+    </div>
+</div>
+
+<form method="post" class="card" style="padding: var(--s-4);">
+    @Html.AntiForgeryToken()
+    <input type="hidden" asp-for="Id" />
+
+    <div asp-validation-summary="ModelOnly" class="alert alert--danger" style="display:@(ViewData.ModelState.ErrorCount > 0 ? "block" : "none");"></div>
+
+    <div class="grid" style="grid-template-columns: 2fr 1fr; gap: var(--s-3);">
+        <div class="form-group">
+            <label class="form-label" asp-for="RagioneSociale">Ragione sociale *</label>
+            <input class="form-control" asp-for="RagioneSociale" required />
+            <span class="text-danger" asp-validation-for="RagioneSociale"></span>
+        </div>
+
+        <div class="form-group">
+            <label class="form-label" asp-for="Stato">Stato</label>
+            <select class="form-control" asp-for="Stato">
+                @foreach (var v in Enum.GetValues<StatoFornitore>())
+                {
+                    <option value="@v" selected="@(Model.Stato == v)">@v</option>
+                }
+            </select>
+        </div>
+    </div>
+
+    <div class="grid" style="grid-template-columns: 1fr 1fr 1fr; gap: var(--s-3);">
+        <div class="form-group">
+            <label class="form-label" asp-for="PartitaIva">P. IVA</label>
+            <input class="form-control" asp-for="PartitaIva" />
+        </div>
+        <div class="form-group">
+            <label class="form-label" asp-for="CodiceFiscale">Codice fiscale</label>
+            <input class="form-control" asp-for="CodiceFiscale" />
+        </div>
+        <div class="form-group">
+            <label class="form-label" asp-for="CodiceSdi">Codice SDI</label>
+            <input class="form-control" asp-for="CodiceSdi" placeholder="7 caratteri" />
+        </div>
+    </div>
+
+    <div class="grid" style="grid-template-columns: 1fr 1fr; gap: var(--s-3);">
+        <div class="form-group">
+            <label class="form-label" asp-for="Pec">PEC</label>
+            <input class="form-control" type="email" asp-for="Pec" />
+        </div>
+        <div class="form-group">
+            <label class="form-label" asp-for="EmailContatto">Email contatto / portale</label>
+            <input class="form-control" type="email" asp-for="EmailContatto" />
+        </div>
+    </div>
+
+    <div class="grid" style="grid-template-columns: 1fr 2fr; gap: var(--s-3);">
+        <div class="form-group">
+            <label class="form-label" asp-for="Telefono">Telefono</label>
+            <input class="form-control" asp-for="Telefono" />
+        </div>
+        <div class="form-group">
+            <label class="form-label" asp-for="Indirizzo">Indirizzo</label>
+            <input class="form-control" asp-for="Indirizzo" />
+        </div>
+    </div>
+
+    <div class="grid" style="grid-template-columns: 2fr 1fr; gap: var(--s-3);">
+        <div class="form-group">
+            <label class="form-label" asp-for="Iban">IBAN per bonifici</label>
+            <input class="form-control" asp-for="Iban" placeholder="IT…" />
+        </div>
+        <div class="form-group">
+            <label class="form-label" asp-for="CategoriaDefault">Categoria di default</label>
+            <select class="form-control" asp-for="CategoriaDefault">
+                @foreach (var v in Enum.GetValues<CategoriaSpesa>())
+                {
+                    <option value="@v" selected="@(Model.CategoriaDefault == v)">@v</option>
+                }
+            </select>
+        </div>
+    </div>
+
+    <div class="form-group">
+        <label class="form-label" asp-for="Note">Note</label>
+        <textarea class="form-control" asp-for="Note" rows="2"></textarea>
+    </div>
+
+    <div class="card" style="background: var(--c-bg-soft, #faf6f0); padding: var(--s-3); margin-top: var(--s-3);">
+        <h4 style="margin: 0 0 8px;">🔓 Portale fornitore</h4>
+        @if (Model.HaUtentePortale)
+        {
+            <p class="muted" style="font-size: .9rem;">L'utente per @Model.EmailContatto è già attivo. Inserisci una nuova password qui sotto solo se vuoi <strong>resettarla</strong>.</p>
+        }
+        else
+        {
+            <p class="muted" style="font-size: .9rem;">Crea un account portale per permettere al fornitore di consultare le proprie scadenze e caricare le fatture. Email = quella di contatto.</p>
+        }
+        <div style="display:flex; gap: var(--s-3); align-items:end;">
+            <label class="form-check">
+                <input type="checkbox" asp-for="AbilitaPortale" /> @(Model.HaUtentePortale ? "Reset password" : "Abilita portale")
+            </label>
+            <div class="form-group" style="flex:1; margin: 0;">
+                <label class="form-label" asp-for="PortalePassword">Password</label>
+                <input class="form-control" type="text" asp-for="PortalePassword" autocomplete="off" placeholder="lascia vuoto per non cambiarla" />
+            </div>
+        </div>
+    </div>
+
+    <div style="display:flex; gap:8px; justify-content:flex-end; margin-top: var(--s-3);">
+        <a class="btn btn--ghost" asp-action="Fornitori">Annulla</a>
+        <button type="submit" class="btn btn--primary">@(isNew ? "Crea fornitore" : "Salva modifiche")</button>
+    </div>
+</form>
