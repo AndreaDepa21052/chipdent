@@ -20,7 +20,11 @@ public static class MongoSeeder
                     Slug = "confident",
                     DisplayName = "Confident",
                     PrimaryColor = "#c47830",
-                    IsActive = true
+                    IsActive = true,
+                    // Dati ordinante demo per le distinte SEPA (IBAN test BIC valido).
+                    PagatoreRagioneSociale = "Confident S.p.A.",
+                    PagatoreIban = "IT60X0542811101000000123456",
+                    PagatoreBic = "BPMOIT22XXX"
                 };
                 await ctx.Tenants.InsertOneAsync(tenant, cancellationToken: ct);
                 logger.LogInformation("Seeded tenant {Slug}", tenant.Slug);

@@ -4,6 +4,7 @@ using System.Text;
 using Chipdent.Web.Domain.Entities;
 using Chipdent.Web.Infrastructure.Identity;
 using Chipdent.Web.Infrastructure.Mongo;
+using Chipdent.Web.Infrastructure.Sepa;
 using Chipdent.Web.Infrastructure.Storage;
 using Chipdent.Web.Infrastructure.Tenancy;
 using Chipdent.Web.Models;
@@ -584,6 +585,210 @@ public class TesoreriaController : Controller
     }
 
     // ─────────────────────────────────────────────────────────────
+    //  DATI BANCARI ORDINANTE (Tenant settings)
+    // ─────────────────────────────────────────────────────────────
+    [HttpGet("banca")]
+    public async Task<IActionResult> DatiBancari()
+    {
+        var tenant = await _mongo.Tenants.Find(t => t.Id == _tenant.TenantId).FirstOrDefaultAsync();
+        if (tenant is null) return NotFound();
+        ViewData["Section"] = "tesoreria";
+        return View(new DatiBancariFormViewModel
+        {
+            PagatoreIban = tenant.PagatoreIban ?? string.Empty,
+            PagatoreBic = tenant.PagatoreBic,
+            PagatoreRagioneSociale = tenant.PagatoreRagioneSociale ?? tenant.RagioneSociale ?? tenant.DisplayName,
+            PagatoreCodiceFiscale = tenant.PagatoreCodiceFiscale ?? tenant.CodiceFiscale,
+            IsConfigured = !string.IsNullOrEmpty(tenant.PagatoreIban)
+        });
+    }
+
+    [HttpPost("banca")]
+    [ValidateAntiForgeryToken]
+    public async Task<IActionResult> DatiBancari(DatiBancariFormViewModel vm)
+    {
+        if (!ModelState.IsValid)
+        {
+            ViewData["Section"] = "tesoreria";
+            return View(vm);
+        }
+        var iban = NormalizeIban(vm.PagatoreIban);
+        if (!IsValidIban(iban))
+        {
+            ModelState.AddModelError(nameof(vm.PagatoreIban), "IBAN non valido (controlla formato e check digit).");
+            ViewData["Section"] = "tesoreria";
+            return View(vm);
+        }
+        await _mongo.Tenants.UpdateOneAsync(t => t.Id == _tenant.TenantId,
+            Builders<Tenant>.Update
+                .Set(t => t.PagatoreIban, iban)
+                .Set(t => t.PagatoreBic, string.IsNullOrWhiteSpace(vm.PagatoreBic) ? null : vm.PagatoreBic.Trim().ToUpperInvariant())
+                .Set(t => t.PagatoreRagioneSociale, vm.PagatoreRagioneSociale.Trim())
+                .Set(t => t.PagatoreCodiceFiscale, string.IsNullOrWhiteSpace(vm.PagatoreCodiceFiscale) ? null : vm.PagatoreCodiceFiscale.Trim()));
+        TempData["flash"] = "Dati bancari ordinante salvati. Ora puoi generare distinte SEPA.";
+        return RedirectToAction(nameof(Index));
+    }
+
+    // ─────────────────────────────────────────────────────────────
+    //  DISTINTE SEPA — generazione + storico
+    // ─────────────────────────────────────────────────────────────
+    [HttpGet("distinte")]
+    public async Task<IActionResult> Distinte()
+    {
+        var distinte = await _mongo.DistinteSepa.Find(d => d.TenantId == _tenant.TenantId)
+            .SortByDescending(d => d.CreatedAt).Limit(100).ToListAsync();
+        ViewData["Section"] = "tesoreria";
+        return View(new DistinteIndexViewModel { Distinte = distinte });
+    }
+
+    [HttpPost("distinte/genera")]
+    [ValidateAntiForgeryToken]
+    public async Task<IActionResult> GeneraSepaXml(string[] scadenzaIds, DateTime dataEsecuzione, string? etichetta = null)
+    {
+        if (scadenzaIds is null || scadenzaIds.Length == 0)
+        {
+            TempData["flash"] = "Seleziona almeno una scadenza.";
+            return RedirectToAction(nameof(Index));
+        }
+
+        var tenant = await _mongo.Tenants.Find(t => t.Id == _tenant.TenantId).FirstOrDefaultAsync();
+        if (tenant is null || string.IsNullOrEmpty(tenant.PagatoreIban))
+        {
+            TempData["flash"] = "Configura prima i dati bancari ordinante (IBAN/ragione sociale).";
+            return RedirectToAction(nameof(DatiBancari));
+        }
+
+        var tid = _tenant.TenantId!;
+        var ids = scadenzaIds.Distinct().ToArray();
+        var scadenze = await _mongo.ScadenzePagamento
+            .Find(s => s.TenantId == tid && ids.Contains(s.Id)).ToListAsync();
+
+        // Filtri di sicurezza: solo DaPagare (Insoluto è solo derivazione visiva di DaPagare)
+        // e solo metodi bonificabili via SEPA Credit Transfer.
+        var ammesse = scadenze.Where(s =>
+            s.Stato == StatoScadenza.DaPagare
+            && (s.Metodo == MetodoPagamento.Bonifico || s.Metodo == MetodoPagamento.Altro)
+        ).ToList();
+        if (ammesse.Count == 0)
+        {
+            TempData["flash"] = "Nessuna delle scadenze selezionate è bonificabile (devono essere DaPagare con metodo Bonifico).";
+            return RedirectToAction(nameof(Index));
+        }
+
+        // Recupera fornitori e fatture per il dettaglio
+        var fornitoreIds = ammesse.Select(s => s.FornitoreId).Distinct().ToList();
+        var fatturaIds = ammesse.Select(s => s.FatturaId).Distinct().ToList();
+        var fornitori = (await _mongo.Fornitori.Find(f => f.TenantId == tid && fornitoreIds.Contains(f.Id)).ToListAsync())
+            .ToDictionary(f => f.Id);
+        var fatture = (await _mongo.Fatture.Find(f => f.TenantId == tid && fatturaIds.Contains(f.Id)).ToListAsync())
+            .ToDictionary(f => f.Id);
+
+        // Validazione: serve IBAN beneficiario
+        var senzaIban = ammesse.Where(s =>
+        {
+            var iban = !string.IsNullOrWhiteSpace(s.Iban) ? s.Iban : fornitori.GetValueOrDefault(s.FornitoreId)?.Iban;
+            return string.IsNullOrWhiteSpace(iban);
+        }).ToList();
+        if (senzaIban.Count > 0)
+        {
+            var nomi = string.Join(", ", senzaIban
+                .Select(s => fornitori.GetValueOrDefault(s.FornitoreId)?.RagioneSociale ?? "—")
+                .Distinct().Take(3));
+            TempData["flash"] = $"Manca l'IBAN per {senzaIban.Count} scadenze ({nomi}…). Aggiornali sul fornitore prima di generare la distinta.";
+            return RedirectToAction(nameof(Index));
+        }
+
+        // Costruzione input SEPA
+        var distintaCount = await _mongo.DistinteSepa.CountDocumentsAsync(d => d.TenantId == tid);
+        var messageId = $"DIS-{DateTime.UtcNow:yyyyMMddHHmmss}-{distintaCount + 1:0000}";
+        var transazioni = ammesse.Select((s, idx) =>
+        {
+            var f = fornitori.GetValueOrDefault(s.FornitoreId);
+            var fa = fatture.GetValueOrDefault(s.FatturaId);
+            var iban = !string.IsNullOrWhiteSpace(s.Iban) ? s.Iban! : f!.Iban!;
+            var causale = fa is null
+                ? $"Pagamento scadenza {s.Id}"
+                : $"Fattura {fa.Numero} {f?.RagioneSociale}";
+            return new SepaXmlBuilder.SepaTransazione(
+                EndToEndId: $"{messageId}-{idx + 1:0000}",
+                Importo: Math.Round(s.Importo, 2),
+                BeneficiarioNome: f?.RagioneSociale ?? "Fornitore",
+                BeneficiarioIban: iban,
+                BeneficiarioBic: null,
+                Causale: causale);
+        }).ToList();
+
+        var (xml, totale, count) = SepaXmlBuilder.Build(new SepaXmlBuilder.SepaInput(
+            MessageId: messageId,
+            DataCreazione: DateTime.UtcNow,
+            DataEsecuzione: DateTime.SpecifyKind(dataEsecuzione.Date, DateTimeKind.Utc),
+            OrdinanteNome: tenant.PagatoreRagioneSociale ?? tenant.RagioneSociale ?? tenant.DisplayName,
+            OrdinanteIban: tenant.PagatoreIban!,
+            OrdinanteBic: tenant.PagatoreBic,
+            OrdinanteCodiceFiscale: tenant.PagatoreCodiceFiscale,
+            Transazioni: transazioni));
+
+        // Persisti distinta
+        var userId = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
+        var distinta = new DistintaPagamento
+        {
+            TenantId = tid,
+            MessageId = messageId,
+            Etichetta = string.IsNullOrWhiteSpace(etichetta) ? messageId : etichetta!.Trim(),
+            DataEsecuzione = DateTime.SpecifyKind(dataEsecuzione.Date, DateTimeKind.Utc),
+            PagatoreIban = tenant.PagatoreIban!,
+            PagatoreBic = tenant.PagatoreBic,
+            PagatoreRagioneSociale = tenant.PagatoreRagioneSociale ?? tenant.RagioneSociale ?? tenant.DisplayName,
+            NumeroTransazioni = count,
+            Totale = totale,
+            ScadenzaIds = ammesse.Select(s => s.Id).ToList(),
+            Xml = xml,
+            CreatoDaUserId = userId
+        };
+        await _mongo.DistinteSepa.InsertOneAsync(distinta);
+
+        // Marca le scadenze come "Programmato" con riferimento alla distinta
+        var bulkOps = ammesse.Select(s =>
+            new UpdateOneModel<ScadenzaPagamento>(
+                Builders<ScadenzaPagamento>.Filter.Eq(x => x.Id, s.Id),
+                Builders<ScadenzaPagamento>.Update
+                    .Set(x => x.Stato, StatoScadenza.Programmato)
+                    .Set(x => x.DataProgrammata, DateTime.SpecifyKind(dataEsecuzione.Date, DateTimeKind.Utc))
+                    .Set(x => x.RiferimentoPagamento, distinta.Etichetta)
+                    .Set(x => x.UpdatedAt, DateTime.UtcNow))
+        ).ToList();
+        await _mongo.ScadenzePagamento.BulkWriteAsync(bulkOps);
+
+        // Audit
+        await _mongo.Audit.InsertOneAsync(new AuditEntry
+        {
+            TenantId = tid,
+            UserId = userId ?? "",
+            UserName = User.Identity?.Name ?? "",
+            Action = AuditAction.Created,
+            EntityType = nameof(DistintaPagamento),
+            EntityId = distinta.Id,
+            EntityLabel = $"Distinta SEPA {distinta.Etichetta} · {count} bonifici · {totale:N2} €",
+            Note = $"Esecuzione richiesta: {dataEsecuzione:dd/MM/yyyy}. IBAN ordinante: {distinta.PagatoreIban}."
+        });
+
+        // Download immediato
+        var bytes = Encoding.UTF8.GetBytes(xml);
+        var fileName = $"{distinta.Etichetta}.xml".Replace(' ', '_');
+        return File(bytes, "application/xml", fileName);
+    }
+
+    [HttpGet("distinte/{id}/scarica")]
+    public async Task<IActionResult> ScaricaDistinta(string id)
+    {
+        var d = await _mongo.DistinteSepa.Find(x => x.Id == id && x.TenantId == _tenant.TenantId).FirstOrDefaultAsync();
+        if (d is null) return NotFound();
+        var bytes = Encoding.UTF8.GetBytes(d.Xml);
+        var fileName = $"{d.Etichetta ?? d.MessageId}.xml".Replace(' ', '_');
+        return File(bytes, "application/xml", fileName);
+    }
+
+    // ─────────────────────────────────────────────────────────────
     //  EXPORT CSV
     // ─────────────────────────────────────────────────────────────
     [HttpGet("export.csv")]
@@ -667,6 +872,35 @@ public class TesoreriaController : Controller
             LinkedPersonId = f.Id,
             IsActive = true
         });
+    }
+
+    private static string NormalizeIban(string iban) =>
+        new string((iban ?? "").Where(char.IsLetterOrDigit).ToArray()).ToUpperInvariant();
+
+    /// <summary>Validazione IBAN: lunghezza per paese + check digit MOD 97 (ISO 13616).</summary>
+    private static bool IsValidIban(string iban)
+    {
+        if (string.IsNullOrEmpty(iban) || iban.Length < 15 || iban.Length > 34) return false;
+        if (!iban.All(char.IsLetterOrDigit)) return false;
+
+        // IT richiede 27 caratteri totali (convenzione italiana standard)
+        if (iban.StartsWith("IT") && iban.Length != 27) return false;
+
+        // Sposta i primi 4 caratteri in fondo, sostituisci lettere con numeri (A=10, B=11, ...)
+        var rearranged = iban[4..] + iban[..4];
+        var numeric = new StringBuilder();
+        foreach (var ch in rearranged)
+        {
+            numeric.Append(char.IsDigit(ch) ? ch.ToString() : (ch - 'A' + 10).ToString());
+        }
+        // Mod 97 a chunk per evitare overflow
+        var s = numeric.ToString();
+        var remainder = 0;
+        foreach (var ch in s)
+        {
+            remainder = (remainder * 10 + (ch - '0')) % 97;
+        }
+        return remainder == 1;
     }
 
     private static StatoScadenza DerivedStato(ScadenzaPagamento s, DateTime oggi)

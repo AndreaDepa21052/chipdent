@@ -1,0 +1,75 @@
+@model Chipdent.Web.Models.DistinteIndexViewModel
+@using System.Globalization
+@{
+    ViewData["Title"] = "Distinte SEPA";
+    ViewData["Crumb"] = "Tesoreria";
+    var it = new CultureInfo("it-IT");
+}
+
+<partial name="_Flash" />
+
+<div class="page-head">
+    <div>
+        <h2>🏦 Distinte SEPA generate</h2>
+        <p class="page-head__sub">Storico delle distinte di bonifico SEPA prodotte. Le scadenze incluse sono passate automaticamente in stato <em>Programmato</em>.</p>
+    </div>
+    <div class="page-head__actions">
+        <a class="btn btn--ghost" asp-action="Index">← Tesoreria</a>
+        <a class="btn btn--ghost" asp-action="DatiBancari">🏦 Dati bancari</a>
+    </div>
+</div>
+
+@if (Model.Distinte.Count == 0)
+{
+    <div class="card">
+        <p class="muted">Nessuna distinta generata. Torna in Tesoreria, seleziona scadenze in stato <em>Da pagare</em> e clicca "Genera distinta SEPA".</p>
+    </div>
+}
+else
+{
+    <div class="card" style="padding:0; overflow:auto;">
+        <table class="table">
+            <thead>
+                <tr>
+                    <th>Generata</th>
+                    <th>Etichetta</th>
+                    <th>Esecuzione</th>
+                    <th>Ordinante (IBAN)</th>
+                    <th style="text-align:right;">N° bonifici</th>
+                    <th style="text-align:right;">Totale</th>
+                    <th></th>
+                </tr>
+            </thead>
+            <tbody>
+            @foreach (var d in Model.Distinte)
+            {
+                <tr>
+                    <td>@d.CreatedAt.ToLocalTime().ToString("dd/MM/yyyy HH:mm")</td>
+                    <td><strong>@d.Etichetta</strong></td>
+                    <td>@d.DataEsecuzione.ToString("dd/MM/yyyy")</td>
+                    <td style="font-family: monospace; font-size: .85rem;">@FormatIban(d.PagatoreIban)</td>
+                    <td style="text-align:right;">@d.NumeroTransazioni</td>
+                    <td style="text-align:right;"><strong>@d.Totale.ToString("N2", it) €</strong></td>
+                    <td>
+                        <a class="btn btn--ghost btn--sm" asp-action="ScaricaDistinta" asp-route-id="@d.Id">⬇ XML</a>
+                    </td>
+                </tr>
+            }
+            </tbody>
+        </table>
+    </div>
+}
+
+@functions {
+    static string FormatIban(string iban)
+    {
+        if (string.IsNullOrEmpty(iban)) return "—";
+        var sb = new System.Text.StringBuilder(iban.Length + iban.Length / 4);
+        for (var i = 0; i < iban.Length; i++)
+        {
+            if (i > 0 && i % 4 == 0) sb.Append(' ');
+            sb.Append(iban[i]);
+        }
+        return sb.ToString();
+    }
+}

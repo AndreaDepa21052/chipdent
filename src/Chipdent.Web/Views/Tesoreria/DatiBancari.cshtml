@@ -1,0 +1,62 @@
+@model Chipdent.Web.Models.DatiBancariFormViewModel
+@{
+    ViewData["Title"] = "Dati bancari ordinante";
+    ViewData["Crumb"] = "Tesoreria";
+}
+
+<partial name="_Flash" />
+
+<div class="page-head">
+    <div>
+        <h2>🏦 Dati bancari ordinante</h2>
+        <p class="page-head__sub">Conto corrente da cui partono i bonifici delle distinte SEPA. Questi dati finiscono nell'XML come <em>Initiating Party / Debtor</em>.</p>
+    </div>
+    <div class="page-head__actions">
+        <a class="btn btn--ghost" asp-action="Index">← Tesoreria</a>
+    </div>
+</div>
+
+@if (!Model.IsConfigured)
+{
+    <div class="alert alert--info" style="margin-bottom: var(--s-4);">
+        ℹ️ Inserisci IBAN e ragione sociale ordinante prima di poter generare distinte SEPA.
+    </div>
+}
+
+<form method="post" class="card" style="padding: var(--s-4); max-width: 720px;">
+    @Html.AntiForgeryToken()
+
+    <div asp-validation-summary="ModelOnly" class="alert alert--danger" style="display:@(ViewData.ModelState.ErrorCount > 0 ? "block" : "none");"></div>
+
+    <div class="form-group">
+        <label class="form-label" asp-for="PagatoreRagioneSociale">Ragione sociale ordinante *</label>
+        <input class="form-control" asp-for="PagatoreRagioneSociale" required maxlength="70" />
+        <span class="muted" style="font-size:.78rem;">Compare nell'estratto conto del beneficiario come ordinante.</span>
+        <span class="text-danger" asp-validation-for="PagatoreRagioneSociale"></span>
+    </div>
+
+    <div class="form-group">
+        <label class="form-label" asp-for="PagatoreIban">IBAN del conto pagatore *</label>
+        <input class="form-control" asp-for="PagatoreIban" required placeholder="IT60X0542811101000000123456" style="font-family: monospace;" />
+        <span class="text-danger" asp-validation-for="PagatoreIban"></span>
+        <span class="muted" style="font-size:.78rem;">Il check digit verrà validato in fase di salvataggio (algoritmo MOD-97 ISO 13616).</span>
+    </div>
+
+    <div class="grid" style="grid-template-columns: 1fr 1fr; gap: var(--s-3);">
+        <div class="form-group">
+            <label class="form-label" asp-for="PagatoreBic">BIC / SWIFT (opzionale)</label>
+            <input class="form-control" asp-for="PagatoreBic" placeholder="UNCRITMM" maxlength="11" style="font-family: monospace;" />
+            <span class="muted" style="font-size:.78rem;">La maggior parte delle banche italiane lo deriva dall'IBAN.</span>
+        </div>
+        <div class="form-group">
+            <label class="form-label" asp-for="PagatoreCodiceFiscale">Codice fiscale (opzionale)</label>
+            <input class="form-control" asp-for="PagatoreCodiceFiscale" maxlength="16" style="font-family: monospace;" />
+            <span class="muted" style="font-size:.78rem;">Alcune banche lo richiedono come <code>OrgId</code>.</span>
+        </div>
+    </div>
+
+    <div style="display:flex; gap:8px; justify-content:flex-end; margin-top: var(--s-3);">
+        <a class="btn btn--ghost" asp-action="Index">Annulla</a>
+        <button type="submit" class="btn btn--primary">Salva dati bancari</button>
+    </div>
+</form>

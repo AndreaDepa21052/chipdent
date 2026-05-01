@@ -36,4 +36,14 @@ public class Tenant : Entity
     // Provenienza
     public DateTime? DataAttivazione { get; set; }
     public string? CreatoDaUserId { get; set; }
+
+    // Dati bancari ordinante (Tesoreria → distinte SEPA)
+    /// <summary>IBAN del conto pagatore usato come "ordinante" nelle distinte SEPA.</summary>
+    public string? PagatoreIban { get; set; }
+    /// <summary>BIC/SWIFT del conto pagatore. Opzionale: la maggior parte delle banche lo deriva dall'IBAN.</summary>
+    public string? PagatoreBic { get; set; }
+    /// <summary>Ragione sociale stampata nella distinta come "Initiating Party". Se null, fallback a <see cref="RagioneSociale"/> o <see cref="DisplayName"/>.</summary>
+    public string? PagatoreRagioneSociale { get; set; }
+    /// <summary>Codice fiscale dell'ordinante (alcune banche lo richiedono come OrgId nella distinta).</summary>
+    public string? PagatoreCodiceFiscale { get; set; }
 }

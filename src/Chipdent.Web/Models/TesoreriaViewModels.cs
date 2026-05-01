@@ -179,3 +179,25 @@ public class PagamentoAzioneViewModel
     public DateTime? DataProgrammata { get; set; }
     public string? RiferimentoPagamento { get; set; }
 }
+
+// ── Dati bancari ordinante (per distinte SEPA) ──────────────────
+public class DatiBancariFormViewModel
+{
+    [Required(ErrorMessage = "L'IBAN è obbligatorio per generare distinte SEPA.")]
+    public string PagatoreIban { get; set; } = string.Empty;
+
+    public string? PagatoreBic { get; set; }
+
+    [Required(ErrorMessage = "La ragione sociale è obbligatoria.")]
+    public string PagatoreRagioneSociale { get; set; } = string.Empty;
+
+    public string? PagatoreCodiceFiscale { get; set; }
+
+    public bool IsConfigured { get; set; }
+}
+
+// ── Storico distinte SEPA ───────────────────────────────────────
+public class DistinteIndexViewModel
+{
+    public List<Chipdent.Web.Domain.Entities.DistintaPagamento> Distinte { get; set; } = new();
+}

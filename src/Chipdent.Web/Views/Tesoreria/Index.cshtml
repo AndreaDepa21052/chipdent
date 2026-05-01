@@ -32,6 +32,8 @@
     </div>
     <div class="page-head__actions">
         <a class="btn btn--ghost" asp-action="Fornitori">👥 Fornitori</a>
+        <a class="btn btn--ghost" asp-action="Distinte">🏦 Distinte SEPA</a>
+        <a class="btn btn--ghost" asp-action="DatiBancari">⚙ Dati bancari</a>
         <a class="btn btn--ghost" asp-action="ExportCsv">⬇ Export CSV</a>
         <a class="btn btn--primary" asp-action="NuovaFattura">＋ Nuova fattura</a>
     </div>
@@ -177,10 +179,20 @@
             <a class="btn btn--ghost btn--sm" asp-action="Index">Reset</a>
         </form>
 
+        <div id="sepa-toolbar" data-sepa-toolbar style="display:none; padding: 10px 16px; background: #fff7e6; border-top: 1px solid #ece0cc; border-bottom: 1px solid #ece0cc; align-items: center; gap: 12px;">
+            <strong style="color:#3b1e0c;">
+                <span data-sepa-count>0</span> scadenze selezionate
+                · <span data-sepa-total>0,00 €</span>
+            </strong>
+            <button type="button" class="btn btn--primary btn--sm" data-sepa-open>🏦 Genera distinta SEPA</button>
+            <button type="button" class="btn btn--ghost btn--sm" data-sepa-clear>Deseleziona tutto</button>
+        </div>
+
         <div style="overflow:auto;">
             <table class="table">
                 <thead>
                     <tr>
+                        <th style="width: 32px;"><input type="checkbox" data-sepa-master title="Seleziona tutte le righe bonificabili" /></th>
                         <th>Data</th>
                         <th>Comp.</th>
                         <th>LOC</th>
@@ -199,7 +211,15 @@
                 @foreach (var r in Model.Righe)
                 {
                     var rowStyle = r.Stato == StatoScadenza.Insoluto ? "background: rgba(168,58,58,0.06);" : "";
+                    var bonificabile = r.Stato == StatoScadenza.DaPagare
+                        && (r.Metodo == MetodoPagamento.Bonifico || r.Metodo == MetodoPagamento.Altro);
                     <tr style="@rowStyle">
+                        <td>
+                            @if (bonificabile)
+                            {
+                                <input type="checkbox" class="sepa-row" data-id="@r.ScadenzaId" data-amount="@r.Totale.ToString("0.##", System.Globalization.CultureInfo.InvariantCulture)" />
+                            }
+                        </td>
                         <td>@r.DataScadenza.ToString("dd/MM/yy")</td>
                         <td class="muted">@r.MeseCompetenza</td>
                         <td><code>@r.Loc</code></td>
@@ -239,7 +259,7 @@
                 }
                 @if (Model.Righe.Count == 0)
                 {
-                    <tr><td colspan="12" class="muted" style="text-align:center; padding: var(--s-5);">Nessuna scadenza per i filtri impostati.</td></tr>
+                    <tr><td colspan="13" class="muted" style="text-align:center; padding: var(--s-5);">Nessuna scadenza per i filtri impostati.</td></tr>
                 }
                 </tbody>
             </table>
@@ -310,6 +330,40 @@
         <div style="display:flex; gap:8px; justify-content:flex-end; margin-top: var(--s-3);">
             <button type="button" class="btn btn--ghost" data-close-dlg>Annulla</button>
             <button type="submit" class="btn btn--primary">Programma</button>
+        </div>
+    </form>
+</dialog>
+
+<dialog id="dlg-sepa" style="border:0; border-radius: 12px; padding: 0; max-width: 480px; box-shadow: 0 20px 60px rgba(0,0,0,0.18);">
+    <form id="form-sepa" method="post" asp-action="GeneraSepaXml" style="padding: var(--s-4);">
+        @Html.AntiForgeryToken()
+        <h3 style="margin: 0 0 var(--s-3);">🏦 Genera distinta SEPA</h3>
+        <p class="muted" style="font-size:.9rem; margin-bottom: var(--s-3);">
+            Verrà prodotto un file XML <code>pain.001.001.03</code> da caricare sul tuo home banking.
+            Le scadenze incluse passeranno automaticamente in stato <strong>Programmato</strong>.
+        </p>
+
+        <div class="card" style="background: #faf6f0; padding: 12px; margin-bottom: var(--s-3); font-size:.9rem;">
+            <div><strong>Bonifici:</strong> <span data-sepa-summary-count>0</span></div>
+            <div><strong>Totale:</strong> <span data-sepa-summary-total>0,00 €</span></div>
+        </div>
+
+        <div id="sepa-hidden-fields"></div>
+
+        <div class="form-group">
+            <label class="form-label">Data esecuzione *</label>
+            <input class="form-control" type="date" name="dataEsecuzione" required value="@oggi.AddDays(2).ToString("yyyy-MM-dd")" />
+            <span class="muted" style="font-size:.78rem;">Quando la banca dovrà eseguire i bonifici. Default: dopodomani.</span>
+        </div>
+
+        <div class="form-group">
+            <label class="form-label">Etichetta distinta (opzionale)</label>
+            <input class="form-control" type="text" name="etichetta" placeholder="es. Distinta aprile 2025" maxlength="60" />
+        </div>
+
+        <div style="display:flex; gap:8px; justify-content:flex-end; margin-top: var(--s-3);">
+            <button type="button" class="btn btn--ghost" data-close-dlg>Annulla</button>
+            <button type="submit" class="btn btn--primary">⬇ Genera XML &amp; programma</button>
         </div>
     </form>
 </dialog>
@@ -444,6 +498,56 @@
         });
         document.querySelectorAll('[data-close-dlg]').forEach(function (b) {
             b.addEventListener('click', function () { b.closest('dialog').close(); });
+        });
+
+        // ── Selezione massiva per distinta SEPA ─────────────────────────
+        var toolbar = document.querySelector('[data-sepa-toolbar]');
+        var elCount = document.querySelector('[data-sepa-count]');
+        var elTotal = document.querySelector('[data-sepa-total]');
+        var elSumCount = document.querySelector('[data-sepa-summary-count]');
+        var elSumTotal = document.querySelector('[data-sepa-summary-total]');
+        var rows = document.querySelectorAll('input.sepa-row');
+        var master = document.querySelector('[data-sepa-master]');
+        var dlgSepa = document.getElementById('dlg-sepa');
+        var hidden = document.getElementById('sepa-hidden-fields');
+
+        function fmtEur(n) { return n.toLocaleString('it-IT', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) + ' €'; }
+
+        function refreshSelection() {
+            var checked = Array.prototype.filter.call(rows, function (r) { return r.checked; });
+            var total = checked.reduce(function (acc, r) { return acc + parseFloat(r.dataset.amount || '0'); }, 0);
+            elCount.textContent = checked.length;
+            elTotal.textContent = fmtEur(total);
+            toolbar.style.display = checked.length > 0 ? 'flex' : 'none';
+            if (master) master.checked = checked.length > 0 && checked.length === rows.length;
+            return { checked: checked, total: total };
+        }
+
+        rows.forEach(function (cb) { cb.addEventListener('change', refreshSelection); });
+        if (master) master.addEventListener('change', function () {
+            rows.forEach(function (r) { r.checked = master.checked; });
+            refreshSelection();
+        });
+
+        var openBtn = document.querySelector('[data-sepa-open]');
+        var clearBtn = document.querySelector('[data-sepa-clear]');
+        if (clearBtn) clearBtn.addEventListener('click', function () {
+            rows.forEach(function (r) { r.checked = false; });
+            refreshSelection();
+        });
+        if (openBtn) openBtn.addEventListener('click', function () {
+            var sel = refreshSelection();
+            if (sel.checked.length === 0) return;
+            // Popola hidden fields scadenzaIds[]
+            hidden.innerHTML = '';
+            sel.checked.forEach(function (r) {
+                var i = document.createElement('input');
+                i.type = 'hidden'; i.name = 'scadenzaIds'; i.value = r.dataset.id;
+                hidden.appendChild(i);
+            });
+            elSumCount.textContent = sel.checked.length;
+            elSumTotal.textContent = fmtEur(sel.total);
+            dlgSepa.showModal();
         });
     })();
 </script>
