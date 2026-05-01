@@ -271,13 +271,28 @@
                                 <svg class="nav__icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><path d="M14 2v6h6"/><path d="M16 13H8M16 17H8M10 9H8"/></svg>
                                 Report
                             </a>
-                            @if (User.IsOwner())
-                            {
-                                <a class="nav__item @(section == "tesoreria" ? "is-active" : "")" asp-controller="Tesoreria" asp-action="Index">
-                                    <svg class="nav__icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="12" y1="1" x2="12" y2="23"/><path d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/></svg>
-                                    💰 Tesoreria
-                                </a>
-                            }
+                        </details>
+                    }
+
+                    @if (User.IsOwner() || User.IsManagement() || User.IsBackoffice())
+                    {
+                        <details class="nav__group" data-group-key="tesoreria" open>
+                            <summary class="nav__group-title">
+                                <span>Tesoreria</span>
+                                <svg class="nav__group-chev" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M6 9l6 6 6-6"/></svg>
+                            </summary>
+                            <a class="nav__item @(section == "tesoreria" ? "is-active" : "")" asp-controller="Tesoreria" asp-action="Index">
+                                <svg class="nav__icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="12" y1="1" x2="12" y2="23"/><path d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/></svg>
+                                💰 Scadenziario
+                            </a>
+                            <a class="nav__item @(section == "tesoreria" && (Context.Request.Path.Value?.Contains("/fornitori") ?? false) ? "is-active" : "")" asp-controller="Tesoreria" asp-action="Fornitori">
+                                <svg class="nav__icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>
+                                Fornitori
+                            </a>
+                            <a class="nav__item @(section == "tesoreria" && (Context.Request.Path.Value?.Contains("/distinte") ?? false) ? "is-active" : "")" asp-controller="Tesoreria" asp-action="Distinte">
+                                <svg class="nav__icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><path d="M14 2v6h6"/></svg>
+                                Distinte SEPA
+                            </a>
                         </details>
                     }
 

@@ -15,6 +15,7 @@ public static class Policies
     public const string RequireDirettore  = nameof(RequireDirettore);
     public const string RequireBackoffice = nameof(RequireBackoffice);
     public const string RequireFornitore  = nameof(RequireFornitore);
+    public const string RequireTesoreria  = nameof(RequireTesoreria);
 
     public static class Names
     {
@@ -45,6 +46,12 @@ public static class Policies
         // Fornitore: utente esterno autenticato con accesso al solo portale /fornitori.
         // Non viene MAI incluso nelle altre policy: vede solo i propri dati.
         o.AddPolicy(RequireFornitore, p => p.RequireRole(Names.Fornitore));
+
+        // Tesoreria: vista scadenziario + anagrafica fornitori + caricamento fatture.
+        // Le azioni di pagamento (paga/programma/annulla, distinte SEPA, dati bancari)
+        // restano Owner-only via [Authorize(Policy = RequireOwner)] puntuale sui metodi.
+        // Direttore escluso: la tesoreria è cross-sede.
+        o.AddPolicy(RequireTesoreria, p => p.RequireRole(Names.Owner, Names.Management, Names.Backoffice));
     }
 }
 

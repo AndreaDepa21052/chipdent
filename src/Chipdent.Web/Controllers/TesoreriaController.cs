@@ -15,10 +15,12 @@ using MongoDB.Driver;
 namespace Chipdent.Web.Controllers;
 
 /// <summary>
-/// Tesoreria — scadenziario pagamenti fornitori per l'Owner.
-/// Pannello unico con KPI, grafici, tabella scadenze filtrabile e azioni di pagamento.
+/// Tesoreria — scadenziario pagamenti fornitori.
+/// Accessibile a Owner + Management + Backoffice: tutte e tre le figure possono vedere
+/// lo scadenziario, gestire l'anagrafica fornitori, caricare e approvare fatture, segnare
+/// pagamenti e generare distinte SEPA. Direttore e Staff esclusi (la tesoreria è cross-sede).
 /// </summary>
-[Authorize(Policy = Policies.RequireOwner)]
+[Authorize(Policy = Policies.RequireTesoreria)]
 [Route("tesoreria")]
 public class TesoreriaController : Controller
 {
