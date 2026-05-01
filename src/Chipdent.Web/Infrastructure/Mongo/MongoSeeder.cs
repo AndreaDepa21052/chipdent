@@ -218,6 +218,7 @@ public static class MongoSeeder
 
             await SeedHistoricalAiDataAsync(ctx, tenant, logger, ct);
             await SeedTesoreriaAsync(ctx, hasher, tenant, cliniche, logger, ct);
+            await SeedCashflowAsync(ctx, tenant, cliniche, logger, ct);
 
             // Crea/aggiorna fornitori-ombra per i dottori (collaborazione/libero professionista)
             var ombraCreati = await ombraService.SyncTenantAsync(tenant.Id, ct);
@@ -397,6 +398,52 @@ public static class MongoSeeder
     /// un dipendente cessato 6 mesi fa per il forecast organico.
     /// Idempotente: salta se trova già turni storici.
     /// </summary>
+    /// <summary>
+    /// Seed demo del modulo Cashflow: saldo cassa, soglia rischio, e 3 entrate attese
+    /// (incassi mensili stimati per le sedi). Idempotente.
+    /// </summary>
+    private static async Task SeedCashflowAsync(MongoContext ctx, Tenant tenant, List<Clinica> cliniche, ILogger logger, CancellationToken ct)
+    {
+        var existingSettings = await ctx.CashflowSettings.Find(s => s.TenantId == tenant.Id).AnyAsync(ct);
+        if (!existingSettings)
+        {
+            await ctx.CashflowSettings.InsertOneAsync(new CashflowSettings
+            {
+                TenantId = tenant.Id,
+                SaldoCassa = 85_000m,
+                SaldoAggiornatoIl = DateTime.UtcNow,
+                SogliaRischio = 15_000m,
+                Note = "Demo: aggiornato dal seed."
+            }, cancellationToken: ct);
+            logger.LogInformation("Seeded cashflow settings");
+        }
+
+        var existingEntrate = await ctx.EntrateAttese.Find(e => e.TenantId == tenant.Id).AnyAsync(ct);
+        if (!existingEntrate && cliniche.Count > 0)
+        {
+            var oggi = DateTime.UtcNow.Date;
+            var primoMese = new DateTime(oggi.Year, oggi.Month, 1);
+            var entrate = new List<EntrataAttesa>();
+            for (var i = 0; i < 3; i++)
+            {
+                var mese = DateTime.SpecifyKind(primoMese.AddMonths(i + 1), DateTimeKind.Utc);
+                foreach (var c in cliniche)
+                {
+                    entrate.Add(new EntrataAttesa
+                    {
+                        TenantId = tenant.Id,
+                        DataAttesa = mese,
+                        ClinicaId = c.Id,
+                        Importo = c.NumeroRiuniti * 4_500m,    // stima grezza per riunito
+                        Descrizione = $"Incasso prestazioni {mese:MMM yyyy} · {c.Nome}"
+                    });
+                }
+            }
+            await ctx.EntrateAttese.InsertManyAsync(entrate, cancellationToken: ct);
+            logger.LogInformation("Seeded {Count} entrate attese", entrate.Count);
+        }
+    }
+
     private static async Task SeedHistoricalAiDataAsync(MongoContext ctx, Tenant tenant, ILogger logger, CancellationToken ct)
     {
         var oggi = DateTime.UtcNow.Date;

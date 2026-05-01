@@ -62,6 +62,7 @@
         ["scadenziario"]   = ("Scadenziario", "Scadenziario"),
         ["tesoreria"]      = ("Tesoreria", "Tesoreria"),
         ["tesoreria-distinte"] = ("Distinte SEPA", "Tesoreria"),
+        ["tesoreria-cashflow"] = ("Cashflow", "Cashflow"),
         ["fornitori"]      = ("Fornitori", "Tesoreria"),
         ["operations"]     = ("Operations", "Operations"),
         ["feedback"]       = ("Feedback pazienti", "Feedback"),
@@ -293,6 +294,10 @@
                             <a class="nav__item @(section == "tesoreria" ? "is-active" : "")" asp-controller="Tesoreria" asp-action="Index">
                                 <svg class="nav__icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="12" y1="1" x2="12" y2="23"/><path d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/></svg>
                                 💰 Scadenziario
+                            </a>
+                            <a class="nav__item @(section == "tesoreria-cashflow" ? "is-active" : "")" asp-controller="Cashflow" asp-action="Index">
+                                <svg class="nav__icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/></svg>
+                                📊 Cashflow
                             </a>
                             <a class="nav__item @(section == "tesoreria-distinte" ? "is-active" : "")" asp-controller="Tesoreria" asp-action="Distinte">
                                 <svg class="nav__icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><path d="M14 2v6h6"/></svg>

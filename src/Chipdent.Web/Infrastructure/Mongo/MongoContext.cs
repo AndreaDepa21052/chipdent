@@ -68,4 +68,6 @@ public class MongoContext
     public IMongoCollection<FatturaFornitore> Fatture => Database.GetCollection<FatturaFornitore>("fatture");
     public IMongoCollection<ScadenzaPagamento> ScadenzePagamento => Database.GetCollection<ScadenzaPagamento>("scadenzePagamento");
     public IMongoCollection<DistintaPagamento> DistinteSepa => Database.GetCollection<DistintaPagamento>("distinteSepa");
+    public IMongoCollection<CashflowSettings> CashflowSettings => Database.GetCollection<CashflowSettings>("cashflowSettings");
+    public IMongoCollection<EntrataAttesa> EntrateAttese => Database.GetCollection<EntrataAttesa>("entrateAttese");
 }

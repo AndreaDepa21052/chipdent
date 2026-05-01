@@ -1,0 +1,276 @@
+@model Chipdent.Web.Models.CashflowDashboardViewModel
+@using Chipdent.Web.Infrastructure.Cashflow
+@using System.Globalization
+@{
+    ViewData["Title"] = "Cashflow & previsione liquidità";
+    ViewData["Crumb"] = "Tesoreria";
+    var it = new CultureInfo("it-IT");
+    var f = Model.Forecast;
+    var s = f.Settings;
+    var saldoStale = s.SaldoAggiornatoIl is null || (DateTime.UtcNow - s.SaldoAggiornatoIl.Value).TotalDays > 14;
+}
+
+@functions {
+    string Eur(decimal v) => v.ToString("N0", new CultureInfo("it-IT")) + " €";
+    string EurDec(decimal v) => v.ToString("N2", new CultureInfo("it-IT")) + " €";
+
+    string ConfBadge(ConfidenceRicorrenza c) => c switch
+    {
+        ConfidenceRicorrenza.Alta => "<span class='badge' style='background:#dff5e6; color:#1f6e3a;'>● alta</span>",
+        ConfidenceRicorrenza.Media => "<span class='badge' style='background:#fff2dd; color:#a86010;'>● media</span>",
+        _ => "<span class='badge' style='background:#eee; color:#666;'>● bassa</span>"
+    };
+}
+
+<partial name="_Flash" />
+
+<div class="page-head">
+    <div>
+        <h2>📊 Cashflow & previsione liquidità</h2>
+        <p class="page-head__sub">Proiezione del saldo cassa a 12 settimane basata su scadenze certe, ricorrenti rilevati e entrate attese.</p>
+    </div>
+    <div class="page-head__actions">
+        <a class="btn btn--ghost" asp-action="Settings">⚙ Saldo & soglia</a>
+    </div>
+</div>
+
+@if (saldoStale)
+{
+    <div class="alert alert--warning" style="margin-bottom: var(--s-4);">
+        ⚠️ Il saldo cassa
+        @if (s.SaldoAggiornatoIl is null)
+        {
+            <text>non è mai stato impostato.</text>
+        }
+        else
+        {
+            <text>è stato aggiornato @(((int)(DateTime.UtcNow - s.SaldoAggiornatoIl.Value).TotalDays)) giorni fa.</text>
+        }
+        Aggiornalo da <a asp-action="Settings">⚙ Saldo & soglia</a> per avere una proiezione realistica.
+    </div>
+}
+else if (f.PrimaSettimanaSottoSoglia.HasValue)
+{
+    var settimana = f.Settimane[f.PrimaSettimanaSottoSoglia.Value];
+    <div class="alert alert--danger" style="margin-bottom: var(--s-4);">
+        🚨 <strong>Rischio liquidità</strong>: il saldo proiettato scende sotto la soglia (@Eur(s.SogliaRischio)) nella settimana del
+        <strong>@settimana.DataInizio.ToString("dd MMM yyyy", it)</strong> (saldo previsto: @EurDec(settimana.SaldoFineSettimana)).
+    </div>
+}
+
+<div class="grid grid--stats" style="margin-bottom: var(--s-4);">
+    <div class="stat">
+        <div class="stat__label">💵 Saldo cassa</div>
+        <div class="stat__value">@Eur(s.SaldoCassa)</div>
+        <div class="stat__hint">@(s.SaldoAggiornatoIl?.ToString("dd/MM/yy", it) ?? "—")</div>
+    </div>
+    <div class="stat">
+        <div class="stat__label">📤 Uscite certe 30/60/90gg</div>
+        <div class="stat__value" style="font-size: 1.05rem; line-height: 1.4;">
+            @Eur(f.UsciteCerte30) <span class="muted">·</span>
+            @Eur(f.UsciteCerte60) <span class="muted">·</span>
+            @Eur(f.UsciteCerte90)
+        </div>
+    </div>
+    <div class="stat">
+        <div class="stat__label">🔮 Uscite previste 90gg</div>
+        <div class="stat__value">@Eur(f.UscitePreviste90)</div>
+        <div class="stat__hint">da ricorrenti</div>
+    </div>
+    <div class="stat">
+        <div class="stat__label">📥 Entrate attese 90gg</div>
+        <div class="stat__value">@Eur(f.Entrate90)</div>
+    </div>
+    <div class="stat" style="@(f.SaldoProiettato90 < s.SogliaRischio ? "background: rgba(168,58,58,0.06); border-color: rgba(168,58,58,0.3);" : "")">
+        <div class="stat__label">⚖️ Saldo proiettato 90gg</div>
+        <div class="stat__value" style="color: @(f.SaldoProiettato90 < s.SogliaRischio ? "#a83a3a" : (f.SaldoProiettato90 < s.SogliaRischio * 2 ? "#a86010" : "inherit"));">
+            @Eur(f.SaldoProiettato90)
+        </div>
+        <div class="stat__hint">soglia @Eur(s.SogliaRischio)</div>
+    </div>
+</div>
+
+<div class="card" style="margin-bottom: var(--s-4);">
+    <div class="card__header">
+        <h3 class="card__title">Proiezione 12 settimane</h3>
+        <span class="muted" style="font-size:.85rem;">Barre = movimenti per settimana · Linea = saldo proiettato</span>
+    </div>
+    <div style="height: 360px; padding: var(--s-3);">
+        <canvas id="chart-cashflow"></canvas>
+    </div>
+</div>
+
+<div class="grid" style="grid-template-columns: 2fr 1fr; gap: var(--s-4); margin-bottom: var(--s-4);">
+    <div class="card" style="padding:0;">
+        <div class="card__header" style="padding: var(--s-3);">
+            <h3 class="card__title">🔮 Ricorrenti rilevati</h3>
+            <span class="muted" style="font-size:.85rem;">@f.Ricorrenti.Count fornitori · ≥ @CashflowForecaster.MinFattureStoriche fatture in 12 mesi</span>
+        </div>
+        @if (f.Ricorrenti.Count == 0)
+        {
+            <p class="muted" style="padding: var(--s-4); text-align:center;">Nessun fornitore con storico sufficiente per essere classificato come ricorrente.</p>
+        }
+        else
+        {
+            <div style="overflow:auto;">
+                <table class="table">
+                    <thead>
+                        <tr>
+                            <th>Fornitore</th>
+                            <th style="text-align:right;">Cadenza</th>
+                            <th style="text-align:right;">Importo medio</th>
+                            <th>Ultima</th>
+                            <th>Prossima attesa</th>
+                            <th>Conf.</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                    @foreach (var r in f.Ricorrenti)
+                    {
+                        <tr>
+                            <td><strong>@r.FornitoreNome</strong> <span class="muted" style="font-size:.78rem;">· @r.NumeroFatture fatt.</span></td>
+                            <td style="text-align:right;">~@r.CadenzaGiorni gg</td>
+                            <td style="text-align:right;">@EurDec(r.ImportoMedio)</td>
+                            <td class="muted">@r.UltimaDataFattura.ToString("dd/MM/yy")</td>
+                            <td><strong>@r.ProssimaDataAttesa.ToString("dd/MM/yy")</strong></td>
+                            <td>@Html.Raw(ConfBadge(r.Confidence))</td>
+                        </tr>
+                    }
+                    </tbody>
+                </table>
+            </div>
+        }
+    </div>
+
+    <div class="card">
+        <div class="card__header" style="display:flex; justify-content:space-between; align-items:center;">
+            <h3 class="card__title">📥 Entrate attese</h3>
+            <span class="muted" style="font-size:.85rem;">@Model.EntratePerOrizzonte.Count totali</span>
+        </div>
+
+        <form asp-action="NuovaEntrata" method="post" style="padding: var(--s-3) 0; border-bottom: 1px solid var(--c-border, #ece0cc);">
+            @Html.AntiForgeryToken()
+            <div style="display:grid; grid-template-columns: 1fr 1fr; gap:8px; margin-bottom: 8px;">
+                <input class="form-control" type="month" name="DataAttesa" required value="@DateTime.UtcNow.ToString("yyyy-MM")" />
+                <input class="form-control" type="number" step="0.01" min="0.01" name="Importo" placeholder="Importo €" required />
+            </div>
+            <input class="form-control" name="Descrizione" placeholder="Descrizione (es. Incasso prestazioni Aprile)" required style="margin-bottom: 8px;" />
+            <button type="submit" class="btn btn--primary btn--sm btn--block">＋ Aggiungi entrata</button>
+        </form>
+
+        @if (Model.EntratePerOrizzonte.Count == 0)
+        {
+            <p class="muted" style="padding: var(--s-3); text-align:center; font-size:.85rem;">Nessuna entrata attesa. Aggiungine una sopra per migliorare la proiezione del saldo.</p>
+        }
+        else
+        {
+            <ul class="list" style="margin: 0;">
+            @foreach (var e in Model.EntratePerOrizzonte.OrderBy(x => x.DataAttesa))
+            {
+                <li class="list__item">
+                    <div class="list__icon" style="color:#2d7a50;">+</div>
+                    <div>
+                        <div class="list__title"><strong>@e.Descrizione</strong></div>
+                        <div class="muted" style="font-size:.78rem;">@e.DataAttesa.ToString("MMM yyyy", it)</div>
+                    </div>
+                    <div class="list__when" style="display:flex; align-items:center; gap:6px;">
+                        <strong>@Eur(e.Importo)</strong>
+                        <form asp-action="EliminaEntrata" asp-route-id="@e.Id" method="post" style="display:inline;" onsubmit="return confirm('Eliminare l''entrata?');">
+                            @Html.AntiForgeryToken()
+                            <button type="submit" class="btn btn--ghost btn--sm" title="Elimina">✕</button>
+                        </form>
+                    </div>
+                </li>
+            }
+            </ul>
+        }
+    </div>
+</div>
+
+<p class="muted" style="font-size: .82rem;">
+    💡 La predizione classifica un fornitore come <em>ricorrente</em> se ha almeno @CashflowForecaster.MinFattureStoriche fatture negli ultimi 12 mesi
+    e la varianza della cadenza è bassa. Confidence: <strong>alta</strong> CV&lt;20%, <strong>media</strong> CV&lt;30%, <strong>bassa</strong> esclusa dalla proiezione.
+</p>
+
+@section Scripts {
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
+<script>
+    (function () {
+        var settimane = @Json.Serialize(f.Settimane.Select(s => new {
+            label = s.DataInizio.ToString("dd MMM", new CultureInfo("it-IT")),
+            certe = s.UsciteCerte,
+            previste = s.UscitePreviste,
+            entrate = s.Entrate,
+            saldo = s.SaldoFineSettimana,
+            sotto = s.SottoSoglia
+        }));
+        var soglia = @f.Settings.SogliaRischio.ToString("0.##", System.Globalization.CultureInfo.InvariantCulture);
+
+        new Chart(document.getElementById('chart-cashflow').getContext('2d'), {
+            type: 'bar',
+            data: {
+                labels: settimane.map(function (s) { return s.label; }),
+                datasets: [
+                    {
+                        label: 'Uscite certe', type: 'bar', stack: 'out',
+                        data: settimane.map(function (s) { return -s.certe; }),
+                        backgroundColor: '#a83a3a', yAxisID: 'yMov'
+                    },
+                    {
+                        label: 'Uscite previste', type: 'bar', stack: 'out',
+                        data: settimane.map(function (s) { return -s.previste; }),
+                        backgroundColor: 'rgba(196,120,48,0.55)', yAxisID: 'yMov'
+                    },
+                    {
+                        label: 'Entrate', type: 'bar', stack: 'in',
+                        data: settimane.map(function (s) { return s.entrate; }),
+                        backgroundColor: '#2d7a50', yAxisID: 'yMov'
+                    },
+                    {
+                        label: 'Saldo proiettato', type: 'line',
+                        data: settimane.map(function (s) { return s.saldo; }),
+                        borderColor: '#3b1e0c', backgroundColor: 'rgba(59,30,12,0.08)', fill: true,
+                        tension: 0.25, yAxisID: 'ySaldo',
+                        pointRadius: settimane.map(function (s) { return s.sotto ? 6 : 3; }),
+                        pointBackgroundColor: settimane.map(function (s) { return s.sotto ? '#a83a3a' : '#3b1e0c'; })
+                    },
+                    {
+                        label: 'Soglia rischio', type: 'line',
+                        data: settimane.map(function () { return soglia; }),
+                        borderColor: '#a83a3a', borderDash: [5, 5], pointRadius: 0,
+                        backgroundColor: 'transparent', yAxisID: 'ySaldo'
+                    }
+                ]
+            },
+            options: {
+                responsive: true, maintainAspectRatio: false,
+                interaction: { mode: 'index', intersect: false },
+                plugins: {
+                    legend: { position: 'bottom' },
+                    tooltip: {
+                        callbacks: {
+                            label: function (ctx) {
+                                var v = ctx.parsed.y;
+                                return ctx.dataset.label + ': ' + Math.abs(v).toLocaleString('it-IT', { maximumFractionDigits: 0 }) + ' €';
+                            }
+                        }
+                    }
+                },
+                scales: {
+                    yMov: {
+                        type: 'linear', position: 'left', stacked: true,
+                        title: { display: true, text: 'Movimenti (€)' },
+                        ticks: { callback: function (v) { return v.toLocaleString('it-IT') + ' €'; } }
+                    },
+                    ySaldo: {
+                        type: 'linear', position: 'right',
+                        title: { display: true, text: 'Saldo (€)' },
+                        grid: { drawOnChartArea: false },
+                        ticks: { callback: function (v) { return v.toLocaleString('it-IT') + ' €'; } }
+                    }
+                }
+            }
+        });
+    })();
+</script>
+}

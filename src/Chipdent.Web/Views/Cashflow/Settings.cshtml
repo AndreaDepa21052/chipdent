@@ -1,0 +1,57 @@
+@model Chipdent.Web.Models.CashflowSettingsFormViewModel
+@using System.Globalization
+@{
+    ViewData["Title"] = "Saldo & soglia di rischio";
+    ViewData["Crumb"] = "Tesoreria";
+    var it = new CultureInfo("it-IT");
+}
+
+<partial name="_Flash" />
+
+<div class="page-head">
+    <div>
+        <h2>⚙ Configurazione cashflow</h2>
+        <p class="page-head__sub">Saldo cassa attuale e soglia minima di liquidità sotto cui scatta l'allarme nella proiezione.</p>
+    </div>
+    <div class="page-head__actions">
+        <a class="btn btn--ghost" asp-action="Index">← Cashflow</a>
+    </div>
+</div>
+
+<form method="post" class="card" style="padding: var(--s-4); max-width: 640px;">
+    @Html.AntiForgeryToken()
+
+    <div asp-validation-summary="ModelOnly" class="alert alert--danger" style="display:@(ViewData.ModelState.ErrorCount > 0 ? "block" : "none");"></div>
+
+    <div class="form-group">
+        <label class="form-label" asp-for="SaldoCassa">💵 Saldo cassa attuale (€) *</label>
+        <input class="form-control" type="number" step="0.01" min="0" asp-for="SaldoCassa" required style="font-size: 1.2rem; font-weight: 600;" />
+        <span class="muted" style="font-size:.8rem;">
+            @if (Model.SaldoAggiornatoIl.HasValue)
+            {
+                <text>Ultimo aggiornamento: @Model.SaldoAggiornatoIl.Value.ToString("dd/MM/yyyy HH:mm", it)</text>
+            }
+            else
+            {
+                <text>Mai impostato. Aggiornalo periodicamente (settimanale o mensile) per avere proiezioni attendibili.</text>
+            }
+        </span>
+        <span class="text-danger" asp-validation-for="SaldoCassa"></span>
+    </div>
+
+    <div class="form-group">
+        <label class="form-label" asp-for="SogliaRischio">🚨 Soglia minima di liquidità (€)</label>
+        <input class="form-control" type="number" step="0.01" min="0" asp-for="SogliaRischio" />
+        <span class="muted" style="font-size:.8rem;">Quando il saldo proiettato scende sotto questa soglia, scatta l'alert "rischio liquidità" sulla dashboard.</span>
+    </div>
+
+    <div class="form-group">
+        <label class="form-label" asp-for="Note">Note</label>
+        <textarea class="form-control" asp-for="Note" rows="2" placeholder="es. saldo esclude conto vincolato"></textarea>
+    </div>
+
+    <div style="display:flex; gap:8px; justify-content:flex-end; margin-top: var(--s-3);">
+        <a class="btn btn--ghost" asp-action="Index">Annulla</a>
+        <button type="submit" class="btn btn--primary">Salva</button>
+    </div>
+</form>
