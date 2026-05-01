@@ -262,41 +262,52 @@
         Corso? Ultimo(TipoCorso t) => Model.Corsi
             .Where(c => c.Tipo == t).OrderByDescending(c => c.DataConseguimento).FirstOrDefault();
 
-        ComplianceCheck Mk(string label, DateTime? data, DateTime? scad, string? rif = null, int sogliaGg = 90)
-        {
-            var stato = StatoDa(scad, sogliaGg);
-            return new ComplianceCheck(label, data, scad, stato, rif);
-        }
+        // Riga della checklist: o una visita medica, o un corso di tipo specifico
+        var righe = new List<(string Label, DateTime? DataUltima, DateTime? Scadenza, ComplianceStato Stato, string Bordo, string? Riferimento, string AzioneTipo, TipoCorso? TipoCorso, int MesiPeriodicita)>();
 
-        var checklist = new List<ComplianceCheck>
+        var visitaPeriodicita = VisitaMedica.PeriodicitaDefault(d.Ruolo);
+        var visitaScadCalc = ultimaVisita?.ScadenzaIdoneita ?? (ultimaVisita is null ? (DateTime?)null : ultimaVisita.Data.AddMonths(visitaPeriodicita));
+        var visitaStato = StatoDa(visitaScadCalc, 90);
+        var visitaBordo = visitaStato switch
         {
-            Mk($"🩺 Visita medica idoneità ({(d.Ruolo == RuoloDipendente.ASO || d.Ruolo == RuoloDipendente.Igienista ? "1 anno" : "5 anni")})",
-                ultimaVisita?.Data, ultimaVisita?.ScadenzaIdoneita, ultimaVisita?.Esito.ToString()),
+            ComplianceStato.InRegola => "#1f6e3a",
+            ComplianceStato.InScadenza => "#a86010",
+            ComplianceStato.Scaduto => "#a83a3a",
+            _ => "#aaa"
         };
+        righe.Add(($"🩺 Visita medica idoneità ({(visitaPeriodicita == 12 ? "1 anno" : visitaPeriodicita + " mesi")})",
+            ultimaVisita?.Data, visitaScadCalc, visitaStato, visitaBordo, ultimaVisita?.Esito.ToString(), "visita", null, visitaPeriodicita));
 
-        // Mappa corsi richiesti
-        var requisiti = new (TipoCorso Tipo, string Etichetta)[]
+        var requisiti = new (TipoCorso Tipo, string Label, int SuggMesi)[]
         {
-            (TipoCorso.FormazioneGeneraleSicurezza,         "📚 Formazione generale sicurezza (4h, una tantum)"),
-            (TipoCorso.FormazioneSpecificaRischioBasso,     "📘 Formazione specifica rischio basso (5 anni)"),
-            (TipoCorso.FormazioneSpecificaRischioAltoASO,   "📕 Formazione specifica rischio alto ASO (5 anni)"),
-            (TipoCorso.AggiornamentoASO10H,                 "🔁 Aggiornamento ASO 10H (annuale)"),
-            (TipoCorso.Radioprotezione,                     "☢️ Radioprotezione (5 anni)"),
-            (TipoCorso.Antincendio,                         "🔥 Antincendio (5 anni)"),
-            (TipoCorso.RLS,                                 "🛡 RLS (annuale)"),
-            (TipoCorso.PrimoSoccorso,                       "🚑 Primo soccorso (3 anni)")
+            (TipoCorso.FormazioneGeneraleSicurezza,         "📚 Formazione generale sicurezza (4h, una tantum)", 0),
+            (TipoCorso.FormazioneSpecificaRischioBasso,     "📘 Formazione specifica rischio basso (5 anni)", 60),
+            (TipoCorso.FormazioneSpecificaRischioAltoASO,   "📕 Formazione specifica rischio alto ASO (5 anni)", 60),
+            (TipoCorso.AggiornamentoASO10H,                 "🔁 Aggiornamento ASO 10H (annuale)", 12),
+            (TipoCorso.Radioprotezione,                     "☢️ Radioprotezione (5 anni)", 60),
+            (TipoCorso.Antincendio,                         "🔥 Antincendio (5 anni)", 60),
+            (TipoCorso.RLS,                                 "🛡 RLS (annuale)", 12),
+            (TipoCorso.PrimoSoccorso,                       "🚑 Primo soccorso (3 anni)", 36)
         };
         foreach (var r in requisiti)
         {
             var ult = Ultimo(r.Tipo);
-            checklist.Add(Mk(r.Etichetta, ult?.DataConseguimento, ult?.Scadenza,
-                r.Tipo == TipoCorso.RLS ? ult?.VerbaleNomina : null, sogliaGg: 60));
+            var stato = StatoDa(ult?.Scadenza, 60);
+            var bordo = stato switch
+            {
+                ComplianceStato.InRegola => "#1f6e3a",
+                ComplianceStato.InScadenza => "#a86010",
+                ComplianceStato.Scaduto => "#a83a3a",
+                _ => "#aaa"
+            };
+            var rif = r.Tipo == TipoCorso.RLS ? ult?.VerbaleNomina : null;
+            righe.Add((r.Label, ult?.DataConseguimento, ult?.Scadenza, stato, bordo, rif, "corso", r.Tipo, r.SuggMesi));
         }
 
-        var inRegola = checklist.Count(x => x.Stato == ComplianceStato.InRegola);
-        var inScadenza = checklist.Count(x => x.Stato == ComplianceStato.InScadenza);
-        var scaduti = checklist.Count(x => x.Stato == ComplianceStato.Scaduto);
-        var mancanti = checklist.Count(x => x.Stato == ComplianceStato.NonRegistrato);
+        var inRegola = righe.Count(x => x.Stato == ComplianceStato.InRegola);
+        var inScadenza = righe.Count(x => x.Stato == ComplianceStato.InScadenza);
+        var scaduti = righe.Count(x => x.Stato == ComplianceStato.Scaduto);
+        var mancanti = righe.Count(x => x.Stato == ComplianceStato.NonRegistrato);
 
         <div class="grid grid--stats" style="margin-bottom: var(--s-4);">
             <div class="stat">
@@ -320,53 +331,191 @@
         <div class="card" style="padding: 0; max-width: 980px;">
             <div class="card__header" style="padding: var(--s-3);">
                 <h3 class="card__title">Checklist compliance</h3>
-                <span class="muted" style="font-size:.85rem;">Visite mediche, formazione obbligatoria, sicurezza</span>
+                <span class="muted" style="font-size:.85rem;">Clicca su una riga per registrare un nuovo conseguimento</span>
             </div>
             <ul class="list" style="margin: 0;">
-                @foreach (var c in checklist)
+                @foreach (var riga in righe)
                 {
-                    <li class="list__item" style="padding: var(--s-3) var(--s-4); border-left: 3px solid @c.ColoreBordo; gap: var(--s-3);">
-                        <div class="list__icon" style="font-size: 1.05rem; background: transparent; border: 0; width: 28px; height: 28px;">@c.Icona</div>
+                    var azioneLabel = riga.Stato == ComplianceStato.NonRegistrato ? "＋ Registra" : "＋ Aggiorna";
+                    var dataAttrs = riga.AzioneTipo == "visita"
+                        ? $"data-tipo=\"visita\" data-mesi=\"{riga.MesiPeriodicita}\""
+                        : $"data-tipo=\"corso\" data-corso=\"{riga.TipoCorso}\" data-label=\"{riga.Label}\" data-mesi=\"{riga.MesiPeriodicita}\"";
+                    <li class="list__item" style="padding: var(--s-3) var(--s-4); border-left: 3px solid @riga.Bordo; gap: var(--s-3); align-items:center;">
+                        <div class="list__icon" style="font-size: 1.05rem; background: transparent; border: 0; width: 28px; height: 28px;">
+                            @(riga.Stato switch {
+                                ComplianceStato.InRegola => "✅",
+                                ComplianceStato.InScadenza => "🟡",
+                                ComplianceStato.Scaduto => "🔴",
+                                _ => "⬜"
+                            })
+                        </div>
                         <div style="flex: 1; min-width: 0;">
-                            <div class="list__title" style="line-height: 1.2;">@c.Etichetta</div>
+                            <div class="list__title" style="line-height: 1.2;">@riga.Label</div>
                             <div class="muted" style="font-size:.78rem; margin-top: 2px;">
-                                @if (c.DataUltima.HasValue)
+                                @if (riga.DataUltima.HasValue)
                                 {
-                                    <text>Ultima: @c.DataUltima.Value.ToString("dd/MM/yyyy")</text>
+                                    <text>Ultima: @riga.DataUltima.Value.ToString("dd/MM/yyyy")</text>
                                 }
                                 else
                                 {
                                     <text>Nessuna registrazione</text>
                                 }
-                                @if (!string.IsNullOrWhiteSpace(c.Riferimento))
+                                @if (!string.IsNullOrWhiteSpace(riga.Riferimento))
                                 {
-                                    <text> · @c.Riferimento</text>
+                                    <text> · @riga.Riferimento</text>
                                 }
                             </div>
                         </div>
-                        <div class="list__when" style="text-align: right; flex-shrink: 0;">
-                            @if (c.Scadenza.HasValue)
+                        <div style="text-align: right; flex-shrink: 0; min-width: 110px;">
+                            @if (riga.Scadenza.HasValue)
                             {
-                                <strong style="color: @c.ColoreBordo;">scade @c.Scadenza.Value.ToString("dd/MM/yy")</strong>
+                                <strong style="color: @riga.Bordo; display:block;">scade @riga.Scadenza.Value.ToString("dd/MM/yy")</strong>
                             }
-                            else if (c.Stato == ComplianceStato.NonRegistrato)
+                            else if (riga.Stato == ComplianceStato.NonRegistrato)
                             {
-                                <span class="muted">da registrare</span>
+                                <span class="muted" style="display:block;">da registrare</span>
                             }
                             else
                             {
-                                <span class="muted">no scadenza</span>
+                                <span class="muted" style="display:block;">no scadenza</span>
                             }
                         </div>
+                        <button type="button" class="btn btn--ghost btn--sm" data-checklist-add @Html.Raw(dataAttrs) title="@azioneLabel">@azioneLabel</button>
                     </li>
                 }
             </ul>
         </div>
 
-        <p class="muted" style="font-size:.82rem; margin-top: var(--s-3);">
-            💡 Le scadenze sono gestite dal modulo <a asp-controller="Rls" asp-action="Index">RLS / Sicurezza</a> per visite mediche e corsi.
-            Lo scadenziario unificato è in <a asp-controller="Scadenziario" asp-action="Index">📅 Scadenziario</a>.
-        </p>
+        <!-- Dialog: registra visita medica -->
+        <dialog id="dlg-visita" style="border:0; border-radius: 12px; padding: 0; max-width: 480px; box-shadow: 0 20px 60px rgba(0,0,0,0.18);">
+            <form asp-action="RegistraVisitaMedica" asp-route-id="@d.Id" method="post" enctype="multipart/form-data" style="padding: var(--s-4);">
+                @Html.AntiForgeryToken()
+                <h3 style="margin: 0 0 var(--s-3);">🩺 Registra visita medica</h3>
+                <div class="form-grid">
+                    <div class="form-group">
+                        <label class="form-label">Data visita *</label>
+                        <input class="form-control" type="date" name="data" required value="@oggi.ToString("yyyy-MM-dd")" />
+                    </div>
+                    <div class="form-group">
+                        <label class="form-label">Esito *</label>
+                        <select class="form-control" name="esito" required>
+                            @foreach (var e in Enum.GetValues<EsitoVisita>())
+                            {
+                                <option value="@e">@e</option>
+                            }
+                        </select>
+                    </div>
+                    <div class="form-group">
+                        <label class="form-label">Periodicità (mesi)</label>
+                        <input class="form-control" type="number" min="1" max="120" name="mesiPeriodicita" id="dlg-visita-mesi" />
+                        <span class="muted" style="font-size:.78rem;">Default: @VisitaMedica.PeriodicitaDefault(d.Ruolo) mesi (per @d.Ruolo)</span>
+                    </div>
+                    <div class="form-group">
+                        <label class="form-label">Scadenza idoneità (opzionale)</label>
+                        <input class="form-control" type="date" name="scadenza" />
+                        <span class="muted" style="font-size:.78rem;">Se vuota: data + periodicità</span>
+                    </div>
+                    <div class="form-group full">
+                        <label class="form-label">Allegato (PDF/JPG/PNG, max 10MB)</label>
+                        <input class="form-control" type="file" name="allegato" accept=".pdf,.png,.jpg,.jpeg" />
+                    </div>
+                    <div class="form-group full">
+                        <label class="form-label">Note</label>
+                        <textarea class="form-control" name="note" rows="2"></textarea>
+                    </div>
+                </div>
+                <div style="display:flex; gap:8px; justify-content:flex-end; margin-top: var(--s-3);">
+                    <button type="button" class="btn btn--ghost" data-close-dlg>Annulla</button>
+                    <button type="submit" class="btn btn--primary">Salva visita</button>
+                </div>
+            </form>
+        </dialog>
+
+        <!-- Dialog: registra corso -->
+        <dialog id="dlg-corso" style="border:0; border-radius: 12px; padding: 0; max-width: 480px; box-shadow: 0 20px 60px rgba(0,0,0,0.18);">
+            <form asp-action="RegistraCorso" asp-route-id="@d.Id" method="post" enctype="multipart/form-data" style="padding: var(--s-4);">
+                @Html.AntiForgeryToken()
+                <h3 style="margin: 0 0 var(--s-3);">📚 Registra corso</h3>
+                <p class="muted" id="dlg-corso-label" style="margin-top: -8px; margin-bottom: var(--s-3); font-size:.85rem;"></p>
+                <input type="hidden" name="tipo" id="dlg-corso-tipo" />
+                <div class="form-grid">
+                    <div class="form-group">
+                        <label class="form-label">Data conseguimento *</label>
+                        <input class="form-control" type="date" name="dataConseguimento" id="dlg-corso-data" required value="@oggi.ToString("yyyy-MM-dd")" />
+                    </div>
+                    <div class="form-group">
+                        <label class="form-label">Scadenza</label>
+                        <input class="form-control" type="date" name="scadenza" id="dlg-corso-scadenza" />
+                        <span class="muted" style="font-size:.78rem;" id="dlg-corso-scad-hint"></span>
+                    </div>
+                    <div class="form-group full" id="dlg-corso-verbale-wrap" style="display:none;">
+                        <label class="form-label">Verbale di nomina (RLS)</label>
+                        <input class="form-control" type="text" name="verbaleNomina" placeholder="es. Verbale 2025/04 del 12/03/2025" />
+                    </div>
+                    <div class="form-group full">
+                        <label class="form-label">Attestato (PDF/JPG/PNG, max 10MB)</label>
+                        <input class="form-control" type="file" name="allegato" accept=".pdf,.png,.jpg,.jpeg" />
+                    </div>
+                    <div class="form-group full">
+                        <label class="form-label">Note</label>
+                        <textarea class="form-control" name="note" rows="2"></textarea>
+                    </div>
+                </div>
+                <div style="display:flex; gap:8px; justify-content:flex-end; margin-top: var(--s-3);">
+                    <button type="button" class="btn btn--ghost" data-close-dlg>Annulla</button>
+                    <button type="submit" class="btn btn--primary">Salva corso</button>
+                </div>
+            </form>
+        </dialog>
+
+        @section Scripts {
+        <script>
+            (function () {
+                var dlgV = document.getElementById('dlg-visita');
+                var dlgC = document.getElementById('dlg-corso');
+                var dlgVMesi = document.getElementById('dlg-visita-mesi');
+                var dlgCTipo = document.getElementById('dlg-corso-tipo');
+                var dlgCLabel = document.getElementById('dlg-corso-label');
+                var dlgCData = document.getElementById('dlg-corso-data');
+                var dlgCScad = document.getElementById('dlg-corso-scadenza');
+                var dlgCScadHint = document.getElementById('dlg-corso-scad-hint');
+                var dlgCVerbaleWrap = document.getElementById('dlg-corso-verbale-wrap');
+
+                function autoScadenza(mesi) {
+                    if (!mesi || mesi <= 0) { dlgCScad.value = ''; dlgCScadHint.textContent = 'Una tantum: nessuna scadenza'; return; }
+                    var d = new Date(dlgCData.value || Date.now());
+                    d.setMonth(d.getMonth() + parseInt(mesi, 10));
+                    dlgCScad.value = d.toISOString().slice(0, 10);
+                    dlgCScadHint.textContent = '+' + mesi + ' mesi dalla data di conseguimento (modificabile)';
+                }
+                dlgCData.addEventListener('change', function () {
+                    var m = parseInt(dlgCScadHint.dataset.mesi || '0', 10);
+                    if (m > 0) autoScadenza(m);
+                });
+
+                document.querySelectorAll('[data-checklist-add]').forEach(function (btn) {
+                    btn.addEventListener('click', function () {
+                        var tipo = btn.dataset.tipo;
+                        if (tipo === 'visita') {
+                            dlgVMesi.value = '';
+                            dlgV.showModal();
+                        } else if (tipo === 'corso') {
+                            dlgCTipo.value = btn.dataset.corso;
+                            dlgCLabel.textContent = btn.dataset.label;
+                            dlgCVerbaleWrap.style.display = (btn.dataset.corso === 'RLS') ? 'block' : 'none';
+                            var mesi = parseInt(btn.dataset.mesi || '0', 10);
+                            dlgCScadHint.dataset.mesi = mesi;
+                            autoScadenza(mesi);
+                            dlgC.showModal();
+                        }
+                    });
+                });
+                document.querySelectorAll('[data-close-dlg]').forEach(function (b) {
+                    b.addEventListener('click', function () { b.closest('dialog').close(); });
+                });
+            })();
+        </script>
+        }
     }
     else if (tab == "distacchi")
     {

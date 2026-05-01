@@ -2,6 +2,7 @@ using Chipdent.Web.Domain.Entities;
 using Chipdent.Web.Infrastructure.Audit;
 using Chipdent.Web.Infrastructure.Identity;
 using Chipdent.Web.Infrastructure.Mongo;
+using Chipdent.Web.Infrastructure.Storage;
 using Chipdent.Web.Infrastructure.Tenancy;
 using Chipdent.Web.Models;
 using Microsoft.AspNetCore.Authorization;
@@ -14,15 +15,21 @@ namespace Chipdent.Web.Controllers;
 [Route("dipendenti")]
 public class DipendentiController : Controller
 {
+    private const long MaxAllegatoBytes = 10 * 1024 * 1024;
+    private static readonly HashSet<string> AllegatoEstensioniAmmesse = new(StringComparer.OrdinalIgnoreCase)
+        { ".pdf", ".png", ".jpg", ".jpeg" };
+
     private readonly MongoContext _mongo;
     private readonly ITenantContext _tenant;
     private readonly IAuditService _audit;
+    private readonly IFileStorage _storage;
 
-    public DipendentiController(MongoContext mongo, ITenantContext tenant, IAuditService audit)
+    public DipendentiController(MongoContext mongo, ITenantContext tenant, IAuditService audit, IFileStorage storage)
     {
         _mongo = mongo;
         _tenant = tenant;
         _audit = audit;
+        _storage = storage;
     }
 
     [HttpGet("")]
@@ -142,6 +149,102 @@ public class DipendentiController : Controller
         await _mongo.Distacchi.DeleteOneAsync(d => d.Id == distaccoId && d.TenantId == _tenant.TenantId && d.DipendenteId == id);
         TempData["flash"] = "Distacco rimosso.";
         return RedirectToAction(nameof(Details), new { id, tab = "distacchi" });
+    }
+
+    // ─────────────────────────────────────────────────────────────
+    //  COMPLIANCE: registra visite mediche e corsi dal profilo
+    //  (anziché passare per il modulo RLS)
+    // ─────────────────────────────────────────────────────────────
+    [HttpPost("{id}/visita-medica")]
+    [Authorize(Policy = Policies.RequireBackoffice)]
+    [ValidateAntiForgeryToken]
+    [RequestSizeLimit(MaxAllegatoBytes)]
+    public async Task<IActionResult> RegistraVisitaMedica(string id, DateTime data, EsitoVisita esito,
+        DateTime? scadenza, int? mesiPeriodicita, string? note, IFormFile? allegato)
+    {
+        var dip = await Load(id);
+        if (dip is null) return NotFound();
+
+        var periodicita = mesiPeriodicita ?? VisitaMedica.PeriodicitaDefault(dip.Ruolo);
+        var scadenzaCalc = scadenza ?? data.AddMonths(periodicita);
+
+        var visita = new VisitaMedica
+        {
+            TenantId = _tenant.TenantId!,
+            DipendenteId = id,
+            Data = DateTime.SpecifyKind(data.Date, DateTimeKind.Utc),
+            Esito = esito,
+            ScadenzaIdoneita = DateTime.SpecifyKind(scadenzaCalc.Date, DateTimeKind.Utc),
+            MesiPeriodicita = periodicita,
+            Note = note
+        };
+
+        if (allegato is { Length: > 0 })
+        {
+            var err = await TryAttachAsync(allegato, "visite",
+                (path, name, size) => { visita.AllegatoNome = name; visita.AllegatoPath = path; visita.AllegatoSize = size; });
+            if (err is not null)
+            {
+                TempData["flash"] = err;
+                return RedirectToAction(nameof(Details), new { id, tab = "compliance" });
+            }
+        }
+
+        await _mongo.VisiteMediche.InsertOneAsync(visita);
+        await _audit.LogAsync("Dipendente", id, dip.NomeCompleto, AuditAction.Updated, actor: User);
+        TempData["flash"] = "Visita medica registrata.";
+        return RedirectToAction(nameof(Details), new { id, tab = "compliance" });
+    }
+
+    [HttpPost("{id}/corso")]
+    [Authorize(Policy = Policies.RequireBackoffice)]
+    [ValidateAntiForgeryToken]
+    [RequestSizeLimit(MaxAllegatoBytes)]
+    public async Task<IActionResult> RegistraCorso(string id, TipoCorso tipo, DateTime dataConseguimento,
+        DateTime? scadenza, string? verbaleNomina, string? note, IFormFile? allegato)
+    {
+        var dip = await Load(id);
+        if (dip is null) return NotFound();
+
+        var corso = new Corso
+        {
+            TenantId = _tenant.TenantId!,
+            DestinatarioId = id,
+            DestinatarioTipo = DestinatarioCorso.Dipendente,
+            Tipo = tipo,
+            DataConseguimento = DateTime.SpecifyKind(dataConseguimento.Date, DateTimeKind.Utc),
+            Scadenza = scadenza.HasValue ? DateTime.SpecifyKind(scadenza.Value.Date, DateTimeKind.Utc) : null,
+            VerbaleNomina = verbaleNomina,
+            Note = note
+        };
+
+        if (allegato is { Length: > 0 })
+        {
+            var err = await TryAttachAsync(allegato, "corsi",
+                (path, name, size) => { corso.AttestatoNome = name; corso.AttestatoPath = path; corso.AttestatoSize = size; });
+            if (err is not null)
+            {
+                TempData["flash"] = err;
+                return RedirectToAction(nameof(Details), new { id, tab = "compliance" });
+            }
+        }
+
+        await _mongo.Corsi.InsertOneAsync(corso);
+        await _audit.LogAsync("Dipendente", id, dip.NomeCompleto, AuditAction.Updated, actor: User);
+        TempData["flash"] = $"Corso «{tipo}» registrato.";
+        return RedirectToAction(nameof(Details), new { id, tab = "compliance" });
+    }
+
+    private async Task<string?> TryAttachAsync(IFormFile file, string folder, Action<string, string, long> apply)
+    {
+        if (file.Length > MaxAllegatoBytes) return $"File troppo grande (max {MaxAllegatoBytes / (1024 * 1024)}MB).";
+        var ext = Path.GetExtension(file.FileName).ToLowerInvariant();
+        if (!AllegatoEstensioniAmmesse.Contains(ext)) return $"Estensione non consentita: {ext}";
+
+        await using var stream = file.OpenReadStream();
+        var stored = await _storage.SaveAsync(_tenant.TenantId!, folder, file.FileName, stream, file.ContentType);
+        apply(stored.RelativePath, file.FileName, stored.SizeBytes);
+        return null;
     }
 
     [HttpGet("nuovo")]
