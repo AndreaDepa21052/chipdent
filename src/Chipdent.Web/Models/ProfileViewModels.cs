@@ -11,6 +11,19 @@ public class DottoreProfileViewModel
     public IReadOnlyList<AuditEntry> Audit { get; set; } = Array.Empty<AuditEntry>();
     public IReadOnlyList<Clinica> Cliniche { get; set; } = Array.Empty<Clinica>();
     public string Tab { get; set; } = "anagrafica";
+
+    /// <summary>Riepilogo Tesoreria del fornitore-ombra collegato al dottore. Null se non presente.</summary>
+    public DottoreTesoreriaSnapshot? Tesoreria { get; set; }
+}
+
+public class DottoreTesoreriaSnapshot
+{
+    public string FornitoreId { get; set; } = string.Empty;
+    public decimal EspostoAperto { get; set; }
+    public decimal FatturatoYTD { get; set; }
+    public int FattureInApprovazione { get; set; }
+    public int ScadenzeAperte { get; set; }
+    public int ScadenzeScadute { get; set; }
 }
 
 public class DipendenteProfileViewModel

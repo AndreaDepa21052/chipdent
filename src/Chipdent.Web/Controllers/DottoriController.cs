@@ -64,6 +64,37 @@ public class DottoriController : Controller
             .Limit(50)
             .ToListAsync();
 
+        // Snapshot Tesoreria: se il dottore ha un Fornitore-ombra (collaborazione/lib. prof.)
+        // mostriamo un mini-riepilogo + link rapido alla scheda Tesoreria.
+        DottoreTesoreriaSnapshot? tesoreria = null;
+        var fornitoreOmbra = await _mongo.Fornitori
+            .Find(f => f.TenantId == _tenant.TenantId && f.DottoreId == id)
+            .FirstOrDefaultAsync();
+        if (fornitoreOmbra is not null)
+        {
+            var oggi = DateTime.UtcNow.Date;
+            var anno = oggi.Year;
+            var scadenze = await _mongo.ScadenzePagamento
+                .Find(s => s.TenantId == _tenant.TenantId && s.FornitoreId == fornitoreOmbra.Id)
+                .ToListAsync();
+            var fattureAnno = await _mongo.Fatture
+                .Find(f => f.TenantId == _tenant.TenantId && f.FornitoreId == fornitoreOmbra.Id && f.DataEmissione.Year == anno)
+                .ToListAsync();
+
+            var aperte = scadenze.Where(s =>
+                s.Stato == StatoScadenza.DaPagare || s.Stato == StatoScadenza.Programmato).ToList();
+
+            tesoreria = new DottoreTesoreriaSnapshot
+            {
+                FornitoreId = fornitoreOmbra.Id,
+                EspostoAperto = aperte.Sum(s => s.Importo),
+                FatturatoYTD = fattureAnno.Where(f => f.Stato != StatoFattura.Rifiutata).Sum(f => f.Totale),
+                FattureInApprovazione = fattureAnno.Count(f => f.Stato == StatoFattura.Caricata),
+                ScadenzeAperte = aperte.Count,
+                ScadenzeScadute = aperte.Count(s => s.Stato == StatoScadenza.DaPagare && s.DataScadenza < oggi)
+            };
+        }
+
         ViewData["Section"] = "dottori";
         return View("Profile", new DottoreProfileViewModel
         {
@@ -72,7 +103,8 @@ public class DottoriController : Controller
             Storico = storico,
             Audit = audit,
             Cliniche = cliniche,
-            Tab = tab
+            Tab = tab,
+            Tesoreria = tesoreria
         });
     }
 

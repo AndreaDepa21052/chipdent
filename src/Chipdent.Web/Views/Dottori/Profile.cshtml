@@ -45,6 +45,13 @@
                 {
                     <span class="badge badge--warning"><span class="dot"></span>albo in scadenza</span>
                 }
+                @if (Model.Tesoreria is not null)
+                {
+                    <a class="badge" href="/tesoreria/fornitori/@Model.Tesoreria.FornitoreId" title="Apri scheda fornitore in Tesoreria"
+                       style="background: rgba(122,92,154,0.10); color: #5b3a82; border-color: rgba(122,92,154,0.35); text-decoration:none;">
+                        🧾 Fornitore Tesoreria →
+                    </a>
+                }
             </div>
         </div>
         <div class="profile__actions">
@@ -77,6 +84,43 @@
 
     @if (tab == "anagrafica")
     {
+        @if (Model.Tesoreria is not null)
+        {
+            var t = Model.Tesoreria;
+            var it = new System.Globalization.CultureInfo("it-IT");
+            <div class="card" style="margin-bottom: var(--s-4); border-left: 3px solid #5b3a82;">
+                <div class="card__header" style="display:flex; justify-content:space-between; align-items:center;">
+                    <h3 class="card__title">🧾 Pagamenti (Tesoreria)</h3>
+                    <a class="btn btn--ghost btn--sm" href="/tesoreria/fornitori/@t.FornitoreId">Apri scheda fornitore →</a>
+                </div>
+                <div style="display:grid; grid-template-columns: repeat(5, 1fr); gap: var(--s-3); padding: var(--s-3) 0;">
+                    <div>
+                        <div class="muted" style="font-size:.75rem;">Esposto aperto</div>
+                        <div style="font-size: 1.3rem; font-weight: 600;">@t.EspostoAperto.ToString("N2", it) €</div>
+                    </div>
+                    <div>
+                        <div class="muted" style="font-size:.75rem;">Fatturato @DateTime.UtcNow.Year</div>
+                        <div style="font-size: 1.3rem; font-weight: 600;">@t.FatturatoYTD.ToString("N2", it) €</div>
+                    </div>
+                    <div>
+                        <div class="muted" style="font-size:.75rem;">Scadenze aperte</div>
+                        <div style="font-size: 1.3rem; font-weight: 600;">@t.ScadenzeAperte</div>
+                    </div>
+                    <div>
+                        <div class="muted" style="font-size:.75rem;">⚠ Scadute</div>
+                        <div style="font-size: 1.3rem; font-weight: 600; color: @(t.ScadenzeScadute > 0 ? "#a83a3a" : "inherit");">@t.ScadenzeScadute</div>
+                    </div>
+                    <div>
+                        <div class="muted" style="font-size:.75rem;">In approvazione</div>
+                        <div style="font-size: 1.3rem; font-weight: 600;">@t.FattureInApprovazione</div>
+                    </div>
+                </div>
+                <div class="muted" style="font-size:.78rem; padding-top: 8px; border-top: 1px solid var(--c-border, #ece0cc);">
+                    Questo dottore ha un profilo Fornitore collegato che riceve pagamenti via Tesoreria. I dati fiscali sono sincronizzati automaticamente dalla scheda Dottore.
+                </div>
+            </div>
+        }
+
         <div class="profile__grid">
             <div class="card">
                 <div class="card__header"><h3 class="card__title">Identità</h3></div>
