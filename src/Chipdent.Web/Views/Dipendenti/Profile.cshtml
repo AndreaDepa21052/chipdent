@@ -317,7 +317,7 @@
             </div>
         </div>
 
-        <div class="card" style="padding: 0;">
+        <div class="card" style="padding: 0; max-width: 980px;">
             <div class="card__header" style="padding: var(--s-3);">
                 <h3 class="card__title">Checklist compliance</h3>
                 <span class="muted" style="font-size:.85rem;">Visite mediche, formazione obbligatoria, sicurezza</span>
@@ -325,11 +325,11 @@
             <ul class="list" style="margin: 0;">
                 @foreach (var c in checklist)
                 {
-                    <li class="list__item" style="border-left: 3px solid @c.ColoreBordo;">
-                        <div class="list__icon" style="font-size: 1.1rem;">@c.Icona</div>
-                        <div>
-                            <div class="list__title"><strong>@c.Etichetta</strong></div>
-                            <div class="muted" style="font-size:.78rem;">
+                    <li class="list__item" style="padding: var(--s-3) var(--s-4); border-left: 3px solid @c.ColoreBordo; gap: var(--s-3);">
+                        <div class="list__icon" style="font-size: 1.05rem; background: transparent; border: 0; width: 28px; height: 28px;">@c.Icona</div>
+                        <div style="flex: 1; min-width: 0;">
+                            <div class="list__title" style="line-height: 1.2;">@c.Etichetta</div>
+                            <div class="muted" style="font-size:.78rem; margin-top: 2px;">
                                 @if (c.DataUltima.HasValue)
                                 {
                                     <text>Ultima: @c.DataUltima.Value.ToString("dd/MM/yyyy")</text>
@@ -344,14 +344,14 @@
                                 }
                             </div>
                         </div>
-                        <div class="list__when">
+                        <div class="list__when" style="text-align: right; flex-shrink: 0;">
                             @if (c.Scadenza.HasValue)
                             {
-                                <strong>scade @c.Scadenza.Value.ToString("dd/MM/yy")</strong>
+                                <strong style="color: @c.ColoreBordo;">scade @c.Scadenza.Value.ToString("dd/MM/yy")</strong>
                             }
                             else if (c.Stato == ComplianceStato.NonRegistrato)
                             {
-                                <span class="muted">—</span>
+                                <span class="muted">da registrare</span>
                             }
                             else
                             {
