@@ -61,6 +61,8 @@
         ["predizioni"]     = ("Predizione assenze", "Predizioni"),
         ["scadenziario"]   = ("Scadenziario", "Scadenziario"),
         ["tesoreria"]      = ("Tesoreria", "Tesoreria"),
+        ["tesoreria-distinte"] = ("Distinte SEPA", "Tesoreria"),
+        ["fornitori"]      = ("Fornitori", "Tesoreria"),
         ["operations"]     = ("Operations", "Operations"),
         ["feedback"]       = ("Feedback pazienti", "Feedback"),
         ["whistleblowing"] = ("Whistleblowing", "Whistleblowing"),
@@ -226,6 +228,13 @@
                             <svg class="nav__icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="9" cy="8" r="4"/><path d="M2 21a7 7 0 0 1 14 0"/><circle cx="17" cy="9" r="3"/><path d="M22 20a5 5 0 0 0-5-5"/></svg>
                             Dipendenti
                         </a>
+                        @if (User.IsOwner() || User.IsManagement() || User.IsBackoffice())
+                        {
+                            <a class="nav__item @(section == "fornitori" ? "is-active" : "")" asp-controller="Tesoreria" asp-action="Fornitori">
+                                <svg class="nav__icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 21V8l9-5 9 5v13"/><path d="M9 21v-7h6v7"/><path d="M3 21h18"/></svg>
+                                Fornitori
+                            </a>
+                        }
                         <a class="nav__item @(section == "contratti" ? "is-active" : "")" asp-controller="Contratti" asp-action="Index">
                             <svg class="nav__icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><path d="M14 2v6h6"/><path d="M9 13h6M9 17h4"/></svg>
                             Contratti
@@ -285,11 +294,7 @@
                                 <svg class="nav__icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="12" y1="1" x2="12" y2="23"/><path d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/></svg>
                                 💰 Scadenziario
                             </a>
-                            <a class="nav__item @(section == "tesoreria" && (Context.Request.Path.Value?.Contains("/fornitori") ?? false) ? "is-active" : "")" asp-controller="Tesoreria" asp-action="Fornitori">
-                                <svg class="nav__icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>
-                                Fornitori
-                            </a>
-                            <a class="nav__item @(section == "tesoreria" && (Context.Request.Path.Value?.Contains("/distinte") ?? false) ? "is-active" : "")" asp-controller="Tesoreria" asp-action="Distinte">
+                            <a class="nav__item @(section == "tesoreria-distinte" ? "is-active" : "")" asp-controller="Tesoreria" asp-action="Distinte">
                                 <svg class="nav__icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><path d="M14 2v6h6"/></svg>
                                 Distinte SEPA
                             </a>

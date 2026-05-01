@@ -486,14 +486,14 @@ public class TesoreriaController : Controller
             FatturePeriodoCorrente = fattureAnno.Count(x => x.FornitoreId == f.Id)
         }).ToList();
 
-        ViewData["Section"] = "tesoreria";
+        ViewData["Section"] = "fornitori";
         return View(new FornitoriIndexViewModel { Fornitori = rows });
     }
 
     [HttpGet("fornitori/nuovo")]
     public IActionResult NuovoFornitore()
     {
-        ViewData["Section"] = "tesoreria";
+        ViewData["Section"] = "fornitori";
         return View("FornitoreForm", new FornitoreFormViewModel());
     }
 
@@ -503,7 +503,7 @@ public class TesoreriaController : Controller
     {
         if (!ModelState.IsValid)
         {
-            ViewData["Section"] = "tesoreria";
+            ViewData["Section"] = "fornitori";
             return View("FornitoreForm", vm);
         }
 
@@ -543,7 +543,7 @@ public class TesoreriaController : Controller
         if (f is null) return NotFound();
         var hasUser = await _mongo.Users.Find(u => u.TenantId == _tenant.TenantId
             && u.Role == UserRole.Fornitore && u.LinkedPersonId == f.Id).AnyAsync();
-        ViewData["Section"] = "tesoreria";
+        ViewData["Section"] = "fornitori";
         return View("FornitoreForm", new FornitoreFormViewModel
         {
             Id = f.Id,
@@ -574,7 +574,7 @@ public class TesoreriaController : Controller
         if (f is null) return NotFound();
         if (!ModelState.IsValid)
         {
-            ViewData["Section"] = "tesoreria";
+            ViewData["Section"] = "fornitori";
             return View("FornitoreForm", vm);
         }
 
@@ -670,7 +670,7 @@ public class TesoreriaController : Controller
     {
         var distinte = await _mongo.DistinteSepa.Find(d => d.TenantId == _tenant.TenantId)
             .SortByDescending(d => d.CreatedAt).Limit(100).ToListAsync();
-        ViewData["Section"] = "tesoreria";
+        ViewData["Section"] = "tesoreria-distinte";
         return View(new DistinteIndexViewModel { Distinte = distinte });
     }
 
