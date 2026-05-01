@@ -83,6 +83,25 @@
             </div>
         </div>
 
+        <fieldset style="margin-top: var(--s-4); padding: var(--s-3); border: 1px solid var(--c-border, #ece0cc); border-radius: 8px;">
+            <legend style="padding: 0 8px; font-size: .85rem; color: var(--c-ink-soft);">🏦 Dati bancari ordinante (Tesoreria)</legend>
+            <p class="muted" style="font-size:.85rem; margin: 0 0 8px;">Se compilati, i bonifici a fornitori di questa sede partiranno da questo IBAN. Lasciandoli vuoti si userà l'IBAN del workspace.</p>
+            <div class="form-grid">
+                <div class="form-group full">
+                    <label class="form-label" asp-for="RagioneSocialeOrdinante">Ragione sociale ordinante</label>
+                    <input class="form-control" asp-for="RagioneSocialeOrdinante" placeholder="Es. Confident Milano S.r.l." maxlength="70" />
+                </div>
+                <div class="form-group">
+                    <label class="form-label" asp-for="IbanOrdinante">IBAN ordinante</label>
+                    <input class="form-control" asp-for="IbanOrdinante" placeholder="IT…" style="font-family: monospace;" />
+                </div>
+                <div class="form-group">
+                    <label class="form-label" asp-for="BicOrdinante">BIC / SWIFT</label>
+                    <input class="form-control" asp-for="BicOrdinante" placeholder="UNCRITMM" maxlength="11" style="font-family: monospace;" />
+                </div>
+            </div>
+        </fieldset>
+
         <div class="form-actions">
             <a class="btn btn--ghost" asp-action="Index">Annulla</a>
             <button type="submit" class="btn btn--primary">@(isNew ? "Crea clinica" : "Salva modifiche")</button>

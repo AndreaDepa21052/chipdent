@@ -1,12 +1,13 @@
 using Chipdent.Web.Domain.Entities;
 using Chipdent.Web.Infrastructure.Identity;
+using Chipdent.Web.Infrastructure.Sepa;
 using MongoDB.Driver;
 
 namespace Chipdent.Web.Infrastructure.Mongo;
 
 public static class MongoSeeder
 {
-    public static async Task SeedAsync(MongoContext ctx, IPasswordHasher hasher, ILogger logger, CancellationToken ct = default)
+    public static async Task SeedAsync(MongoContext ctx, IPasswordHasher hasher, FornitoreOmbraService ombraService, ILogger logger, CancellationToken ct = default)
     {
         try
         {
@@ -52,8 +53,8 @@ public static class MongoSeeder
             {
                 cliniche = new()
                 {
-                    new Clinica { TenantId = tenant.Id, Nome = "Confident Milano Centro", Citta = "Milano", Indirizzo = "Via Dante 12", Telefono = "+39 02 1234567", Email = "milano@confident.it", NumeroRiuniti = 6, Stato = ClinicaStato.Operativa, Latitudine = 45.4654, Longitudine = 9.1859 },
-                    new Clinica { TenantId = tenant.Id, Nome = "Confident Roma EUR", Citta = "Roma", Indirizzo = "Viale Europa 88", Telefono = "+39 06 9876543", Email = "roma@confident.it", NumeroRiuniti = 8, Stato = ClinicaStato.Operativa, Latitudine = 41.8338, Longitudine = 12.4691 },
+                    new Clinica { TenantId = tenant.Id, Nome = "Confident Milano Centro", Citta = "Milano", Indirizzo = "Via Dante 12", Telefono = "+39 02 1234567", Email = "milano@confident.it", NumeroRiuniti = 6, Stato = ClinicaStato.Operativa, Latitudine = 45.4654, Longitudine = 9.1859, IbanOrdinante = "IT45R0306901604100000123456", BicOrdinante = "BCITITMM", RagioneSocialeOrdinante = "Confident Milano S.r.l." },
+                    new Clinica { TenantId = tenant.Id, Nome = "Confident Roma EUR", Citta = "Roma", Indirizzo = "Viale Europa 88", Telefono = "+39 06 9876543", Email = "roma@confident.it", NumeroRiuniti = 8, Stato = ClinicaStato.Operativa, Latitudine = 41.8338, Longitudine = 12.4691, IbanOrdinante = "IT78W0306905020100000654321", BicOrdinante = "BCITITMM", RagioneSocialeOrdinante = "Confident Roma S.r.l." },
                     new Clinica { TenantId = tenant.Id, Nome = "Confident Torino", Citta = "Torino", Indirizzo = "Corso Vittorio 5", Telefono = "+39 011 5556677", Email = "torino@confident.it", NumeroRiuniti = 4, Stato = ClinicaStato.InApertura, Latitudine = 45.0703, Longitudine = 7.6869 }
                 };
                 await ctx.Cliniche.InsertManyAsync(cliniche, cancellationToken: ct);
@@ -217,6 +218,13 @@ public static class MongoSeeder
 
             await SeedHistoricalAiDataAsync(ctx, tenant, logger, ct);
             await SeedTesoreriaAsync(ctx, hasher, tenant, cliniche, logger, ct);
+
+            // Crea/aggiorna fornitori-ombra per i dottori (collaborazione/libero professionista)
+            var ombraCreati = await ombraService.SyncTenantAsync(tenant.Id, ct);
+            if (ombraCreati > 0)
+            {
+                logger.LogInformation("Sincronizzati {Count} fornitori-ombra dei dottori", ombraCreati);
+            }
         }
         catch (Exception ex)
         {
@@ -238,13 +246,13 @@ public static class MongoSeeder
 
         var fornitori = new[]
         {
-            new Fornitore { TenantId = tenant.Id, RagioneSociale = "LERETI spa",                    PartitaIva = "01234567890", EmailContatto = "lereti@demo.it",  Iban = "IT42G0569610901000009101X54", CategoriaDefault = CategoriaSpesa.Acqua,            Stato = StatoFornitore.Attivo },
-            new Fornitore { TenantId = tenant.Id, RagioneSociale = "EniMoov S.p.A.",                PartitaIva = "09876543210", EmailContatto = "fatt@enimoov.it", Iban = "IT11A0123412345000000099999",  CategoriaDefault = CategoriaSpesa.Trasporti,        Stato = StatoFornitore.Attivo },
-            new Fornitore { TenantId = tenant.Id, RagioneSociale = "Lyreco Italia srl",             PartitaIva = "11122233344", EmailContatto = "ufficio@lyreco.it",Iban = "IT88B0306904012000000123456",  CategoriaDefault = CategoriaSpesa.Cancelleria,      Stato = StatoFornitore.Attivo },
-            new Fornitore { TenantId = tenant.Id, RagioneSociale = "Q-Print srl",                   PartitaIva = "44455566677", EmailContatto = "info@qprint.it",  Iban = "IT98Y0503450112000000001360",  CategoriaDefault = CategoriaSpesa.AltreSpeseFisse, Stato = StatoFornitore.Attivo },
-            new Fornitore { TenantId = tenant.Id, RagioneSociale = "CVZ Antincendi S.A.S.",         PartitaIva = "55566677788", EmailContatto = "info@cvzantinc.it",Iban = "IT54S0306922800100000069338",  CategoriaDefault = CategoriaSpesa.Manutenzione,    Stato = StatoFornitore.Attivo },
-            new Fornitore { TenantId = tenant.Id, RagioneSociale = "Sapia Pratesi & Partners srl",  PartitaIva = "22233344455", EmailContatto = "studio@sapia.it", Iban = "IT22T0103412345000000088888",  CategoriaDefault = CategoriaSpesa.Consulenze,      Stato = StatoFornitore.Attivo },
-            new Fornitore { TenantId = tenant.Id, RagioneSociale = "Plastigomma s.r.l.",            PartitaIva = "33344455566", EmailContatto = "info@plastigomma.it", Iban = "IT44U0306904012000000099111", CategoriaDefault = CategoriaSpesa.MaterialiClinici, Stato = StatoFornitore.Attivo }
+            new Fornitore { TenantId = tenant.Id, RagioneSociale = "LERETI spa",                    PartitaIva = "01234567890", EmailContatto = "lereti@demo.it",  Iban = "IT42G0569610901000009101X54", CategoriaDefault = CategoriaSpesa.Acqua,            Stato = StatoFornitore.Attivo, TerminiPagamentoGiorni = 30, BasePagamento = BasePagamento.FineMeseFattura },
+            new Fornitore { TenantId = tenant.Id, RagioneSociale = "EniMoov S.p.A.",                PartitaIva = "09876543210", EmailContatto = "fatt@enimoov.it", Iban = "IT11A0123412345000000099999",  CategoriaDefault = CategoriaSpesa.Trasporti,        Stato = StatoFornitore.Attivo, TerminiPagamentoGiorni = 30, BasePagamento = BasePagamento.DataFattura },
+            new Fornitore { TenantId = tenant.Id, RagioneSociale = "Lyreco Italia srl",             PartitaIva = "11122233344", EmailContatto = "ufficio@lyreco.it",Iban = "IT88B0306904012000000123456",  CategoriaDefault = CategoriaSpesa.Cancelleria,      Stato = StatoFornitore.Attivo, TerminiPagamentoGiorni = 60, BasePagamento = BasePagamento.FineMeseSuccessivo },
+            new Fornitore { TenantId = tenant.Id, RagioneSociale = "Q-Print srl",                   PartitaIva = "44455566677", EmailContatto = "info@qprint.it",  Iban = "IT98Y0503450112000000001360",  CategoriaDefault = CategoriaSpesa.AltreSpeseFisse, Stato = StatoFornitore.Attivo, TerminiPagamentoGiorni = 30, BasePagamento = BasePagamento.DataFattura },
+            new Fornitore { TenantId = tenant.Id, RagioneSociale = "CVZ Antincendi S.A.S.",         PartitaIva = "55566677788", EmailContatto = "info@cvzantinc.it",Iban = "IT54S0306922800100000069338",  CategoriaDefault = CategoriaSpesa.Manutenzione,    Stato = StatoFornitore.Attivo, TerminiPagamentoGiorni = 30, BasePagamento = BasePagamento.FineMeseFattura },
+            new Fornitore { TenantId = tenant.Id, RagioneSociale = "Sapia Pratesi & Partners srl",  PartitaIva = "22233344455", EmailContatto = "studio@sapia.it", Iban = "IT22T0103412345000000088888",  CategoriaDefault = CategoriaSpesa.Consulenze,      Stato = StatoFornitore.Attivo, TerminiPagamentoGiorni = 30, BasePagamento = BasePagamento.FineMeseFattura },
+            new Fornitore { TenantId = tenant.Id, RagioneSociale = "Plastigomma s.r.l.",            PartitaIva = "33344455566", EmailContatto = "info@plastigomma.it", Iban = "IT44U0306904012000000099111", CategoriaDefault = CategoriaSpesa.MaterialiClinici, Stato = StatoFornitore.Attivo, TerminiPagamentoGiorni = 30, BasePagamento = BasePagamento.DataFattura }
         };
         await ctx.Fornitori.InsertManyAsync(fornitori, cancellationToken: ct);
         logger.LogInformation("Seeded {Count} fornitori", fornitori.Length);
@@ -310,9 +318,19 @@ public static class MongoSeeder
 
             var metodo = metodi[rng.Next(metodi.Length)];
             var stato = giornoOffset < -10 ? StatoScadenza.Pagato
-                      : giornoOffset < 0 ? (rng.NextDouble() < 0.3 ? StatoScadenza.DaPagare : StatoScadenza.Pagato)  // qualche scaduto
+                      : giornoOffset < 0 ? (rng.NextDouble() < 0.3 ? StatoScadenza.DaPagare : StatoScadenza.Pagato)
                       : giornoOffset <= 7 ? (rng.NextDouble() < 0.5 ? StatoScadenza.Programmato : StatoScadenza.DaPagare)
                       : StatoScadenza.DaPagare;
+
+            // Calcolo scadenza attesa dai termini del fornitore. Per il 25% delle righe
+            // applichiamo una divergenza voluta (±5..15 gg) per dimostrare il warning.
+            var attesa = Chipdent.Web.Infrastructure.Sepa.PagamentiHelper
+                .CalcolaScadenzaAttesa(dataEm, f.TerminiPagamentoGiorni, f.BasePagamento);
+            DateTime dataScadFinale = dataScad;
+            if (rng.NextDouble() < 0.25)
+            {
+                dataScadFinale = attesa.AddDays(rng.Next(-15, -5));   // dichiarata "anticipata" rispetto all'atteso
+            }
 
             scadenze.Add(new ScadenzaPagamento
             {
@@ -321,13 +339,14 @@ public static class MongoSeeder
                 FornitoreId = f.Id,
                 ClinicaId = c.Id,
                 Categoria = fattura.Categoria,
-                DataScadenza = DateTime.SpecifyKind(dataScad, DateTimeKind.Utc),
+                DataScadenza = DateTime.SpecifyKind(dataScadFinale, DateTimeKind.Utc),
+                DataScadenzaAttesa = DateTime.SpecifyKind(attesa, DateTimeKind.Utc),
                 Importo = totale,
                 Metodo = metodo,
                 Iban = f.Iban,
                 Stato = stato,
-                DataPagamento = stato == StatoScadenza.Pagato ? DateTime.SpecifyKind(dataScad.AddDays(rng.Next(-2, 3)), DateTimeKind.Utc) : null,
-                DataProgrammata = stato == StatoScadenza.Programmato ? DateTime.SpecifyKind(dataScad, DateTimeKind.Utc) : null,
+                DataPagamento = stato == StatoScadenza.Pagato ? DateTime.SpecifyKind(dataScadFinale.AddDays(rng.Next(-2, 3)), DateTimeKind.Utc) : null,
+                DataProgrammata = stato == StatoScadenza.Programmato ? DateTime.SpecifyKind(dataScadFinale, DateTimeKind.Utc) : null,
                 RiferimentoPagamento = stato == StatoScadenza.Pagato ? $"CRO-{rng.Next(1000000, 9999999)}" : null
             });
         }
@@ -356,6 +375,10 @@ public static class MongoSeeder
             ClinicaId = pending.ClinicaId,
             Categoria = pending.Categoria,
             DataScadenza = DateTime.SpecifyKind(oggi.AddDays(28), DateTimeKind.Utc),
+            DataScadenzaAttesa = DateTime.SpecifyKind(
+                Chipdent.Web.Infrastructure.Sepa.PagamentiHelper.CalcolaScadenzaAttesa(
+                    pending.DataEmissione, lereti.TerminiPagamentoGiorni, lereti.BasePagamento),
+                DateTimeKind.Utc),
             Importo = pending.Totale,
             Metodo = MetodoPagamento.Bonifico,
             Iban = lereti.Iban,

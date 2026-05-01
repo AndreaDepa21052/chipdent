@@ -23,6 +23,7 @@ builder.Services.AddScoped<Chipdent.Web.Infrastructure.Insights.TurniOptimizer>(
 builder.Services.AddScoped<Chipdent.Web.Infrastructure.Insights.AssenzePredictor>();
 builder.Services.AddSingleton<Chipdent.Web.Infrastructure.Insights.OcrScadenzeExtractor>();
 builder.Services.AddScoped<Chipdent.Web.Infrastructure.Audit.IAuditService, Chipdent.Web.Infrastructure.Audit.AuditService>();
+builder.Services.AddScoped<Chipdent.Web.Infrastructure.Sepa.FornitoreOmbraService>();
 
 builder.Services
     .AddAuthentication(CookieAuthenticationDefaults.AuthenticationScheme)
@@ -103,8 +104,9 @@ using (var scope = app.Services.CreateScope())
 {
     var ctx = scope.ServiceProvider.GetRequiredService<MongoContext>();
     var hasher = scope.ServiceProvider.GetRequiredService<IPasswordHasher>();
+    var ombraService = scope.ServiceProvider.GetRequiredService<Chipdent.Web.Infrastructure.Sepa.FornitoreOmbraService>();
     var logger = scope.ServiceProvider.GetRequiredService<ILoggerFactory>().CreateLogger("Seed");
-    await MongoSeeder.SeedAsync(ctx, hasher, logger);
+    await MongoSeeder.SeedAsync(ctx, hasher, ombraService, logger);
 }
 
 app.Run();

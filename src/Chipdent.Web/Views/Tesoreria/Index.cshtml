@@ -70,6 +70,20 @@
         <div class="stat__value">@Eur(Model.PagatoMeseCorrente)</div>
         <div class="stat__hint">mese in corso</div>
     </div>
+    <div class="stat" style="@(Model.CountFuoriTermini > 0 ? "background: rgba(255, 165, 0, 0.06); border-color: rgba(196, 120, 48, 0.3);" : "")">
+        <div class="stat__label">⚠️ Fuori termini</div>
+        <div class="stat__value" style="color: @(Model.CountFuoriTermini > 0 ? "#a86010" : "inherit");">@Model.CountFuoriTermini</div>
+        <div class="stat__hint">
+            @if (Model.CountFuoriTermini > 0)
+            {
+                <a asp-action="Index" asp-route-SoloFuoriTermini="true">vedi solo questi →</a>
+            }
+            else
+            {
+                <text>tolleranza ±@RigaTesoreria.TolleranzaMismatchGiorni gg</text>
+            }
+        </div>
+    </div>
 </div>
 
 <div class="grid" style="grid-template-columns: 2fr 1fr; gap: var(--s-4); margin-bottom: var(--s-4);">
@@ -175,6 +189,10 @@
                 <label class="muted" style="font-size:.75rem;">Al</label>
                 <input class="form-control" type="date" name="Al" value="@Model.Filtro.Al?.ToString("yyyy-MM-dd")" />
             </div>
+            <label class="form-check" style="white-space:nowrap; align-self:end; padding-bottom:8px;">
+                <input type="checkbox" name="SoloFuoriTermini" value="true" @(Model.Filtro.SoloFuoriTermini ? "checked" : "") />
+                ⚠️ Solo fuori termini
+            </label>
             <button type="submit" class="btn btn--primary btn--sm">Filtra</button>
             <a class="btn btn--ghost btn--sm" asp-action="Index">Reset</a>
         </form>
@@ -194,6 +212,7 @@
                     <tr>
                         <th style="width: 32px;"><input type="checkbox" data-sepa-master title="Seleziona tutte le righe bonificabili" /></th>
                         <th>Data</th>
+                        <th title="Scadenza calcolata dai termini contrattuali">Attesa</th>
                         <th>Comp.</th>
                         <th>LOC</th>
                         <th>N° Doc</th>
@@ -210,7 +229,11 @@
                 <tbody>
                 @foreach (var r in Model.Righe)
                 {
-                    var rowStyle = r.Stato == StatoScadenza.Insoluto ? "background: rgba(168,58,58,0.06);" : "";
+                    var rowStyle = r.ScadenzaFuoriTermini
+                        ? "background: rgba(255,165,0,0.05); border-left: 3px solid #c47830;"
+                        : r.Stato == StatoScadenza.Insoluto
+                            ? "background: rgba(168,58,58,0.06);"
+                            : "";
                     var bonificabile = r.Stato == StatoScadenza.DaPagare
                         && (r.Metodo == MetodoPagamento.Bonifico || r.Metodo == MetodoPagamento.Altro);
                     <tr style="@rowStyle">
@@ -220,7 +243,24 @@
                                 <input type="checkbox" class="sepa-row" data-id="@r.ScadenzaId" data-amount="@r.Totale.ToString("0.##", System.Globalization.CultureInfo.InvariantCulture)" />
                             }
                         </td>
-                        <td>@r.DataScadenza.ToString("dd/MM/yy")</td>
+                        <td>
+                            @r.DataScadenza.ToString("dd/MM/yy")
+                            @if (r.ScadenzaFuoriTermini)
+                            {
+                                var deltaTxt = r.GiorniDelta!.Value > 0 ? $"+{r.GiorniDelta} gg" : $"{r.GiorniDelta} gg";
+                                <span title="Scadenza dichiarata diverge dai termini contratto di @deltaTxt (atteso @r.DataScadenzaAttesa?.ToString("dd/MM/yy"))" style="color:#c47830; font-weight:600; cursor:help;">⚠️</span>
+                            }
+                        </td>
+                        <td class="muted" style="font-size: .82rem;">
+                            @if (r.DataScadenzaAttesa.HasValue)
+                            {
+                                @r.DataScadenzaAttesa.Value.ToString("dd/MM/yy")
+                            }
+                            else
+                            {
+                                <span title="Termini di pagamento non configurati sull'anagrafica fornitore">—</span>
+                            }
+                        </td>
                         <td class="muted">@r.MeseCompetenza</td>
                         <td><code>@r.Loc</code></td>
                         <td>
@@ -259,7 +299,7 @@
                 }
                 @if (Model.Righe.Count == 0)
                 {
-                    <tr><td colspan="13" class="muted" style="text-align:center; padding: var(--s-5);">Nessuna scadenza per i filtri impostati.</td></tr>
+                    <tr><td colspan="14" class="muted" style="text-align:center; padding: var(--s-5);">Nessuna scadenza per i filtri impostati.</td></tr>
                 }
                 </tbody>
             </table>

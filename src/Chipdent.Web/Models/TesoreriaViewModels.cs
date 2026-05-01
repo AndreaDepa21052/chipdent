@@ -14,6 +14,7 @@ public class TesoreriaIndexViewModel
     public int CountDaProgrammareSettimana { get; set; }
     public decimal PagatoMeseCorrente { get; set; }
     public int CountFattureInApprovazione { get; set; }
+    public int CountFuoriTermini { get; set; }
 
     // ── Tabella scadenze (filtrata) ─────────────────────────────
     public List<RigaTesoreria> Righe { get; set; } = new();
@@ -35,9 +36,13 @@ public class TesoreriaIndexViewModel
 
 public class RigaTesoreria
 {
+    /// <summary>Tolleranza in giorni oltre cui dichiarata vs attesa è considerata mismatch.</summary>
+    public const int TolleranzaMismatchGiorni = 2;
+
     public string ScadenzaId { get; set; } = string.Empty;
     public string FatturaId { get; set; } = string.Empty;
     public DateTime DataScadenza { get; set; }
+    public DateTime? DataScadenzaAttesa { get; set; }
     public string MeseCompetenza { get; set; } = string.Empty;
     public string Loc { get; set; } = "—";
     public string ClinicaId { get; set; } = string.Empty;
@@ -55,6 +60,16 @@ public class RigaTesoreria
     public bool FlagBM { get; set; }
     public string? FlagEM { get; set; }
     public bool HasAllegato { get; set; }
+
+    /// <summary>True se la data dichiarata diverge dall'attesa oltre la tolleranza.</summary>
+    public bool ScadenzaFuoriTermini =>
+        DataScadenzaAttesa.HasValue
+        && Math.Abs((DataScadenza.Date - DataScadenzaAttesa.Value.Date).TotalDays) > TolleranzaMismatchGiorni;
+
+    public int? GiorniDelta =>
+        DataScadenzaAttesa.HasValue
+            ? (int)(DataScadenza.Date - DataScadenzaAttesa.Value.Date).TotalDays
+            : null;
 }
 
 public class TopFornitoreRow
@@ -75,6 +90,7 @@ public class TesoreriaFilter
     public DateTime? Dal { get; set; }
     public DateTime? Al { get; set; }
     public string? Q { get; set; }
+    public bool SoloFuoriTermini { get; set; }
 }
 
 public record SerieMese(string Mese, decimal Valore);
@@ -150,10 +166,18 @@ public class FornitoreFormViewModel
     public StatoFornitore Stato { get; set; } = StatoFornitore.Attivo;
     public string? Note { get; set; }
 
+    // Termini di pagamento contrattuali
+    [Range(0, 365, ErrorMessage = "Giorni tra 0 e 365.")]
+    public int TerminiPagamentoGiorni { get; set; } = 30;
+    public BasePagamento BasePagamento { get; set; } = BasePagamento.DataFattura;
+
     /// <summary>Se true crea anche un User di portale per questo fornitore.</summary>
     public bool AbilitaPortale { get; set; }
     public string? PortalePassword { get; set; }
     public bool HaUtentePortale { get; set; }
+
+    /// <summary>True se questo Fornitore è la controparte fattura di un Dottore (ombra).</summary>
+    public bool IsDottoreOmbra { get; set; }
 }
 
 public class FornitoriIndexViewModel

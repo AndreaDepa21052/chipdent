@@ -2,6 +2,7 @@ using Chipdent.Web.Domain.Entities;
 using Chipdent.Web.Infrastructure.Audit;
 using Chipdent.Web.Infrastructure.Identity;
 using Chipdent.Web.Infrastructure.Mongo;
+using Chipdent.Web.Infrastructure.Sepa;
 using Chipdent.Web.Infrastructure.Tenancy;
 using Chipdent.Web.Models;
 using Microsoft.AspNetCore.Authorization;
@@ -17,12 +18,14 @@ public class DottoriController : Controller
     private readonly MongoContext _mongo;
     private readonly ITenantContext _tenant;
     private readonly IAuditService _audit;
+    private readonly FornitoreOmbraService _ombra;
 
-    public DottoriController(MongoContext mongo, ITenantContext tenant, IAuditService audit)
+    public DottoriController(MongoContext mongo, ITenantContext tenant, IAuditService audit, FornitoreOmbraService ombra)
     {
         _mongo = mongo;
         _tenant = tenant;
         _audit = audit;
+        _ombra = ombra;
     }
 
     [HttpGet("")]
@@ -100,6 +103,7 @@ public class DottoriController : Controller
         await _mongo.Dottori.InsertOneAsync(model);
 
         await _audit.LogAsync("Dottore", model.Id, model.NomeCompleto, AuditAction.Created, actor: User);
+        await _ombra.EnsureForDottoreAsync(model);
 
         if (!string.IsNullOrEmpty(model.ClinicaPrincipaleId))
         {
@@ -148,6 +152,7 @@ public class DottoriController : Controller
 
         await _audit.LogDiffAsync(existing, model, "Dottore", model.NomeCompleto,
             AuditAction.Updated, User, ignoreFields: nameof(Dottore.UpdatedAt));
+        await _ombra.EnsureForDottoreAsync(model);
 
         if (existing.ClinicaPrincipaleId != model.ClinicaPrincipaleId)
         {

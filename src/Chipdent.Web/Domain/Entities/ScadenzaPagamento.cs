@@ -14,6 +14,12 @@ public class ScadenzaPagamento : TenantEntity
     public CategoriaSpesa Categoria { get; set; } = CategoriaSpesa.AltreSpeseFisse;
 
     public DateTime DataScadenza { get; set; }
+
+    /// <summary>Snapshot della scadenza attesa calcolata dai termini di pagamento del fornitore
+    /// al momento della creazione/approvazione. Usata per evidenziare mismatch in scadenziario.
+    /// Null = nessun calcolo possibile (es. fornitore senza termini configurati).</summary>
+    public DateTime? DataScadenzaAttesa { get; set; }
+
     public decimal Importo { get; set; }
 
     public MetodoPagamento Metodo { get; set; } = MetodoPagamento.Bonifico;
@@ -32,6 +38,9 @@ public class ScadenzaPagamento : TenantEntity
     public string? RiferimentoPagamento { get; set; }
 
     public string? Note { get; set; }
+
+    /// <summary>Snapshot dell'IBAN ordinante usato per il bonifico (clinica o tenant).</summary>
+    public string? IbanOrdinanteUsato { get; set; }
 }
 
 public enum MetodoPagamento

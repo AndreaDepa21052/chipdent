@@ -104,6 +104,7 @@ public class TesoreriaController : Controller
                     ScadenzaId = s.Id,
                     FatturaId = s.FatturaId,
                     DataScadenza = s.DataScadenza,
+                    DataScadenzaAttesa = s.DataScadenzaAttesa,
                     MeseCompetenza = fa?.MeseCompetenza.ToString("MMM yy", new CultureInfo("it-IT")) ?? "—",
                     Loc = SiglaSede(c),
                     ClinicaId = s.ClinicaId,
@@ -123,6 +124,14 @@ public class TesoreriaController : Controller
                     HasAllegato = !string.IsNullOrEmpty(fa?.AllegatoPath)
                 };
             }).ToList();
+
+        // Conta i mismatch sull'intero set filtrato (prima del filtro "solo fuori termini")
+        // per avere un KPI stabile.
+        var fuoriTerminiCount = righe.Count(r => r.ScadenzaFuoriTermini);
+        if (filtro.SoloFuoriTermini)
+        {
+            righe = righe.Where(r => r.ScadenzaFuoriTermini).ToList();
+        }
 
         // ── KPI ─────────────────────────────────────────────────
         var aperte = scadenze.Where(s => s.Stato == StatoScadenza.DaPagare || s.Stato == StatoScadenza.Programmato).ToList();
@@ -191,6 +200,7 @@ public class TesoreriaController : Controller
             CountDaProgrammareSettimana = settSet.Count,
             PagatoMeseCorrente = pagatoMese,
             CountFattureInApprovazione = fattureInApprovazione,
+            CountFuoriTermini = fuoriTerminiCount,
             Righe = righe,
             TopFornitori = top,
             Filtro = filtro,
@@ -281,6 +291,11 @@ public class TesoreriaController : Controller
             ClinicaId = fattura.ClinicaId,
             Categoria = fattura.Categoria,
             DataScadenza = DateTime.SpecifyKind(vm.DataScadenza.Date, DateTimeKind.Utc),
+            DataScadenzaAttesa = fornitore is null
+                ? null
+                : DateTime.SpecifyKind(
+                    PagamentiHelper.CalcolaScadenzaAttesa(fattura.DataEmissione, fornitore.TerminiPagamentoGiorni, fornitore.BasePagamento),
+                    DateTimeKind.Utc),
             Importo = fattura.Totale,
             Metodo = vm.Metodo,
             Iban = fornitore?.Iban,
@@ -309,9 +324,18 @@ public class TesoreriaController : Controller
         var scadenzaEsistente = await _mongo.ScadenzePagamento
             .Find(s => s.FatturaId == id && s.TenantId == _tenant.TenantId).FirstOrDefaultAsync();
 
+        var fornitore = await _mongo.Fornitori.Find(x => x.Id == f.FornitoreId).FirstOrDefaultAsync();
+        var scadenzaAttesa = fornitore is null
+            ? (DateTime?)null
+            : DateTime.SpecifyKind(
+                PagamentiHelper.CalcolaScadenzaAttesa(f.DataEmissione, fornitore.TerminiPagamentoGiorni, fornitore.BasePagamento),
+                DateTimeKind.Utc);
+
         if (scadenzaEsistente is not null)
         {
-            var update = Builders<ScadenzaPagamento>.Update.Set(s => s.UpdatedAt, DateTime.UtcNow);
+            var update = Builders<ScadenzaPagamento>.Update
+                .Set(s => s.DataScadenzaAttesa, scadenzaAttesa)
+                .Set(s => s.UpdatedAt, DateTime.UtcNow);
             if (dataScadenza.HasValue)
                 update = update.Set(s => s.DataScadenza, DateTime.SpecifyKind(dataScadenza.Value.Date, DateTimeKind.Utc));
             if (metodo.HasValue)
@@ -322,7 +346,6 @@ public class TesoreriaController : Controller
         }
         else
         {
-            var fornitore = await _mongo.Fornitori.Find(x => x.Id == f.FornitoreId).FirstOrDefaultAsync();
             await _mongo.ScadenzePagamento.InsertOneAsync(new ScadenzaPagamento
             {
                 TenantId = _tenant.TenantId!,
@@ -331,6 +354,7 @@ public class TesoreriaController : Controller
                 ClinicaId = f.ClinicaId,
                 Categoria = f.Categoria,
                 DataScadenza = DateTime.SpecifyKind((dataScadenza ?? DateTime.UtcNow.AddDays(30)).Date, DateTimeKind.Utc),
+                DataScadenzaAttesa = scadenzaAttesa,
                 Importo = f.Totale,
                 Metodo = metodo ?? MetodoPagamento.Bonifico,
                 Iban = fornitore?.Iban,
@@ -495,7 +519,9 @@ public class TesoreriaController : Controller
             Iban = vm.Iban,
             CategoriaDefault = vm.CategoriaDefault,
             Stato = vm.Stato,
-            Note = vm.Note
+            Note = vm.Note,
+            TerminiPagamentoGiorni = vm.TerminiPagamentoGiorni,
+            BasePagamento = vm.BasePagamento
         };
         await _mongo.Fornitori.InsertOneAsync(f);
 
@@ -531,7 +557,10 @@ public class TesoreriaController : Controller
             CategoriaDefault = f.CategoriaDefault,
             Stato = f.Stato,
             Note = f.Note,
-            HaUtentePortale = hasUser
+            TerminiPagamentoGiorni = f.TerminiPagamentoGiorni,
+            BasePagamento = f.BasePagamento,
+            HaUtentePortale = hasUser,
+            IsDottoreOmbra = !string.IsNullOrEmpty(f.DottoreId)
         });
     }
 
@@ -561,6 +590,8 @@ public class TesoreriaController : Controller
                 .Set(x => x.CategoriaDefault, vm.CategoriaDefault)
                 .Set(x => x.Stato, vm.Stato)
                 .Set(x => x.Note, vm.Note)
+                .Set(x => x.TerminiPagamentoGiorni, vm.TerminiPagamentoGiorni)
+                .Set(x => x.BasePagamento, vm.BasePagamento)
                 .Set(x => x.UpdatedAt, DateTime.UtcNow));
 
         if (vm.AbilitaPortale && !string.IsNullOrWhiteSpace(vm.EmailContatto) && !string.IsNullOrWhiteSpace(vm.PortalePassword))
@@ -652,19 +683,14 @@ public class TesoreriaController : Controller
         }
 
         var tenant = await _mongo.Tenants.Find(t => t.Id == _tenant.TenantId).FirstOrDefaultAsync();
-        if (tenant is null || string.IsNullOrEmpty(tenant.PagatoreIban))
-        {
-            TempData["flash"] = "Configura prima i dati bancari ordinante (IBAN/ragione sociale).";
-            return RedirectToAction(nameof(DatiBancari));
-        }
+        if (tenant is null) return NotFound();
 
         var tid = _tenant.TenantId!;
         var ids = scadenzaIds.Distinct().ToArray();
         var scadenze = await _mongo.ScadenzePagamento
             .Find(s => s.TenantId == tid && ids.Contains(s.Id)).ToListAsync();
 
-        // Filtri di sicurezza: solo DaPagare (Insoluto è solo derivazione visiva di DaPagare)
-        // e solo metodi bonificabili via SEPA Credit Transfer.
+        // Filtri di sicurezza: solo DaPagare con metodo bonificabile.
         var ammesse = scadenze.Where(s =>
             s.Stato == StatoScadenza.DaPagare
             && (s.Metodo == MetodoPagamento.Bonifico || s.Metodo == MetodoPagamento.Altro)
@@ -675,15 +701,18 @@ public class TesoreriaController : Controller
             return RedirectToAction(nameof(Index));
         }
 
-        // Recupera fornitori e fatture per il dettaglio
+        // Lookup fornitori, fatture, cliniche
         var fornitoreIds = ammesse.Select(s => s.FornitoreId).Distinct().ToList();
         var fatturaIds = ammesse.Select(s => s.FatturaId).Distinct().ToList();
+        var clinicaIds = ammesse.Select(s => s.ClinicaId).Where(x => !string.IsNullOrEmpty(x)).Distinct().ToList();
         var fornitori = (await _mongo.Fornitori.Find(f => f.TenantId == tid && fornitoreIds.Contains(f.Id)).ToListAsync())
             .ToDictionary(f => f.Id);
         var fatture = (await _mongo.Fatture.Find(f => f.TenantId == tid && fatturaIds.Contains(f.Id)).ToListAsync())
             .ToDictionary(f => f.Id);
+        var cliniche = (await _mongo.Cliniche.Find(c => c.TenantId == tid && clinicaIds.Contains(c.Id)).ToListAsync())
+            .ToDictionary(c => c.Id);
 
-        // Validazione: serve IBAN beneficiario
+        // Validazione IBAN beneficiario
         var senzaIban = ammesse.Where(s =>
         {
             var iban = !string.IsNullOrWhiteSpace(s.Iban) ? s.Iban : fornitori.GetValueOrDefault(s.FornitoreId)?.Iban;
@@ -698,47 +727,82 @@ public class TesoreriaController : Controller
             return RedirectToAction(nameof(Index));
         }
 
-        // Costruzione input SEPA
+        // Raggruppamento per IBAN ordinante (clinica → fallback tenant).
+        // Ogni gruppo distinto diventa un <PmtInf> nel pain.001 risultante.
+        var ordinantiPerScadenza = ammesse
+            .Select(s => new
+            {
+                Scadenza = s,
+                Ordinante = PagamentiHelper.Risolvi(cliniche.GetValueOrDefault(s.ClinicaId), tenant)
+            })
+            .ToList();
+
+        var senzaOrdinante = ordinantiPerScadenza.Where(x => string.IsNullOrEmpty(x.Ordinante.Iban)).ToList();
+        if (senzaOrdinante.Count > 0)
+        {
+            TempData["flash"] = "Configura l'IBAN ordinante (sul tenant o sulla clinica destinataria delle fatture) prima di generare la distinta.";
+            return RedirectToAction(nameof(DatiBancari));
+        }
+
         var distintaCount = await _mongo.DistinteSepa.CountDocumentsAsync(d => d.TenantId == tid);
         var messageId = $"DIS-{DateTime.UtcNow:yyyyMMddHHmmss}-{distintaCount + 1:0000}";
-        var transazioni = ammesse.Select((s, idx) =>
-        {
-            var f = fornitori.GetValueOrDefault(s.FornitoreId);
-            var fa = fatture.GetValueOrDefault(s.FatturaId);
-            var iban = !string.IsNullOrWhiteSpace(s.Iban) ? s.Iban! : f!.Iban!;
-            var causale = fa is null
-                ? $"Pagamento scadenza {s.Id}"
-                : $"Fattura {fa.Numero} {f?.RagioneSociale}";
-            return new SepaXmlBuilder.SepaTransazione(
-                EndToEndId: $"{messageId}-{idx + 1:0000}",
-                Importo: Math.Round(s.Importo, 2),
-                BeneficiarioNome: f?.RagioneSociale ?? "Fornitore",
-                BeneficiarioIban: iban,
-                BeneficiarioBic: null,
-                Causale: causale);
-        }).ToList();
 
+        var gruppi = ordinantiPerScadenza
+            .GroupBy(x => x.Ordinante.Iban)
+            .Select((g, gi) =>
+            {
+                var ordinante = g.First().Ordinante;
+                var transazioni = g.Select((x, idx) =>
+                {
+                    var s = x.Scadenza;
+                    var f = fornitori.GetValueOrDefault(s.FornitoreId);
+                    var fa = fatture.GetValueOrDefault(s.FatturaId);
+                    var ibanBenef = !string.IsNullOrWhiteSpace(s.Iban) ? s.Iban! : f!.Iban!;
+                    var causale = fa is null
+                        ? $"Pagamento scadenza {s.Id}"
+                        : $"Fattura {fa.Numero} {f?.RagioneSociale}";
+                    return new SepaXmlBuilder.SepaTransazione(
+                        EndToEndId: $"{messageId}-{gi + 1:00}-{idx + 1:0000}",
+                        Importo: Math.Round(s.Importo, 2),
+                        BeneficiarioNome: f?.RagioneSociale ?? "Fornitore",
+                        BeneficiarioIban: ibanBenef,
+                        BeneficiarioBic: null,
+                        Causale: causale);
+                }).ToList();
+
+                return new SepaXmlBuilder.SepaGruppoOrdinante(
+                    PaymentInfoId: $"PMT-{messageId}-{gi + 1:00}",
+                    OrdinanteNome: ordinante.RagioneSociale,
+                    OrdinanteIban: ordinante.Iban,
+                    OrdinanteBic: ordinante.Bic,
+                    OrdinanteCodiceFiscale: ordinante.CodiceFiscale,
+                    Transazioni: transazioni);
+            })
+            .ToList();
+
+        // L'InitiatingParty del messaggio è sempre il tenant (chi "firma" il pacchetto).
+        var initiatingNome = tenant.PagatoreRagioneSociale ?? tenant.RagioneSociale ?? tenant.DisplayName;
         var (xml, totale, count) = SepaXmlBuilder.Build(new SepaXmlBuilder.SepaInput(
             MessageId: messageId,
             DataCreazione: DateTime.UtcNow,
             DataEsecuzione: DateTime.SpecifyKind(dataEsecuzione.Date, DateTimeKind.Utc),
-            OrdinanteNome: tenant.PagatoreRagioneSociale ?? tenant.RagioneSociale ?? tenant.DisplayName,
-            OrdinanteIban: tenant.PagatoreIban!,
-            OrdinanteBic: tenant.PagatoreBic,
-            OrdinanteCodiceFiscale: tenant.PagatoreCodiceFiscale,
-            Transazioni: transazioni));
+            InitiatingPartyNome: initiatingNome,
+            InitiatingPartyCodiceFiscale: tenant.PagatoreCodiceFiscale,
+            Gruppi: gruppi));
 
-        // Persisti distinta
+        // Persisti distinta. Conserviamo l'IBAN del primo gruppo + l'elenco scadenze;
+        // l'XML completo (con tutti i PmtInf) è nello stesso documento.
         var userId = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
+        var ordinantePrincipale = gruppi.First();
         var distinta = new DistintaPagamento
         {
             TenantId = tid,
             MessageId = messageId,
             Etichetta = string.IsNullOrWhiteSpace(etichetta) ? messageId : etichetta!.Trim(),
             DataEsecuzione = DateTime.SpecifyKind(dataEsecuzione.Date, DateTimeKind.Utc),
-            PagatoreIban = tenant.PagatoreIban!,
-            PagatoreBic = tenant.PagatoreBic,
-            PagatoreRagioneSociale = tenant.PagatoreRagioneSociale ?? tenant.RagioneSociale ?? tenant.DisplayName,
+            PagatoreIban = ordinantePrincipale.OrdinanteIban,
+            PagatoreBic = ordinantePrincipale.OrdinanteBic,
+            PagatoreRagioneSociale = ordinantePrincipale.OrdinanteNome,
             NumeroTransazioni = count,
             Totale = totale,
             ScadenzaIds = ammesse.Select(s => s.Id).ToList(),
@@ -747,7 +811,8 @@ public class TesoreriaController : Controller
         };
         await _mongo.DistinteSepa.InsertOneAsync(distinta);
 
-        // Marca le scadenze come "Programmato" con riferimento alla distinta
+        // Marca le scadenze come "Programmato", snapshot dell'IBAN ordinante usato.
+        var ibanPerScadenza = ordinantiPerScadenza.ToDictionary(x => x.Scadenza.Id, x => x.Ordinante.Iban);
         var bulkOps = ammesse.Select(s =>
             new UpdateOneModel<ScadenzaPagamento>(
                 Builders<ScadenzaPagamento>.Filter.Eq(x => x.Id, s.Id),
@@ -755,11 +820,11 @@ public class TesoreriaController : Controller
                     .Set(x => x.Stato, StatoScadenza.Programmato)
                     .Set(x => x.DataProgrammata, DateTime.SpecifyKind(dataEsecuzione.Date, DateTimeKind.Utc))
                     .Set(x => x.RiferimentoPagamento, distinta.Etichetta)
+                    .Set(x => x.IbanOrdinanteUsato, ibanPerScadenza[s.Id])
                     .Set(x => x.UpdatedAt, DateTime.UtcNow))
         ).ToList();
         await _mongo.ScadenzePagamento.BulkWriteAsync(bulkOps);
 
-        // Audit
         await _mongo.Audit.InsertOneAsync(new AuditEntry
         {
             TenantId = tid,
@@ -769,10 +834,11 @@ public class TesoreriaController : Controller
             EntityType = nameof(DistintaPagamento),
             EntityId = distinta.Id,
             EntityLabel = $"Distinta SEPA {distinta.Etichetta} · {count} bonifici · {totale:N2} €",
-            Note = $"Esecuzione richiesta: {dataEsecuzione:dd/MM/yyyy}. IBAN ordinante: {distinta.PagatoreIban}."
+            Note = gruppi.Count == 1
+                ? $"Esecuzione: {dataEsecuzione:dd/MM/yyyy}. Ordinante: {distinta.PagatoreIban}."
+                : $"Esecuzione: {dataEsecuzione:dd/MM/yyyy}. {gruppi.Count} ordinanti distinti (multi-banca)."
         });
 
-        // Download immediato
         var bytes = Encoding.UTF8.GetBytes(xml);
         var fileName = $"{distinta.Etichetta}.xml".Replace(' ', '_');
         return File(bytes, "application/xml", fileName);

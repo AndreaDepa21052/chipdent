@@ -2,6 +2,7 @@ using System.Security.Claims;
 using Chipdent.Web.Domain.Entities;
 using Chipdent.Web.Infrastructure.Identity;
 using Chipdent.Web.Infrastructure.Mongo;
+using Chipdent.Web.Infrastructure.Sepa;
 using Chipdent.Web.Infrastructure.Storage;
 using Chipdent.Web.Infrastructure.Tenancy;
 using Chipdent.Web.Models;
@@ -206,6 +207,9 @@ public class FornitoriPortalController : Controller
             ClinicaId = fattura.ClinicaId,
             Categoria = fattura.Categoria,
             DataScadenza = DateTime.SpecifyKind(vm.DataScadenza.Date, DateTimeKind.Utc),
+            DataScadenzaAttesa = DateTime.SpecifyKind(
+                PagamentiHelper.CalcolaScadenzaAttesa(fattura.DataEmissione, fornitore.TerminiPagamentoGiorni, fornitore.BasePagamento),
+                DateTimeKind.Utc),
             Importo = fattura.Totale,
             Metodo = vm.Metodo,
             Iban = fornitore.Iban,

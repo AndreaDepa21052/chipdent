@@ -2,7 +2,6 @@ using System.Globalization;
 using System.Text;
 using System.Xml;
 using System.Xml.Linq;
-using Chipdent.Web.Domain.Entities;
 
 namespace Chipdent.Web.Infrastructure.Sepa;
 
@@ -11,8 +10,9 @@ namespace Chipdent.Web.Infrastructure.Sepa;
 /// <c>pain.001.001.03</c> (ISO 20022) — accettato da tutti gli home banking
 /// italiani via canale CBI standard.
 ///
-/// Struttura: un singolo <c>PmtInf</c> per data esecuzione, con N
-/// <c>CdtTrfTxInf</c> (uno per scadenza/beneficiario).
+/// Struttura: un <c>GrpHdr</c> + N <c>PmtInf</c> (uno per IBAN ordinante / data
+/// esecuzione), ognuno con N <c>CdtTrfTxInf</c> (uno per scadenza/beneficiario).
+/// Permette di pagare da IBAN diversi (uno per clinica) in un'unica distinta.
 /// </summary>
 public static class SepaXmlBuilder
 {
@@ -27,25 +27,35 @@ public static class SepaXmlBuilder
         string? BeneficiarioBic,
         string Causale);
 
-    public record SepaInput(
-        string MessageId,
-        DateTime DataCreazione,
-        DateTime DataEsecuzione,
+    /// <summary>Gruppo di transazioni che condividono lo stesso ordinante (IBAN/BIC/Nome).</summary>
+    public record SepaGruppoOrdinante(
+        string PaymentInfoId,
         string OrdinanteNome,
         string OrdinanteIban,
         string? OrdinanteBic,
         string? OrdinanteCodiceFiscale,
         IReadOnlyList<SepaTransazione> Transazioni);
 
+    public record SepaInput(
+        string MessageId,
+        DateTime DataCreazione,
+        DateTime DataEsecuzione,
+        string InitiatingPartyNome,
+        string? InitiatingPartyCodiceFiscale,
+        IReadOnlyList<SepaGruppoOrdinante> Gruppi);
+
     public static (string Xml, decimal Totale, int Count) Build(SepaInput input)
     {
-        if (input.Transazioni.Count == 0)
+        if (input.Gruppi.Count == 0 || input.Gruppi.Sum(g => g.Transazioni.Count) == 0)
             throw new InvalidOperationException("Distinta vuota: nessuna scadenza selezionata.");
-        if (string.IsNullOrWhiteSpace(input.OrdinanteIban))
-            throw new InvalidOperationException("IBAN ordinante mancante.");
+        foreach (var g in input.Gruppi)
+        {
+            if (string.IsNullOrWhiteSpace(g.OrdinanteIban))
+                throw new InvalidOperationException($"IBAN ordinante mancante per gruppo {g.PaymentInfoId}.");
+        }
 
-        var totale = input.Transazioni.Sum(t => t.Importo);
-        var count = input.Transazioni.Count;
+        var totale = input.Gruppi.Sum(g => g.Transazioni.Sum(t => t.Importo));
+        var count = input.Gruppi.Sum(g => g.Transazioni.Count);
         var inv = CultureInfo.InvariantCulture;
 
         var groupHeader = new XElement(Ns + "GrpHdr",
@@ -54,66 +64,73 @@ public static class SepaXmlBuilder
             new XElement(Ns + "NbOfTxs", count),
             new XElement(Ns + "CtrlSum", totale.ToString("0.00", inv)),
             new XElement(Ns + "InitgPty",
-                new XElement(Ns + "Nm", Truncate(SanitizeText(input.OrdinanteNome), 70)),
-                IfNotEmpty(input.OrdinanteCodiceFiscale, cf =>
+                new XElement(Ns + "Nm", Truncate(SanitizeText(input.InitiatingPartyNome), 70)),
+                IfNotEmpty(input.InitiatingPartyCodiceFiscale, cf =>
                     new XElement(Ns + "Id",
                         new XElement(Ns + "OrgId",
                             new XElement(Ns + "Othr",
                                 new XElement(Ns + "Id", cf)))))));
 
-        var paymentInfo = new XElement(Ns + "PmtInf",
-            new XElement(Ns + "PmtInfId", Truncate("PMT-" + input.MessageId, 35)),
-            new XElement(Ns + "PmtMtd", "TRF"),                          // Transfer (bonifico)
-            new XElement(Ns + "BtchBookg", "true"),                      // contabilizzazione cumulativa
-            new XElement(Ns + "NbOfTxs", count),
-            new XElement(Ns + "CtrlSum", totale.ToString("0.00", inv)),
-            new XElement(Ns + "PmtTpInf",
-                new XElement(Ns + "SvcLvl",
-                    new XElement(Ns + "Cd", "SEPA"))),
-            new XElement(Ns + "ReqdExctnDt", input.DataEsecuzione.ToString("yyyy-MM-dd", inv)),
-            new XElement(Ns + "Dbtr",
-                new XElement(Ns + "Nm", Truncate(SanitizeText(input.OrdinanteNome), 70))),
-            new XElement(Ns + "DbtrAcct",
-                new XElement(Ns + "Id",
-                    new XElement(Ns + "IBAN", NormalizeIban(input.OrdinanteIban)))),
-            new XElement(Ns + "DbtrAgt",
-                new XElement(Ns + "FinInstnId",
-                    !string.IsNullOrWhiteSpace(input.OrdinanteBic)
-                        ? new XElement(Ns + "BIC", input.OrdinanteBic.Trim().ToUpperInvariant())
-                        : new XElement(Ns + "Othr", new XElement(Ns + "Id", "NOTPROVIDED")))),
-            new XElement(Ns + "ChrgBr", "SLEV"));                        // SLEV = SEPA Levy (charges shared)
+        var customerCdtTrfInitn = new XElement(Ns + "CstmrCdtTrfInitn", groupHeader);
 
-        foreach (var t in input.Transazioni)
+        foreach (var gruppo in input.Gruppi)
         {
-            var tx = new XElement(Ns + "CdtTrfTxInf",
-                new XElement(Ns + "PmtId",
-                    new XElement(Ns + "InstrId", Truncate(t.EndToEndId, 35)),
-                    new XElement(Ns + "EndToEndId", Truncate(t.EndToEndId, 35))),
-                new XElement(Ns + "Amt",
-                    new XElement(Ns + "InstdAmt",
-                        new XAttribute("Ccy", "EUR"),
-                        t.Importo.ToString("0.00", inv))),
-                IfNotEmpty(t.BeneficiarioBic, bic =>
-                    new XElement(Ns + "CdtrAgt",
-                        new XElement(Ns + "FinInstnId",
-                            new XElement(Ns + "BIC", bic.Trim().ToUpperInvariant())))),
-                new XElement(Ns + "Cdtr",
-                    new XElement(Ns + "Nm", Truncate(SanitizeText(t.BeneficiarioNome), 70))),
-                new XElement(Ns + "CdtrAcct",
+            if (gruppo.Transazioni.Count == 0) continue;
+
+            var pmtInfTotale = gruppo.Transazioni.Sum(t => t.Importo);
+            var paymentInfo = new XElement(Ns + "PmtInf",
+                new XElement(Ns + "PmtInfId", Truncate(gruppo.PaymentInfoId, 35)),
+                new XElement(Ns + "PmtMtd", "TRF"),
+                new XElement(Ns + "BtchBookg", "true"),
+                new XElement(Ns + "NbOfTxs", gruppo.Transazioni.Count),
+                new XElement(Ns + "CtrlSum", pmtInfTotale.ToString("0.00", inv)),
+                new XElement(Ns + "PmtTpInf",
+                    new XElement(Ns + "SvcLvl",
+                        new XElement(Ns + "Cd", "SEPA"))),
+                new XElement(Ns + "ReqdExctnDt", input.DataEsecuzione.ToString("yyyy-MM-dd", inv)),
+                new XElement(Ns + "Dbtr",
+                    new XElement(Ns + "Nm", Truncate(SanitizeText(gruppo.OrdinanteNome), 70))),
+                new XElement(Ns + "DbtrAcct",
                     new XElement(Ns + "Id",
-                        new XElement(Ns + "IBAN", NormalizeIban(t.BeneficiarioIban)))),
-                new XElement(Ns + "RmtInf",
-                    new XElement(Ns + "Ustrd", Truncate(SanitizeText(t.Causale), 140))));
-            paymentInfo.Add(tx);
+                        new XElement(Ns + "IBAN", NormalizeIban(gruppo.OrdinanteIban)))),
+                new XElement(Ns + "DbtrAgt",
+                    new XElement(Ns + "FinInstnId",
+                        !string.IsNullOrWhiteSpace(gruppo.OrdinanteBic)
+                            ? new XElement(Ns + "BIC", gruppo.OrdinanteBic.Trim().ToUpperInvariant())
+                            : new XElement(Ns + "Othr", new XElement(Ns + "Id", "NOTPROVIDED")))),
+                new XElement(Ns + "ChrgBr", "SLEV"));
+
+            foreach (var t in gruppo.Transazioni)
+            {
+                var tx = new XElement(Ns + "CdtTrfTxInf",
+                    new XElement(Ns + "PmtId",
+                        new XElement(Ns + "InstrId", Truncate(t.EndToEndId, 35)),
+                        new XElement(Ns + "EndToEndId", Truncate(t.EndToEndId, 35))),
+                    new XElement(Ns + "Amt",
+                        new XElement(Ns + "InstdAmt",
+                            new XAttribute("Ccy", "EUR"),
+                            t.Importo.ToString("0.00", inv))),
+                    IfNotEmpty(t.BeneficiarioBic, bic =>
+                        new XElement(Ns + "CdtrAgt",
+                            new XElement(Ns + "FinInstnId",
+                                new XElement(Ns + "BIC", bic.Trim().ToUpperInvariant())))),
+                    new XElement(Ns + "Cdtr",
+                        new XElement(Ns + "Nm", Truncate(SanitizeText(t.BeneficiarioNome), 70))),
+                    new XElement(Ns + "CdtrAcct",
+                        new XElement(Ns + "Id",
+                            new XElement(Ns + "IBAN", NormalizeIban(t.BeneficiarioIban)))),
+                    new XElement(Ns + "RmtInf",
+                        new XElement(Ns + "Ustrd", Truncate(SanitizeText(t.Causale), 140))));
+                paymentInfo.Add(tx);
+            }
+            customerCdtTrfInitn.Add(paymentInfo);
         }
 
         var doc = new XDocument(
             new XDeclaration("1.0", "UTF-8", null),
             new XElement(Ns + "Document",
                 new XAttribute(XNamespace.Xmlns + "xsi", Xsi.NamespaceName),
-                new XElement(Ns + "CstmrCdtTrfInitn",
-                    groupHeader,
-                    paymentInfo)));
+                customerCdtTrfInitn));
 
         var sb = new StringBuilder();
         var settings = new XmlWriterSettings { Indent = true, Encoding = new UTF8Encoding(false) };
@@ -139,7 +156,6 @@ public static class SepaXmlBuilder
         var sb = new StringBuilder(s.Length);
         foreach (var ch in s)
         {
-            // Set ammesso nelle banche italiane: lettere, cifre, spazio e punteggiatura comune.
             if (char.IsLetterOrDigit(ch) || " /-?:().,'+".Contains(ch))
                 sb.Append(ch);
             else if (ch == 'à' || ch == 'è' || ch == 'é' || ch == 'ì' || ch == 'ò' || ch == 'ù')
@@ -147,7 +163,6 @@ public static class SepaXmlBuilder
             else if (ch == 'À' || ch == 'È' || ch == 'É' || ch == 'Ì' || ch == 'Ò' || ch == 'Ù')
                 sb.Append(ch switch { 'À' => 'A', 'È' or 'É' => 'E', 'Ì' => 'I', 'Ò' => 'O', _ => 'U' });
             else if (ch == '&') sb.Append("E");
-            // altri caratteri: skipped (anziché escape)
         }
         return sb.ToString();
     }

@@ -24,6 +24,31 @@ public class Fornitore : TenantEntity
 
     public StatoFornitore Stato { get; set; } = StatoFornitore.Attivo;
     public string? Note { get; set; }
+
+    // Termini di pagamento da contratto / accordi commerciali ─────────────
+    /// <summary>Numero di giorni dalla base di pagamento alla scadenza (es. 30, 60).</summary>
+    public int TerminiPagamentoGiorni { get; set; } = 30;
+
+    /// <summary>Schema di calcolo della scadenza attesa.</summary>
+    public BasePagamento BasePagamento { get; set; } = BasePagamento.DataFattura;
+
+    // Link al Dottore (un Dottore è anche un Fornitore quando è collaboratore/libero
+    // professionista — riusa il modulo Tesoreria per gestire i suoi pagamenti).
+    /// <summary>Id del Dottore se questo Fornitore è la "controparte fattura" di un dottore.</summary>
+    public string? DottoreId { get; set; }
+}
+
+/// <summary>
+/// Base di calcolo per la data di scadenza attesa di una fattura.
+/// </summary>
+public enum BasePagamento
+{
+    /// <summary>"30 gg D.F." — scadenza = data fattura + giorni.</summary>
+    DataFattura,
+    /// <summary>"30 gg F.M." — scadenza = ultimo giorno del mese fattura + giorni.</summary>
+    FineMeseFattura,
+    /// <summary>"60 gg F.M.S." — scadenza = ultimo giorno del mese SUCCESSIVO + giorni.</summary>
+    FineMeseSuccessivo
 }
 
 public enum StatoFornitore

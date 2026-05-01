@@ -22,6 +22,14 @@ public class Clinica : TenantEntity
     public double? Longitudine { get; set; }
 
     public bool IsGeolocalized => Latitudine.HasValue && Longitudine.HasValue;
+
+    // Dati bancari ordinante (Tesoreria → distinte SEPA)
+    /// <summary>IBAN del conto della singola clinica usato come ordinante per i bonifici a fornitori
+    /// di questa sede. Se null, fallback all'IBAN del tenant.</summary>
+    public string? IbanOrdinante { get; set; }
+    public string? BicOrdinante { get; set; }
+    /// <summary>Ragione sociale stampata sulla distinta. Se null, fallback al pagatore del tenant.</summary>
+    public string? RagioneSocialeOrdinante { get; set; }
 }
 
 public enum ClinicaStato

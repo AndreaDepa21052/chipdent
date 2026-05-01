@@ -24,6 +24,13 @@
 
     <div asp-validation-summary="ModelOnly" class="alert alert--danger" style="display:@(ViewData.ModelState.ErrorCount > 0 ? "block" : "none");"></div>
 
+    @if (Model.IsDottoreOmbra)
+    {
+        <div class="alert alert--info" style="margin-bottom: var(--s-3);">
+            🩺 Questo fornitore è la <strong>controparte fattura di un Dottore</strong>. I dati anagrafici (P.IVA, IBAN, ragione sociale, stato) sono sincronizzati automaticamente dalla scheda Dottore: modificali da lì.
+        </div>
+    }
+
     <div class="grid" style="grid-template-columns: 2fr 1fr; gap: var(--s-3);">
         <div class="form-group">
             <label class="form-label" asp-for="RagioneSociale">Ragione sociale *</label>
@@ -92,6 +99,25 @@
                     <option value="@v" selected="@(Model.CategoriaDefault == v)">@v</option>
                 }
             </select>
+        </div>
+    </div>
+
+    <div class="card" style="background: var(--c-bg-soft, #faf6f0); padding: var(--s-3); margin-top: var(--s-3);">
+        <h4 style="margin: 0 0 8px;">📅 Termini di pagamento</h4>
+        <p class="muted" style="font-size: .85rem; margin: 0 0 8px;">Usati per calcolare la data di scadenza attesa quando il fornitore carica una fattura. Tipico: <em>30 gg D.F.</em>, <em>30 gg F.M.</em>, <em>60 gg F.M.S.</em>.</p>
+        <div class="grid" style="grid-template-columns: 1fr 2fr; gap: var(--s-3);">
+            <div class="form-group" style="margin: 0;">
+                <label class="form-label" asp-for="TerminiPagamentoGiorni">Giorni</label>
+                <input class="form-control" type="number" min="0" max="365" asp-for="TerminiPagamentoGiorni" />
+            </div>
+            <div class="form-group" style="margin: 0;">
+                <label class="form-label" asp-for="BasePagamento">Base di calcolo</label>
+                <select class="form-control" asp-for="BasePagamento">
+                    <option value="@BasePagamento.DataFattura" selected="@(Model.BasePagamento == BasePagamento.DataFattura)">Data fattura (D.F.)</option>
+                    <option value="@BasePagamento.FineMeseFattura" selected="@(Model.BasePagamento == BasePagamento.FineMeseFattura)">Fine mese fattura (F.M.)</option>
+                    <option value="@BasePagamento.FineMeseSuccessivo" selected="@(Model.BasePagamento == BasePagamento.FineMeseSuccessivo)">Fine mese successivo (F.M.S.)</option>
+                </select>
+            </div>
         </div>
     </div>
 
