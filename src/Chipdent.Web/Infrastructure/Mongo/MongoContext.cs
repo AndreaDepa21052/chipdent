@@ -70,4 +70,7 @@ public class MongoContext
     public IMongoCollection<DistintaPagamento> DistinteSepa => Database.GetCollection<DistintaPagamento>("distinteSepa");
     public IMongoCollection<CashflowSettings> CashflowSettings => Database.GetCollection<CashflowSettings>("cashflowSettings");
     public IMongoCollection<EntrataAttesa> EntrateAttese => Database.GetCollection<EntrataAttesa>("entrateAttese");
+    public IMongoCollection<DistaccoDipendente> Distacchi => Database.GetCollection<DistaccoDipendente>("distacchi");
+    public IMongoCollection<IscrizioneRentri> Rentri => Database.GetCollection<IscrizioneRentri>("rentri");
+    public IMongoCollection<ProtocolloClinica> ProtocolliClinica => Database.GetCollection<ProtocolloClinica>("protocolliClinica");
 }

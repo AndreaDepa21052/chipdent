@@ -116,9 +116,9 @@ public static class MongoSeeder
                 var roma = cliniche.FirstOrDefault(c => c.Citta == "Roma")?.Id ?? string.Empty;
                 var dipendenti = new[]
                 {
-                    new Dipendente { TenantId = tenant.Id, Nome = "Sara", Cognome = "Conti", Email = "s.conti@confident.it", Ruolo = RuoloDipendente.ASO, ClinicaId = roma, DataAssunzione = DateTime.UtcNow.AddYears(-3), GiorniFerieResidui = 12, Stato = StatoDipendente.Attivo },
-                    new Dipendente { TenantId = tenant.Id, Nome = "Giulia", Cognome = "Moretti", Email = "g.moretti@confident.it", Ruolo = RuoloDipendente.Igienista, ClinicaId = milano, DataAssunzione = DateTime.UtcNow.AddYears(-1), GiorniFerieResidui = 22, Stato = StatoDipendente.Attivo },
-                    new Dipendente { TenantId = tenant.Id, Nome = "Federica", Cognome = "Marini", Email = "f.marini@confident.it", Ruolo = RuoloDipendente.Segreteria, ClinicaId = milano, DataAssunzione = DateTime.UtcNow.AddMonths(-2), GiorniFerieResidui = 24, Stato = StatoDipendente.Onboarding }
+                    new Dipendente { TenantId = tenant.Id, Nome = "Sara", Cognome = "Conti", Sesso = Sesso.F, Email = "s.conti@confident.it", Telefono = "+39 333 1112233", Nazionalita = "Italiana", IndirizzoResidenza = "Via Roma 12", CittaResidenza = "Roma", CapResidenza = "00100", Ruolo = RuoloDipendente.ASO, ClinicaId = roma, DataPrimoRapporto = DateTime.UtcNow.AddYears(-5), DataAssunzione = DateTime.UtcNow.AddYears(-3), TipoContratto = TipoContratto.TempoIndeterminato, Ccnl = "Studi professionali", LivelloContratto = "4° livello", MeseAnnoCcnl = "Mar 2022", MonteOreSettimanale = 38, BeneficioTicket = true, ExTirocinante = true, TitoloStudio = "Diploma operatore servizi sociali", AutocertificazioneTitolo = true, ScadenzaCartaIdentita = DateTime.UtcNow.AddYears(2), GiorniFerieResidui = 12, Stato = StatoDipendente.Attivo },
+                    new Dipendente { TenantId = tenant.Id, Nome = "Giulia", Cognome = "Moretti", Sesso = Sesso.F, Email = "g.moretti@confident.it", Telefono = "+39 333 4445566", Nazionalita = "Italiana", IndirizzoResidenza = "Via Milano 5", CittaResidenza = "Milano", CapResidenza = "20100", Ruolo = RuoloDipendente.Igienista, ClinicaId = milano, DataAssunzione = DateTime.UtcNow.AddYears(-1), TipoContratto = TipoContratto.TempoIndeterminato, Ccnl = "Studi professionali", LivelloContratto = "3° livello", MonteOreSettimanale = 38, BeneficioTicket = true, TitoloStudio = "Laurea in Igiene Dentale", ScadenzaCartaIdentita = DateTime.UtcNow.AddYears(4), GiorniFerieResidui = 22, Stato = StatoDipendente.Attivo },
+                    new Dipendente { TenantId = tenant.Id, Nome = "Federica", Cognome = "Marini", Sesso = Sesso.F, Email = "f.marini@confident.it", Cellulare = "+39 333 7778899", Nazionalita = "Italiana", IndirizzoResidenza = "Corso Buenos Aires 99", CittaResidenza = "Milano", CapResidenza = "20124", Ruolo = RuoloDipendente.Segreteria, ClinicaId = milano, DataAssunzione = DateTime.UtcNow.AddMonths(-2), TipoContratto = TipoContratto.TempoDeterminato, Ccnl = "Studi professionali", LivelloContratto = "5° livello", MonteOreSettimanale = 30, DataScadenzaContratto = DateTime.UtcNow.AddMonths(10), TitoloStudio = "Diploma maturità classica", ScadenzaCartaIdentita = DateTime.UtcNow.AddYears(3), ScadenzaPermessoSoggiorno = DateTime.UtcNow.AddDays(45), GiorniFerieResidui = 24, Stato = StatoDipendente.Onboarding }
                 };
                 await ctx.Dipendenti.InsertManyAsync(dipendenti, cancellationToken: ct);
                 logger.LogInformation("Seeded {Count} dipendenti", dipendenti.Length);
@@ -219,6 +219,7 @@ public static class MongoSeeder
             await SeedHistoricalAiDataAsync(ctx, tenant, logger, ct);
             await SeedTesoreriaAsync(ctx, hasher, tenant, cliniche, logger, ct);
             await SeedCashflowAsync(ctx, tenant, cliniche, logger, ct);
+            await SeedChecklistDipendenteAsync(ctx, tenant, cliniche, logger, ct);
 
             // Crea/aggiorna fornitori-ombra per i dottori (collaborazione/libero professionista)
             var ombraCreati = await ombraService.SyncTenantAsync(tenant.Id, ct);
@@ -398,6 +399,146 @@ public static class MongoSeeder
     /// un dipendente cessato 6 mesi fa per il forecast organico.
     /// Idempotente: salta se trova già turni storici.
     /// </summary>
+    /// <summary>
+    /// Seed demo della checklist dipendente: distacchi, RENTRI, protocolli sicurezza,
+    /// nuovi corsi formazione (generale + specifica rischio basso/alto + aggiornamento ASO).
+    /// Idempotente.
+    /// </summary>
+    private static async Task SeedChecklistDipendenteAsync(MongoContext ctx, Tenant tenant, List<Clinica> cliniche, ILogger logger, CancellationToken ct)
+    {
+        if (cliniche.Count < 2) return;
+
+        var oggi = DateTime.UtcNow.Date;
+        var milano = cliniche.FirstOrDefault(c => c.Citta == "Milano");
+        var roma = cliniche.FirstOrDefault(c => c.Citta == "Roma");
+        var torino = cliniche.FirstOrDefault(c => c.Citta == "Torino");
+
+        var dipendenti = await ctx.Dipendenti.Find(d => d.TenantId == tenant.Id).ToListAsync(ct);
+
+        // ── Distacchi demo ────────────────────────────────────────
+        if (!await ctx.Distacchi.Find(d => d.TenantId == tenant.Id).AnyAsync(ct))
+        {
+            var giulia = dipendenti.FirstOrDefault(x => x.Email == "g.moretti@confident.it");
+            if (giulia is not null && roma is not null)
+            {
+                await ctx.Distacchi.InsertOneAsync(new DistaccoDipendente
+                {
+                    TenantId = tenant.Id,
+                    DipendenteId = giulia.Id,
+                    ClinicaDistaccoId = roma.Id,
+                    DataInizio = DateTime.SpecifyKind(oggi.AddDays(-30), DateTimeKind.Utc),
+                    DataFine = DateTime.SpecifyKind(oggi.AddDays(30), DateTimeKind.Utc),
+                    Motivo = "Copertura ferie collega"
+                }, cancellationToken: ct);
+            }
+            var sara = dipendenti.FirstOrDefault(x => x.Email == "s.conti@confident.it");
+            if (sara is not null && milano is not null)
+            {
+                await ctx.Distacchi.InsertOneAsync(new DistaccoDipendente
+                {
+                    TenantId = tenant.Id,
+                    DipendenteId = sara.Id,
+                    ClinicaDistaccoId = milano.Id,
+                    DataInizio = DateTime.SpecifyKind(oggi.AddMonths(-9), DateTimeKind.Utc),
+                    DataFine = DateTime.SpecifyKind(oggi.AddMonths(-6), DateTimeKind.Utc),
+                    Motivo = "Apertura nuova sala"
+                }, cancellationToken: ct);
+            }
+            logger.LogInformation("Seeded distacchi demo");
+        }
+
+        // ── RENTRI per Milano e Roma ──────────────────────────────
+        if (!await ctx.Rentri.Find(r => r.TenantId == tenant.Id).AnyAsync(ct))
+        {
+            var rentri = new List<IscrizioneRentri>();
+            if (milano is not null)
+            {
+                rentri.Add(new IscrizioneRentri
+                {
+                    TenantId = tenant.Id, ClinicaId = milano.Id,
+                    DataAttivazione = DateTime.SpecifyKind(oggi.AddMonths(-8), DateTimeKind.Utc),
+                    NumeroIscrizione = "RNT-MIL-2024-0142",
+                    Username = "milano.confident",
+                    Password = "*****"
+                });
+            }
+            if (roma is not null)
+            {
+                rentri.Add(new IscrizioneRentri
+                {
+                    TenantId = tenant.Id, ClinicaId = roma.Id,
+                    DataAttivazione = DateTime.SpecifyKind(oggi.AddMonths(-3), DateTimeKind.Utc),
+                    NumeroIscrizione = "RNT-ROM-2024-0287",
+                    Username = "roma.confident",
+                    Password = "*****"
+                });
+            }
+            if (rentri.Count > 0) await ctx.Rentri.InsertManyAsync(rentri, cancellationToken: ct);
+            logger.LogInformation("Seeded {Count} iscrizioni RENTRI", rentri.Count);
+        }
+
+        // ── Protocolli ────────────────────────────────────────────
+        if (!await ctx.ProtocolliClinica.Find(p => p.TenantId == tenant.Id).AnyAsync(ct))
+        {
+            var prot = new List<ProtocolloClinica>();
+            foreach (var c in cliniche.Where(x => x.Stato == ClinicaStato.Operativa))
+            {
+                prot.Add(new ProtocolloClinica
+                {
+                    TenantId = tenant.Id, ClinicaId = c.Id,
+                    Tipo = TipoProtocollo.Sicurezza, Versione = "2.1", Attivo = true,
+                    DataAdozione = DateTime.SpecifyKind(oggi.AddMonths(-14), DateTimeKind.Utc),
+                    ProssimaRevisione = DateTime.SpecifyKind(oggi.AddMonths(10), DateTimeKind.Utc)
+                });
+                prot.Add(new ProtocolloClinica
+                {
+                    TenantId = tenant.Id, ClinicaId = c.Id,
+                    Tipo = TipoProtocollo.Legionella, Versione = "1.0", Attivo = true,
+                    DataAdozione = DateTime.SpecifyKind(oggi.AddMonths(-6), DateTimeKind.Utc),
+                    ProssimaRevisione = DateTime.SpecifyKind(oggi.AddMonths(18), DateTimeKind.Utc)
+                });
+                prot.Add(new ProtocolloClinica
+                {
+                    TenantId = tenant.Id, ClinicaId = c.Id,
+                    Tipo = TipoProtocollo.SterilizzazioneStrumenti, Versione = "3.0", Attivo = true,
+                    DataAdozione = DateTime.SpecifyKind(oggi.AddMonths(-4), DateTimeKind.Utc)
+                });
+            }
+            if (prot.Count > 0) await ctx.ProtocolliClinica.InsertManyAsync(prot, cancellationToken: ct);
+            logger.LogInformation("Seeded {Count} protocolli clinica", prot.Count);
+        }
+
+        // ── Nuovi tipi di corsi (formazione generale + rischio basso/alto + aggiornamento ASO) ──
+        var existingNewCourses = await ctx.Corsi.Find(c => c.TenantId == tenant.Id
+            && (c.Tipo == TipoCorso.FormazioneGeneraleSicurezza
+                || c.Tipo == TipoCorso.FormazioneSpecificaRischioBasso
+                || c.Tipo == TipoCorso.FormazioneSpecificaRischioAltoASO
+                || c.Tipo == TipoCorso.AggiornamentoASO10H)).AnyAsync(ct);
+        if (!existingNewCourses)
+        {
+            var corsi = new List<Corso>();
+            foreach (var d in dipendenti.Where(x => x.Stato != StatoDipendente.Cessato))
+            {
+                corsi.Add(new Corso { TenantId = tenant.Id, DestinatarioId = d.Id, DestinatarioTipo = DestinatarioCorso.Dipendente, Tipo = TipoCorso.FormazioneGeneraleSicurezza, DataConseguimento = DateTime.SpecifyKind(oggi.AddYears(-2), DateTimeKind.Utc) });
+                corsi.Add(new Corso { TenantId = tenant.Id, DestinatarioId = d.Id, DestinatarioTipo = DestinatarioCorso.Dipendente, Tipo = TipoCorso.FormazioneSpecificaRischioBasso, DataConseguimento = DateTime.SpecifyKind(oggi.AddYears(-2), DateTimeKind.Utc), Scadenza = DateTime.SpecifyKind(oggi.AddYears(3), DateTimeKind.Utc) });
+                if (d.Ruolo == RuoloDipendente.ASO)
+                {
+                    corsi.Add(new Corso { TenantId = tenant.Id, DestinatarioId = d.Id, DestinatarioTipo = DestinatarioCorso.Dipendente, Tipo = TipoCorso.FormazioneSpecificaRischioAltoASO, DataConseguimento = DateTime.SpecifyKind(oggi.AddYears(-2), DateTimeKind.Utc), Scadenza = DateTime.SpecifyKind(oggi.AddYears(3), DateTimeKind.Utc) });
+                    corsi.Add(new Corso { TenantId = tenant.Id, DestinatarioId = d.Id, DestinatarioTipo = DestinatarioCorso.Dipendente, Tipo = TipoCorso.AggiornamentoASO10H, DataConseguimento = DateTime.SpecifyKind(oggi.AddMonths(-7), DateTimeKind.Utc), Scadenza = DateTime.SpecifyKind(oggi.AddMonths(5), DateTimeKind.Utc) });
+                }
+                corsi.Add(new Corso { TenantId = tenant.Id, DestinatarioId = d.Id, DestinatarioTipo = DestinatarioCorso.Dipendente, Tipo = TipoCorso.Radioprotezione, DataConseguimento = DateTime.SpecifyKind(oggi.AddYears(-2), DateTimeKind.Utc), Scadenza = DateTime.SpecifyKind(oggi.AddYears(3), DateTimeKind.Utc) });
+            }
+            // Un RLS con verbale di nomina su Sara
+            var saraR = dipendenti.FirstOrDefault(x => x.Email == "s.conti@confident.it");
+            if (saraR is not null)
+            {
+                corsi.Add(new Corso { TenantId = tenant.Id, DestinatarioId = saraR.Id, DestinatarioTipo = DestinatarioCorso.Dipendente, Tipo = TipoCorso.RLS, DataConseguimento = DateTime.SpecifyKind(oggi.AddMonths(-10), DateTimeKind.Utc), Scadenza = DateTime.SpecifyKind(oggi.AddMonths(2), DateTimeKind.Utc), VerbaleNomina = "Verbale 2024/04 del 15/03/2024" });
+            }
+            if (corsi.Count > 0) await ctx.Corsi.InsertManyAsync(corsi, cancellationToken: ct);
+            logger.LogInformation("Seeded {Count} corsi formazione estesi", corsi.Count);
+        }
+    }
+
     /// <summary>
     /// Seed demo del modulo Cashflow: saldo cassa, soglia rischio, e 3 entrate attese
     /// (incassi mensili stimati per le sedi). Idempotente.

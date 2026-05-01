@@ -1,8 +1,11 @@
 @model Chipdent.Web.Domain.Entities.Clinica
+@using Chipdent.Web.Domain.Entities
 @{
     ViewData["Title"] = Model.Nome;
-    var dottori = (List<Chipdent.Web.Domain.Entities.Dottore>?)ViewData["Dottori"] ?? new();
-    var dipendenti = (List<Chipdent.Web.Domain.Entities.Dipendente>?)ViewData["Dipendenti"] ?? new();
+    var dottori = (List<Dottore>?)ViewData["Dottori"] ?? new();
+    var dipendenti = (List<Dipendente>?)ViewData["Dipendenti"] ?? new();
+    var rentri = ViewData["Rentri"] as IscrizioneRentri;
+    var protocolli = (List<ProtocolloClinica>?)ViewData["Protocolli"] ?? new();
 }
 
 <partial name="_Flash" />
@@ -96,5 +99,128 @@
                 }
             </ul>
         }
+    </div>
+</div>
+
+<div class="grid" style="grid-template-columns: 1fr 1fr; gap: var(--s-4); margin-top: var(--s-4);">
+    <!-- RENTRI -->
+    <div class="card">
+        <div class="card__header">
+            <h3 class="card__title">♻️ RENTRI</h3>
+            @if (rentri?.DataAttivazione is not null)
+            {
+                <span class="badge badge--success"><span class="dot"></span>attivo dal @rentri.DataAttivazione.Value.ToString("dd/MM/yyyy")</span>
+            }
+            else
+            {
+                <span class="badge badge--warning"><span class="dot"></span>non attivato</span>
+            }
+        </div>
+        <p class="muted" style="font-size:.85rem; margin: 0 0 var(--s-3);">
+            Iscrizione al Registro Elettronico Nazionale per la Tracciabilità dei Rifiuti (D.M. 119/2023).
+        </p>
+        <form asp-action="SalvaRentri" asp-route-id="@Model.Id" method="post">
+            @Html.AntiForgeryToken()
+            <div class="form-grid">
+                <div class="form-group">
+                    <label class="form-label">Data attivazione</label>
+                    <input class="form-control" type="date" name="dataAttivazione" value="@(rentri?.DataAttivazione?.ToString("yyyy-MM-dd"))" />
+                </div>
+                <div class="form-group">
+                    <label class="form-label">N° iscrizione</label>
+                    <input class="form-control" name="numeroIscrizione" value="@rentri?.NumeroIscrizione" />
+                </div>
+                <div class="form-group">
+                    <label class="form-label">Username portale</label>
+                    <input class="form-control" name="username" value="@rentri?.Username" autocomplete="off" />
+                </div>
+                <div class="form-group">
+                    <label class="form-label">Password / token</label>
+                    <input class="form-control" type="password" name="password" value="@rentri?.Password" autocomplete="new-password" placeholder="••••••" />
+                </div>
+                <div class="form-group full">
+                    <label class="form-label">Note</label>
+                    <textarea class="form-control" name="note" rows="2">@rentri?.Note</textarea>
+                </div>
+                <div class="form-group full" style="text-align:right;">
+                    <button type="submit" class="btn btn--primary btn--sm">Salva RENTRI</button>
+                </div>
+            </div>
+        </form>
+    </div>
+
+    <!-- PROTOCOLLI -->
+    <div class="card">
+        <div class="card__header">
+            <h3 class="card__title">📋 Protocolli operativi</h3>
+            <span class="muted" style="font-size:.85rem;">@protocolli.Count totali · @protocolli.Count(p => p.Attivo) attivi</span>
+        </div>
+
+        @if (protocolli.Count > 0)
+        {
+            <ul class="list" style="margin: 0 0 var(--s-3);">
+                @foreach (var p in protocolli)
+                {
+                    <li class="list__item">
+                        <div class="list__icon">@(p.Attivo ? "✅" : "⬜")</div>
+                        <div>
+                            <div class="list__title"><strong>@p.Tipo</strong> @(string.IsNullOrEmpty(p.Versione) ? "" : "v" + p.Versione)</div>
+                            <div class="muted" style="font-size:.78rem;">
+                                @(p.DataAdozione?.ToString("dd/MM/yyyy") ?? "—")
+                                @if (p.ProssimaRevisione.HasValue)
+                                {
+                                    <text> · prossima revisione @p.ProssimaRevisione.Value.ToString("dd/MM/yyyy")</text>
+                                }
+                            </div>
+                        </div>
+                        <div class="list__when" style="display:flex; gap:6px;">
+                            <form asp-action="ToggleProtocollo" asp-route-id="@Model.Id" asp-route-protocolloId="@p.Id" method="post" style="display:inline;">
+                                @Html.AntiForgeryToken()
+                                <button type="submit" class="btn btn--ghost btn--sm" title="@(p.Attivo ? "Disattiva" : "Attiva")">@(p.Attivo ? "⊘" : "✓")</button>
+                            </form>
+                            <form asp-action="EliminaProtocollo" asp-route-id="@Model.Id" asp-route-protocolloId="@p.Id" method="post" style="display:inline;" onsubmit="return confirm('Rimuovere?');">
+                                @Html.AntiForgeryToken()
+                                <button type="submit" class="btn btn--ghost btn--sm" title="Elimina">🗑</button>
+                            </form>
+                        </div>
+                    </li>
+                }
+            </ul>
+        }
+
+        <details>
+            <summary style="cursor: pointer; font-size:.9rem;">＋ Aggiungi protocollo</summary>
+            <form asp-action="NuovoProtocollo" asp-route-id="@Model.Id" method="post" class="form-grid" style="margin-top: var(--s-3);">
+                @Html.AntiForgeryToken()
+                <div class="form-group">
+                    <label class="form-label">Tipo</label>
+                    <select class="form-control" name="tipo">
+                        @foreach (var t in Enum.GetValues<TipoProtocollo>())
+                        {
+                            <option value="@t">@t</option>
+                        }
+                    </select>
+                </div>
+                <div class="form-group">
+                    <label class="form-label">Versione</label>
+                    <input class="form-control" name="versione" placeholder="1.0" />
+                </div>
+                <div class="form-group">
+                    <label class="form-label">Adozione</label>
+                    <input class="form-control" type="date" name="dataAdozione" />
+                </div>
+                <div class="form-group">
+                    <label class="form-label">Prossima revisione</label>
+                    <input class="form-control" type="date" name="prossimaRevisione" />
+                </div>
+                <div class="form-group full">
+                    <label class="form-label">Note</label>
+                    <textarea class="form-control" name="note" rows="2"></textarea>
+                </div>
+                <div class="form-group full" style="text-align:right;">
+                    <button type="submit" class="btn btn--primary btn--sm">＋ Aggiungi</button>
+                </div>
+            </form>
+        </details>
     </div>
 </div>

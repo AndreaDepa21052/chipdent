@@ -35,6 +35,45 @@ public class DipendenteProfileViewModel
     public IReadOnlyList<AuditEntry> Audit { get; set; } = Array.Empty<AuditEntry>();
     public IReadOnlyList<Clinica> Cliniche { get; set; } = Array.Empty<Clinica>();
     public string Tab { get; set; } = "anagrafica";
+
+    public IReadOnlyList<DistaccoDipendente> Distacchi { get; set; } = Array.Empty<DistaccoDipendente>();
+    public IReadOnlyList<VisitaMedica> VisiteMediche { get; set; } = Array.Empty<VisitaMedica>();
+    public IReadOnlyList<Corso> Corsi { get; set; } = Array.Empty<Corso>();
+}
+
+/// <summary>
+/// Stato compliance per un singolo requisito (visita medica o corso) — usato
+/// dalla checklist del profilo dipendente per i bollini verde/giallo/rosso.
+/// </summary>
+public record ComplianceCheck(
+    string Etichetta,
+    DateTime? DataUltima,
+    DateTime? Scadenza,
+    ComplianceStato Stato,
+    string? Riferimento)
+{
+    public string Icona => Stato switch
+    {
+        ComplianceStato.InRegola => "✅",
+        ComplianceStato.InScadenza => "🟡",
+        ComplianceStato.Scaduto => "🔴",
+        _ => "⬜"
+    };
+    public string ColoreBordo => Stato switch
+    {
+        ComplianceStato.InRegola => "#1f6e3a",
+        ComplianceStato.InScadenza => "#a86010",
+        ComplianceStato.Scaduto => "#a83a3a",
+        _ => "#aaa"
+    };
+}
+
+public enum ComplianceStato
+{
+    InRegola,
+    InScadenza,
+    Scaduto,
+    NonRegistrato
 }
 
 public class TransferViewModel

@@ -66,6 +66,18 @@ public class DipendentiController : Controller
             .Limit(50)
             .ToListAsync();
 
+        var distacchi = await _mongo.Distacchi
+            .Find(x => x.TenantId == _tenant.TenantId && x.DipendenteId == id)
+            .SortByDescending(x => x.DataInizio).ToListAsync();
+        var visite = await _mongo.VisiteMediche
+            .Find(v => v.TenantId == _tenant.TenantId && v.DipendenteId == id)
+            .SortByDescending(v => v.Data).ToListAsync();
+        var corsi = await _mongo.Corsi
+            .Find(c => c.TenantId == _tenant.TenantId
+                       && c.DestinatarioId == id
+                       && c.DestinatarioTipo == DestinatarioCorso.Dipendente)
+            .SortByDescending(c => c.DataConseguimento).ToListAsync();
+
         ViewData["Section"] = "dipendenti";
         return View("Profile", new DipendenteProfileViewModel
         {
@@ -75,8 +87,61 @@ public class DipendentiController : Controller
             Storico = storico,
             Audit = audit,
             Cliniche = cliniche,
-            Tab = tab
+            Tab = tab,
+            Distacchi = distacchi,
+            VisiteMediche = visite,
+            Corsi = corsi
         });
+    }
+
+    // ─────────────────────────────────────────────────────────────
+    //  DISTACCHI: storicizzato per dipendente
+    // ─────────────────────────────────────────────────────────────
+    [HttpPost("{id}/distacchi/nuovo")]
+    [Authorize(Policy = Policies.RequireBackoffice)]
+    [ValidateAntiForgeryToken]
+    public async Task<IActionResult> NuovoDistacco(string id, string clinicaDistaccoId, DateTime dataInizio, DateTime? dataFine, string? motivo)
+    {
+        if (string.IsNullOrEmpty(clinicaDistaccoId))
+        {
+            TempData["flash"] = "Seleziona la clinica di destinazione.";
+            return RedirectToAction(nameof(Details), new { id, tab = "distacchi" });
+        }
+        await _mongo.Distacchi.InsertOneAsync(new DistaccoDipendente
+        {
+            TenantId = _tenant.TenantId!,
+            DipendenteId = id,
+            ClinicaDistaccoId = clinicaDistaccoId,
+            DataInizio = DateTime.SpecifyKind(dataInizio.Date, DateTimeKind.Utc),
+            DataFine = dataFine.HasValue ? DateTime.SpecifyKind(dataFine.Value.Date, DateTimeKind.Utc) : null,
+            Motivo = motivo
+        });
+        TempData["flash"] = "Distacco registrato.";
+        return RedirectToAction(nameof(Details), new { id, tab = "distacchi" });
+    }
+
+    [HttpPost("{id}/distacchi/{distaccoId}/chiudi")]
+    [Authorize(Policy = Policies.RequireBackoffice)]
+    [ValidateAntiForgeryToken]
+    public async Task<IActionResult> ChiudiDistacco(string id, string distaccoId, DateTime dataFine)
+    {
+        await _mongo.Distacchi.UpdateOneAsync(
+            d => d.Id == distaccoId && d.TenantId == _tenant.TenantId && d.DipendenteId == id,
+            Builders<DistaccoDipendente>.Update
+                .Set(d => d.DataFine, DateTime.SpecifyKind(dataFine.Date, DateTimeKind.Utc))
+                .Set(d => d.UpdatedAt, DateTime.UtcNow));
+        TempData["flash"] = "Distacco chiuso.";
+        return RedirectToAction(nameof(Details), new { id, tab = "distacchi" });
+    }
+
+    [HttpPost("{id}/distacchi/{distaccoId}/elimina")]
+    [Authorize(Policy = Policies.RequireBackoffice)]
+    [ValidateAntiForgeryToken]
+    public async Task<IActionResult> EliminaDistacco(string id, string distaccoId)
+    {
+        await _mongo.Distacchi.DeleteOneAsync(d => d.Id == distaccoId && d.TenantId == _tenant.TenantId && d.DipendenteId == id);
+        TempData["flash"] = "Distacco rimosso.";
+        return RedirectToAction(nameof(Details), new { id, tab = "distacchi" });
     }
 
     [HttpGet("nuovo")]

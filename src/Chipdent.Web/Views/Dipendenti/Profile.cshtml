@@ -1,10 +1,30 @@
 @model Chipdent.Web.Models.DipendenteProfileViewModel
+@using Chipdent.Web.Models
+@using Chipdent.Web.Domain.Entities
 @{
     ViewData["Title"] = Model.Dipendente.NomeCompleto;
     ViewData["Crumb"] = "Dipendenti";
     var d = Model.Dipendente;
     var tab = Model.Tab;
     var ferieBasse = d.GiorniFerieResidui <= 5;
+    var oggi = DateTime.UtcNow.Date;
+    var clinicheLookup = Model.Cliniche.ToDictionary(c => c.Id, c => c.Nome);
+
+    // Pre-calcolo flag scadenze per badge
+    bool ScadeEntro(DateTime? data, int giorni) =>
+        data.HasValue && data.Value.Date <= oggi.AddDays(giorni) && data.Value.Date >= oggi;
+    bool Scaduto(DateTime? data) => data.HasValue && data.Value.Date < oggi;
+}
+
+@functions {
+    static ComplianceStato StatoDa(DateTime? data, int giorniSoglia)
+    {
+        if (data is null) return ComplianceStato.NonRegistrato;
+        var oggi = DateTime.UtcNow.Date;
+        if (data.Value.Date < oggi) return ComplianceStato.Scaduto;
+        if (data.Value.Date <= oggi.AddDays(giorniSoglia)) return ComplianceStato.InScadenza;
+        return ComplianceStato.InRegola;
+    }
 }
 
 <partial name="_Flash" />
@@ -25,17 +45,25 @@
                 {
                     <span>·</span><span>📍 @Model.ClinicaCorrenteNome</span>
                 }
+                @{
+                    var distaccoCorrente = Model.Distacchi.FirstOrDefault(x => x.IsInCorso);
+                }
+                @if (distaccoCorrente is not null)
+                {
+                    var nomeDist = clinicheLookup.GetValueOrDefault(distaccoCorrente.ClinicaDistaccoId, "—");
+                    <span>·</span><span>↗ Distaccato a @nomeDist</span>
+                }
             </div>
             <div class="profile__chips">
                 @switch (d.Stato)
                 {
-                    case Chipdent.Web.Domain.Entities.StatoDipendente.Attivo:
+                    case StatoDipendente.Attivo:
                         <span class="badge badge--success"><span class="dot"></span>attivo</span>
                         break;
-                    case Chipdent.Web.Domain.Entities.StatoDipendente.Onboarding:
+                    case StatoDipendente.Onboarding:
                         <span class="badge badge--info"><span class="dot"></span>onboarding</span>
                         break;
-                    case Chipdent.Web.Domain.Entities.StatoDipendente.Cessato:
+                    case StatoDipendente.Cessato:
                         <span class="badge badge--danger"><span class="dot"></span>cessato</span>
                         @if (d.DataDimissioni is not null)
                         {
@@ -53,6 +81,26 @@
                 @if (ferieBasse && !d.IsCessato)
                 {
                     <span class="badge badge--warning"><span class="dot"></span>ferie residue: @d.GiorniFerieResidui gg</span>
+                }
+                @if (Scaduto(d.ScadenzaCartaIdentita))
+                {
+                    <span class="badge badge--danger"><span class="dot"></span>C.I. scaduta</span>
+                }
+                else if (ScadeEntro(d.ScadenzaCartaIdentita, 60))
+                {
+                    <span class="badge badge--warning"><span class="dot"></span>C.I. in scadenza</span>
+                }
+                @if (Scaduto(d.ScadenzaPermessoSoggiorno))
+                {
+                    <span class="badge badge--danger"><span class="dot"></span>permesso soggiorno scaduto</span>
+                }
+                else if (ScadeEntro(d.ScadenzaPermessoSoggiorno, 90))
+                {
+                    <span class="badge badge--warning"><span class="dot"></span>permesso soggiorno in scadenza</span>
+                }
+                @if (d.InizioMaternita is not null && d.ScadenzaDocumentiMaternita is not null && d.ScadenzaDocumentiMaternita.Value > oggi)
+                {
+                    <span class="badge badge--info"><span class="dot"></span>maternità in corso</span>
                 }
             </div>
         </div>
@@ -76,6 +124,12 @@
 
     <div class="tabs">
         <a class="tab @(tab == "anagrafica" ? "is-active" : "")" asp-action="Details" asp-route-id="@d.Id" asp-route-tab="anagrafica">Anagrafica</a>
+        <a class="tab @(tab == "compliance" ? "is-active" : "")" asp-action="Details" asp-route-id="@d.Id" asp-route-tab="compliance">
+            Compliance &amp; checklist
+        </a>
+        <a class="tab @(tab == "distacchi" ? "is-active" : "")" asp-action="Details" asp-route-id="@d.Id" asp-route-tab="distacchi">
+            Distacchi <span class="tab__count">@Model.Distacchi.Count</span>
+        </a>
         <a class="tab @(tab == "storico" ? "is-active" : "")" asp-action="Details" asp-route-id="@d.Id" asp-route-tab="storico">
             Storico cliniche <span class="tab__count">@Model.Storico.Count</span>
         </a>
@@ -91,20 +145,23 @@
                 <div class="card__header"><h3 class="card__title">Identità</h3></div>
                 <dl class="kv">
                     <dt>Nome</dt><dd>@d.Nome @d.Cognome</dd>
+                    <dt>Sesso</dt><dd>@(d.Sesso?.ToString() ?? "—")</dd>
                     <dt>Nato il</dt><dd>@(d.DataNascita?.ToString("dd/MM/yyyy") ?? "—")</dd>
                     <dt>Luogo</dt><dd>@(d.LuogoNascita ?? "—")</dd>
+                    <dt>Nazionalità</dt><dd>@(d.Nazionalita ?? "—")</dd>
                     <dt>Codice fiscale</dt><dd>@(d.CodiceFiscale ?? "—")</dd>
                 </dl>
             </div>
 
             <div class="card">
-                <div class="card__header"><h3 class="card__title">Contatti</h3></div>
+                <div class="card__header"><h3 class="card__title">Contatti &amp; residenza</h3></div>
                 <dl class="kv">
                     <dt>Email lavoro</dt><dd>@d.Email</dd>
                     <dt>Email personale</dt><dd>@(d.EmailPersonale ?? "—")</dd>
                     <dt>Telefono</dt><dd>@(d.Telefono ?? "—")</dd>
                     <dt>Cellulare</dt><dd>@(d.Cellulare ?? "—")</dd>
-                    <dt>Residenza</dt><dd>@(d.IndirizzoResidenza ?? "—")</dd>
+                    <dt>Indirizzo</dt><dd>@(d.IndirizzoResidenza ?? "—")</dd>
+                    <dt>Città</dt><dd>@(d.CittaResidenza ?? "—") @(string.IsNullOrEmpty(d.CapResidenza) ? "" : "(" + d.CapResidenza + ")")</dd>
                 </dl>
             </div>
 
@@ -115,17 +172,26 @@
                     <dt>Mansione</dt><dd>@(d.MansioneSpecifica ?? "—")</dd>
                     <dt>Reparto</dt><dd>@(d.Reparto ?? "—")</dd>
                     <dt>Manager</dt><dd>@(Model.ManagerNome ?? "—")</dd>
+                    <dt>Titolo studio</dt><dd>@(d.TitoloStudio ?? "—") @(d.AutocertificazioneTitolo ? "(autocert.)" : "")</dd>
                 </dl>
             </div>
 
             <div class="card">
-                <div class="card__header"><h3 class="card__title">Contratto</h3></div>
+                <div class="card__header"><h3 class="card__title">Contratto &amp; CCNL</h3></div>
                 <dl class="kv">
-                    <dt>Tipo</dt><dd>@d.TipoContratto</dd>
-                    <dt>Livello</dt><dd>@(d.LivelloContratto ?? "—")</dd>
+                    <dt>Tipo</dt><dd>@d.TipoContratto · @d.Ccnl</dd>
+                    <dt>Livello</dt><dd>@(d.LivelloContratto ?? "—") @(d.MeseAnnoCcnl is null ? "" : "(rif. " + d.MeseAnnoCcnl + ")")</dd>
                     <dt>Sede</dt><dd>@(Model.ClinicaCorrenteNome ?? "—")</dd>
-                    <dt>Assunto il</dt><dd>@d.DataAssunzione.ToString("dd/MM/yyyy")</dd>
+                    <dt>Primo rapporto</dt><dd>@(d.DataPrimoRapporto?.ToString("dd/MM/yyyy") ?? "—")</dd>
+                    <dt>Inizio rapp. corrente</dt><dd>@d.DataAssunzione.ToString("dd/MM/yyyy") @(d.MesiRapportoCorrente is null ? "" : "(" + d.MesiRapportoCorrente + " mesi)")</dd>
                     <dt>Fine periodo prova</dt><dd>@(d.DataFinePeriodoProva?.ToString("dd/MM/yyyy") ?? "—")</dd>
+                    <dt>Scad. contratto</dt><dd>@(d.DataScadenzaContratto?.ToString("dd/MM/yyyy") ?? "—")</dd>
+                    <dt>Scad. proroga</dt><dd>@(d.DataScadenzaProroga?.ToString("dd/MM/yyyy") ?? "—")</dd>
+                    <dt>Trasformazione</dt><dd>@(d.DataTrasformazioneContratto?.ToString("dd/MM/yyyy") ?? "—")</dd>
+                    <dt>Aumento livello</dt><dd>@(d.DataAumentoLivelli?.ToString("dd/MM/yyyy") ?? "—")</dd>
+                    <dt>Monte ore</dt><dd>@(d.MonteOreSettimanale is null ? "—" : d.MonteOreSettimanale + "h/settimana")</dd>
+                    <dt>Ticket</dt><dd>@(d.BeneficioTicket ? "✓ sì" : "—")</dd>
+                    <dt>Ex tirocinante</dt><dd>@(d.ExTirocinante ? "✓ sì" : "—")</dd>
                     <dt>Dimesso il</dt><dd>@(d.DataDimissioni?.ToString("dd/MM/yyyy") ?? "—")</dd>
                     @if (d.MotivoDimissioni is not null)
                     {
@@ -136,12 +202,29 @@
             </div>
 
             <div class="card">
-                <div class="card__header"><h3 class="card__title">Documenti</h3></div>
+                <div class="card__header"><h3 class="card__title">Documenti &amp; scadenze</h3></div>
                 <dl class="kv">
                     <dt>N. documento</dt><dd>@(d.DocumentoNumero ?? "—")</dd>
-                    <dt>Scadenza</dt><dd>@(d.DocumentoScadenza?.ToString("dd/MM/yyyy") ?? "—")</dd>
+                    <dt>Scad. C.I.</dt><dd>@(d.ScadenzaCartaIdentita?.ToString("dd/MM/yyyy") ?? "—")</dd>
+                    <dt>Scad. tessera sanitaria</dt><dd>@(d.ScadenzaTesseraSanitaria?.ToString("dd/MM/yyyy") ?? "—")</dd>
+                    <dt>Scad. permesso soggiorno</dt><dd>@(d.ScadenzaPermessoSoggiorno?.ToString("dd/MM/yyyy") ?? "—")</dd>
                 </dl>
             </div>
+
+            @if (d.InizioMaternita is not null || !string.IsNullOrWhiteSpace(d.NoteInfortunio))
+            {
+                <div class="card">
+                    <div class="card__header"><h3 class="card__title">Maternità &amp; eventi</h3></div>
+                    <dl class="kv">
+                        <dt>Inizio maternità</dt><dd>@(d.InizioMaternita?.ToString("dd/MM/yyyy") ?? "—")</dd>
+                        <dt>Scad. doc. maternità</dt><dd>@(d.ScadenzaDocumentiMaternita?.ToString("dd/MM/yyyy") ?? "—")</dd>
+                        @if (!string.IsNullOrWhiteSpace(d.NoteInfortunio))
+                        {
+                            <dt>Note infortuni</dt><dd style="white-space: pre-wrap;">@d.NoteInfortunio</dd>
+                        }
+                    </dl>
+                </div>
+            }
 
             <div class="card">
                 <div class="card__header"><h3 class="card__title">Ferie</h3></div>
@@ -152,6 +235,17 @@
                 </div>
             </div>
 
+            @if (d.IsCessato && (d.RiconsegnaMaterialeStudio || d.RiconsegnaMaterialeSede))
+            {
+                <div class="card">
+                    <div class="card__header"><h3 class="card__title">Riconsegne</h3></div>
+                    <dl class="kv">
+                        <dt>Studio</dt><dd>@(d.RiconsegnaMaterialeStudio ? "✓ effettuata" : "✕ pendente")</dd>
+                        <dt>Sede</dt><dd>@(d.RiconsegnaMaterialeSede ? "✓ effettuata" : "✕ pendente")</dd>
+                    </dl>
+                </div>
+            }
+
             @if (!string.IsNullOrWhiteSpace(d.Note))
             {
                 <div class="card" style="grid-column: 1 / -1;">
@@ -160,6 +254,214 @@
                 </div>
             }
         </div>
+    }
+    else if (tab == "compliance")
+    {
+        // ── Costruzione checklist ─────────────────────────────────
+        var ultimaVisita = Model.VisiteMediche.OrderByDescending(v => v.Data).FirstOrDefault();
+        Corso? Ultimo(TipoCorso t) => Model.Corsi
+            .Where(c => c.Tipo == t).OrderByDescending(c => c.DataConseguimento).FirstOrDefault();
+
+        ComplianceCheck Mk(string label, DateTime? data, DateTime? scad, string? rif = null, int sogliaGg = 90)
+        {
+            var stato = StatoDa(scad, sogliaGg);
+            return new ComplianceCheck(label, data, scad, stato, rif);
+        }
+
+        var checklist = new List<ComplianceCheck>
+        {
+            Mk($"🩺 Visita medica idoneità ({(d.Ruolo == RuoloDipendente.ASO || d.Ruolo == RuoloDipendente.Igienista ? "1 anno" : "5 anni")})",
+                ultimaVisita?.Data, ultimaVisita?.ScadenzaIdoneita, ultimaVisita?.Esito.ToString()),
+        };
+
+        // Mappa corsi richiesti
+        var requisiti = new (TipoCorso Tipo, string Etichetta)[]
+        {
+            (TipoCorso.FormazioneGeneraleSicurezza,         "📚 Formazione generale sicurezza (4h, una tantum)"),
+            (TipoCorso.FormazioneSpecificaRischioBasso,     "📘 Formazione specifica rischio basso (5 anni)"),
+            (TipoCorso.FormazioneSpecificaRischioAltoASO,   "📕 Formazione specifica rischio alto ASO (5 anni)"),
+            (TipoCorso.AggiornamentoASO10H,                 "🔁 Aggiornamento ASO 10H (annuale)"),
+            (TipoCorso.Radioprotezione,                     "☢️ Radioprotezione (5 anni)"),
+            (TipoCorso.Antincendio,                         "🔥 Antincendio (5 anni)"),
+            (TipoCorso.RLS,                                 "🛡 RLS (annuale)"),
+            (TipoCorso.PrimoSoccorso,                       "🚑 Primo soccorso (3 anni)")
+        };
+        foreach (var r in requisiti)
+        {
+            var ult = Ultimo(r.Tipo);
+            checklist.Add(Mk(r.Etichetta, ult?.DataConseguimento, ult?.Scadenza,
+                r.Tipo == TipoCorso.RLS ? ult?.VerbaleNomina : null, sogliaGg: 60));
+        }
+
+        var inRegola = checklist.Count(x => x.Stato == ComplianceStato.InRegola);
+        var inScadenza = checklist.Count(x => x.Stato == ComplianceStato.InScadenza);
+        var scaduti = checklist.Count(x => x.Stato == ComplianceStato.Scaduto);
+        var mancanti = checklist.Count(x => x.Stato == ComplianceStato.NonRegistrato);
+
+        <div class="grid grid--stats" style="margin-bottom: var(--s-4);">
+            <div class="stat">
+                <div class="stat__label">✅ In regola</div>
+                <div class="stat__value" style="color:#1f6e3a;">@inRegola</div>
+            </div>
+            <div class="stat">
+                <div class="stat__label">🟡 In scadenza</div>
+                <div class="stat__value" style="color:#a86010;">@inScadenza</div>
+            </div>
+            <div class="stat">
+                <div class="stat__label">🔴 Scaduti</div>
+                <div class="stat__value" style="color:#a83a3a;">@scaduti</div>
+            </div>
+            <div class="stat">
+                <div class="stat__label">⬜ Mancanti</div>
+                <div class="stat__value">@mancanti</div>
+            </div>
+        </div>
+
+        <div class="card" style="padding: 0;">
+            <div class="card__header" style="padding: var(--s-3);">
+                <h3 class="card__title">Checklist compliance</h3>
+                <span class="muted" style="font-size:.85rem;">Visite mediche, formazione obbligatoria, sicurezza</span>
+            </div>
+            <ul class="list" style="margin: 0;">
+                @foreach (var c in checklist)
+                {
+                    <li class="list__item" style="border-left: 3px solid @c.ColoreBordo;">
+                        <div class="list__icon" style="font-size: 1.1rem;">@c.Icona</div>
+                        <div>
+                            <div class="list__title"><strong>@c.Etichetta</strong></div>
+                            <div class="muted" style="font-size:.78rem;">
+                                @if (c.DataUltima.HasValue)
+                                {
+                                    <text>Ultima: @c.DataUltima.Value.ToString("dd/MM/yyyy")</text>
+                                }
+                                else
+                                {
+                                    <text>Nessuna registrazione</text>
+                                }
+                                @if (!string.IsNullOrWhiteSpace(c.Riferimento))
+                                {
+                                    <text> · @c.Riferimento</text>
+                                }
+                            </div>
+                        </div>
+                        <div class="list__when">
+                            @if (c.Scadenza.HasValue)
+                            {
+                                <strong>scade @c.Scadenza.Value.ToString("dd/MM/yy")</strong>
+                            }
+                            else if (c.Stato == ComplianceStato.NonRegistrato)
+                            {
+                                <span class="muted">—</span>
+                            }
+                            else
+                            {
+                                <span class="muted">no scadenza</span>
+                            }
+                        </div>
+                    </li>
+                }
+            </ul>
+        </div>
+
+        <p class="muted" style="font-size:.82rem; margin-top: var(--s-3);">
+            💡 Le scadenze sono gestite dal modulo <a asp-controller="Rls" asp-action="Index">RLS / Sicurezza</a> per visite mediche e corsi.
+            Lo scadenziario unificato è in <a asp-controller="Scadenziario" asp-action="Index">📅 Scadenziario</a>.
+        </p>
+    }
+    else if (tab == "distacchi")
+    {
+        <div class="card" style="padding: var(--s-4); margin-bottom: var(--s-4);">
+            <h3 class="card__title" style="margin-top: 0;">Nuovo distacco</h3>
+            <form asp-action="NuovoDistacco" asp-route-id="@d.Id" method="post" class="form-grid" style="margin-top: var(--s-3);">
+                @Html.AntiForgeryToken()
+                <div class="form-group">
+                    <label class="form-label">Clinica destinazione *</label>
+                    <select class="form-control" name="clinicaDistaccoId" required>
+                        <option value="">— seleziona —</option>
+                        @foreach (var c in Model.Cliniche.Where(x => x.Id != d.ClinicaId))
+                        {
+                            <option value="@c.Id">@c.Nome</option>
+                        }
+                    </select>
+                </div>
+                <div class="form-group">
+                    <label class="form-label">Data inizio *</label>
+                    <input class="form-control" type="date" name="dataInizio" required value="@oggi.ToString("yyyy-MM-dd")" />
+                </div>
+                <div class="form-group">
+                    <label class="form-label">Data fine (opzionale)</label>
+                    <input class="form-control" type="date" name="dataFine" />
+                </div>
+                <div class="form-group full">
+                    <label class="form-label">Motivo</label>
+                    <input class="form-control" name="motivo" placeholder="Es. copertura ferie collega" />
+                </div>
+                <div class="form-group full" style="text-align:right;">
+                    <button type="submit" class="btn btn--primary">＋ Registra distacco</button>
+                </div>
+            </form>
+        </div>
+
+        @if (Model.Distacchi.Count == 0)
+        {
+            <div class="card" style="padding: var(--s-4);">
+                <p class="muted">Nessun distacco registrato.</p>
+            </div>
+        }
+        else
+        {
+            <div class="card" style="padding:0; overflow:auto;">
+                <table class="table">
+                    <thead>
+                        <tr>
+                            <th>Clinica destinazione</th>
+                            <th>Inizio</th>
+                            <th>Fine</th>
+                            <th>Durata</th>
+                            <th>Motivo</th>
+                            <th>Stato</th>
+                            <th></th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                    @foreach (var dist in Model.Distacchi)
+                    {
+                        <tr>
+                            <td><strong>@clinicheLookup.GetValueOrDefault(dist.ClinicaDistaccoId, "—")</strong></td>
+                            <td>@dist.DataInizio.ToString("dd/MM/yyyy")</td>
+                            <td>@(dist.DataFine?.ToString("dd/MM/yyyy") ?? "—")</td>
+                            <td>@dist.DurataMesi mesi</td>
+                            <td class="muted">@(dist.Motivo ?? "—")</td>
+                            <td>
+                                @if (dist.IsInCorso)
+                                {
+                                    <span class="badge badge--success"><span class="dot"></span>in corso</span>
+                                }
+                                else
+                                {
+                                    <span class="badge">chiuso</span>
+                                }
+                            </td>
+                            <td style="white-space:nowrap;">
+                                @if (dist.IsInCorso)
+                                {
+                                    <form asp-action="ChiudiDistacco" asp-route-id="@d.Id" asp-route-distaccoId="@dist.Id" method="post" style="display:inline;" onsubmit="return confirm('Chiudere il distacco oggi?');">
+                                        @Html.AntiForgeryToken()
+                                        <input type="hidden" name="dataFine" value="@oggi.ToString("yyyy-MM-dd")" />
+                                        <button type="submit" class="btn btn--ghost btn--sm" title="Chiudi distacco oggi">✕ chiudi</button>
+                                    </form>
+                                }
+                                <form asp-action="EliminaDistacco" asp-route-id="@d.Id" asp-route-distaccoId="@dist.Id" method="post" style="display:inline;" onsubmit="return confirm('Eliminare il distacco?');">
+                                    @Html.AntiForgeryToken()
+                                    <button type="submit" class="btn btn--ghost btn--sm" title="Elimina">🗑</button>
+                                </form>
+                            </td>
+                        </tr>
+                    }
+                    </tbody>
+                </table>
+            </div>
+        }
     }
     else if (tab == "storico")
     {

@@ -42,12 +42,26 @@
                 <input class="form-control" asp-for="Cognome" required />
             </div>
             <div class="form-group">
+                <label class="form-label" asp-for="Sesso">Sesso</label>
+                <select class="form-control" asp-for="Sesso">
+                    <option value="">— non specificato —</option>
+                    @foreach (var s in Enum.GetValues<Chipdent.Web.Domain.Entities.Sesso>())
+                    {
+                        <option value="@s" selected="@(Model.Sesso == s)">@s</option>
+                    }
+                </select>
+            </div>
+            <div class="form-group">
                 <label class="form-label" asp-for="DataNascita">Data di nascita</label>
                 <input class="form-control" asp-for="DataNascita" type="date" />
             </div>
             <div class="form-group">
                 <label class="form-label" asp-for="LuogoNascita">Luogo di nascita</label>
                 <input class="form-control" asp-for="LuogoNascita" />
+            </div>
+            <div class="form-group">
+                <label class="form-label" asp-for="Nazionalita">Nazionalità</label>
+                <input class="form-control" asp-for="Nazionalita" placeholder="Es. Italiana" />
             </div>
             <div class="form-group full">
                 <label class="form-label" asp-for="CodiceFiscale">Codice fiscale</label>
@@ -57,7 +71,7 @@
     </div>
 
     <div class="card form-section">
-        <div class="card__header"><h3 class="card__title">Contatti</h3></div>
+        <div class="card__header"><h3 class="card__title">Contatti &amp; residenza</h3></div>
         <div class="form-grid">
             <div class="form-group">
                 <label class="form-label" asp-for="Email">Email lavoro</label>
@@ -78,6 +92,14 @@
             <div class="form-group full">
                 <label class="form-label" asp-for="IndirizzoResidenza">Indirizzo di residenza</label>
                 <input class="form-control" asp-for="IndirizzoResidenza" />
+            </div>
+            <div class="form-group">
+                <label class="form-label" asp-for="CittaResidenza">Città</label>
+                <input class="form-control" asp-for="CittaResidenza" />
+            </div>
+            <div class="form-group">
+                <label class="form-label" asp-for="CapResidenza">CAP</label>
+                <input class="form-control" asp-for="CapResidenza" maxlength="5" />
             </div>
         </div>
     </div>
@@ -111,11 +133,15 @@
     </div>
 
     <div class="card form-section">
-        <div class="card__header"><h3 class="card__title">Contratto</h3></div>
+        <div class="card__header"><h3 class="card__title">Contratto &amp; CCNL</h3></div>
         <div class="form-grid">
             <div class="form-group">
-                <label class="form-label" asp-for="TipoContratto">Tipo contratto</label>
+                <label class="form-label" asp-for="TipoContratto">Tipo contratto (IND/DET)</label>
                 <select class="form-control" asp-for="TipoContratto" asp-items="Html.GetEnumSelectList<Chipdent.Web.Domain.Entities.TipoContratto>()"></select>
+            </div>
+            <div class="form-group">
+                <label class="form-label" asp-for="Ccnl">CCNL applicato</label>
+                <input class="form-control" asp-for="Ccnl" placeholder="Studi professionali" />
             </div>
             <div class="form-group">
                 <label class="form-label" asp-for="LivelloContratto">Livello CCNL</label>
@@ -136,7 +162,11 @@
                 <select class="form-control" asp-for="Stato" asp-items="Html.GetEnumSelectList<Chipdent.Web.Domain.Entities.StatoDipendente>()"></select>
             </div>
             <div class="form-group">
-                <label class="form-label" asp-for="DataAssunzione">Data assunzione</label>
+                <label class="form-label" asp-for="DataPrimoRapporto">Data primo rapporto</label>
+                <input class="form-control" asp-for="DataPrimoRapporto" type="date" />
+            </div>
+            <div class="form-group">
+                <label class="form-label" asp-for="DataAssunzione">Data inizio rapporto corrente</label>
                 <input class="form-control" asp-for="DataAssunzione" type="date" required />
             </div>
             <div class="form-group">
@@ -144,30 +174,129 @@
                 <input class="form-control" asp-for="DataFinePeriodoProva" type="date" />
             </div>
             <div class="form-group">
-                <label class="form-label" asp-for="DataDimissioni">Data dimissioni (opzionale)</label>
-                <input class="form-control" asp-for="DataDimissioni" type="date" />
+                <label class="form-label" asp-for="DataScadenzaContratto">Scadenza contratto (TD)</label>
+                <input class="form-control" asp-for="DataScadenzaContratto" type="date" />
+            </div>
+            <div class="form-group">
+                <label class="form-label" asp-for="DataScadenzaProroga">Scadenza proroga</label>
+                <input class="form-control" asp-for="DataScadenzaProroga" type="date" />
+            </div>
+            <div class="form-group">
+                <label class="form-label" asp-for="DataTrasformazioneContratto">Trasformazione contratto</label>
+                <input class="form-control" asp-for="DataTrasformazioneContratto" type="date" />
+            </div>
+            <div class="form-group">
+                <label class="form-label" asp-for="MeseAnnoCcnl">Mese/anno riferimento CCNL</label>
+                <input class="form-control" asp-for="MeseAnnoCcnl" placeholder="Es. Mar 2025" />
+            </div>
+            <div class="form-group">
+                <label class="form-label" asp-for="DataAumentoLivelli">Data aumento livello</label>
+                <input class="form-control" asp-for="DataAumentoLivelli" type="date" />
+            </div>
+            <div class="form-group">
+                <label class="form-label" asp-for="MonteOreSettimanale">Monte ore settimanale</label>
+                <input class="form-control" asp-for="MonteOreSettimanale" type="number" min="0" max="80" />
             </div>
             <div class="form-group">
                 <label class="form-label" asp-for="GiorniFerieResidui">Giorni ferie residui</label>
                 <input class="form-control" asp-for="GiorniFerieResidui" type="number" min="0" />
             </div>
+            <div class="form-group">
+                <label class="form-label" asp-for="DataDimissioni">Data dimissioni (opzionale)</label>
+                <input class="form-control" asp-for="DataDimissioni" type="date" />
+            </div>
+            <div class="form-group">
+                <label class="form-label" asp-for="MotivoDimissioni">Motivo dimissioni</label>
+                <input class="form-control" asp-for="MotivoDimissioni" />
+            </div>
             <div class="form-group full">
                 <label class="form-label" asp-for="IBAN">IBAN</label>
                 <input class="form-control" asp-for="IBAN" maxlength="34" style="font-family: monospace;" />
+            </div>
+            <div class="form-group full">
+                <label class="form-label" asp-for="AvanzamentoCarriera">Avanzamento di carriera (note)</label>
+                <input class="form-control" asp-for="AvanzamentoCarriera" />
+            </div>
+            <div class="form-group">
+                <label class="form-check">
+                    <input type="checkbox" asp-for="ExTirocinante" /> Ex tirocinante
+                </label>
+            </div>
+            <div class="form-group">
+                <label class="form-check">
+                    <input type="checkbox" asp-for="BeneficioTicket" /> Beneficio ticket restaurant
+                </label>
             </div>
         </div>
     </div>
 
     <div class="card form-section">
-        <div class="card__header"><h3 class="card__title">Documento d'identità</h3></div>
+        <div class="card__header"><h3 class="card__title">Studi &amp; titolo</h3></div>
+        <div class="form-grid">
+            <div class="form-group full">
+                <label class="form-label" asp-for="TitoloStudio">Titolo di studio</label>
+                <input class="form-control" asp-for="TitoloStudio" placeholder="Es. Diploma odontotecnico, Laurea magistrale, etc." />
+            </div>
+            <div class="form-group">
+                <label class="form-check">
+                    <input type="checkbox" asp-for="AutocertificazioneTitolo" /> Autocertificazione titolo
+                </label>
+            </div>
+        </div>
+    </div>
+
+    <div class="card form-section">
+        <div class="card__header"><h3 class="card__title">Documenti &amp; scadenze</h3></div>
         <div class="form-grid">
             <div class="form-group">
                 <label class="form-label" asp-for="DocumentoNumero">Numero documento</label>
                 <input class="form-control" asp-for="DocumentoNumero" />
             </div>
             <div class="form-group">
-                <label class="form-label" asp-for="DocumentoScadenza">Scadenza</label>
-                <input class="form-control" asp-for="DocumentoScadenza" type="date" />
+                <label class="form-label" asp-for="ScadenzaCartaIdentita">Scadenza C.I.</label>
+                <input class="form-control" asp-for="ScadenzaCartaIdentita" type="date" />
+            </div>
+            <div class="form-group">
+                <label class="form-label" asp-for="ScadenzaTesseraSanitaria">Scadenza tessera sanitaria</label>
+                <input class="form-control" asp-for="ScadenzaTesseraSanitaria" type="date" />
+            </div>
+            <div class="form-group">
+                <label class="form-label" asp-for="ScadenzaPermessoSoggiorno">Scadenza permesso di soggiorno</label>
+                <input class="form-control" asp-for="ScadenzaPermessoSoggiorno" type="date" />
+            </div>
+        </div>
+    </div>
+
+    <div class="card form-section">
+        <div class="card__header"><h3 class="card__title">Maternità &amp; eventi</h3></div>
+        <div class="form-grid">
+            <div class="form-group">
+                <label class="form-label" asp-for="InizioMaternita">Inizio maternità</label>
+                <input class="form-control" asp-for="InizioMaternita" type="date" />
+            </div>
+            <div class="form-group">
+                <label class="form-label" asp-for="ScadenzaDocumentiMaternita">Scadenza documenti maternità</label>
+                <input class="form-control" asp-for="ScadenzaDocumentiMaternita" type="date" />
+            </div>
+            <div class="form-group full">
+                <label class="form-label" asp-for="NoteInfortunio">Eventi infortunio</label>
+                <textarea class="form-control" asp-for="NoteInfortunio" rows="2" placeholder="Storico/note infortuni"></textarea>
+            </div>
+        </div>
+    </div>
+
+    <div class="card form-section">
+        <div class="card__header"><h3 class="card__title">Riconsegna materiale (cessazione)</h3></div>
+        <div class="form-grid">
+            <div class="form-group">
+                <label class="form-check">
+                    <input type="checkbox" asp-for="RiconsegnaMaterialeStudio" /> Riconsegna materiale in studio
+                </label>
+            </div>
+            <div class="form-group">
+                <label class="form-check">
+                    <input type="checkbox" asp-for="RiconsegnaMaterialeSede" /> Riconsegna materiale in sede
+                </label>
             </div>
         </div>
     </div>
