@@ -84,8 +84,8 @@
     </div>
 </div>
 
-<div class="grid" style="grid-template-columns: 2fr 1fr; gap: var(--s-4); margin-bottom: var(--s-4);">
-    <div class="card">
+<div class="grid" style="grid-template-columns: minmax(0, 2fr) minmax(0, 1fr); gap: var(--s-4); margin-bottom: var(--s-4);">
+    <div class="card" style="min-width: 0;">
         <div class="card__header">
             <h3 class="card__title">Cash-out previsto (90 giorni)</h3>
             <span class="muted" style="font-size:.85rem;">Aggregato per mese</span>
@@ -94,7 +94,7 @@
             <canvas id="chart-cashout"></canvas>
         </div>
     </div>
-    <div class="card">
+    <div class="card" style="min-width: 0;">
         <div class="card__header"><h3 class="card__title">Stati scadenze</h3></div>
         <div style="height: 280px; padding: var(--s-3);">
             <canvas id="chart-stati"></canvas>
@@ -102,14 +102,14 @@
     </div>
 </div>
 
-<div class="grid" style="grid-template-columns: 1fr 1fr; gap: var(--s-4); margin-bottom: var(--s-4);">
-    <div class="card">
+<div class="grid" style="grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: var(--s-4); margin-bottom: var(--s-4);">
+    <div class="card" style="min-width: 0;">
         <div class="card__header"><h3 class="card__title">Spesa per categoria (12m)</h3></div>
         <div style="height: 260px; padding: var(--s-3);">
             <canvas id="chart-categoria"></canvas>
         </div>
     </div>
-    <div class="card">
+    <div class="card" style="min-width: 0;">
         <div class="card__header"><h3 class="card__title">Spesa per sede (12m)</h3></div>
         <div style="height: 260px; padding: var(--s-3);">
             <canvas id="chart-sede"></canvas>
@@ -117,41 +117,67 @@
     </div>
 </div>
 
-<div class="grid" style="grid-template-columns: 3fr 1fr; gap: var(--s-4); margin-bottom: var(--s-4);">
-    <div class="card" style="padding:0;">
-        <div class="card__header" style="padding: var(--s-3) var(--s-3) 0;">
-            <h3 class="card__title">Scadenze</h3>
-            <span class="muted" style="font-size:.85rem;">@Model.Righe.Count righe</span>
-        </div>
+<div class="grid" style="grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: var(--s-4); margin-bottom: var(--s-4);">
+    <div class="card" style="min-width: 0;">
+        <div class="card__header"><h3 class="card__title">Top fornitori — esposto</h3></div>
+        <ul class="list" style="margin: 0;">
+            @foreach (var t in Model.TopFornitori)
+            {
+                <li class="list__item">
+                    <div class="list__icon">●</div>
+                    <div>
+                        <div class="list__title"><strong>@t.Nome</strong></div>
+                        <div class="muted" style="font-size:.78rem;">@t.NumeroScadenze scadenze aperte</div>
+                    </div>
+                    <div class="list__when"><strong>@Eur(t.Esposto)</strong></div>
+                </li>
+            }
+            @if (Model.TopFornitori.Count == 0)
+            {
+                <li class="muted" style="padding: var(--s-3);">Nessun esposto aperto.</li>
+            }
+        </ul>
+    </div>
+    <div class="card" style="min-width: 0;">
+        <div class="card__header"><h3 class="card__title">Calendario @oggi.ToString("MMMM yyyy", it)</h3></div>
+        <div id="mini-cal" style="padding: var(--s-3);"></div>
+    </div>
+</div>
 
-        <form method="get" style="display:flex; flex-wrap:wrap; gap:8px; padding: var(--s-3); align-items:end; border-bottom: 1px solid var(--c-border, #ece0cc);">
-            <div>
-                <label class="muted" style="font-size:.75rem;">Ricerca</label>
-                <input class="form-control" name="Q" value="@Model.Filtro.Q" placeholder="Fornitore, n° doc, note…" style="width: 200px;" />
-            </div>
-            <div>
-                <label class="muted" style="font-size:.75rem;">Fornitore</label>
-                <select class="form-control" name="FornitoreId" style="width: 180px;">
-                    <option value="">Tutti</option>
-                    @foreach (var f in Model.FornitoriLookup)
-                    {
-                        <option value="@f.Id" selected="@(Model.Filtro.FornitoreId == f.Id)">@f.Nome</option>
-                    }
-                </select>
-            </div>
-            <div>
-                <label class="muted" style="font-size:.75rem;">Sede</label>
-                <select class="form-control" name="ClinicaId" style="width: 150px;">
-                    <option value="">Tutte</option>
-                    @foreach (var c in Model.CliniceLookup)
-                    {
-                        <option value="@c.Id" selected="@(Model.Filtro.ClinicaId == c.Id)">@c.Nome</option>
-                    }
-                </select>
-            </div>
-            <div>
-                <label class="muted" style="font-size:.75rem;">Categoria</label>
-                <select class="form-control" name="Categoria" style="width: 160px;">
+<div class="card" style="padding:0; margin-bottom: var(--s-4); min-width: 0;">
+    <div class="card__header" style="padding: var(--s-3) var(--s-3) 0;">
+        <h3 class="card__title">Scadenze</h3>
+        <span class="muted" style="font-size:.85rem;">@Model.Righe.Count righe</span>
+    </div>
+
+    <form method="get" style="display:flex; flex-wrap:wrap; gap:8px; padding: var(--s-3); align-items:end; border-bottom: 1px solid var(--c-border, #ece0cc);">
+        <div>
+            <label class="muted" style="font-size:.75rem;">Ricerca</label>
+            <input class="form-control" name="Q" value="@Model.Filtro.Q" placeholder="Fornitore, n° doc, note…" style="width: 200px;" />
+        </div>
+        <div>
+            <label class="muted" style="font-size:.75rem;">Fornitore</label>
+            <select class="form-control" name="FornitoreId" style="width: 180px;">
+                <option value="">Tutti</option>
+                @foreach (var f in Model.FornitoriLookup)
+                {
+                    <option value="@f.Id" selected="@(Model.Filtro.FornitoreId == f.Id)">@f.Nome</option>
+                }
+            </select>
+        </div>
+        <div>
+            <label class="muted" style="font-size:.75rem;">Sede</label>
+            <select class="form-control" name="ClinicaId" style="width: 150px;">
+                <option value="">Tutte</option>
+                @foreach (var c in Model.CliniceLookup)
+                {
+                    <option value="@c.Id" selected="@(Model.Filtro.ClinicaId == c.Id)">@c.Nome</option>
+                }
+            </select>
+        </div>
+        <div>
+            <label class="muted" style="font-size:.75rem;">Categoria</label>
+            <select class="form-control" name="Categoria" style="width: 160px;">
                     <option value="">Tutte</option>
                     @foreach (var v in Enum.GetValues<CategoriaSpesa>())
                     {
@@ -204,23 +230,19 @@
             <button type="button" class="btn btn--ghost btn--sm" data-sepa-clear>Deseleziona tutto</button>
         </div>
 
-        <div style="overflow:auto;">
-            <table class="table">
+        <div style="overflow-x:auto;">
+            <table class="table" style="font-size: .88rem;">
                 <thead>
                     <tr>
                         <th style="width: 32px;"><input type="checkbox" data-sepa-master title="Seleziona tutte le righe bonificabili" /></th>
                         <th>Data</th>
                         <th title="Scadenza calcolata dai termini contrattuali">Attesa</th>
-                        <th>Comp.</th>
                         <th>LOC</th>
                         <th>N° Doc</th>
                         <th>Fornitore</th>
-                        <th style="text-align:right;">Imp.</th>
-                        <th style="text-align:right;">IVA</th>
                         <th style="text-align:right;">Totale</th>
                         <th>Met.</th>
                         <th>Stato</th>
-                        <th>Categoria</th>
                         <th></th>
                     </tr>
                 </thead>
@@ -234,6 +256,7 @@
                             : "";
                     var bonificabile = r.Stato == StatoScadenza.DaPagare
                         && (r.Metodo == MetodoPagamento.Bonifico || r.Metodo == MetodoPagamento.Altro);
+                    var totaleTooltip = $"Imponibile {EurDec(r.Imponibile)} · IVA {EurDec(r.Iva)} · Categoria {r.Categoria}";
                     <tr style="@rowStyle">
                         <td>
                             @if (bonificabile)
@@ -248,6 +271,7 @@
                                 var deltaTxt = r.GiorniDelta!.Value > 0 ? $"+{r.GiorniDelta} gg" : $"{r.GiorniDelta} gg";
                                 <span title="Scadenza dichiarata diverge dai termini contratto di @deltaTxt (atteso @r.DataScadenzaAttesa?.ToString("dd/MM/yy"))" style="color:#c47830; font-weight:600; cursor:help;">⚠️</span>
                             }
+                            <div class="muted" style="font-size: .72rem; line-height: 1;">@r.MeseCompetenza</div>
                         </td>
                         <td class="muted" style="font-size: .82rem;">
                             @if (r.DataScadenzaAttesa.HasValue)
@@ -259,7 +283,6 @@
                                 <span title="Termini di pagamento non configurati sull'anagrafica fornitore">—</span>
                             }
                         </td>
-                        <td class="muted">@r.MeseCompetenza</td>
                         <td><code>@r.Loc</code></td>
                         <td>
                             @r.NumeroDoc
@@ -268,13 +291,13 @@
                                 <a class="muted" href="@Url.Action("ScaricaAllegatoFattura", new { id = r.FatturaId })" title="Scarica allegato">📎</a>
                             }
                         </td>
-                        <td><strong>@r.FornitoreNome</strong></td>
-                        <td style="text-align:right;">@EurDec(r.Imponibile)</td>
-                        <td style="text-align:right;">@EurDec(r.Iva)</td>
-                        <td style="text-align:right;"><strong>@EurDec(r.Totale)</strong></td>
+                        <td>
+                            <strong>@r.FornitoreNome</strong>
+                            <div class="muted" style="font-size: .72rem; line-height: 1;">@r.Categoria</div>
+                        </td>
+                        <td style="text-align:right;" title="@totaleTooltip"><strong>@EurDec(r.Totale)</strong></td>
                         <td><span class="badge">@r.Metodo</span></td>
                         <td>@Html.Raw(StatoBadge(r.Stato))</td>
-                        <td class="muted">@r.Categoria</td>
                         <td style="white-space:nowrap;">
                             @if (r.Stato == StatoScadenza.DaPagare || r.Stato == StatoScadenza.Insoluto)
                             {
@@ -297,41 +320,12 @@
                 }
                 @if (Model.Righe.Count == 0)
                 {
-                    <tr><td colspan="14" class="muted" style="text-align:center; padding: var(--s-5);">Nessuna scadenza per i filtri impostati.</td></tr>
+                    <tr><td colspan="10" class="muted" style="text-align:center; padding: var(--s-5);">Nessuna scadenza per i filtri impostati.</td></tr>
                 }
                 </tbody>
             </table>
         </div>
     </div>
-
-    <div>
-        <div class="card" style="margin-bottom: var(--s-4);">
-            <div class="card__header"><h3 class="card__title">Top fornitori — esposto</h3></div>
-            <ul class="list" style="margin: 0;">
-                @foreach (var t in Model.TopFornitori)
-                {
-                    <li class="list__item">
-                        <div class="list__icon">●</div>
-                        <div>
-                            <div class="list__title"><strong>@t.Nome</strong></div>
-                            <div class="muted" style="font-size:.78rem;">@t.NumeroScadenze scadenze aperte</div>
-                        </div>
-                        <div class="list__when"><strong>@Eur(t.Esposto)</strong></div>
-                    </li>
-                }
-                @if (Model.TopFornitori.Count == 0)
-                {
-                    <li class="muted" style="padding: var(--s-3);">Nessun esposto aperto.</li>
-                }
-            </ul>
-        </div>
-
-        <div class="card">
-            <div class="card__header"><h3 class="card__title">Calendario @oggi.ToString("MMMM yyyy", it)</h3></div>
-            <div id="mini-cal" style="padding: var(--s-3);"></div>
-        </div>
-    </div>
-</div>
 
 <!-- ── Modali pagamento ──────────────────────────────────────── -->
 <dialog id="dlg-paga" style="border:0; border-radius: 12px; padding: 0; max-width: 420px; box-shadow: 0 20px 60px rgba(0,0,0,0.18);">
