@@ -148,7 +148,7 @@ public class CashflowForecaster
     /// Confidence: Alta se CV < 0.20, Media se < 0.30, altrimenti Bassa.
     /// </summary>
     private static List<RicorrenzaFornitore> DetectRicorrenti(
-        List<FatturaFornitore> fatture, IDictionary<string, Fornitore> fornitori, DateTime oggi, DateTime dodiciMesiFa)
+        List<FatturaFornitore> fatture, Dictionary<string, Fornitore> fornitori, DateTime oggi, DateTime dodiciMesiFa)
     {
         var risultato = new List<RicorrenzaFornitore>();
         var perFornitore = fatture
