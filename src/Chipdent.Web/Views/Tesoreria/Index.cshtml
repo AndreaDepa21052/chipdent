@@ -376,8 +376,9 @@
 
                 // Stati presenti nel giorno (per i pallini)
                 var hasOverdue = righe?.Any(r => r.Stato == StatoScadenza.Insoluto) ?? false;
-                var hasDaPagare = righe?.Any(r => r.Stato == StatoScadenza.DaPagare) ?? false;
-                var hasProgr   = righe?.Any(r => r.Stato == StatoScadenza.Programmato) ?? false;
+                var hasDaPagare = righe?.Any(r => r.Stato == StatoScadenza.DaPagare && !r.InDistintaSepa) ?? false;
+                // Pallino blu = "ha un appuntamento" (programmazione manuale) OPPURE è in distinta SEPA con data esecuzione.
+                var hasProgr   = righe?.Any(r => r.Stato == StatoScadenza.Programmato || r.InDistintaSepa) ?? false;
                 var hasPagato  = righe?.Any(r => r.Stato == StatoScadenza.Pagato) ?? false;
                 var hasMaiPag  = righe?.Any(r => r.Stato == StatoScadenza.MaiPagato) ?? false;
 
@@ -444,7 +445,7 @@
                     @foreach (var r in oggiList.Take(6))
                     {
                         <li>
-                            <span class="dot @(r.Stato == StatoScadenza.Insoluto ? "dot--red" : r.Stato == StatoScadenza.Pagato ? "dot--green" : r.Stato == StatoScadenza.Programmato ? "dot--blue" : "dot--amber")"></span>
+                            <span class="dot @(r.Stato == StatoScadenza.Insoluto ? "dot--red" : r.Stato == StatoScadenza.Pagato ? "dot--green" : (r.Stato == StatoScadenza.Programmato || r.InDistintaSepa) ? "dot--blue" : "dot--amber")"></span>
                             <span class="scadenze-cal__today-name" title="@r.FornitoreNome · @r.Categoria.Label()">@r.FornitoreNome</span>
                             <strong class="scadenze-cal__today-amt">@EurDec(r.Totale)</strong>
                         </li>
@@ -627,6 +628,7 @@
                                 ? "background: rgba(120,120,120,0.06); opacity:.7;"
                                 : "";
                     var bonificabile = r.Stato == StatoScadenza.DaPagare
+                        && !r.InDistintaSepa // già inclusa in una distinta: niente doppia inclusione
                         && !r.BonificoMultiploCbi // BM va in distinta CBI multipla, non SEPA singola
                         && (r.Metodo == MetodoPagamento.Bonifico || r.Metodo == MetodoPagamento.Altro);
                     var totaleTooltip = $"Imponibile {EurDec(r.Imponibile)} · IVA {EurDec(r.Iva)} · Categoria {r.Categoria.Label()}";
@@ -682,10 +684,21 @@
                         </td>
                         <td>
                             @Html.Raw(StatoBadge(r.Stato))
+                            @if (r.InDistintaSepa)
+                            {
+                                <span class="badge" title="Inclusa in distinta SEPA del @r.DataProgrammata?.ToString("dd/MM/yyyy")"
+                                      style="margin-left:4px; background:#e3edff; color:#2457a4; font-size:.65rem;">🏦 in distinta</span>
+                            }
                             @if (r.Stato == StatoScadenza.Programmato && r.DataProgrammata.HasValue)
                             {
                                 <div class="muted" style="font-size: .68rem; line-height: 1.2; margin-top: 2px;">
                                     il @r.DataProgrammata.Value.ToString("dd/MM/yy")
+                                </div>
+                            }
+                            else if (r.InDistintaSepa && r.DataProgrammata.HasValue)
+                            {
+                                <div class="muted" style="font-size: .68rem; line-height: 1.2; margin-top: 2px;">
+                                    esecuzione il @r.DataProgrammata.Value.ToString("dd/MM/yy")
                                 </div>
                             }
                             else if (r.Stato == StatoScadenza.Pagato && r.DataPagamento.HasValue)

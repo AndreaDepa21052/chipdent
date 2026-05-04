@@ -72,11 +72,15 @@ public class RigaTesoreria
     /// <summary>Origine del caricamento (Backoffice / PortaleFornitore / ImportExcel).</summary>
     public OrigineFattura Origine { get; set; } = OrigineFattura.Backoffice;
 
-    /// <summary>Data programmata del bonifico (popolata quando Stato = Programmato).</summary>
+    /// <summary>Data programmata del bonifico (popolata quando Stato = Programmato o per le righe in distinta SEPA).</summary>
     public DateTime? DataProgrammata { get; set; }
 
     /// <summary>Data effettiva del pagamento (popolata quando Stato = Pagato).</summary>
     public DateTime? DataPagamento { get; set; }
+
+    /// <summary>Id della distinta SEPA che include questa scadenza. Null = non in distinta.</summary>
+    public string? DistintaSepaId { get; set; }
+    public bool InDistintaSepa => !string.IsNullOrEmpty(DistintaSepaId);
 
     /// <summary>Quando è stata caricata la fattura sorgente.</summary>
     public DateTime CaricataIl { get; set; }

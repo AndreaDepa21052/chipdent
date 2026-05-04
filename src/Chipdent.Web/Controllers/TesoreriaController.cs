@@ -138,6 +138,7 @@ public class TesoreriaController : Controller
                         : (string.IsNullOrEmpty(fa?.CaricataDaUserId) ? "—" : usersById.GetValueOrDefault(fa.CaricataDaUserId, "—")),
                     DataProgrammata = s.DataProgrammata,
                     DataPagamento = s.DataPagamento,
+                    DistintaSepaId = s.DistintaSepaId,
                     HasAllegato = !string.IsNullOrEmpty(fa?.AllegatoPath)
                 };
             }).ToList();
@@ -1009,13 +1010,16 @@ public class TesoreriaController : Controller
         };
         await _mongo.DistinteSepa.InsertOneAsync(distinta);
 
-        // Marca le scadenze come "Programmato", snapshot dell'IBAN ordinante usato.
+        // Le scadenze incluse in distinta NON cambiano stato: restano "Da pagare"
+        // finché la banca non esegue il bonifico e il backoffice non clicca "✓ Pagato".
+        // Lo stato "Programmato" è riservato alla programmazione manuale (promemoria).
+        // Salviamo solo il riferimento alla distinta + la data esecuzione + l'IBAN ordinante.
         var ibanPerScadenza = ordinantiPerScadenza.ToDictionary(x => x.Scadenza.Id, x => x.Ordinante.Iban);
         var bulkOps = ammesse.Select(s =>
             new UpdateOneModel<ScadenzaPagamento>(
                 Builders<ScadenzaPagamento>.Filter.Eq(x => x.Id, s.Id),
                 Builders<ScadenzaPagamento>.Update
-                    .Set(x => x.Stato, StatoScadenza.Programmato)
+                    .Set(x => x.DistintaSepaId, distinta.Id)
                     .Set(x => x.DataProgrammata, DateTime.SpecifyKind(dataEsecuzione.Date, DateTimeKind.Utc))
                     .Set(x => x.RiferimentoPagamento, distinta.Etichetta)
                     .Set(x => x.IbanOrdinanteUsato, ibanPerScadenza[s.Id])

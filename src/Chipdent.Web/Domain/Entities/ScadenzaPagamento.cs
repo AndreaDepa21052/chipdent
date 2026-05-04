@@ -43,6 +43,15 @@ public class ScadenzaPagamento : TenantEntity
     public string? IbanOrdinanteUsato { get; set; }
 
     /// <summary>
+    /// Id della <see cref="DistintaPagamento"/> in cui è inclusa la scadenza, popolato
+    /// quando viene generata la distinta SEPA (XML pain.001). Null = non in distinta.
+    /// La presenza di un valore qui non implica Stato = Programmato: lo stato
+    /// "Programmato" è riservato alla programmazione manuale (promemoria), mentre
+    /// l'inclusione in distinta è tracciata separatamente.
+    /// </summary>
+    public string? DistintaSepaId { get; set; }
+
+    /// <summary>
     /// Riferimento alla scadenza "padre" quando questa è una rata derivata.
     /// Tipicamente le righe F24 (ritenute, IVA) sono figlie del compenso o della fattura
     /// che le ha generate. La UI le mostra rientranti sotto la padre. Null = scadenza autonoma.
