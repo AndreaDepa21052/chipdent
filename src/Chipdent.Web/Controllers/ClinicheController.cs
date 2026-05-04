@@ -28,9 +28,33 @@ public class ClinicheController : Controller
             .Find(c => c.TenantId == _tenant.TenantId)
             .SortBy(c => c.Nome)
             .ToListAsync();
+
+        // Alert dal Calendario interventi per ogni clinica: scaduti + in scadenza ≤ 30 gg.
+        // Pre-computati qui per evitare N query dalla view.
+        var oggi = DateTime.UtcNow.Date;
+        var soglia30 = oggi.AddDays(30);
+        var interventiCriticI = await _mongo.InterventiClinica
+            .Find(i => i.TenantId == _tenant.TenantId && i.ProssimaScadenza != null && i.ProssimaScadenza <= soglia30)
+            .ToListAsync();
+        var alertMap = interventiCriticI
+            .GroupBy(i => i.ClinicaId)
+            .ToDictionary(g => g.Key, g => new ClinicaAlerts
+            {
+                Scaduti = g.Count(i => i.ProssimaScadenza!.Value.Date < oggi),
+                Imminenti = g.Count(i => i.ProssimaScadenza!.Value.Date >= oggi && i.ProssimaScadenza.Value.Date <= soglia30)
+            });
+
         ViewData["Section"] = "cliniche";
         ViewData["ViewMode"] = view == "mappa" ? "mappa" : "lista";
+        ViewData["Alerts"] = alertMap;
         return View(items);
+    }
+
+    public class ClinicaAlerts
+    {
+        public int Scaduti { get; set; }
+        public int Imminenti { get; set; }
+        public int Totale => Scaduti + Imminenti;
     }
 
     [HttpGet("mappa.json")]
@@ -204,7 +228,7 @@ public class ClinicheController : Controller
     }
 
     [HttpGet("{id}/modifica")]
-    [Authorize(Policy = Policies.RequireManagement)]
+    [Authorize(Policy = Policies.RequireBackoffice)]
     public async Task<IActionResult> Edit(string id)
     {
         var clinica = await Load(id);
@@ -215,7 +239,7 @@ public class ClinicheController : Controller
     }
 
     [HttpPost("{id}/modifica")]
-    [Authorize(Policy = Policies.RequireManagement)]
+    [Authorize(Policy = Policies.RequireBackoffice)]
     [ValidateAntiForgeryToken]
     public async Task<IActionResult> Edit(string id, Clinica model)
     {

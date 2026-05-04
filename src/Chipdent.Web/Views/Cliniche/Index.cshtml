@@ -3,6 +3,17 @@
     ViewData["Title"] = "Cliniche";
     var viewMode = (ViewData["ViewMode"] as string) ?? "lista";
     var geoCount = Model.Count(c => c.IsGeolocalized);
+    var alerts = (ViewData["Alerts"] as Dictionary<string, Chipdent.Web.Controllers.ClinicheController.ClinicaAlerts>) ?? new();
+
+    // Cliniche con criticità in cima (scaduti prima, poi imminenti); poi alfabetico.
+    Chipdent.Web.Controllers.ClinicheController.ClinicaAlerts? AlertOf(string id) => alerts.TryGetValue(id, out var a) ? a : null;
+    var ordered = Model
+        .OrderByDescending(c => AlertOf(c.Id)?.Scaduti ?? 0)
+        .ThenByDescending(c => AlertOf(c.Id)?.Imminenti ?? 0)
+        .ThenBy(c => c.Nome)
+        .ToList();
+    var totScaduti = alerts.Values.Sum(a => a.Scaduti);
+    var totImminenti = alerts.Values.Sum(a => a.Imminenti);
 }
 
 <partial name="_Flash" />
@@ -10,7 +21,17 @@
 <div class="page-head">
     <div>
         <h2>Cliniche</h2>
-        <p class="page-head__sub">@Model.Count sedi · @Model.Count(c => c.Stato == Chipdent.Web.Domain.Entities.ClinicaStato.Operativa) operative · @geoCount geolocalizzate</p>
+        <p class="page-head__sub">
+            @Model.Count sedi · @Model.Count(c => c.Stato == Chipdent.Web.Domain.Entities.ClinicaStato.Operativa) operative · @geoCount geolocalizzate
+            @if (totScaduti + totImminenti > 0)
+            {
+                <text> · </text>
+                @if (totScaduti > 0) { <strong style="color: var(--c-danger, #b8442e);">@totScaduti interventi scaduti</strong> }
+                @if (totScaduti > 0 && totImminenti > 0) { <text> · </text> }
+                @if (totImminenti > 0) { <strong style="color: var(--c-warning, #c47830);">@totImminenti in scadenza ≤ 30 gg</strong> }
+                <a asp-controller="CalendarioInterventi" asp-action="Index" style="margin-left:8px; font-size:.82rem;">apri calendario →</a>
+            }
+        </p>
     </div>
     <div class="page-head__actions">
         <div class="seg" role="tablist" aria-label="Modalità di visualizzazione" style="display:inline-flex; gap:0; border:1px solid var(--c-border, #e9e1d3); border-radius: 8px; overflow:hidden; margin-right: var(--s-2);">
@@ -57,13 +78,16 @@ else
                     <th>Città</th>
                     <th>Riuniti</th>
                     <th>Stato</th>
+                    <th>Calendario interventi</th>
                     <th></th>
                 </tr>
             </thead>
             <tbody>
-                @foreach (var c in Model)
+                @foreach (var c in ordered)
                 {
-                    <tr>
+                    var a = AlertOf(c.Id);
+                    var rowCls = a is null ? "" : (a.Scaduti > 0 ? "row--alert-danger" : (a.Imminenti > 0 ? "row--alert-warn" : ""));
+                    <tr class="@rowCls">
                         <td>
                             <div class="strong">@c.Nome</div>
                             <div class="muted">@c.Indirizzo @(c.IsGeolocalized ? "📍" : "")</div>
@@ -85,6 +109,26 @@ else
                             }
                         </td>
                         <td>
+                            @if (a is null)
+                            {
+                                <span class="muted" style="font-size:.82rem;">—</span>
+                            }
+                            else
+                            {
+                                <a asp-controller="Cliniche" asp-action="Details" asp-route-id="@c.Id" asp-fragment="interventi"
+                                   asp-route-tab="interventi" style="text-decoration:none; display:inline-flex; gap:6px; flex-wrap:wrap;">
+                                    @if (a.Scaduti > 0)
+                                    {
+                                        <span class="badge badge--danger" title="Interventi scaduti">⛔ @a.Scaduti scadut@(a.Scaduti == 1 ? "o" : "i")</span>
+                                    }
+                                    @if (a.Imminenti > 0)
+                                    {
+                                        <span class="badge badge--warning" title="Scadenze ≤ 30 gg">⚠️ @a.Imminenti ≤ 30 gg</span>
+                                    }
+                                </a>
+                            }
+                        </td>
+                        <td>
                             <div class="actions">
                                 <a class="ibtn" asp-action="Details" asp-route-id="@c.Id" title="Dettagli">
                                     <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M5 12h14M13 5l7 7-7 7"/></svg>
@@ -99,6 +143,11 @@ else
             </tbody>
         </table>
     </div>
+
+    <style>
+        tr.row--alert-danger > td:first-child { box-shadow: inset 3px 0 0 var(--c-danger, #b8442e); }
+        tr.row--alert-warn   > td:first-child { box-shadow: inset 3px 0 0 var(--c-warning, #c47830); }
+    </style>
 }
 
 @if (viewMode == "mappa")
