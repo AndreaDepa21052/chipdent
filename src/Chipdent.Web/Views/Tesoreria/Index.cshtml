@@ -155,76 +155,65 @@
         <span class="muted" style="font-size:.85rem;">@Model.Righe.Count righe</span>
     </div>
 
-    <form method="get" style="display:flex; flex-wrap:wrap; gap:8px; padding: var(--s-3); align-items:end; border-bottom: 1px solid var(--c-border, #ece0cc);">
-        <div>
-            <label class="muted" style="font-size:.75rem;">Ricerca</label>
-            <input class="form-control" name="Q" value="@Model.Filtro.Q" placeholder="Fornitore, n° doc, note…" style="width: 200px;" />
-        </div>
-        <div>
-            <label class="muted" style="font-size:.75rem;">Fornitore</label>
-            <select class="form-control" name="FornitoreId" style="width: 180px;">
-                <option value="">Tutti</option>
-                @foreach (var f in Model.FornitoriLookup)
-                {
-                    <option value="@f.Id" selected="@(Model.Filtro.FornitoreId == f.Id)">@f.Nome</option>
-                }
-            </select>
-        </div>
-        <div>
-            <label class="muted" style="font-size:.75rem;">Sede</label>
-            <select class="form-control" name="ClinicaId" style="width: 150px;">
-                <option value="">Tutte</option>
-                @foreach (var c in Model.CliniceLookup)
-                {
-                    <option value="@c.Id" selected="@(Model.Filtro.ClinicaId == c.Id)">@c.Nome</option>
-                }
-            </select>
-        </div>
-        <div>
-            <label class="muted" style="font-size:.75rem;">Categoria</label>
-            <select class="form-control" name="Categoria" style="width: 200px;">
-                    <option value="">Tutte</option>
-                    @foreach (var v in Enum.GetValues<CategoriaSpesa>().OrderBy(x => x.Label()))
-                    {
-                        <option value="@v" selected="@(Model.Filtro.Categoria == v)">@v.Label()</option>
-                    }
-                </select>
-            </div>
-            <div>
-                <label class="muted" style="font-size:.75rem;">Stato</label>
-                <select class="form-control" name="Stato" style="width: 130px;">
-                    <option value="">Tutti</option>
-                    @foreach (var v in Enum.GetValues<StatoScadenza>())
-                    {
-                        <option value="@v" selected="@(Model.Filtro.Stato == v)">@v.Label()</option>
-                    }
-                </select>
-            </div>
-            <div>
-                <label class="muted" style="font-size:.75rem;">Metodo</label>
-                <select class="form-control" name="Metodo" style="width: 120px;">
-                    <option value="">Tutti</option>
-                    @foreach (var v in Enum.GetValues<MetodoPagamento>())
-                    {
-                        <option value="@v" selected="@(Model.Filtro.Metodo == v)">@v.Label()</option>
-                    }
-                </select>
-            </div>
-            <div>
-                <label class="muted" style="font-size:.75rem;">Dal</label>
-                <input class="form-control" type="date" name="Dal" value="@Model.Filtro.Dal?.ToString("yyyy-MM-dd")" />
-            </div>
-            <div>
-                <label class="muted" style="font-size:.75rem;">Al</label>
-                <input class="form-control" type="date" name="Al" value="@Model.Filtro.Al?.ToString("yyyy-MM-dd")" />
-            </div>
-            <label class="form-check" style="white-space:nowrap; align-self:end; padding-bottom:8px;">
-                <input type="checkbox" name="SoloFuoriTermini" value="true" @(Model.Filtro.SoloFuoriTermini ? "checked" : "") />
-                ⚠️ Solo fuori termini
-            </label>
-            <button type="submit" class="btn btn--primary btn--sm">Filtra</button>
-            <a class="btn btn--ghost btn--sm" asp-action="Index">Reset</a>
-        </form>
+    <form method="get" class="tesoreria-filter" style="display:flex; flex-wrap:nowrap; gap:6px; padding: var(--s-3); align-items:center; border-bottom: 1px solid var(--c-border, #ece0cc); overflow-x:auto;">
+        <style>
+            .tesoreria-filter .form-control { font-size: .82rem; padding: 6px 10px; height: 34px; }
+            .tesoreria-filter .btn { height: 34px; }
+            .tesoreria-filter .form-check { font-size: .9rem; }
+        </style>
+        <input class="form-control" name="Q" value="@Model.Filtro.Q" placeholder="🔍 Cerca fornitore, n° doc, note…" style="min-width: 200px; flex: 1 1 200px;" />
+
+        <select class="form-control" name="FornitoreId" title="Fornitore" style="min-width:140px;">
+            <option value="">Tutti i fornitori</option>
+            @foreach (var f in Model.FornitoriLookup)
+            {
+                <option value="@f.Id" selected="@(Model.Filtro.FornitoreId == f.Id)">@f.Nome</option>
+            }
+        </select>
+
+        <select class="form-control" name="ClinicaId" title="Sede" style="min-width:120px;">
+            <option value="">Tutte le sedi</option>
+            @foreach (var c in Model.CliniceLookup)
+            {
+                <option value="@c.Id" selected="@(Model.Filtro.ClinicaId == c.Id)">@c.Nome</option>
+            }
+        </select>
+
+        <select class="form-control" name="Categoria" title="Categoria" style="min-width:160px;">
+            <option value="">Tutte le categorie</option>
+            @foreach (var v in Enum.GetValues<CategoriaSpesa>().OrderBy(x => x.Label()))
+            {
+                <option value="@v" selected="@(Model.Filtro.Categoria == v)">@v.Label()</option>
+            }
+        </select>
+
+        <select class="form-control" name="Stato" title="Stato" style="min-width:120px;">
+            <option value="">Tutti gli stati</option>
+            @foreach (var v in Enum.GetValues<StatoScadenza>())
+            {
+                <option value="@v" selected="@(Model.Filtro.Stato == v)">@v.Label()</option>
+            }
+        </select>
+
+        <select class="form-control" name="Metodo" title="Metodo di pagamento" style="min-width:110px;">
+            <option value="">Tutti i metodi</option>
+            @foreach (var v in Enum.GetValues<MetodoPagamento>())
+            {
+                <option value="@v" selected="@(Model.Filtro.Metodo == v)">@v.Label()</option>
+            }
+        </select>
+
+        <input class="form-control" type="date" name="Dal" value="@Model.Filtro.Dal?.ToString("yyyy-MM-dd")" title="Dal" style="width:140px;" />
+        <input class="form-control" type="date" name="Al"  value="@Model.Filtro.Al?.ToString("yyyy-MM-dd")"  title="Al"  style="width:140px;" />
+
+        <label class="form-check" style="white-space:nowrap; display:inline-flex; align-items:center; gap:4px;" title="Mostra solo le scadenze fuori dai termini contrattuali">
+            <input type="checkbox" name="SoloFuoriTermini" value="true" @(Model.Filtro.SoloFuoriTermini ? "checked" : "") />
+            ⚠️
+        </label>
+
+        <button type="submit" class="btn btn--primary btn--sm" style="flex-shrink:0;">Filtra</button>
+        <a class="btn btn--ghost btn--sm" asp-action="Index" style="flex-shrink:0;">Reset</a>
+    </form>
 
         <div id="sepa-toolbar" data-sepa-toolbar style="display:none; padding: 10px 16px; background: #fff7e6; border-top: 1px solid #ece0cc; border-bottom: 1px solid #ece0cc; align-items: center; gap: 12px;">
             <strong style="color:#3b1e0c;">
