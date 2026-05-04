@@ -685,13 +685,13 @@
                             @if (r.Stato == StatoScadenza.Programmato && r.DataProgrammata.HasValue)
                             {
                                 <div class="muted" style="font-size: .68rem; line-height: 1.2; margin-top: 2px;">
-                                    📅 il @r.DataProgrammata.Value.ToString("dd/MM/yy")
+                                    il @r.DataProgrammata.Value.ToString("dd/MM/yy")
                                 </div>
                             }
                             else if (r.Stato == StatoScadenza.Pagato && r.DataPagamento.HasValue)
                             {
                                 <div class="muted" style="font-size: .68rem; line-height: 1.2; margin-top: 2px;">
-                                    ✓ il @r.DataPagamento.Value.ToString("dd/MM/yy")
+                                    il @r.DataPagamento.Value.ToString("dd/MM/yy")
                                 </div>
                             }
                         </td>
