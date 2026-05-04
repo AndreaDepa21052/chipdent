@@ -29,6 +29,10 @@ public class DashboardController : Controller
     [HttpGet("")]
     public async Task<IActionResult> Index()
     {
+        // I fornitori non hanno accesso alla dashboard interna: vengono mandati al portale dedicato.
+        if (User.IsFornitore())
+            return RedirectToAction("Index", "FornitoriPortal");
+
         var tid = _tenant.TenantId!;
         var tenant = await _mongo.Tenants.Find(t => t.Id == tid).FirstOrDefaultAsync();
 
