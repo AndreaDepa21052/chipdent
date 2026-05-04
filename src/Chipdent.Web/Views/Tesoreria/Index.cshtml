@@ -283,6 +283,17 @@
 
     .scadenze-cal__legend { display: flex; flex-wrap: wrap; gap: 6px 10px; align-items: center; margin-top: var(--s-3); padding-top: var(--s-2); border-top: 1px dashed var(--c-divider, #ece0cc); font-size: .68rem; color: var(--c-ink-muted, #998); }
     .scadenze-cal__legend .dot { width: 7px; height: 7px; border-radius: 50%; margin-right: 2px; }
+
+    /* ── Griglia scadenze: padding ridotti perché il calendario a sx ruba 320px ── */
+    .scadenze-grid .table { font-size: .8rem; }
+    .scadenze-grid .table thead th { padding: 6px 8px; font-size: .65rem; letter-spacing: .08em; }
+    .scadenze-grid .table tbody td { padding: 6px 8px; line-height: 1.25; }
+    .scadenze-grid .table .badge { padding: 1px 6px; font-size: .7rem; }
+    .scadenze-grid .table code { font-size: .72rem; padding: 1px 4px; }
+    .scadenze-grid .table .actions { gap: 2px; }
+    .scadenze-grid .table .btn--sm { padding: 2px 6px; font-size: .72rem; }
+    /* Cella totale: niente wrap così il numero resta su una riga */
+    .scadenze-grid .table td:nth-child(8) { white-space: nowrap; }
 </style>
 
 <div class="scadenze-split">
