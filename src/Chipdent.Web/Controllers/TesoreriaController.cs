@@ -58,6 +58,10 @@ public class TesoreriaController : Controller
         var fatture = await _mongo.Fatture.Find(f => f.TenantId == tid).ToListAsync();
         var fatturePerId = fatture.ToDictionary(f => f.Id);
 
+        // Mappa userId -> FullName per risolvere "Caricata da" sulle fatture create dal back-office.
+        var users = await _mongo.Users.Find(u => u.TenantId == tid).ToListAsync();
+        var usersById = users.ToDictionary(u => u.Id, u => u.FullName);
+
         var scadenze = await _mongo.ScadenzePagamento.Find(s => s.TenantId == tid).ToListAsync();
 
         // Stato derivato: scadenze "DaPagare" con data passata sono "Insolute" lato view
@@ -127,6 +131,13 @@ public class TesoreriaController : Controller
                     BonificoMultiploCbi = fa?.BonificoMultiploCbi ?? false,
                     IsHolding = c?.IsHolding ?? false,
                     ScadenzaPadreId = s.ScadenzaPadreId,
+                    Origine = fa?.Origine ?? OrigineFattura.Backoffice,
+                    CaricataIl = fa?.CreatedAt ?? s.CreatedAt,
+                    CaricataDaNome = (fa?.Origine == OrigineFattura.PortaleFornitore)
+                        ? (f?.RagioneSociale ?? "Portale fornitore")
+                        : (string.IsNullOrEmpty(fa?.CaricataDaUserId) ? "—" : usersById.GetValueOrDefault(fa.CaricataDaUserId, "—")),
+                    DataProgrammata = s.DataProgrammata,
+                    DataPagamento = s.DataPagamento,
                     HasAllegato = !string.IsNullOrEmpty(fa?.AllegatoPath)
                 };
             }).ToList();
@@ -137,6 +148,27 @@ public class TesoreriaController : Controller
         if (filtro.SoloFuoriTermini)
         {
             righe = righe.Where(r => r.ScadenzaFuoriTermini).ToList();
+        }
+
+        // Sort utente (?sort=col&dir=asc|desc). Default: data crescente, pagate in fondo (già fatto).
+        if (!string.IsNullOrEmpty(filtro.Sort))
+        {
+            var asc = !string.Equals(filtro.Dir, "desc", StringComparison.OrdinalIgnoreCase);
+            IOrderedEnumerable<RigaTesoreria>? ord = filtro.Sort.ToLowerInvariant() switch
+            {
+                "data"      => asc ? righe.OrderBy(r => r.DataScadenza)        : righe.OrderByDescending(r => r.DataScadenza),
+                "loc"       => asc ? righe.OrderBy(r => r.Loc)                 : righe.OrderByDescending(r => r.Loc),
+                "em"        => asc ? righe.OrderBy(r => r.TipoEmissione)       : righe.OrderByDescending(r => r.TipoEmissione),
+                "doc"       => asc ? righe.OrderBy(r => r.NumeroDoc)           : righe.OrderByDescending(r => r.NumeroDoc),
+                "fornitore" => asc ? righe.OrderBy(r => r.FornitoreNome)       : righe.OrderByDescending(r => r.FornitoreNome),
+                "totale"    => asc ? righe.OrderBy(r => r.Totale)              : righe.OrderByDescending(r => r.Totale),
+                "metodo"    => asc ? righe.OrderBy(r => r.Metodo)              : righe.OrderByDescending(r => r.Metodo),
+                "stato"     => asc ? righe.OrderBy(r => r.Stato)               : righe.OrderByDescending(r => r.Stato),
+                "inserita"  => asc ? righe.OrderBy(r => r.CaricataIl)          : righe.OrderByDescending(r => r.CaricataIl),
+                "chi"       => asc ? righe.OrderBy(r => r.CaricataDaNome)      : righe.OrderByDescending(r => r.CaricataDaNome),
+                _           => null
+            };
+            if (ord is not null) righe = ord.ToList();
         }
 
         // ── KPI ─────────────────────────────────────────────────

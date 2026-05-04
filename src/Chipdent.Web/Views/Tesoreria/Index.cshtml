@@ -46,6 +46,8 @@
         if (Model.Filtro.Stato.HasValue)                      qp["Stato"] = Model.Filtro.Stato.ToString();
         if (Model.Filtro.Metodo.HasValue)                     qp["Metodo"] = Model.Filtro.Metodo.ToString();
         if (Model.Filtro.SoloFuoriTermini)                    qp["SoloFuoriTermini"] = "true";
+        if (!string.IsNullOrEmpty(Model.Filtro.Sort))         qp["Sort"] = Model.Filtro.Sort;
+        if (!string.IsNullOrEmpty(Model.Filtro.Dir))          qp["Dir"]  = Model.Filtro.Dir;
         // cm: mese visibile del calendario
         if (mese.HasValue) qp["cm"] = mese.Value.ToString("yyyy-MM");
         // Dal/Al
@@ -284,6 +286,16 @@
     .scadenze-cal__legend { display: flex; flex-wrap: wrap; gap: 6px 10px; align-items: center; margin-top: var(--s-3); padding-top: var(--s-2); border-top: 1px dashed var(--c-divider, #ece0cc); font-size: .68rem; color: var(--c-ink-muted, #998); }
     .scadenze-cal__legend .dot { width: 7px; height: 7px; border-radius: 50%; margin-right: 2px; }
 
+    .scadenze-cal__today { margin-top: var(--s-3); padding-top: var(--s-3); border-top: 1px solid var(--c-divider, #ece0cc); }
+    .scadenze-cal__today-head { display: flex; align-items: center; justify-content: space-between; gap: 6px; margin-bottom: 6px; color: var(--c-ink-strong, #3b1e0c); font-size: .82rem; text-transform: capitalize; }
+    .scadenze-cal__today-list { list-style: none; padding: 0; margin: 0; display: flex; flex-direction: column; gap: 4px; }
+    .scadenze-cal__today-list li { display: grid; grid-template-columns: 8px 1fr auto; align-items: center; gap: 6px; font-size: .78rem; padding: 4px 6px; border-radius: 4px; background: rgba(196,120,48,0.04); }
+    .scadenze-cal__today-list li:hover { background: rgba(196,120,48,0.10); }
+    .scadenze-cal__today-list .dot { width: 7px; height: 7px; border-radius: 50%; }
+    .scadenze-cal__today-name { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; color: var(--c-ink, #3b1e0c); }
+    .scadenze-cal__today-amt { color: var(--c-ink-strong, #3b1e0c); font-variant-numeric: tabular-nums; font-size: .76rem; }
+    .scadenze-cal__today-more { display: block; text-align: center; margin-top: 6px; font-size: .72rem; color: var(--c-accent-strong, #a86010); text-decoration: none; }
+
     /* ── Griglia scadenze: padding ridotti perché il calendario a sx ruba 320px ── */
     .scadenze-grid .table { font-size: .8rem; }
     .scadenze-grid .table thead th { padding: 6px 8px; font-size: .65rem; letter-spacing: .08em; }
@@ -402,6 +414,46 @@
             <span class="dot dot--blue"></span>programmata
             <span class="dot dot--green"></span>pagata
         </div>
+
+        @{
+            // "Oggi" — sempre calcolato sull'intero set Model.Righe (anche fuori dal mese visibile),
+            // così il pannello rimane utile anche navigando i mesi.
+            var oggiList = Model.Righe.Where(r => r.DataScadenza.Date == oggi)
+                                       .OrderBy(r => r.Stato == StatoScadenza.Pagato ? 1 : 0)
+                                       .ThenByDescending(r => r.Totale)
+                                       .ToList();
+            var oggiTot = oggiList.Sum(r => r.Totale);
+        }
+        <div class="scadenze-cal__today">
+            <div class="scadenze-cal__today-head">
+                <strong>📌 Oggi · @oggi.ToString("dddd dd MMM", it)</strong>
+                @if (oggiList.Count > 0)
+                {
+                    <span class="muted" style="font-size:.7rem;">@oggiList.Count · @EurDec(oggiTot)</span>
+                }
+            </div>
+            @if (oggiList.Count == 0)
+            {
+                <div class="muted" style="font-size:.78rem; padding: var(--s-2) 0;">Nessuna scadenza oggi 🙌</div>
+            }
+            else
+            {
+                <ul class="scadenze-cal__today-list">
+                    @foreach (var r in oggiList.Take(6))
+                    {
+                        <li>
+                            <span class="dot @(r.Stato == StatoScadenza.Insoluto ? "dot--red" : r.Stato == StatoScadenza.Pagato ? "dot--green" : r.Stato == StatoScadenza.Programmato ? "dot--blue" : "dot--amber")"></span>
+                            <span class="scadenze-cal__today-name" title="@r.FornitoreNome · @r.Categoria.Label()">@r.FornitoreNome</span>
+                            <strong class="scadenze-cal__today-amt">@EurDec(r.Totale)</strong>
+                        </li>
+                    }
+                </ul>
+                @if (oggiList.Count > 6)
+                {
+                    <a class="scadenze-cal__today-more" href="@CalUrl(mese: new DateTime(oggi.Year, oggi.Month, 1), dataFiltro: oggi)">vedi tutte →</a>
+                }
+            }
+        </div>
     </aside>
 
 <div class="scadenze-grid">
@@ -411,11 +463,13 @@
         <span class="muted" style="font-size:.85rem;">@Model.Righe.Count righe</span>
     </div>
 
-    <form method="get" class="tesoreria-filter" style="display:flex; flex-wrap:nowrap; gap:6px; padding: var(--s-3); align-items:center; border-bottom: 1px solid var(--c-border, #ece0cc); overflow-x:auto;">
+    <form method="get" class="tesoreria-filter" style="display:flex; flex-wrap:wrap; gap:6px; padding: var(--s-3); align-items:center; border-bottom: 1px solid var(--c-border, #ece0cc);">
         <style>
-            .tesoreria-filter .form-control { font-size: .82rem; padding: 6px 10px; height: 34px; }
+            .tesoreria-filter .form-control { font-size: .82rem; padding: 6px 10px; height: 34px; min-width: 0; }
             .tesoreria-filter .btn { height: 34px; }
             .tesoreria-filter .form-check { font-size: .9rem; }
+            /* Pulsanti azione sempre alla fine del wrap */
+            .tesoreria-filter .filter-actions { margin-left: auto; display: flex; gap: 6px; }
         </style>
         <input class="form-control" name="Q" value="@Model.Filtro.Q" placeholder="🔍 Cerca fornitore, n° doc, note…" style="min-width: 200px; flex: 1 1 200px;" />
 
@@ -467,8 +521,10 @@
             ⚠️
         </label>
 
-        <button type="submit" class="btn btn--primary btn--sm" style="flex-shrink:0;">Filtra</button>
-        <a class="btn btn--ghost btn--sm" asp-action="Index" style="flex-shrink:0;">Reset</a>
+        <div class="filter-actions">
+            <button type="submit" class="btn btn--primary btn--sm">Filtra</button>
+            <a class="btn btn--ghost btn--sm" asp-action="Index">Reset</a>
+        </div>
     </form>
 
         <div id="sepa-toolbar" data-sepa-toolbar style="display:none; padding: 10px 16px; background: #fff7e6; border-top: 1px solid #ece0cc; border-bottom: 1px solid #ece0cc; align-items: center; gap: 12px;">
@@ -480,21 +536,34 @@
             <button type="button" class="btn btn--ghost btn--sm" data-sepa-clear>Deseleziona tutto</button>
         </div>
 
-        <div style="overflow-x:auto;">
+        <div>
             <table class="table" style="font-size: .88rem;">
+                @{
+                    string SortLink(string col, string label, string? title = null)
+                    {
+                        var nextDir = (Model.Filtro.Sort == col && Model.Filtro.Dir == "asc") ? "desc" : "asc";
+                        var arrow = (Model.Filtro.Sort == col)
+                            ? (Model.Filtro.Dir == "desc" ? " ▼" : " ▲")
+                            : "";
+                        var url = CalUrl(mese: calMese);
+                        var sep = url.Contains('?') ? "&" : "?";
+                        url += $"{sep}sort={col}&dir={nextDir}";
+                        var t = title is null ? "" : $" title=\"{title}\"";
+                        return $"<a href=\"{url}\"{t} style=\"color:inherit; text-decoration:none;\">{label}<span style=\"opacity:.6\">{arrow}</span></a>";
+                    }
+                }
                 <thead>
                     <tr>
-                        <th style="width: 32px;"><input type="checkbox" data-sepa-master title="Seleziona tutte le righe bonificabili" /></th>
-                        <th>Data</th>
-                        <th title="Scadenza calcolata dai termini contrattuali">Attesa</th>
-                        <th>LOC</th>
-                        <th title="Tipo emissione fattura — E: elettronica, M: manuale">E/M</th>
-                        <th>N° Doc</th>
-                        <th>Fornitore</th>
-                        <th style="text-align:right;">Totale</th>
-                        <th>Met.</th>
-                        <th>Stato</th>
-                        <th></th>
+                        <th style="width: 24px;"><input type="checkbox" data-sepa-master title="Seleziona tutte le righe bonificabili" /></th>
+                        <th>@Html.Raw(SortLink("data", "Data", "Scadenza prevista"))</th>
+                        <th>@Html.Raw(SortLink("loc", "LOC"))</th>
+                        <th>@Html.Raw(SortLink("em", "E/M", "Tipo emissione fattura — E elettronica · M manuale"))</th>
+                        <th>@Html.Raw(SortLink("doc", "N° Doc"))</th>
+                        <th>@Html.Raw(SortLink("fornitore", "Fornitore / inserita da"))</th>
+                        <th style="text-align:right;">@Html.Raw(SortLink("totale", "Totale"))</th>
+                        <th>@Html.Raw(SortLink("metodo", "Met."))</th>
+                        <th>@Html.Raw(SortLink("stato", "Stato"))</th>
+                        <th style="width: 90px;"></th>
                     </tr>
                 </thead>
                 <tbody>
@@ -513,6 +582,10 @@
                         && !r.BonificoMultiploCbi // BM va in distinta CBI multipla, non SEPA singola
                         && (r.Metodo == MetodoPagamento.Bonifico || r.Metodo == MetodoPagamento.Altro);
                     var totaleTooltip = $"Imponibile {EurDec(r.Imponibile)} · IVA {EurDec(r.Iva)} · Categoria {r.Categoria.Label()}";
+                    var insertaTooltip = $"Caricata il {r.CaricataIl.ToLocalTime():dd/MM/yyyy HH:mm}";
+                    var origineLabel = r.Origine == OrigineFattura.PortaleFornitore ? "📥 Portale fornitore"
+                                     : r.Origine == OrigineFattura.ImportExcel ? "📊 Import Excel"
+                                     : "🖋 Back-office";
                     <tr style="@rowStyle" data-padre-id="@r.ScadenzaPadreId">
                         <td>
                             @if (bonificabile)
@@ -522,7 +595,7 @@
                         </td>
                         <td>
                             @if (isFiglia) { <span title="Scadenza derivata (es. F24 / ritenute)" style="color:#c47830; margin-right:4px;">↳</span> }
-                            @r.DataScadenza.ToString("dd/MM/yy")
+                            <strong>@r.DataScadenza.ToString("dd/MM/yy")</strong>
                             @if (r.ScadenzaFuoriTermini)
                             {
                                 var deltaTxt = r.GiorniDelta!.Value > 0 ? $"+{r.GiorniDelta} gg" : $"{r.GiorniDelta} gg";
@@ -530,19 +603,9 @@
                             }
                             <div class="muted" style="font-size: .72rem; line-height: 1;">@r.MeseCompetenza</div>
                         </td>
-                        <td class="muted" style="font-size: .82rem;">
-                            @if (r.DataScadenzaAttesa.HasValue)
-                            {
-                                @r.DataScadenzaAttesa.Value.ToString("dd/MM/yy")
-                            }
-                            else
-                            {
-                                <span title="Termini di pagamento non configurati sull'anagrafica fornitore">—</span>
-                            }
-                        </td>
                         <td>
                             <code>@r.Loc</code>
-                            @if (r.IsHolding) { <span class="badge" title="Soggetto pagatore: holding del gruppo" style="margin-left:4px; background:#3b1e0c; color:#f5e8d0; font-size:.65rem;">HOLDING</span> }
+                            @if (r.IsHolding) { <span class="badge" title="Soggetto pagatore: holding del gruppo" style="margin-left:4px; background:#3b1e0c; color:#f5e8d0; font-size:.62rem;">HOLDING</span> }
                         </td>
                         <td title="@r.TipoEmissione.LabelEsteso()" style="text-align:center; font-weight:600; color: @(r.TipoEmissione == TipoEmissioneFattura.Elettronica ? "#2d7a50" : (r.TipoEmissione == TipoEmissioneFattura.Manuale ? "#c47830" : "#bbb"));">
                             @r.TipoEmissione.Label()
@@ -556,7 +619,10 @@
                         </td>
                         <td>
                             <strong>@r.FornitoreNome</strong>
-                            <div class="muted" style="font-size: .72rem; line-height: 1;">@r.Categoria.Label()</div>
+                            <div class="muted" style="font-size: .7rem; line-height: 1.1;">@r.Categoria.Label()</div>
+                            <div class="muted" style="font-size: .68rem; line-height: 1.2; margin-top: 2px;" title="@insertaTooltip">
+                                @origineLabel · @r.CaricataDaNome · @r.CaricataIl.ToLocalTime().ToString("dd/MM/yy")
+                            </div>
                         </td>
                         <td style="text-align:right;" title="@totaleTooltip"><strong>@EurDec(r.Totale)</strong></td>
                         <td>
@@ -566,7 +632,21 @@
                                 <span class="badge" title="Bonifico Multiplo CBI: incluso in distinta multi-beneficiario, non in SEPA singola" style="margin-left:4px; background:#fff7e6; color:#c47830;">CBI</span>
                             }
                         </td>
-                        <td>@Html.Raw(StatoBadge(r.Stato))</td>
+                        <td>
+                            @Html.Raw(StatoBadge(r.Stato))
+                            @if (r.Stato == StatoScadenza.Programmato && r.DataProgrammata.HasValue)
+                            {
+                                <div class="muted" style="font-size: .68rem; line-height: 1.2; margin-top: 2px;">
+                                    📅 il @r.DataProgrammata.Value.ToString("dd/MM/yy")
+                                </div>
+                            }
+                            else if (r.Stato == StatoScadenza.Pagato && r.DataPagamento.HasValue)
+                            {
+                                <div class="muted" style="font-size: .68rem; line-height: 1.2; margin-top: 2px;">
+                                    ✓ il @r.DataPagamento.Value.ToString("dd/MM/yy")
+                                </div>
+                            }
+                        </td>
                         <td style="white-space:nowrap;">
                             @if (r.Stato == StatoScadenza.DaPagare || r.Stato == StatoScadenza.Insoluto)
                             {
@@ -589,7 +669,7 @@
                 }
                 @if (Model.Righe.Count == 0)
                 {
-                    <tr><td colspan="11" class="muted" style="text-align:center; padding: var(--s-5);">Nessuna scadenza per i filtri impostati.</td></tr>
+                    <tr><td colspan="10" class="muted" style="text-align:center; padding: var(--s-5);">Nessuna scadenza per i filtri impostati.</td></tr>
                 }
                 </tbody>
             </table>

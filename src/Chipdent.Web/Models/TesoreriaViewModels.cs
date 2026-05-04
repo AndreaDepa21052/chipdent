@@ -69,6 +69,22 @@ public class RigaTesoreria
     /// <summary>Id della scadenza padre quando questa è una rata derivata (F24/ritenute).</summary>
     public string? ScadenzaPadreId { get; set; }
 
+    /// <summary>Origine del caricamento (Backoffice / PortaleFornitore / ImportExcel).</summary>
+    public OrigineFattura Origine { get; set; } = OrigineFattura.Backoffice;
+
+    /// <summary>Data programmata del bonifico (popolata quando Stato = Programmato).</summary>
+    public DateTime? DataProgrammata { get; set; }
+
+    /// <summary>Data effettiva del pagamento (popolata quando Stato = Pagato).</summary>
+    public DateTime? DataPagamento { get; set; }
+
+    /// <summary>Quando è stata caricata la fattura sorgente.</summary>
+    public DateTime CaricataIl { get; set; }
+
+    /// <summary>Nome leggibile di chi ha caricato la fattura. Per il portale fornitori
+    /// è il nome del fornitore stesso. Per il back-office è l'utente che ha creato la fattura.</summary>
+    public string CaricataDaNome { get; set; } = "—";
+
     /// <summary>True se la data dichiarata diverge dall'attesa oltre la tolleranza.</summary>
     public bool ScadenzaFuoriTermini =>
         DataScadenzaAttesa.HasValue
@@ -99,6 +115,11 @@ public class TesoreriaFilter
     public DateTime? Al { get; set; }
     public string? Q { get; set; }
     public bool SoloFuoriTermini { get; set; }
+
+    /// <summary>Colonna su cui ordinare la griglia (data/loc/em/fornitore/totale/met/stato/inserita).</summary>
+    public string? Sort { get; set; }
+    /// <summary>"asc" o "desc". Default "asc" per data, "desc" per totale.</summary>
+    public string? Dir { get; set; }
 }
 
 public record SerieMese(string Mese, decimal Valore);
