@@ -50,6 +50,17 @@
     </div>
 }
 
+@{
+    var queryTab = Context.Request.Query["tab"].ToString();
+    var activeTab = string.IsNullOrEmpty(queryTab) ? "scadenze" : queryTab;
+}
+
+<div class="tabs" data-tesoreria-tabs style="margin-bottom: var(--s-4);">
+    <a class="tab @(activeTab == "scadenze"  ? "is-active" : "")" href="#" data-tab="scadenze">📋 Scadenze <span class="tab__count">@Model.Righe.Count</span></a>
+    <a class="tab @(activeTab == "dashboard" ? "is-active" : "")" href="#" data-tab="dashboard">📊 Dashboard &amp; KPI</a>
+</div>
+
+<section data-tab-pane="dashboard" style="@(activeTab == "dashboard" ? "" : "display:none;")">
 <div class="grid grid--stats" style="margin-bottom: var(--s-4);">
     <div class="stat">
         <div class="stat__label">Esposto prossimi 30gg</div>
@@ -148,7 +159,9 @@
         <div id="mini-cal" style="padding: var(--s-3);"></div>
     </div>
 </div>
+</section><!-- /tab dashboard -->
 
+<section data-tab-pane="scadenze" style="@(activeTab == "scadenze" ? "" : "display:none;")">
 <div class="card" style="padding:0; margin-bottom: var(--s-4); min-width: 0;">
     <div class="card__header" style="padding: var(--s-3) var(--s-3) 0;">
         <h3 class="card__title">Scadenze</h3>
@@ -339,6 +352,7 @@
             </table>
         </div>
     </div>
+</section><!-- /tab scadenze -->
 
 <!-- ── Modali pagamento ──────────────────────────────────────── -->
 <dialog id="dlg-paga" style="border:0; border-radius: 12px; padding: 0; max-width: 420px; box-shadow: 0 20px 60px rgba(0,0,0,0.18);">
@@ -415,6 +429,33 @@
 
 @section Scripts {
 <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
+<script>
+    // Tabs della pagina Tesoreria (Scadenze / Dashboard).
+    // I chart sono in un pane inizialmente nascosto: alla prima attivazione del tab
+    // chiamiamo resize() per fargli prendere le dimensioni reali del canvas.
+    (function () {
+        var tabs = document.querySelectorAll('[data-tesoreria-tabs] .tab');
+        var panes = document.querySelectorAll('[data-tab-pane]');
+        var dashboardTouched = document.querySelector('[data-tab-pane="dashboard"]')?.style.display !== 'none';
+        tabs.forEach(function (t) {
+            t.addEventListener('click', function (ev) {
+                ev.preventDefault();
+                var target = t.dataset.tab;
+                tabs.forEach(function (x) { x.classList.toggle('is-active', x === t); });
+                panes.forEach(function (p) { p.style.display = (p.dataset.tabPane === target ? '' : 'none'); });
+                var u = new URL(location.href);
+                u.searchParams.set('tab', target);
+                history.replaceState(null, '', u.toString());
+                if (target === 'dashboard' && !dashboardTouched && window.Chart) {
+                    dashboardTouched = true;
+                    setTimeout(function () {
+                        Object.values(Chart.instances).forEach(function (c) { c.resize(); });
+                    }, 50);
+                }
+            });
+        });
+    })();
+</script>
 <script>
     (function () {
         var palette = ['#c47830', '#3b1e0c', '#2d7a50', '#2457a4', '#7a5c9a', '#d9943a', '#a83a3a', '#5b8a72', '#a86010', '#1f6e3a', '#666', '#aaa'];
