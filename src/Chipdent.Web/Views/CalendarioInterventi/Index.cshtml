@@ -43,12 +43,12 @@
     </div>
 </div>
 
-<div class="tabs" style="margin-bottom: var(--s-4); flex-wrap: wrap;">
+<div class="tabs cal-tabs" style="margin-bottom: var(--s-4);">
     <a class="tab @(tipoFiltro is null ? "is-active" : "")" asp-action="Index">Tutte</a>
     @foreach (var def in Chipdent.Web.Controllers.CalendarioInterventiController.SezioniDef)
     {
-        <a class="tab @(tipoFiltro == def.Tipo ? "is-active" : "")"
-           asp-action="Index" asp-route-tipo="@def.Tipo">@def.Icona @def.Titolo</a>
+        <a class="tab @(tipoFiltro == def.Tipo ? "is-active" : "")" title="@def.Titolo"
+           asp-action="Index" asp-route-tipo="@def.Tipo">@def.Icona @def.TitoloBreve</a>
     }
 </div>
 
@@ -165,6 +165,18 @@
     .fornitore-card__contacts { display: flex; flex-wrap: wrap; gap: var(--s-3) var(--s-4); color: var(--c-ink-soft); }
     .fornitore-card__contacts a { color: var(--c-accent-strong); }
     .fornitore-card__note  { margin-top: 6px; color: var(--c-ink-muted); font-style: italic; font-size: .78rem; }
+
+    /* Tab-bar compatta: 12 voci su una riga (Tutte + 11 sezioni). */
+    .cal-tabs.tabs { flex-wrap: nowrap; gap: 2px; }
+    .cal-tabs .tab {
+        padding: var(--s-2) var(--s-3);
+        font-size: .82rem;
+        white-space: nowrap;
+        flex-shrink: 0;
+    }
+    @@media (max-width: 1280px) {
+        .cal-tabs .tab { padding: var(--s-2) 8px; font-size: .78rem; }
+    }
 </style>
 
 @section Scripts {

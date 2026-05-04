@@ -32,7 +32,7 @@ public class CalendarioInterventiController : Controller
         string? Cellulare = null, string? Fax = null, string? Email = null, string? EmailSecondaria = null,
         string? Pec = null, string? Note = null);
 
-    public record SezioneDefinizione(TipoIntervento Tipo, string Titolo, string Icona, string Frequenza, FornitoreInfo Fornitore);
+    public record SezioneDefinizione(TipoIntervento Tipo, string Titolo, string TitoloBreve, string Icona, string Frequenza, FornitoreInfo Fornitore);
 
     /// <summary>
     /// Anagrafica statica delle sezioni del calendario interventi.
@@ -42,7 +42,7 @@ public class CalendarioInterventiController : Controller
     /// </summary>
     public static readonly SezioneDefinizione[] SezioniDef =
     {
-        new(TipoIntervento.RegistroAntincendio,         "Registro antincendio",          "🧯", "a 6 mesi",
+        new(TipoIntervento.RegistroAntincendio,         "Registro antincendio",                                     "Antincendio",     "🧯", "a 6 mesi",
             new FornitoreInfo("CVZ Antincendi S.r.l.",
                 Indirizzo: "Busto Arsizio – Via Volterra 14",
                 Telefono:  "+39 0331 678220",
@@ -50,52 +50,52 @@ public class CalendarioInterventiController : Controller
                 Email:     "info@cvzantincendi.it",
                 Pec:       "nuovacavazzana@legalmail.it")),
 
-        new(TipoIntervento.PuliziaFiltriCondizionatori, "Pulizia filtri condizionatori", "❄️", "a 6 mesi",
+        new(TipoIntervento.PuliziaFiltriCondizionatori, "Pulizia filtri condizionatori",                            "Filtri A/C",      "❄️", "a 6 mesi",
             new FornitoreInfo("Manutentore condizionatori",
                 Note: "Fornitore non indicato sul foglio xls — da completare in anagrafica.")),
 
-        new(TipoIntervento.MessaATerra,                 "Messa a terra (biennale)",      "⚡", "biennale",
+        new(TipoIntervento.MessaATerra,                 "Messa a terra (biennale)",                                 "Messa a terra",   "⚡", "biennale",
             new FornitoreInfo("V.E.M. Srl (sempre tramite Ing. Motta)",
                 Indirizzo: "Via Bellini 5 – Scanzorosciate (BG)",
                 Telefono:  "035 027 06 21",
                 Email:     "info@vemverifiche.com",
                 EmailSecondaria: "impiantielettrici@vemverifiche.com")),
 
-        new(TipoIntervento.ImpiantoElettricoAnnuale,    "Impianto elettrico (annuale)",  "🔌", "annuale",
+        new(TipoIntervento.ImpiantoElettricoAnnuale,    "Impianto elettrico (annuale)",                             "Imp. elettrico",  "🔌", "annuale",
             new FornitoreInfo("Ing. Andrea Motta",
                 Indirizzo: "Via Medici del Vascello 23 sc. 4 – Milano",
                 Cellulare: "335 524 00 15",
                 Email:     "info@andreamotta.it",
                 EmailSecondaria: "andrea.motta@fastwebnet.it")),
 
-        new(TipoIntervento.ElettromedicaliBiennale,     "Elettromedicali (biennale)",    "🩺", "biennale",
+        new(TipoIntervento.ElettromedicaliBiennale,     "Elettromedicali (biennale)",                               "Elettromedicali", "🩺", "biennale",
             new FornitoreInfo("Ing. Andrea Motta",
                 Indirizzo: "Via Medici del Vascello 23 sc. 4 – Milano",
                 Cellulare: "335 524 00 15",
                 Email:     "info@andreamotta.it",
                 EmailSecondaria: "andrea.motta@fastwebnet.it")),
 
-        new(TipoIntervento.Radiografico,                "Radiografico",                  "🦷", "annuale",
+        new(TipoIntervento.Radiografico,                "Radiografico",                                             "Radiografico",    "🦷", "annuale",
             new FornitoreInfo("Esperto Qualificato Radioprotezione",
                 Note: "Fornitore non indicato sul foglio xls — da completare in anagrafica.")),
 
-        new(TipoIntervento.BombolaOssigeno,             "Bombola ossigeno",              "🫧", "—",
+        new(TipoIntervento.BombolaOssigeno,             "Bombola ossigeno",                                         "Bombole O₂",      "🫧", "—",
             new FornitoreInfo("SOL Group",
                 Note: "Fornitore non indicato sul foglio xls — da completare in anagrafica.")),
 
-        new(TipoIntervento.Nolomedical,                 "Nolomedical",                   "📦", "annuale",
+        new(TipoIntervento.Nolomedical,                 "Nolomedical",                                              "Nolomedical",     "📦", "annuale",
             new FornitoreInfo("Nolomedical s.r.l.",
                 Note: "Contatti non indicati sul foglio xls — da completare in anagrafica.")),
 
-        new(TipoIntervento.EcologiaAmbienteContratto,   "Ecologia Ambiente — contratto (dal 01/01/2026)", "♻️", "biennale",
+        new(TipoIntervento.EcologiaAmbienteContratto,   "Ecologia Ambiente — contratto (dal 01/01/2026)",           "Ecologia 2026+",  "♻️", "biennale",
             new FornitoreInfo("Ecologia Ambiente",
                 Note: "Disdetta via PEC entro 90 gg dalla scadenza (ago-2028).")),
 
-        new(TipoIntervento.EcologiaAmbienteContrattoStorico, "Ecologia Ambiente — contratto storico (fino 31/12/2025)", "📚", "storico",
+        new(TipoIntervento.EcologiaAmbienteContrattoStorico, "Ecologia Ambiente — contratto storico (fino 31/12/2025)", "Ecologia storico","📚", "storico",
             new FornitoreInfo("Ecologia Ambiente",
                 Note: "Contratti precedenti al rinnovo del 01/01/2026 — mantenuti come storico.")),
 
-        new(TipoIntervento.EcologiaAmbienteRentri,      "Iscrizione RENTRI + App FIR",   "📋", "annuale",
+        new(TipoIntervento.EcologiaAmbienteRentri,      "Iscrizione RENTRI + App FIR",                              "RENTRI",          "📋", "annuale",
             new FornitoreInfo("Ecologia Ambiente / RENTRI",
                 Note: "Rinnovo pagamento entro il 30/4 di ogni anno."))
     };
