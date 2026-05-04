@@ -96,7 +96,7 @@
     <div class="page-head__actions">
         <a class="btn btn--ghost" asp-action="ExportCsv">⬇ Export CSV</a>
         <a class="btn btn--ghost" asp-action="DatiBancari">⚙ Dati bancari</a>
-        <a class="btn btn--primary" asp-action="NuovaFattura">＋ Nuova fattura</a>
+        <button type="button" class="btn btn--primary" data-new-fattura>＋ Nuova fattura</button>
     </div>
 </div>
 
@@ -794,11 +794,37 @@
     </form>
 </dialog>
 
-<dialog id="dlg-dettaglio" style="border:0; border-radius: 14px; padding: 0; max-width: 1040px; width: 94vw; box-shadow: 0 24px 80px rgba(59,30,12,0.22);">
+<dialog id="dlg-dettaglio" class="dlg-callout" style="border:0; border-radius: 14px; padding: 0; max-width: 1040px; width: 94vw; box-shadow: 0 24px 80px rgba(59,30,12,0.22);">
     <div data-dettaglio-body>
         <div style="padding: 32px; text-align:center; color:#888;">caricamento…</div>
     </div>
 </dialog>
+
+<dialog id="dlg-nuova-fattura" class="dlg-callout" style="border:0; border-radius: 16px; padding: 0; max-width: 920px; width: 94vw; box-shadow: 0 24px 80px rgba(59,30,12,0.28); overflow: visible;">
+    <div data-nuova-fattura-body>
+        <div style="padding: 48px; text-align:center; color:#888;">caricamento…</div>
+    </div>
+</dialog>
+
+<style>
+    /* Animazione di entrata "callout" sulle dialog di Tesoreria */
+    .dlg-callout::backdrop {
+        background: rgba(59,30,12,0.45);
+        backdrop-filter: blur(3px);
+        animation: dlg-fade-in .15s ease-out;
+    }
+    .dlg-callout[open] {
+        animation: dlg-pop-in .22s cubic-bezier(.2, .9, .3, 1.2);
+    }
+    @@keyframes dlg-fade-in {
+        from { opacity: 0; }
+        to   { opacity: 1; }
+    }
+    @@keyframes dlg-pop-in {
+        from { opacity: 0; transform: translateY(12px) scale(.96); }
+        to   { opacity: 1; transform: translateY(0)   scale(1); }
+    }
+</style>
 
 @section Scripts {
 <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
@@ -943,6 +969,33 @@
             btn.addEventListener('click', function () {
                 formProg.action = '/tesoreria/scadenza/' + btn.dataset.id + '/programma';
                 dlgProg.showModal();
+            });
+        });
+
+        // Modale callout "Nuova fattura": fetch del partial e showModal()
+        var dlgNuova = document.getElementById('dlg-nuova-fattura');
+        var nuovaBody = dlgNuova.querySelector('[data-nuova-fattura-body]');
+        document.querySelectorAll('[data-new-fattura]').forEach(function (btn) {
+            btn.addEventListener('click', async function () {
+                nuovaBody.innerHTML = '<div style="padding:48px; text-align:center; color:#888;">caricamento…</div>';
+                dlgNuova.showModal();
+                try {
+                    var r = await fetch('/tesoreria/fattura/nuova/modale');
+                    if (!r.ok) throw new Error(r.statusText);
+                    nuovaBody.innerHTML = await r.text();
+                    // Esegui gli <script> inline del partial appena iniettato
+                    nuovaBody.querySelectorAll('script').forEach(function (s) {
+                        var ns = document.createElement('script');
+                        if (s.src) ns.src = s.src;
+                        else ns.textContent = s.textContent;
+                        s.parentNode.replaceChild(ns, s);
+                    });
+                    // Focus sul primo campo
+                    var firstField = nuovaBody.querySelector('select[name="FornitoreId"]');
+                    if (firstField) firstField.focus();
+                } catch (e) {
+                    nuovaBody.innerHTML = '<div style="padding:24px; color:#b8442e;">errore caricamento</div>';
+                }
             });
         });
         // Event delegation: cattura anche i [data-close-dlg] iniettati a runtime nelle

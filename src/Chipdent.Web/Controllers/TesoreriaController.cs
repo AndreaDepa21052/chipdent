@@ -271,6 +271,20 @@ public class TesoreriaController : Controller
         return View("FatturaForm", vm);
     }
 
+    /// <summary>Versione partial della form "Nuova fattura" usata dalla modale callout su /tesoreria.</summary>
+    [HttpGet("fattura/nuova/modale")]
+    public async Task<IActionResult> NuovaFatturaModale()
+    {
+        var vm = new FatturaFormViewModel
+        {
+            Fornitori = await _mongo.Fornitori.Find(f => f.TenantId == _tenant.TenantId && f.Stato == StatoFornitore.Attivo)
+                .SortBy(f => f.RagioneSociale).ToListAsync(),
+            Cliniche = await _mongo.Cliniche.Find(c => c.TenantId == _tenant.TenantId)
+                .SortBy(c => c.Nome).ToListAsync()
+        };
+        return PartialView("_NuovaFatturaModale", vm);
+    }
+
     [HttpPost("fattura/nuova")]
     [ValidateAntiForgeryToken]
     [RequestSizeLimit(MaxUploadBytes)]

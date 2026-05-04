@@ -1,0 +1,258 @@
+@model Chipdent.Web.Models.FatturaFormViewModel
+@using Chipdent.Web.Domain.Entities
+@using Chipdent.Web.Domain.Common
+@using System.Globalization
+
+<form method="post" action="@Url.Action("NuovaFattura")" enctype="multipart/form-data" class="callout-fattura">
+    @Html.AntiForgeryToken()
+
+    <header class="callout-fattura__head">
+        <div class="callout-fattura__icon">＋</div>
+        <div style="flex:1;">
+            <h3 class="callout-fattura__title">Nuova fattura passiva</h3>
+            <p class="callout-fattura__sub">Registra una fattura ricevuta da un fornitore. Chipdent calcola automaticamente la prima scadenza in base ai termini di pagamento configurati sul fornitore.</p>
+        </div>
+        <button type="button" class="callout-fattura__close" data-close-dlg aria-label="Chiudi">✕</button>
+    </header>
+
+    <div asp-validation-summary="ModelOnly" class="callout-fattura__errors" style="display:@(ViewData.ModelState.ErrorCount > 0 ? "block" : "none");"></div>
+
+    <div class="callout-fattura__body">
+
+    <section class="cf-section">
+        <h4 class="cf-section__title">①  Chi · dove</h4>
+        <div class="cf-grid-2">
+            <div class="form-group cf-full-on-mobile">
+                <label class="form-label" asp-for="FornitoreId">Fornitore *</label>
+                <select class="form-control" asp-for="FornitoreId" required>
+                    <option value="">— seleziona fornitore —</option>
+                    @foreach (var f in Model.Fornitori)
+                    {
+                        <option value="@f.Id" selected="@(Model.FornitoreId == f.Id)">@f.RagioneSociale</option>
+                    }
+                </select>
+            </div>
+            <div class="form-group">
+                <label class="form-label" asp-for="ClinicaId">Sede destinataria *</label>
+                <select class="form-control" asp-for="ClinicaId" required>
+                    <option value="">— seleziona sede —</option>
+                    @foreach (var c in Model.Cliniche)
+                    {
+                        <option value="@c.Id" selected="@(Model.ClinicaId == c.Id)">@c.Nome @(c.IsHolding ? "· holding" : "")</option>
+                    }
+                </select>
+            </div>
+        </div>
+    </section>
+
+    <section class="cf-section">
+        <h4 class="cf-section__title">②  Documento</h4>
+        <div class="cf-grid-3">
+            <div class="form-group">
+                <label class="form-label" asp-for="Numero">Numero documento *</label>
+                <input class="form-control" asp-for="Numero" placeholder="es. 2024-FE17315-970" required />
+            </div>
+            <div class="form-group">
+                <label class="form-label" asp-for="DataEmissione">Data emissione *</label>
+                <input class="form-control" type="date" asp-for="DataEmissione" required />
+            </div>
+            <div class="form-group">
+                <label class="form-label">Mese competenza</label>
+                <input class="form-control" type="month" name="MeseCompetenza" value="@Model.MeseCompetenza.ToString("yyyy-MM")" />
+            </div>
+            <div class="form-group">
+                <label class="form-label" asp-for="Categoria">Categoria (TIPO)</label>
+                <select class="form-control" asp-for="Categoria">
+                    @foreach (var v in Enum.GetValues<CategoriaSpesa>().OrderBy(x => x.Label()))
+                    {
+                        <option value="@v" selected="@(Model.Categoria == v)">@v.Label()</option>
+                    }
+                </select>
+            </div>
+            <div class="form-group">
+                <label class="form-label" asp-for="FlagEM">Tipo emissione (E/M)</label>
+                <select class="form-control" asp-for="FlagEM">
+                    <option value="">Non specificato</option>
+                    <option value="E" selected="@(Model.FlagEM == "E")">E — Elettronica (SDI)</option>
+                    <option value="M" selected="@(Model.FlagEM == "M")">M — Manuale</option>
+                </select>
+            </div>
+            <div class="form-group cf-toggle">
+                <label class="form-label">Bonifico Multiplo CBI</label>
+                <label class="cf-switch">
+                    <input type="checkbox" asp-for="FlagBM" />
+                    <span class="cf-switch__track"></span>
+                    <span class="cf-switch__label">BM — distinta multipla</span>
+                </label>
+            </div>
+        </div>
+    </section>
+
+    <section class="cf-section">
+        <h4 class="cf-section__title">③  Importi · pagamento</h4>
+        <div class="cf-grid-3">
+            <div class="form-group">
+                <label class="form-label" asp-for="Imponibile">Imponibile (€) *</label>
+                <input class="form-control cf-amount" type="number" step="0.01" asp-for="Imponibile" required />
+            </div>
+            <div class="form-group">
+                <label class="form-label" asp-for="Iva">IVA (€)</label>
+                <input class="form-control cf-amount" type="number" step="0.01" asp-for="Iva" />
+            </div>
+            <div class="form-group">
+                <label class="form-label">Totale calcolato</label>
+                <div class="cf-totale" data-cf-totale>0,00 €</div>
+            </div>
+
+            <div class="form-group">
+                <label class="form-label" asp-for="DataScadenza">Data scadenza prevista *</label>
+                <input class="form-control" type="date" asp-for="DataScadenza" required />
+            </div>
+            <div class="form-group">
+                <label class="form-label" asp-for="Metodo">Metodo pagamento</label>
+                <select class="form-control" asp-for="Metodo">
+                    @foreach (var v in Enum.GetValues<MetodoPagamento>())
+                    {
+                        <option value="@v" selected="@(Model.Metodo == v)">@v.Label()</option>
+                    }
+                </select>
+            </div>
+            <div class="form-group">
+                <label class="form-label" asp-for="Allegato">Allegato (PDF/XML)</label>
+                <input class="form-control" type="file" asp-for="Allegato" accept=".pdf,.png,.jpg,.jpeg,.xml,.p7m" />
+            </div>
+        </div>
+    </section>
+
+    <section class="cf-section">
+        <h4 class="cf-section__title">④  Note <span class="muted" style="font-weight:400; font-size:.7rem; text-transform:none; letter-spacing:0;">(opzionale)</span></h4>
+        <textarea class="form-control" asp-for="Note" rows="2" placeholder="es. bolletta apr 24, IVA inclusa nel totale, …"></textarea>
+    </section>
+
+    </div><!-- /body -->
+
+    <footer class="callout-fattura__foot">
+        <span class="callout-fattura__hint muted">La fattura viene <strong>approvata di default</strong> e genera automaticamente la prima scadenza.</span>
+        <div style="display:flex; gap:8px;">
+            <button type="button" class="btn btn--ghost" data-close-dlg>Annulla</button>
+            <button type="submit" class="btn btn--primary">＋ Registra fattura</button>
+        </div>
+    </footer>
+</form>
+
+<style>
+    .callout-fattura {
+        display: flex; flex-direction: column; max-height: 92vh;
+        background: linear-gradient(180deg, #fffaf0 0%, #fdf6e7 100%);
+    }
+    .callout-fattura__head {
+        display: flex; align-items: flex-start; gap: var(--s-3);
+        padding: var(--s-4) var(--s-5);
+        border-bottom: 1px solid var(--c-border, #ece0cc);
+        background: linear-gradient(135deg, rgba(196,120,48,0.10) 0%, rgba(245,232,208,0.40) 100%);
+    }
+    .callout-fattura__icon {
+        width: 44px; height: 44px; border-radius: 12px;
+        display: inline-flex; align-items: center; justify-content: center;
+        background: var(--c-accent, #c47830); color: #fff;
+        font-size: 1.6rem; font-weight: 700; line-height: 1; flex-shrink: 0;
+        box-shadow: 0 4px 12px rgba(196,120,48,0.3);
+    }
+    .callout-fattura__title { margin: 0 0 4px; font-size: 1.15rem; color: var(--c-ink-strong, #3b1e0c); }
+    .callout-fattura__sub { margin: 0; font-size: .82rem; color: var(--c-ink-soft, #7a5c3a); line-height: 1.4; }
+    .callout-fattura__close {
+        border: 0; background: transparent;
+        width: 30px; height: 30px; border-radius: 50%;
+        font-size: 1rem; color: var(--c-ink-muted, #7a5c3a); cursor: pointer;
+        flex-shrink: 0;
+    }
+    .callout-fattura__close:hover { background: rgba(168,68,46,0.10); color: var(--c-danger, #b8442e); }
+
+    .callout-fattura__body { padding: var(--s-3) var(--s-5); overflow-y: auto; }
+    .callout-fattura__errors {
+        margin: var(--s-3) var(--s-5) 0;
+        padding: 10px 12px;
+        background: rgba(184,68,46,0.08);
+        border: 1px solid rgba(184,68,46,0.25);
+        color: var(--c-danger, #b8442e);
+        border-radius: 8px; font-size: .85rem;
+    }
+
+    .callout-fattura__foot {
+        display: flex; align-items: center; justify-content: space-between; gap: var(--s-3);
+        padding: var(--s-3) var(--s-5);
+        border-top: 1px solid var(--c-border, #ece0cc);
+        background: rgba(255,255,255,0.5);
+    }
+    .callout-fattura__hint { font-size: .8rem; max-width: 60%; }
+
+    .cf-section { margin-bottom: var(--s-4); }
+    .cf-section:last-child { margin-bottom: 0; }
+    .cf-section__title {
+        margin: 0 0 8px; font-size: .72rem; font-weight: 700;
+        text-transform: uppercase; letter-spacing: .12em;
+        color: var(--c-accent-strong, #a86010);
+        padding-bottom: 4px; border-bottom: 1px dashed rgba(196,120,48,0.25);
+    }
+    .cf-grid-3 { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px 14px; }
+    .cf-grid-2 { display: grid; grid-template-columns: 2fr 1fr; gap: 10px 14px; }
+
+    .callout-fattura .form-group { margin: 0; }
+    .callout-fattura .form-label { display: block; font-size: .7rem; color: var(--c-ink-muted, #998); margin-bottom: 3px; font-weight: 600; }
+    .callout-fattura .form-control { font-size: .85rem; padding: 6px 10px; height: 34px; border-radius: 8px; }
+    .callout-fattura textarea.form-control { height: auto; resize: vertical; min-height: 50px; }
+    .callout-fattura .cf-amount { text-align: right; font-variant-numeric: tabular-nums; font-weight: 600; }
+
+    .cf-totale {
+        display: flex; align-items: center; justify-content: flex-end;
+        height: 34px; padding: 0 12px; border-radius: 8px;
+        background: var(--c-accent-strong, #a86010); color: #fff;
+        font-size: .95rem; font-weight: 700; font-variant-numeric: tabular-nums;
+        box-shadow: inset 0 1px 0 rgba(255,255,255,0.2);
+    }
+
+    .cf-toggle .form-label { visibility: hidden; }
+    .cf-switch {
+        display: inline-flex; align-items: center; gap: 8px; height: 34px;
+        font-size: .82rem; color: var(--c-ink, #3b1e0c); cursor: pointer;
+    }
+    .cf-switch input { display: none; }
+    .cf-switch__track {
+        width: 36px; height: 20px; border-radius: 999px;
+        background: #d4c8b3; position: relative;
+        transition: background .15s ease-out;
+    }
+    .cf-switch__track::after {
+        content: ""; position: absolute; top: 2px; left: 2px;
+        width: 16px; height: 16px; border-radius: 50%;
+        background: #fff; box-shadow: 0 1px 3px rgba(0,0,0,0.2);
+        transition: left .18s ease-out;
+    }
+    .cf-switch input:checked + .cf-switch__track { background: var(--c-accent, #c47830); }
+    .cf-switch input:checked + .cf-switch__track::after { left: 18px; }
+
+    @@media (max-width: 720px) {
+        .cf-grid-3 { grid-template-columns: 1fr 1fr; }
+        .cf-grid-2 { grid-template-columns: 1fr; }
+        .cf-toggle .form-label { visibility: visible; }
+        .callout-fattura__hint { max-width: 100%; display: none; }
+    }
+</style>
+
+<script>
+    (function () {
+        // Calcolo live del totale (Imponibile + IVA) — il backend scrive comunque
+        // Imponibile + IVA come Totale, qui è solo per dare feedback visivo.
+        var imp = document.querySelector('.callout-fattura input[name="Imponibile"]');
+        var iva = document.querySelector('.callout-fattura input[name="Iva"]');
+        var tot = document.querySelector('.callout-fattura [data-cf-totale]');
+        function refreshTotale() {
+            var a = parseFloat((imp.value || '0').replace(',', '.')) || 0;
+            var b = parseFloat((iva.value || '0').replace(',', '.')) || 0;
+            tot.textContent = (a + b).toLocaleString('it-IT', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) + ' €';
+        }
+        imp.addEventListener('input', refreshTotale);
+        iva.addEventListener('input', refreshTotale);
+        refreshTotale();
+    })();
+</script>
