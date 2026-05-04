@@ -7,6 +7,7 @@
     var fornitoreDefault = (string?)ViewData["FornitoreDefault"] ?? "";
     var frequenzaDefault = (string?)ViewData["FrequenzaDefault"] ?? "";
     var returnTo = ViewContext.HttpContext.Request.Query["returnTo"].ToString();
+    var fi = ViewData["FornitoreInfo"] as Chipdent.Web.Controllers.CalendarioInterventiController.FornitoreInfo;
 
     // Campi extra previsti per tipologia (label → chiave del dictionary).
     (string Label, string Key)[] DettagliPerTipo(TipoIntervento t) => t switch
@@ -22,6 +23,18 @@
             ("Autoclave", "Autoclave"),
             ("Smaltimento farmaci", "Smaltimento farmaci"),
             ("Ritiro toner", "Ritiro toner"),
+        },
+        TipoIntervento.EcologiaAmbienteContrattoStorico => new[]
+        {
+            ("Pagamento effettuato fino al", "Pagamento effettuato fino al"),
+            ("Contenitori forniti", "Contenitori forniti"),
+            ("Rifiuti sanitari", "Rifiuti sanitari"),
+            ("Contenitore supplementare", "Contenitore supplementare"),
+            ("Amalgama", "Amalgama"),
+            ("Compilazione MUD", "Compilazione MUD"),
+            ("Registro carico/scarico", "Registro carico/scarico"),
+            ("Autoclave", "Autoclave"),
+            ("Smaltimento farmaci", "Smaltimento farmaci"),
         },
         TipoIntervento.EcologiaAmbienteRentri => new[]
         {
@@ -57,6 +70,21 @@
         </div>
         <button type="button" class="btn btn--ghost btn--sm" data-close-dlg aria-label="Chiudi">✕</button>
     </div>
+
+    @if (fi is not null)
+    {
+        <div style="background: rgba(245, 232, 208, 0.35); border: 1px solid var(--c-border); border-radius: 8px; padding: 10px 12px; margin-bottom: var(--s-4); font-size:.82rem;">
+            <div style="font-weight:700; color: var(--c-ink-strong);">@fi.RagioneSociale</div>
+            @if (!string.IsNullOrEmpty(fi.Indirizzo)) { <div>📍 @fi.Indirizzo</div> }
+            <div style="display:flex; flex-wrap:wrap; gap: 4px 14px; margin-top:4px;">
+                @if (!string.IsNullOrEmpty(fi.Telefono))  { <span>📞 @fi.Telefono</span> }
+                @if (!string.IsNullOrEmpty(fi.Cellulare)) { <span>📱 @fi.Cellulare</span> }
+                @if (!string.IsNullOrEmpty(fi.Email))     { <span>✉️ @fi.Email</span> }
+                @if (!string.IsNullOrEmpty(fi.EmailSecondaria)) { <span>✉️ @fi.EmailSecondaria</span> }
+                @if (!string.IsNullOrEmpty(fi.Pec))       { <span>📨 @fi.Pec</span> }
+            </div>
+        </div>
+    }
 
     <div class="form-grid">
         <div class="form-group">

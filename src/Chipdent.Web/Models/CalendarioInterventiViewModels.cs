@@ -22,6 +22,7 @@ public class SezioneIntervento
     public string FornitoreDefault { get; set; } = string.Empty;
     public string Frequenza { get; set; } = string.Empty;
     public string Icona { get; set; } = "🛠️";
+    public Chipdent.Web.Controllers.CalendarioInterventiController.FornitoreInfo? FornitoreInfo { get; set; }
     public List<RigaIntervento> Righe { get; set; } = new();
 }
 

@@ -55,15 +55,39 @@
 @foreach (var sez in Model.Sezioni)
 {
     var conScad = sez.Righe.Count(r => r.Intervento?.ProssimaScadenza != null);
+    var fi = sez.FornitoreInfo;
     <section class="card" style="margin-bottom: var(--s-5);">
         <div class="card__header" style="align-items:flex-start;">
             <div>
                 <h3 class="card__title">@sez.Icona @sez.Titolo</h3>
                 <div class="muted" style="font-size:.82rem;">
-                    Fornitore: <strong>@sez.FornitoreDefault</strong> · Frequenza: @sez.Frequenza · @conScad / @sez.Righe.Count cliniche tracciate
+                    Frequenza: <strong>@sez.Frequenza</strong> · @conScad / @sez.Righe.Count cliniche tracciate
                 </div>
             </div>
         </div>
+
+        @if (fi is not null)
+        {
+            <div class="fornitore-card">
+                <div class="fornitore-card__title">@fi.RagioneSociale</div>
+                @if (!string.IsNullOrEmpty(fi.Indirizzo))
+                {
+                    <div class="fornitore-card__row">📍 @fi.Indirizzo</div>
+                }
+                <div class="fornitore-card__contacts">
+                    @if (!string.IsNullOrEmpty(fi.Telefono))  { <span>📞 <a href="tel:@(fi.Telefono.Replace(" ", ""))">@fi.Telefono</a></span> }
+                    @if (!string.IsNullOrEmpty(fi.Cellulare)) { <span>📱 <a href="tel:@(fi.Cellulare.Replace(" ", ""))">@fi.Cellulare</a></span> }
+                    @if (!string.IsNullOrEmpty(fi.Fax))       { <span>📠 @fi.Fax</span> }
+                    @if (!string.IsNullOrEmpty(fi.Email))     { <span>✉️ <a href="mailto:@fi.Email">@fi.Email</a></span> }
+                    @if (!string.IsNullOrEmpty(fi.EmailSecondaria)) { <span>✉️ <a href="mailto:@fi.EmailSecondaria">@fi.EmailSecondaria</a></span> }
+                    @if (!string.IsNullOrEmpty(fi.Pec))       { <span>📨 PEC: <a href="mailto:@fi.Pec">@fi.Pec</a></span> }
+                </div>
+                @if (!string.IsNullOrEmpty(fi.Note))
+                {
+                    <div class="fornitore-card__note">@fi.Note</div>
+                }
+            </div>
+        }
 
         <div class="table-wrap">
             <table class="table">
@@ -127,6 +151,20 @@
     dialog.dlg-intervento::backdrop { background: rgba(59, 30, 12, 0.35); backdrop-filter: blur(2px); }
     .dett-grid { display: grid; grid-template-columns: 1fr 1fr; gap: var(--s-3); }
     .dett-grid .full { grid-column: 1 / -1; }
+
+    .fornitore-card {
+        background: linear-gradient(180deg, rgba(245, 232, 208, 0.45) 0%, rgba(245, 232, 208, 0.15) 100%);
+        border: 1px solid var(--c-border);
+        border-radius: var(--r-md);
+        padding: var(--s-3) var(--s-4);
+        margin: var(--s-3) 0;
+        font-size: .85rem;
+    }
+    .fornitore-card__title { font-weight: 700; color: var(--c-ink-strong); margin-bottom: 4px; }
+    .fornitore-card__row   { color: var(--c-ink); margin-bottom: 6px; }
+    .fornitore-card__contacts { display: flex; flex-wrap: wrap; gap: var(--s-3) var(--s-4); color: var(--c-ink-soft); }
+    .fornitore-card__contacts a { color: var(--c-accent-strong); }
+    .fornitore-card__note  { margin-top: 6px; color: var(--c-ink-muted); font-style: italic; font-size: .78rem; }
 </style>
 
 @section Scripts {

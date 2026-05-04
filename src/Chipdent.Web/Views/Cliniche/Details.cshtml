@@ -287,7 +287,7 @@
                         };
                         <tr>
                             <td>@def.Icona <strong>@def.Titolo</strong></td>
-                            <td>@(string.IsNullOrEmpty(iv?.Fornitore) ? def.Fornitore : iv!.Fornitore)</td>
+                            <td>@(string.IsNullOrEmpty(iv?.Fornitore) ? def.Fornitore.RagioneSociale : iv!.Fornitore)</td>
                             <td>@(iv?.Frequenza ?? def.Frequenza)</td>
                             <td>@(iv?.DataUltimoIntervento?.ToString("MMM-yy", System.Globalization.CultureInfo.GetCultureInfo("it-IT")) ?? "—")</td>
                             <td>
@@ -324,9 +324,9 @@
                     {
                         var defm = sezDef.FirstOrDefault(d => d.Tipo == iv.Tipo);
                         <li class="list__item" style="align-items:flex-start;">
-                            <div class="list__icon">@(string.IsNullOrEmpty(defm.Icona) ? "🛠️" : defm.Icona)</div>
+                            <div class="list__icon">@(defm?.Icona ?? "🛠️")</div>
                             <div>
-                                <div class="list__title">@(string.IsNullOrEmpty(defm.Titolo) ? iv.Tipo.ToString() : defm.Titolo)</div>
+                                <div class="list__title">@(defm?.Titolo ?? iv.Tipo.ToString())</div>
                                 @if (!string.IsNullOrEmpty(iv.Note))
                                 {
                                     <div class="list__meta">@iv.Note</div>

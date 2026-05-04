@@ -13,11 +13,20 @@ internal static class InterventiSeed
     public static async Task SeedAsync(MongoContext ctx, Tenant tenant, List<Clinica> cliniche, ILogger logger, CancellationToken ct)
     {
         if (cliniche.Count == 0) return;
+
+        // Migrazione one-shot: il primo seed aveva un fornitore segnaposto "Motta Impianti"
+        // su tutte le voci elettriche e mancavano i contratti storici di Ecologia Ambiente.
+        // Se troviamo dati seedati con il vecchio fornitore, ripuliamo e ri-seediamo.
+        var legacy = await ctx.InterventiClinica.Find(i => i.TenantId == tenant.Id && i.Fornitore == "Motta Impianti").AnyAsync(ct);
+        if (legacy)
+        {
+            await ctx.InterventiClinica.DeleteManyAsync(i => i.TenantId == tenant.Id, ct);
+            logger.LogInformation("Migrated out legacy interventiClinica seed (placeholder fornitori)");
+        }
+
         if (await ctx.InterventiClinica.Find(i => i.TenantId == tenant.Id).AnyAsync(ct)) return;
 
         var byNome = cliniche.ToDictionary(c => c.Nome, c => c.Id);
-
-        // Helper: ritorna l'id se la clinica esiste in mappa, altrimenti null (riga skippata).
         string? ResolveId(string nome) => byNome.TryGetValue(nome, out var id) ? id : null;
 
         var interventi = new List<InterventoClinica>
@@ -50,48 +59,48 @@ internal static class InterventiSeed
                 new InterventoClinica { TenantId = tenant.Id, ClinicaId = ResolveId("MILANO3") ?? string.Empty, Tipo = TipoIntervento.PuliziaFiltriCondizionatori, Fornitore = "Manutentore condizionatori", Frequenza = "a 6 mesi", DataUltimoIntervento = new DateTime(2026, 1, 1, 0, 0, 0, DateTimeKind.Utc), ProssimaScadenza = new DateTime(2026, 7, 1, 0, 0, 0, DateTimeKind.Utc), ArchiviatoFaldoneAts = true, Note = "Effettuato il 29/01/2026", Dettagli = new() },
                 new InterventoClinica { TenantId = tenant.Id, ClinicaId = ResolveId("BRUGHERIO") ?? string.Empty, Tipo = TipoIntervento.PuliziaFiltriCondizionatori, Fornitore = "Manutentore condizionatori", Frequenza = "a 6 mesi", DataUltimoIntervento = new DateTime(2026, 1, 1, 0, 0, 0, DateTimeKind.Utc), ProssimaScadenza = new DateTime(2026, 7, 1, 0, 0, 0, DateTimeKind.Utc), ArchiviatoFaldoneAts = true, Note = "Effettuato il 29/01/2026", Dettagli = new() },
                 new InterventoClinica { TenantId = tenant.Id, ClinicaId = ResolveId("COMASINA") ?? string.Empty, Tipo = TipoIntervento.PuliziaFiltriCondizionatori, Fornitore = "Manutentore condizionatori", Frequenza = "a 6 mesi", DataUltimoIntervento = new DateTime(2026, 4, 1, 0, 0, 0, DateTimeKind.Utc), ProssimaScadenza = new DateTime(2026, 10, 1, 0, 0, 0, DateTimeKind.Utc), ArchiviatoFaldoneAts = false, Note = "Effettuato il 22/4/2026", Dettagli = new() },
-                new InterventoClinica { TenantId = tenant.Id, ClinicaId = ResolveId("DESIO") ?? string.Empty, Tipo = TipoIntervento.MessaATerra, Fornitore = "Motta Impianti", Frequenza = "biennale", DataUltimoIntervento = new DateTime(2024, 10, 1, 0, 0, 0, DateTimeKind.Utc), ProssimaScadenza = new DateTime(2026, 10, 1, 0, 0, 0, DateTimeKind.Utc), ArchiviatoFaldoneAts = true, Note = "Effettuato il 05/10/2024", Dettagli = new() },
-                new InterventoClinica { TenantId = tenant.Id, ClinicaId = ResolveId("VARESE") ?? string.Empty, Tipo = TipoIntervento.MessaATerra, Fornitore = "Motta Impianti", Frequenza = "biennale", DataUltimoIntervento = new DateTime(2025, 6, 1, 0, 0, 0, DateTimeKind.Utc), ProssimaScadenza = new DateTime(2027, 5, 1, 0, 0, 0, DateTimeKind.Utc), ArchiviatoFaldoneAts = true, Note = "Effettuato il 25/06/2025", Dettagli = new() },
-                new InterventoClinica { TenantId = tenant.Id, ClinicaId = ResolveId("GIUSSANO") ?? string.Empty, Tipo = TipoIntervento.MessaATerra, Fornitore = "Motta Impianti", Frequenza = "biennale", DataUltimoIntervento = new DateTime(2026, 1, 7, 0, 0, 0, DateTimeKind.Utc), ProssimaScadenza = new DateTime(2028, 1, 1, 0, 0, 0, DateTimeKind.Utc), ArchiviatoFaldoneAts = true, Note = "Effettuato il 20/01/2026", Dettagli = new() },
-                new InterventoClinica { TenantId = tenant.Id, ClinicaId = ResolveId("CORMANO") ?? string.Empty, Tipo = TipoIntervento.MessaATerra, Fornitore = "Motta Impianti", Frequenza = "biennale", DataUltimoIntervento = new DateTime(2024, 5, 22, 0, 0, 0, DateTimeKind.Utc), ProssimaScadenza = new DateTime(2026, 5, 1, 0, 0, 0, DateTimeKind.Utc), ArchiviatoFaldoneAts = true, Note = "Effettuato il  22/05/2024", Dettagli = new() },
-                new InterventoClinica { TenantId = tenant.Id, ClinicaId = ResolveId("COMO") ?? string.Empty, Tipo = TipoIntervento.MessaATerra, Fornitore = "Motta Impianti", Frequenza = "biennale", DataUltimoIntervento = new DateTime(2024, 11, 20, 0, 0, 0, DateTimeKind.Utc), ProssimaScadenza = new DateTime(2026, 11, 1, 0, 0, 0, DateTimeKind.Utc), ArchiviatoFaldoneAts = true, Note = "Effettuato il  20/11/2024", Dettagli = new() },
-                new InterventoClinica { TenantId = tenant.Id, ClinicaId = ResolveId("MILANO7") ?? string.Empty, Tipo = TipoIntervento.MessaATerra, Fornitore = "Motta Impianti", Frequenza = "biennale", DataUltimoIntervento = new DateTime(2025, 2, 1, 0, 0, 0, DateTimeKind.Utc), ProssimaScadenza = new DateTime(2027, 2, 1, 0, 0, 0, DateTimeKind.Utc), ArchiviatoFaldoneAts = true, Note = "Effettuato il 15/02/2025", Dettagli = new() },
-                new InterventoClinica { TenantId = tenant.Id, ClinicaId = ResolveId("MILANO9") ?? string.Empty, Tipo = TipoIntervento.MessaATerra, Fornitore = "Motta Impianti", Frequenza = "biennale", DataUltimoIntervento = new DateTime(2025, 6, 1, 0, 0, 0, DateTimeKind.Utc), ProssimaScadenza = new DateTime(2027, 6, 1, 0, 0, 0, DateTimeKind.Utc), ArchiviatoFaldoneAts = true, Note = "Effettuato il 03/06/2025", Dettagli = new() },
-                new InterventoClinica { TenantId = tenant.Id, ClinicaId = ResolveId("SGM") ?? string.Empty, Tipo = TipoIntervento.MessaATerra, Fornitore = "Motta Impianti", Frequenza = "biennale", DataUltimoIntervento = new DateTime(2026, 1, 1, 0, 0, 0, DateTimeKind.Utc), ProssimaScadenza = new DateTime(2028, 1, 1, 0, 0, 0, DateTimeKind.Utc), ArchiviatoFaldoneAts = true, Note = "Effettuato il 30/01/2026", Dettagli = new() },
-                new InterventoClinica { TenantId = tenant.Id, ClinicaId = ResolveId("BUSTO A.") ?? string.Empty, Tipo = TipoIntervento.MessaATerra, Fornitore = "Motta Impianti", Frequenza = "biennale", DataUltimoIntervento = null, ProssimaScadenza = new DateTime(2026, 5, 1, 0, 0, 0, DateTimeKind.Utc), ArchiviatoFaldoneAts = false, Note = null, Dettagli = new() },
-                new InterventoClinica { TenantId = tenant.Id, ClinicaId = ResolveId("BOLLATE") ?? string.Empty, Tipo = TipoIntervento.MessaATerra, Fornitore = "Motta Impianti", Frequenza = "biennale", DataUltimoIntervento = null, ProssimaScadenza = new DateTime(2026, 9, 1, 0, 0, 0, DateTimeKind.Utc), ArchiviatoFaldoneAts = false, Note = null, Dettagli = new() },
-                new InterventoClinica { TenantId = tenant.Id, ClinicaId = ResolveId("MILANO6") ?? string.Empty, Tipo = TipoIntervento.MessaATerra, Fornitore = "Motta Impianti", Frequenza = "biennale", DataUltimoIntervento = null, ProssimaScadenza = new DateTime(2027, 1, 1, 0, 0, 0, DateTimeKind.Utc), ArchiviatoFaldoneAts = false, Note = null, Dettagli = new() },
-                new InterventoClinica { TenantId = tenant.Id, ClinicaId = ResolveId("MILANO3") ?? string.Empty, Tipo = TipoIntervento.MessaATerra, Fornitore = "Motta Impianti", Frequenza = "biennale", DataUltimoIntervento = null, ProssimaScadenza = new DateTime(2027, 4, 1, 0, 0, 0, DateTimeKind.Utc), ArchiviatoFaldoneAts = false, Note = "Programmato per il 7/4/2026 ore 9,00", Dettagli = new() },
-                new InterventoClinica { TenantId = tenant.Id, ClinicaId = ResolveId("BRUGHERIO") ?? string.Empty, Tipo = TipoIntervento.MessaATerra, Fornitore = "Motta Impianti", Frequenza = "biennale", DataUltimoIntervento = null, ProssimaScadenza = new DateTime(2027, 6, 1, 0, 0, 0, DateTimeKind.Utc), ArchiviatoFaldoneAts = false, Note = null, Dettagli = new() },
-                new InterventoClinica { TenantId = tenant.Id, ClinicaId = ResolveId("COMASINA") ?? string.Empty, Tipo = TipoIntervento.MessaATerra, Fornitore = "Motta Impianti", Frequenza = "biennale", DataUltimoIntervento = null, ProssimaScadenza = new DateTime(2027, 9, 1, 0, 0, 0, DateTimeKind.Utc), ArchiviatoFaldoneAts = false, Note = null, Dettagli = new() },
-                new InterventoClinica { TenantId = tenant.Id, ClinicaId = ResolveId("DESIO") ?? string.Empty, Tipo = TipoIntervento.ImpiantoElettricoAnnuale, Fornitore = "Motta Impianti", Frequenza = "annuale", DataUltimoIntervento = new DateTime(2025, 10, 5, 0, 0, 0, DateTimeKind.Utc), ProssimaScadenza = new DateTime(2026, 10, 1, 0, 0, 0, DateTimeKind.Utc), ArchiviatoFaldoneAts = true, Note = "Effettuato il 27/10/2025", Dettagli = new() },
-                new InterventoClinica { TenantId = tenant.Id, ClinicaId = ResolveId("VARESE") ?? string.Empty, Tipo = TipoIntervento.ImpiantoElettricoAnnuale, Fornitore = "Motta Impianti", Frequenza = "annuale", DataUltimoIntervento = new DateTime(2025, 6, 1, 0, 0, 0, DateTimeKind.Utc), ProssimaScadenza = new DateTime(2026, 6, 1, 0, 0, 0, DateTimeKind.Utc), ArchiviatoFaldoneAts = true, Note = null, Dettagli = new() },
-                new InterventoClinica { TenantId = tenant.Id, ClinicaId = ResolveId("GIUSSANO") ?? string.Empty, Tipo = TipoIntervento.ImpiantoElettricoAnnuale, Fornitore = "Motta Impianti", Frequenza = "annuale", DataUltimoIntervento = new DateTime(2026, 1, 7, 0, 0, 0, DateTimeKind.Utc), ProssimaScadenza = new DateTime(2027, 1, 1, 0, 0, 0, DateTimeKind.Utc), ArchiviatoFaldoneAts = true, Note = "Effettuato il 20/01/2026", Dettagli = new() },
-                new InterventoClinica { TenantId = tenant.Id, ClinicaId = ResolveId("CORMANO") ?? string.Empty, Tipo = TipoIntervento.ImpiantoElettricoAnnuale, Fornitore = "Motta Impianti", Frequenza = "annuale", DataUltimoIntervento = new DateTime(2025, 5, 22, 0, 0, 0, DateTimeKind.Utc), ProssimaScadenza = new DateTime(2026, 5, 1, 0, 0, 0, DateTimeKind.Utc), ArchiviatoFaldoneAts = true, Note = "Programmato per il 19/5/2025", Dettagli = new() },
-                new InterventoClinica { TenantId = tenant.Id, ClinicaId = ResolveId("COMO") ?? string.Empty, Tipo = TipoIntervento.ImpiantoElettricoAnnuale, Fornitore = "Motta Impianti", Frequenza = "annuale", DataUltimoIntervento = new DateTime(2025, 11, 20, 0, 0, 0, DateTimeKind.Utc), ProssimaScadenza = new DateTime(2026, 11, 1, 0, 0, 0, DateTimeKind.Utc), ArchiviatoFaldoneAts = true, Note = "Effettuato il 03/11/2025", Dettagli = new() },
-                new InterventoClinica { TenantId = tenant.Id, ClinicaId = ResolveId("MILANO7") ?? string.Empty, Tipo = TipoIntervento.ImpiantoElettricoAnnuale, Fornitore = "Motta Impianti", Frequenza = "annuale", DataUltimoIntervento = new DateTime(2026, 2, 1, 0, 0, 0, DateTimeKind.Utc), ProssimaScadenza = new DateTime(2027, 2, 1, 0, 0, 0, DateTimeKind.Utc), ArchiviatoFaldoneAts = true, Note = "Effettuato il 10/02/2026", Dettagli = new() },
-                new InterventoClinica { TenantId = tenant.Id, ClinicaId = ResolveId("MILANO9") ?? string.Empty, Tipo = TipoIntervento.ImpiantoElettricoAnnuale, Fornitore = "Motta Impianti", Frequenza = "annuale", DataUltimoIntervento = new DateTime(2025, 6, 1, 0, 0, 0, DateTimeKind.Utc), ProssimaScadenza = new DateTime(2026, 6, 1, 0, 0, 0, DateTimeKind.Utc), ArchiviatoFaldoneAts = true, Note = "Effettuato il 03/06/2025", Dettagli = new() },
-                new InterventoClinica { TenantId = tenant.Id, ClinicaId = ResolveId("SGM") ?? string.Empty, Tipo = TipoIntervento.ImpiantoElettricoAnnuale, Fornitore = "Motta Impianti", Frequenza = "annuale", DataUltimoIntervento = new DateTime(2026, 1, 1, 0, 0, 0, DateTimeKind.Utc), ProssimaScadenza = new DateTime(2027, 1, 1, 0, 0, 0, DateTimeKind.Utc), ArchiviatoFaldoneAts = true, Note = "Effettuato il 30/01/2026", Dettagli = new() },
-                new InterventoClinica { TenantId = tenant.Id, ClinicaId = ResolveId("BUSTO A.") ?? string.Empty, Tipo = TipoIntervento.ImpiantoElettricoAnnuale, Fornitore = "Motta Impianti", Frequenza = "annuale", DataUltimoIntervento = new DateTime(2025, 5, 5, 0, 0, 0, DateTimeKind.Utc), ProssimaScadenza = new DateTime(2026, 5, 1, 0, 0, 0, DateTimeKind.Utc), ArchiviatoFaldoneAts = true, Note = "Ricordare a Motta di fare controllo DAE maggio 2026", Dettagli = new() },
-                new InterventoClinica { TenantId = tenant.Id, ClinicaId = ResolveId("BOLLATE") ?? string.Empty, Tipo = TipoIntervento.ImpiantoElettricoAnnuale, Fornitore = "Motta Impianti", Frequenza = "annuale", DataUltimoIntervento = new DateTime(2025, 9, 1, 0, 0, 0, DateTimeKind.Utc), ProssimaScadenza = new DateTime(2026, 9, 1, 0, 0, 0, DateTimeKind.Utc), ArchiviatoFaldoneAts = true, Note = "Effettuato il 03/09/2025", Dettagli = new() },
-                new InterventoClinica { TenantId = tenant.Id, ClinicaId = ResolveId("MILANO6") ?? string.Empty, Tipo = TipoIntervento.ImpiantoElettricoAnnuale, Fornitore = "Motta Impianti", Frequenza = "annuale", DataUltimoIntervento = new DateTime(2026, 1, 1, 0, 0, 0, DateTimeKind.Utc), ProssimaScadenza = new DateTime(2027, 1, 1, 0, 0, 0, DateTimeKind.Utc), ArchiviatoFaldoneAts = true, Note = "Effettuato il 19/01/2026", Dettagli = new() },
-                new InterventoClinica { TenantId = tenant.Id, ClinicaId = ResolveId("MILANO3") ?? string.Empty, Tipo = TipoIntervento.ImpiantoElettricoAnnuale, Fornitore = "Motta Impianti", Frequenza = "annuale", DataUltimoIntervento = new DateTime(2026, 4, 1, 0, 0, 0, DateTimeKind.Utc), ProssimaScadenza = new DateTime(2027, 4, 1, 0, 0, 0, DateTimeKind.Utc), ArchiviatoFaldoneAts = true, Note = "Effettuato il 7/4/2026", Dettagli = new() },
-                new InterventoClinica { TenantId = tenant.Id, ClinicaId = ResolveId("BRUGHERIO") ?? string.Empty, Tipo = TipoIntervento.ImpiantoElettricoAnnuale, Fornitore = "Motta Impianti", Frequenza = "annuale", DataUltimoIntervento = null, ProssimaScadenza = new DateTime(2026, 5, 1, 0, 0, 0, DateTimeKind.Utc), ArchiviatoFaldoneAts = false, Note = "Programmato per il 4/5/2026 ore 14,00", Dettagli = new() },
-                new InterventoClinica { TenantId = tenant.Id, ClinicaId = ResolveId("COMASINA") ?? string.Empty, Tipo = TipoIntervento.ImpiantoElettricoAnnuale, Fornitore = "Motta Impianti", Frequenza = "annuale", DataUltimoIntervento = null, ProssimaScadenza = new DateTime(2026, 9, 1, 0, 0, 0, DateTimeKind.Utc), ArchiviatoFaldoneAts = false, Note = null, Dettagli = new() },
-                new InterventoClinica { TenantId = tenant.Id, ClinicaId = ResolveId("DESIO") ?? string.Empty, Tipo = TipoIntervento.ElettromedicaliBiennale, Fornitore = "Motta Impianti", Frequenza = "biennale", DataUltimoIntervento = new DateTime(2025, 10, 1, 0, 0, 0, DateTimeKind.Utc), ProssimaScadenza = new DateTime(2027, 10, 1, 0, 0, 0, DateTimeKind.Utc), ArchiviatoFaldoneAts = true, Note = "Effettuato il 27/10/2025", Dettagli = new() },
-                new InterventoClinica { TenantId = tenant.Id, ClinicaId = ResolveId("VARESE") ?? string.Empty, Tipo = TipoIntervento.ElettromedicaliBiennale, Fornitore = "Motta Impianti", Frequenza = "biennale", DataUltimoIntervento = new DateTime(2024, 6, 1, 0, 0, 0, DateTimeKind.Utc), ProssimaScadenza = new DateTime(2026, 6, 1, 0, 0, 0, DateTimeKind.Utc), ArchiviatoFaldoneAts = true, Note = null, Dettagli = new() },
-                new InterventoClinica { TenantId = tenant.Id, ClinicaId = ResolveId("GIUSSANO") ?? string.Empty, Tipo = TipoIntervento.ElettromedicaliBiennale, Fornitore = "Motta Impianti", Frequenza = "biennale", DataUltimoIntervento = new DateTime(2025, 1, 1, 0, 0, 0, DateTimeKind.Utc), ProssimaScadenza = new DateTime(2027, 1, 1, 0, 0, 0, DateTimeKind.Utc), ArchiviatoFaldoneAts = true, Note = "Effettuato il 07/01/2025", Dettagli = new() },
-                new InterventoClinica { TenantId = tenant.Id, ClinicaId = ResolveId("CORMANO") ?? string.Empty, Tipo = TipoIntervento.ElettromedicaliBiennale, Fornitore = "Motta Impianti", Frequenza = "biennale", DataUltimoIntervento = new DateTime(2025, 5, 22, 0, 0, 0, DateTimeKind.Utc), ProssimaScadenza = new DateTime(2027, 5, 1, 0, 0, 0, DateTimeKind.Utc), ArchiviatoFaldoneAts = true, Note = null, Dettagli = new() },
-                new InterventoClinica { TenantId = tenant.Id, ClinicaId = ResolveId("COMO") ?? string.Empty, Tipo = TipoIntervento.ElettromedicaliBiennale, Fornitore = "Motta Impianti", Frequenza = "biennale", DataUltimoIntervento = new DateTime(2025, 11, 20, 0, 0, 0, DateTimeKind.Utc), ProssimaScadenza = new DateTime(2027, 11, 1, 0, 0, 0, DateTimeKind.Utc), ArchiviatoFaldoneAts = true, Note = null, Dettagli = new() },
-                new InterventoClinica { TenantId = tenant.Id, ClinicaId = ResolveId("MILANO7") ?? string.Empty, Tipo = TipoIntervento.ElettromedicaliBiennale, Fornitore = "Motta Impianti", Frequenza = "biennale", DataUltimoIntervento = new DateTime(2026, 2, 1, 0, 0, 0, DateTimeKind.Utc), ProssimaScadenza = new DateTime(2028, 2, 1, 0, 0, 0, DateTimeKind.Utc), ArchiviatoFaldoneAts = true, Note = "Effettuato il 10/02/2026", Dettagli = new() },
-                new InterventoClinica { TenantId = tenant.Id, ClinicaId = ResolveId("MILANO9") ?? string.Empty, Tipo = TipoIntervento.ElettromedicaliBiennale, Fornitore = "Motta Impianti", Frequenza = "biennale", DataUltimoIntervento = new DateTime(2024, 6, 1, 0, 0, 0, DateTimeKind.Utc), ProssimaScadenza = new DateTime(2026, 6, 1, 0, 0, 0, DateTimeKind.Utc), ArchiviatoFaldoneAts = true, Note = null, Dettagli = new() },
-                new InterventoClinica { TenantId = tenant.Id, ClinicaId = ResolveId("SGM") ?? string.Empty, Tipo = TipoIntervento.ElettromedicaliBiennale, Fornitore = "Motta Impianti", Frequenza = "biennale", DataUltimoIntervento = new DateTime(2025, 1, 1, 0, 0, 0, DateTimeKind.Utc), ProssimaScadenza = new DateTime(2027, 1, 1, 0, 0, 0, DateTimeKind.Utc), ArchiviatoFaldoneAts = true, Note = null, Dettagli = new() },
-                new InterventoClinica { TenantId = tenant.Id, ClinicaId = ResolveId("BUSTO A.") ?? string.Empty, Tipo = TipoIntervento.ElettromedicaliBiennale, Fornitore = "Motta Impianti", Frequenza = "biennale", DataUltimoIntervento = new DateTime(2025, 5, 1, 0, 0, 0, DateTimeKind.Utc), ProssimaScadenza = new DateTime(2027, 5, 1, 0, 0, 0, DateTimeKind.Utc), ArchiviatoFaldoneAts = true, Note = null, Dettagli = new() },
-                new InterventoClinica { TenantId = tenant.Id, ClinicaId = ResolveId("BOLLATE") ?? string.Empty, Tipo = TipoIntervento.ElettromedicaliBiennale, Fornitore = "Motta Impianti", Frequenza = "biennale", DataUltimoIntervento = new DateTime(2025, 9, 1, 0, 0, 0, DateTimeKind.Utc), ProssimaScadenza = new DateTime(2027, 9, 1, 0, 0, 0, DateTimeKind.Utc), ArchiviatoFaldoneAts = true, Note = "Effettuato il 03/09/2025", Dettagli = new() },
-                new InterventoClinica { TenantId = tenant.Id, ClinicaId = ResolveId("MILANO6") ?? string.Empty, Tipo = TipoIntervento.ElettromedicaliBiennale, Fornitore = "Motta Impianti", Frequenza = "biennale", DataUltimoIntervento = new DateTime(2026, 1, 1, 0, 0, 0, DateTimeKind.Utc), ProssimaScadenza = new DateTime(2028, 1, 1, 0, 0, 0, DateTimeKind.Utc), ArchiviatoFaldoneAts = true, Note = "Effettuato il 19/01/2026", Dettagli = new() },
-                new InterventoClinica { TenantId = tenant.Id, ClinicaId = ResolveId("MILANO3") ?? string.Empty, Tipo = TipoIntervento.ElettromedicaliBiennale, Fornitore = "Motta Impianti", Frequenza = "biennale", DataUltimoIntervento = null, ProssimaScadenza = new DateTime(2027, 4, 1, 0, 0, 0, DateTimeKind.Utc), ArchiviatoFaldoneAts = false, Note = null, Dettagli = new() },
-                new InterventoClinica { TenantId = tenant.Id, ClinicaId = ResolveId("BRUGHERIO") ?? string.Empty, Tipo = TipoIntervento.ElettromedicaliBiennale, Fornitore = "Motta Impianti", Frequenza = "biennale", DataUltimoIntervento = null, ProssimaScadenza = new DateTime(2027, 6, 1, 0, 0, 0, DateTimeKind.Utc), ArchiviatoFaldoneAts = false, Note = null, Dettagli = new() },
-                new InterventoClinica { TenantId = tenant.Id, ClinicaId = ResolveId("COMASINA") ?? string.Empty, Tipo = TipoIntervento.ElettromedicaliBiennale, Fornitore = "Motta Impianti", Frequenza = "biennale", DataUltimoIntervento = null, ProssimaScadenza = new DateTime(2027, 9, 1, 0, 0, 0, DateTimeKind.Utc), ArchiviatoFaldoneAts = false, Note = null, Dettagli = new() },
+                new InterventoClinica { TenantId = tenant.Id, ClinicaId = ResolveId("DESIO") ?? string.Empty, Tipo = TipoIntervento.MessaATerra, Fornitore = "V.E.M. Srl (sempre tramite Ing. Motta)", Frequenza = "biennale", DataUltimoIntervento = new DateTime(2024, 10, 1, 0, 0, 0, DateTimeKind.Utc), ProssimaScadenza = new DateTime(2026, 10, 1, 0, 0, 0, DateTimeKind.Utc), ArchiviatoFaldoneAts = true, Note = "Effettuato il 05/10/2024", Dettagli = new() },
+                new InterventoClinica { TenantId = tenant.Id, ClinicaId = ResolveId("VARESE") ?? string.Empty, Tipo = TipoIntervento.MessaATerra, Fornitore = "V.E.M. Srl (sempre tramite Ing. Motta)", Frequenza = "biennale", DataUltimoIntervento = new DateTime(2025, 6, 1, 0, 0, 0, DateTimeKind.Utc), ProssimaScadenza = new DateTime(2027, 5, 1, 0, 0, 0, DateTimeKind.Utc), ArchiviatoFaldoneAts = true, Note = "Effettuato il 25/06/2025", Dettagli = new() },
+                new InterventoClinica { TenantId = tenant.Id, ClinicaId = ResolveId("GIUSSANO") ?? string.Empty, Tipo = TipoIntervento.MessaATerra, Fornitore = "V.E.M. Srl (sempre tramite Ing. Motta)", Frequenza = "biennale", DataUltimoIntervento = new DateTime(2026, 1, 7, 0, 0, 0, DateTimeKind.Utc), ProssimaScadenza = new DateTime(2028, 1, 1, 0, 0, 0, DateTimeKind.Utc), ArchiviatoFaldoneAts = true, Note = "Effettuato il 20/01/2026", Dettagli = new() },
+                new InterventoClinica { TenantId = tenant.Id, ClinicaId = ResolveId("CORMANO") ?? string.Empty, Tipo = TipoIntervento.MessaATerra, Fornitore = "V.E.M. Srl (sempre tramite Ing. Motta)", Frequenza = "biennale", DataUltimoIntervento = new DateTime(2024, 5, 22, 0, 0, 0, DateTimeKind.Utc), ProssimaScadenza = new DateTime(2026, 5, 1, 0, 0, 0, DateTimeKind.Utc), ArchiviatoFaldoneAts = true, Note = "Effettuato il  22/05/2024", Dettagli = new() },
+                new InterventoClinica { TenantId = tenant.Id, ClinicaId = ResolveId("COMO") ?? string.Empty, Tipo = TipoIntervento.MessaATerra, Fornitore = "V.E.M. Srl (sempre tramite Ing. Motta)", Frequenza = "biennale", DataUltimoIntervento = new DateTime(2024, 11, 20, 0, 0, 0, DateTimeKind.Utc), ProssimaScadenza = new DateTime(2026, 11, 1, 0, 0, 0, DateTimeKind.Utc), ArchiviatoFaldoneAts = true, Note = "Effettuato il  20/11/2024", Dettagli = new() },
+                new InterventoClinica { TenantId = tenant.Id, ClinicaId = ResolveId("MILANO7") ?? string.Empty, Tipo = TipoIntervento.MessaATerra, Fornitore = "V.E.M. Srl (sempre tramite Ing. Motta)", Frequenza = "biennale", DataUltimoIntervento = new DateTime(2025, 2, 1, 0, 0, 0, DateTimeKind.Utc), ProssimaScadenza = new DateTime(2027, 2, 1, 0, 0, 0, DateTimeKind.Utc), ArchiviatoFaldoneAts = true, Note = "Effettuato il 15/02/2025", Dettagli = new() },
+                new InterventoClinica { TenantId = tenant.Id, ClinicaId = ResolveId("MILANO9") ?? string.Empty, Tipo = TipoIntervento.MessaATerra, Fornitore = "V.E.M. Srl (sempre tramite Ing. Motta)", Frequenza = "biennale", DataUltimoIntervento = new DateTime(2025, 6, 1, 0, 0, 0, DateTimeKind.Utc), ProssimaScadenza = new DateTime(2027, 6, 1, 0, 0, 0, DateTimeKind.Utc), ArchiviatoFaldoneAts = true, Note = "Effettuato il 03/06/2025", Dettagli = new() },
+                new InterventoClinica { TenantId = tenant.Id, ClinicaId = ResolveId("SGM") ?? string.Empty, Tipo = TipoIntervento.MessaATerra, Fornitore = "V.E.M. Srl (sempre tramite Ing. Motta)", Frequenza = "biennale", DataUltimoIntervento = new DateTime(2026, 1, 1, 0, 0, 0, DateTimeKind.Utc), ProssimaScadenza = new DateTime(2028, 1, 1, 0, 0, 0, DateTimeKind.Utc), ArchiviatoFaldoneAts = true, Note = "Effettuato il 30/01/2026", Dettagli = new() },
+                new InterventoClinica { TenantId = tenant.Id, ClinicaId = ResolveId("BUSTO A.") ?? string.Empty, Tipo = TipoIntervento.MessaATerra, Fornitore = "V.E.M. Srl (sempre tramite Ing. Motta)", Frequenza = "biennale", DataUltimoIntervento = null, ProssimaScadenza = new DateTime(2026, 5, 1, 0, 0, 0, DateTimeKind.Utc), ArchiviatoFaldoneAts = false, Note = null, Dettagli = new() },
+                new InterventoClinica { TenantId = tenant.Id, ClinicaId = ResolveId("BOLLATE") ?? string.Empty, Tipo = TipoIntervento.MessaATerra, Fornitore = "V.E.M. Srl (sempre tramite Ing. Motta)", Frequenza = "biennale", DataUltimoIntervento = null, ProssimaScadenza = new DateTime(2026, 9, 1, 0, 0, 0, DateTimeKind.Utc), ArchiviatoFaldoneAts = false, Note = null, Dettagli = new() },
+                new InterventoClinica { TenantId = tenant.Id, ClinicaId = ResolveId("MILANO6") ?? string.Empty, Tipo = TipoIntervento.MessaATerra, Fornitore = "V.E.M. Srl (sempre tramite Ing. Motta)", Frequenza = "biennale", DataUltimoIntervento = null, ProssimaScadenza = new DateTime(2027, 1, 1, 0, 0, 0, DateTimeKind.Utc), ArchiviatoFaldoneAts = false, Note = null, Dettagli = new() },
+                new InterventoClinica { TenantId = tenant.Id, ClinicaId = ResolveId("MILANO3") ?? string.Empty, Tipo = TipoIntervento.MessaATerra, Fornitore = "V.E.M. Srl (sempre tramite Ing. Motta)", Frequenza = "biennale", DataUltimoIntervento = null, ProssimaScadenza = new DateTime(2027, 4, 1, 0, 0, 0, DateTimeKind.Utc), ArchiviatoFaldoneAts = false, Note = "Programmato per il 7/4/2026 ore 9,00", Dettagli = new() },
+                new InterventoClinica { TenantId = tenant.Id, ClinicaId = ResolveId("BRUGHERIO") ?? string.Empty, Tipo = TipoIntervento.MessaATerra, Fornitore = "V.E.M. Srl (sempre tramite Ing. Motta)", Frequenza = "biennale", DataUltimoIntervento = null, ProssimaScadenza = new DateTime(2027, 6, 1, 0, 0, 0, DateTimeKind.Utc), ArchiviatoFaldoneAts = false, Note = null, Dettagli = new() },
+                new InterventoClinica { TenantId = tenant.Id, ClinicaId = ResolveId("COMASINA") ?? string.Empty, Tipo = TipoIntervento.MessaATerra, Fornitore = "V.E.M. Srl (sempre tramite Ing. Motta)", Frequenza = "biennale", DataUltimoIntervento = null, ProssimaScadenza = new DateTime(2027, 9, 1, 0, 0, 0, DateTimeKind.Utc), ArchiviatoFaldoneAts = false, Note = null, Dettagli = new() },
+                new InterventoClinica { TenantId = tenant.Id, ClinicaId = ResolveId("DESIO") ?? string.Empty, Tipo = TipoIntervento.ImpiantoElettricoAnnuale, Fornitore = "Ing. Andrea Motta", Frequenza = "annuale", DataUltimoIntervento = new DateTime(2025, 10, 5, 0, 0, 0, DateTimeKind.Utc), ProssimaScadenza = new DateTime(2026, 10, 1, 0, 0, 0, DateTimeKind.Utc), ArchiviatoFaldoneAts = true, Note = "Effettuato il 27/10/2025", Dettagli = new() },
+                new InterventoClinica { TenantId = tenant.Id, ClinicaId = ResolveId("VARESE") ?? string.Empty, Tipo = TipoIntervento.ImpiantoElettricoAnnuale, Fornitore = "Ing. Andrea Motta", Frequenza = "annuale", DataUltimoIntervento = new DateTime(2025, 6, 1, 0, 0, 0, DateTimeKind.Utc), ProssimaScadenza = new DateTime(2026, 6, 1, 0, 0, 0, DateTimeKind.Utc), ArchiviatoFaldoneAts = true, Note = null, Dettagli = new() },
+                new InterventoClinica { TenantId = tenant.Id, ClinicaId = ResolveId("GIUSSANO") ?? string.Empty, Tipo = TipoIntervento.ImpiantoElettricoAnnuale, Fornitore = "Ing. Andrea Motta", Frequenza = "annuale", DataUltimoIntervento = new DateTime(2026, 1, 7, 0, 0, 0, DateTimeKind.Utc), ProssimaScadenza = new DateTime(2027, 1, 1, 0, 0, 0, DateTimeKind.Utc), ArchiviatoFaldoneAts = true, Note = "Effettuato il 20/01/2026", Dettagli = new() },
+                new InterventoClinica { TenantId = tenant.Id, ClinicaId = ResolveId("CORMANO") ?? string.Empty, Tipo = TipoIntervento.ImpiantoElettricoAnnuale, Fornitore = "Ing. Andrea Motta", Frequenza = "annuale", DataUltimoIntervento = new DateTime(2025, 5, 22, 0, 0, 0, DateTimeKind.Utc), ProssimaScadenza = new DateTime(2026, 5, 1, 0, 0, 0, DateTimeKind.Utc), ArchiviatoFaldoneAts = true, Note = "Programmato per il 19/5/2025", Dettagli = new() },
+                new InterventoClinica { TenantId = tenant.Id, ClinicaId = ResolveId("COMO") ?? string.Empty, Tipo = TipoIntervento.ImpiantoElettricoAnnuale, Fornitore = "Ing. Andrea Motta", Frequenza = "annuale", DataUltimoIntervento = new DateTime(2025, 11, 20, 0, 0, 0, DateTimeKind.Utc), ProssimaScadenza = new DateTime(2026, 11, 1, 0, 0, 0, DateTimeKind.Utc), ArchiviatoFaldoneAts = true, Note = "Effettuato il 03/11/2025", Dettagli = new() },
+                new InterventoClinica { TenantId = tenant.Id, ClinicaId = ResolveId("MILANO7") ?? string.Empty, Tipo = TipoIntervento.ImpiantoElettricoAnnuale, Fornitore = "Ing. Andrea Motta", Frequenza = "annuale", DataUltimoIntervento = new DateTime(2026, 2, 1, 0, 0, 0, DateTimeKind.Utc), ProssimaScadenza = new DateTime(2027, 2, 1, 0, 0, 0, DateTimeKind.Utc), ArchiviatoFaldoneAts = true, Note = "Effettuato il 10/02/2026", Dettagli = new() },
+                new InterventoClinica { TenantId = tenant.Id, ClinicaId = ResolveId("MILANO9") ?? string.Empty, Tipo = TipoIntervento.ImpiantoElettricoAnnuale, Fornitore = "Ing. Andrea Motta", Frequenza = "annuale", DataUltimoIntervento = new DateTime(2025, 6, 1, 0, 0, 0, DateTimeKind.Utc), ProssimaScadenza = new DateTime(2026, 6, 1, 0, 0, 0, DateTimeKind.Utc), ArchiviatoFaldoneAts = true, Note = "Effettuato il 03/06/2025", Dettagli = new() },
+                new InterventoClinica { TenantId = tenant.Id, ClinicaId = ResolveId("SGM") ?? string.Empty, Tipo = TipoIntervento.ImpiantoElettricoAnnuale, Fornitore = "Ing. Andrea Motta", Frequenza = "annuale", DataUltimoIntervento = new DateTime(2026, 1, 1, 0, 0, 0, DateTimeKind.Utc), ProssimaScadenza = new DateTime(2027, 1, 1, 0, 0, 0, DateTimeKind.Utc), ArchiviatoFaldoneAts = true, Note = "Effettuato il 30/01/2026", Dettagli = new() },
+                new InterventoClinica { TenantId = tenant.Id, ClinicaId = ResolveId("BUSTO A.") ?? string.Empty, Tipo = TipoIntervento.ImpiantoElettricoAnnuale, Fornitore = "Ing. Andrea Motta", Frequenza = "annuale", DataUltimoIntervento = new DateTime(2025, 5, 5, 0, 0, 0, DateTimeKind.Utc), ProssimaScadenza = new DateTime(2026, 5, 1, 0, 0, 0, DateTimeKind.Utc), ArchiviatoFaldoneAts = true, Note = "Ricordare a Motta di fare controllo DAE maggio 2026", Dettagli = new() },
+                new InterventoClinica { TenantId = tenant.Id, ClinicaId = ResolveId("BOLLATE") ?? string.Empty, Tipo = TipoIntervento.ImpiantoElettricoAnnuale, Fornitore = "Ing. Andrea Motta", Frequenza = "annuale", DataUltimoIntervento = new DateTime(2025, 9, 1, 0, 0, 0, DateTimeKind.Utc), ProssimaScadenza = new DateTime(2026, 9, 1, 0, 0, 0, DateTimeKind.Utc), ArchiviatoFaldoneAts = true, Note = "Effettuato il 03/09/2025", Dettagli = new() },
+                new InterventoClinica { TenantId = tenant.Id, ClinicaId = ResolveId("MILANO6") ?? string.Empty, Tipo = TipoIntervento.ImpiantoElettricoAnnuale, Fornitore = "Ing. Andrea Motta", Frequenza = "annuale", DataUltimoIntervento = new DateTime(2026, 1, 1, 0, 0, 0, DateTimeKind.Utc), ProssimaScadenza = new DateTime(2027, 1, 1, 0, 0, 0, DateTimeKind.Utc), ArchiviatoFaldoneAts = true, Note = "Effettuato il 19/01/2026", Dettagli = new() },
+                new InterventoClinica { TenantId = tenant.Id, ClinicaId = ResolveId("MILANO3") ?? string.Empty, Tipo = TipoIntervento.ImpiantoElettricoAnnuale, Fornitore = "Ing. Andrea Motta", Frequenza = "annuale", DataUltimoIntervento = new DateTime(2026, 4, 1, 0, 0, 0, DateTimeKind.Utc), ProssimaScadenza = new DateTime(2027, 4, 1, 0, 0, 0, DateTimeKind.Utc), ArchiviatoFaldoneAts = true, Note = "Effettuato il 7/4/2026", Dettagli = new() },
+                new InterventoClinica { TenantId = tenant.Id, ClinicaId = ResolveId("BRUGHERIO") ?? string.Empty, Tipo = TipoIntervento.ImpiantoElettricoAnnuale, Fornitore = "Ing. Andrea Motta", Frequenza = "annuale", DataUltimoIntervento = null, ProssimaScadenza = new DateTime(2026, 5, 1, 0, 0, 0, DateTimeKind.Utc), ArchiviatoFaldoneAts = false, Note = "Programmato per il 4/5/2026 ore 14,00", Dettagli = new() },
+                new InterventoClinica { TenantId = tenant.Id, ClinicaId = ResolveId("COMASINA") ?? string.Empty, Tipo = TipoIntervento.ImpiantoElettricoAnnuale, Fornitore = "Ing. Andrea Motta", Frequenza = "annuale", DataUltimoIntervento = null, ProssimaScadenza = new DateTime(2026, 9, 1, 0, 0, 0, DateTimeKind.Utc), ArchiviatoFaldoneAts = false, Note = null, Dettagli = new() },
+                new InterventoClinica { TenantId = tenant.Id, ClinicaId = ResolveId("DESIO") ?? string.Empty, Tipo = TipoIntervento.ElettromedicaliBiennale, Fornitore = "Ing. Andrea Motta", Frequenza = "biennale", DataUltimoIntervento = new DateTime(2025, 10, 1, 0, 0, 0, DateTimeKind.Utc), ProssimaScadenza = new DateTime(2027, 10, 1, 0, 0, 0, DateTimeKind.Utc), ArchiviatoFaldoneAts = true, Note = "Effettuato il 27/10/2025", Dettagli = new() },
+                new InterventoClinica { TenantId = tenant.Id, ClinicaId = ResolveId("VARESE") ?? string.Empty, Tipo = TipoIntervento.ElettromedicaliBiennale, Fornitore = "Ing. Andrea Motta", Frequenza = "biennale", DataUltimoIntervento = new DateTime(2024, 6, 1, 0, 0, 0, DateTimeKind.Utc), ProssimaScadenza = new DateTime(2026, 6, 1, 0, 0, 0, DateTimeKind.Utc), ArchiviatoFaldoneAts = true, Note = null, Dettagli = new() },
+                new InterventoClinica { TenantId = tenant.Id, ClinicaId = ResolveId("GIUSSANO") ?? string.Empty, Tipo = TipoIntervento.ElettromedicaliBiennale, Fornitore = "Ing. Andrea Motta", Frequenza = "biennale", DataUltimoIntervento = new DateTime(2025, 1, 1, 0, 0, 0, DateTimeKind.Utc), ProssimaScadenza = new DateTime(2027, 1, 1, 0, 0, 0, DateTimeKind.Utc), ArchiviatoFaldoneAts = true, Note = "Effettuato il 07/01/2025", Dettagli = new() },
+                new InterventoClinica { TenantId = tenant.Id, ClinicaId = ResolveId("CORMANO") ?? string.Empty, Tipo = TipoIntervento.ElettromedicaliBiennale, Fornitore = "Ing. Andrea Motta", Frequenza = "biennale", DataUltimoIntervento = new DateTime(2025, 5, 22, 0, 0, 0, DateTimeKind.Utc), ProssimaScadenza = new DateTime(2027, 5, 1, 0, 0, 0, DateTimeKind.Utc), ArchiviatoFaldoneAts = true, Note = null, Dettagli = new() },
+                new InterventoClinica { TenantId = tenant.Id, ClinicaId = ResolveId("COMO") ?? string.Empty, Tipo = TipoIntervento.ElettromedicaliBiennale, Fornitore = "Ing. Andrea Motta", Frequenza = "biennale", DataUltimoIntervento = new DateTime(2025, 11, 20, 0, 0, 0, DateTimeKind.Utc), ProssimaScadenza = new DateTime(2027, 11, 1, 0, 0, 0, DateTimeKind.Utc), ArchiviatoFaldoneAts = true, Note = null, Dettagli = new() },
+                new InterventoClinica { TenantId = tenant.Id, ClinicaId = ResolveId("MILANO7") ?? string.Empty, Tipo = TipoIntervento.ElettromedicaliBiennale, Fornitore = "Ing. Andrea Motta", Frequenza = "biennale", DataUltimoIntervento = new DateTime(2026, 2, 1, 0, 0, 0, DateTimeKind.Utc), ProssimaScadenza = new DateTime(2028, 2, 1, 0, 0, 0, DateTimeKind.Utc), ArchiviatoFaldoneAts = true, Note = "Effettuato il 10/02/2026", Dettagli = new() },
+                new InterventoClinica { TenantId = tenant.Id, ClinicaId = ResolveId("MILANO9") ?? string.Empty, Tipo = TipoIntervento.ElettromedicaliBiennale, Fornitore = "Ing. Andrea Motta", Frequenza = "biennale", DataUltimoIntervento = new DateTime(2024, 6, 1, 0, 0, 0, DateTimeKind.Utc), ProssimaScadenza = new DateTime(2026, 6, 1, 0, 0, 0, DateTimeKind.Utc), ArchiviatoFaldoneAts = true, Note = null, Dettagli = new() },
+                new InterventoClinica { TenantId = tenant.Id, ClinicaId = ResolveId("SGM") ?? string.Empty, Tipo = TipoIntervento.ElettromedicaliBiennale, Fornitore = "Ing. Andrea Motta", Frequenza = "biennale", DataUltimoIntervento = new DateTime(2025, 1, 1, 0, 0, 0, DateTimeKind.Utc), ProssimaScadenza = new DateTime(2027, 1, 1, 0, 0, 0, DateTimeKind.Utc), ArchiviatoFaldoneAts = true, Note = null, Dettagli = new() },
+                new InterventoClinica { TenantId = tenant.Id, ClinicaId = ResolveId("BUSTO A.") ?? string.Empty, Tipo = TipoIntervento.ElettromedicaliBiennale, Fornitore = "Ing. Andrea Motta", Frequenza = "biennale", DataUltimoIntervento = new DateTime(2025, 5, 1, 0, 0, 0, DateTimeKind.Utc), ProssimaScadenza = new DateTime(2027, 5, 1, 0, 0, 0, DateTimeKind.Utc), ArchiviatoFaldoneAts = true, Note = null, Dettagli = new() },
+                new InterventoClinica { TenantId = tenant.Id, ClinicaId = ResolveId("BOLLATE") ?? string.Empty, Tipo = TipoIntervento.ElettromedicaliBiennale, Fornitore = "Ing. Andrea Motta", Frequenza = "biennale", DataUltimoIntervento = new DateTime(2025, 9, 1, 0, 0, 0, DateTimeKind.Utc), ProssimaScadenza = new DateTime(2027, 9, 1, 0, 0, 0, DateTimeKind.Utc), ArchiviatoFaldoneAts = true, Note = "Effettuato il 03/09/2025", Dettagli = new() },
+                new InterventoClinica { TenantId = tenant.Id, ClinicaId = ResolveId("MILANO6") ?? string.Empty, Tipo = TipoIntervento.ElettromedicaliBiennale, Fornitore = "Ing. Andrea Motta", Frequenza = "biennale", DataUltimoIntervento = new DateTime(2026, 1, 1, 0, 0, 0, DateTimeKind.Utc), ProssimaScadenza = new DateTime(2028, 1, 1, 0, 0, 0, DateTimeKind.Utc), ArchiviatoFaldoneAts = true, Note = "Effettuato il 19/01/2026", Dettagli = new() },
+                new InterventoClinica { TenantId = tenant.Id, ClinicaId = ResolveId("MILANO3") ?? string.Empty, Tipo = TipoIntervento.ElettromedicaliBiennale, Fornitore = "Ing. Andrea Motta", Frequenza = "biennale", DataUltimoIntervento = null, ProssimaScadenza = new DateTime(2027, 4, 1, 0, 0, 0, DateTimeKind.Utc), ArchiviatoFaldoneAts = false, Note = null, Dettagli = new() },
+                new InterventoClinica { TenantId = tenant.Id, ClinicaId = ResolveId("BRUGHERIO") ?? string.Empty, Tipo = TipoIntervento.ElettromedicaliBiennale, Fornitore = "Ing. Andrea Motta", Frequenza = "biennale", DataUltimoIntervento = null, ProssimaScadenza = new DateTime(2027, 6, 1, 0, 0, 0, DateTimeKind.Utc), ArchiviatoFaldoneAts = false, Note = null, Dettagli = new() },
+                new InterventoClinica { TenantId = tenant.Id, ClinicaId = ResolveId("COMASINA") ?? string.Empty, Tipo = TipoIntervento.ElettromedicaliBiennale, Fornitore = "Ing. Andrea Motta", Frequenza = "biennale", DataUltimoIntervento = null, ProssimaScadenza = new DateTime(2027, 9, 1, 0, 0, 0, DateTimeKind.Utc), ArchiviatoFaldoneAts = false, Note = null, Dettagli = new() },
                 new InterventoClinica { TenantId = tenant.Id, ClinicaId = ResolveId("DESIO") ?? string.Empty, Tipo = TipoIntervento.Radiografico, Fornitore = "Esperto Qualificato Radioprotezione", Frequenza = "annuale", DataUltimoIntervento = new DateTime(2025, 9, 1, 0, 0, 0, DateTimeKind.Utc), ProssimaScadenza = new DateTime(2026, 9, 1, 0, 0, 0, DateTimeKind.Utc), ArchiviatoFaldoneAts = true, Note = null, Dettagli = new() },
                 new InterventoClinica { TenantId = tenant.Id, ClinicaId = ResolveId("VARESE") ?? string.Empty, Tipo = TipoIntervento.Radiografico, Fornitore = "Esperto Qualificato Radioprotezione", Frequenza = "annuale", DataUltimoIntervento = new DateTime(2025, 5, 24, 0, 0, 0, DateTimeKind.Utc), ProssimaScadenza = new DateTime(2026, 5, 1, 0, 0, 0, DateTimeKind.Utc), ArchiviatoFaldoneAts = true, Note = "Programmato per il 19/05/2026", Dettagli = new() },
                 new InterventoClinica { TenantId = tenant.Id, ClinicaId = ResolveId("GIUSSANO") ?? string.Empty, Tipo = TipoIntervento.Radiografico, Fornitore = "Esperto Qualificato Radioprotezione", Frequenza = "annuale", DataUltimoIntervento = new DateTime(2025, 11, 18, 0, 0, 0, DateTimeKind.Utc), ProssimaScadenza = new DateTime(2026, 11, 1, 0, 0, 0, DateTimeKind.Utc), ArchiviatoFaldoneAts = true, Note = "Effettuato il 24/11/2025", Dettagli = new() },
@@ -124,6 +133,174 @@ internal static class InterventiSeed
                 new InterventoClinica { TenantId = tenant.Id, ClinicaId = ResolveId("MILANO6") ?? string.Empty, Tipo = TipoIntervento.Nolomedical, Fornitore = "Nolomedical s.r.l.", Frequenza = "annuale", DataUltimoIntervento = new DateTime(2025, 1, 1, 0, 0, 0, DateTimeKind.Utc), ProssimaScadenza = new DateTime(2027, 1, 1, 0, 0, 0, DateTimeKind.Utc), ArchiviatoFaldoneAts = false, Note = "Rinnovato", Dettagli = new() },
                 new InterventoClinica { TenantId = tenant.Id, ClinicaId = ResolveId("MILANO3") ?? string.Empty, Tipo = TipoIntervento.Nolomedical, Fornitore = "Nolomedical s.r.l.", Frequenza = "annuale", DataUltimoIntervento = new DateTime(2025, 4, 1, 0, 0, 0, DateTimeKind.Utc), ProssimaScadenza = new DateTime(2027, 4, 1, 0, 0, 0, DateTimeKind.Utc), ArchiviatoFaldoneAts = false, Note = "Rinnovato", Dettagli = new() },
                 new InterventoClinica { TenantId = tenant.Id, ClinicaId = ResolveId("COMASINA") ?? string.Empty, Tipo = TipoIntervento.Nolomedical, Fornitore = "Nolomedical s.r.l.", Frequenza = "annuale", DataUltimoIntervento = new DateTime(2025, 9, 1, 0, 0, 0, DateTimeKind.Utc), ProssimaScadenza = new DateTime(2026, 9, 1, 0, 0, 0, DateTimeKind.Utc), ArchiviatoFaldoneAts = false, Note = "Da rinnovare", Dettagli = new() },
+                new InterventoClinica { TenantId = tenant.Id, ClinicaId = ResolveId("DESIO") ?? string.Empty, Tipo = TipoIntervento.EcologiaAmbienteContrattoStorico, Fornitore = "Ecologia Ambiente", Frequenza = "contratto storico (fino 12/2025)", DataUltimoIntervento = new DateTime(2021, 10, 1, 0, 0, 0, DateTimeKind.Utc), ProssimaScadenza = new DateTime(2027, 9, 30, 0, 0, 0, DateTimeKind.Utc), ArchiviatoFaldoneAts = false, Note = "13/01/2025: richiesto nuovo registro vidimato CCIAA € 99,00 + IVA", Dettagli = new()
+                {
+                    ["Pagamento effettuato fino al"] = "30/09/2026",
+                    ["Contenitori forniti"] = "5 da 40lt",
+                    ["Rifiuti sanitari"] = "€ 998,00 + IVA",
+                    ["Contenitore supplementare"] = "€ 11,90 + IVA",
+                    ["Amalgama"] = "€ 90,00 + IVA",
+                    ["Compilazione MUD"] = "€ 90,00 + IVA",
+                    ["Registro carico/scarico"] = "€ 99,00 + IVA",
+                    ["Autoclave"] = "€ 440,00 + IVA",
+                    ["Smaltimento farmaci"] = "NO"
+                } },
+                new InterventoClinica { TenantId = tenant.Id, ClinicaId = ResolveId("VARESE") ?? string.Empty, Tipo = TipoIntervento.EcologiaAmbienteContrattoStorico, Fornitore = "Ecologia Ambiente", Frequenza = "contratto storico (fino 12/2025)", DataUltimoIntervento = new DateTime(2022, 9, 1, 0, 0, 0, DateTimeKind.Utc), ProssimaScadenza = new DateTime(2026, 8, 31, 0, 0, 0, DateTimeKind.Utc), ArchiviatoFaldoneAts = false, Note = "13/01/2025: richiesto nuovo registro vidimato CCIAA € 99,00 + IVA", Dettagli = new()
+                {
+                    ["Pagamento effettuato fino al"] = "31/08/2026",
+                    ["Contenitori forniti"] = "5 da 40lt",
+                    ["Rifiuti sanitari"] = "€ 998,00 + IVA",
+                    ["Contenitore supplementare"] = "€ 11,90 + IVA",
+                    ["Amalgama"] = "€ 90,00 + IVA",
+                    ["Compilazione MUD"] = "€ 90,00 + IVA",
+                    ["Registro carico/scarico"] = "€ 99,00 + IVA",
+                    ["Autoclave"] = "€ 440,00 + IVA",
+                    ["Smaltimento farmaci"] = "NO"
+                } },
+                new InterventoClinica { TenantId = tenant.Id, ClinicaId = ResolveId("GIUSSANO") ?? string.Empty, Tipo = TipoIntervento.EcologiaAmbienteContrattoStorico, Fornitore = "Ecologia Ambiente", Frequenza = "contratto storico (fino 12/2025)", DataUltimoIntervento = new DateTime(2024, 2, 1, 0, 0, 0, DateTimeKind.Utc), ProssimaScadenza = new DateTime(2026, 1, 31, 0, 0, 0, DateTimeKind.Utc), ArchiviatoFaldoneAts = false, Note = "13/01/2025: richiesto nuovo registro vidimato CCIAA € 99,00 + IVA", Dettagli = new()
+                {
+                    ["Pagamento effettuato fino al"] = "31/01/2026",
+                    ["Contenitori forniti"] = "5 da 40lt",
+                    ["Rifiuti sanitari"] = "€ 998,00 + IVA",
+                    ["Contenitore supplementare"] = "€ 11,90 + IVA",
+                    ["Amalgama"] = "€ 90,00 + IVA",
+                    ["Compilazione MUD"] = "€ 90,00 + IVA",
+                    ["Registro carico/scarico"] = "€ 99,00 + IVA",
+                    ["Autoclave"] = "€ 440,00 + IVA",
+                    ["Smaltimento farmaci"] = "NO"
+                } },
+                new InterventoClinica { TenantId = tenant.Id, ClinicaId = ResolveId("CORMANO") ?? string.Empty, Tipo = TipoIntervento.EcologiaAmbienteContrattoStorico, Fornitore = "Ecologia Ambiente", Frequenza = "contratto storico (fino 12/2025)", DataUltimoIntervento = new DateTime(2024, 7, 1, 0, 0, 0, DateTimeKind.Utc), ProssimaScadenza = new DateTime(2026, 6, 30, 0, 0, 0, DateTimeKind.Utc), ArchiviatoFaldoneAts = false, Note = "13/01/2025: richiesto nuovo registro vidimato CCIAA € 99,00 + IVA", Dettagli = new()
+                {
+                    ["Pagamento effettuato fino al"] = "30/06/2026",
+                    ["Contenitori forniti"] = "5 da 40lt",
+                    ["Rifiuti sanitari"] = "€ 998,00 + IVA",
+                    ["Contenitore supplementare"] = "€ 11,90 + IVA",
+                    ["Amalgama"] = "€ 90,00 + IVA",
+                    ["Compilazione MUD"] = "€ 90,00 + IVA",
+                    ["Registro carico/scarico"] = "€ 99,00 + IVA",
+                    ["Autoclave"] = "€ 440,00 + IVA",
+                    ["Smaltimento farmaci"] = "€ 59,00 + IVA"
+                } },
+                new InterventoClinica { TenantId = tenant.Id, ClinicaId = ResolveId("COMO") ?? string.Empty, Tipo = TipoIntervento.EcologiaAmbienteContrattoStorico, Fornitore = "Ecologia Ambiente", Frequenza = "contratto storico (fino 12/2025)", DataUltimoIntervento = new DateTime(2022, 11, 1, 0, 0, 0, DateTimeKind.Utc), ProssimaScadenza = new DateTime(2026, 10, 31, 0, 0, 0, DateTimeKind.Utc), ArchiviatoFaldoneAts = false, Note = "13/01/2025: richiesto nuovo registro vidimato CCIAA € 99,00 + IVA", Dettagli = new()
+                {
+                    ["Pagamento effettuato fino al"] = "30/11/2026",
+                    ["Contenitori forniti"] = "3 da 40lt",
+                    ["Rifiuti sanitari"] = "€ 709,00 + IVA",
+                    ["Contenitore supplementare"] = "€ 13,50 + IVA",
+                    ["Amalgama"] = "€ 90,00 + IVA",
+                    ["Compilazione MUD"] = "€ 90,00 + IVA",
+                    ["Registro carico/scarico"] = "€ 99,00 + IVA",
+                    ["Autoclave"] = "€ 440,00 + IVA",
+                    ["Smaltimento farmaci"] = "NO"
+                } },
+                new InterventoClinica { TenantId = tenant.Id, ClinicaId = ResolveId("MILANO7") ?? string.Empty, Tipo = TipoIntervento.EcologiaAmbienteContrattoStorico, Fornitore = "Ecologia Ambiente", Frequenza = "contratto storico (fino 12/2025)", DataUltimoIntervento = new DateTime(2023, 3, 1, 0, 0, 0, DateTimeKind.Utc), ProssimaScadenza = new DateTime(2027, 2, 28, 0, 0, 0, DateTimeKind.Utc), ArchiviatoFaldoneAts = false, Note = "13/01/2025: richiesto nuovo registro vidimato CCIAA € 99,00 + IVA", Dettagli = new()
+                {
+                    ["Pagamento effettuato fino al"] = "28/02/2026",
+                    ["Contenitori forniti"] = "5 da 40lt",
+                    ["Rifiuti sanitari"] = "€ 998,00 + IVA",
+                    ["Contenitore supplementare"] = "€ 11,90 + IVA",
+                    ["Amalgama"] = "€ 90,00 + IVA",
+                    ["Compilazione MUD"] = "€ 90,00 + IVA",
+                    ["Registro carico/scarico"] = "€ 99,00 + IVA",
+                    ["Autoclave"] = "€ 449,00 + IVA",
+                    ["Smaltimento farmaci"] = "NO"
+                } },
+                new InterventoClinica { TenantId = tenant.Id, ClinicaId = ResolveId("MILANO9") ?? string.Empty, Tipo = TipoIntervento.EcologiaAmbienteContrattoStorico, Fornitore = "Ecologia Ambiente", Frequenza = "contratto storico (fino 12/2025)", DataUltimoIntervento = new DateTime(2023, 7, 1, 0, 0, 0, DateTimeKind.Utc), ProssimaScadenza = new DateTime(2027, 6, 30, 0, 0, 0, DateTimeKind.Utc), ArchiviatoFaldoneAts = false, Note = "13/01/2025: richiesto nuovo registro vidimato CCIAA € 99,00 + IVA", Dettagli = new()
+                {
+                    ["Pagamento effettuato fino al"] = "30/06/2026",
+                    ["Contenitori forniti"] = "3 da 40lt",
+                    ["Rifiuti sanitari"] = "€ 709,00 + IVA",
+                    ["Contenitore supplementare"] = "€ 13,50 + IVA",
+                    ["Amalgama"] = "€ 90,00 + IVA",
+                    ["Compilazione MUD"] = "€ 90,00 + IVA",
+                    ["Registro carico/scarico"] = "€ 99,00 + IVA",
+                    ["Autoclave"] = "€ 440,00 + IVA",
+                    ["Smaltimento farmaci"] = "€ 59,00 + IVA"
+                } },
+                new InterventoClinica { TenantId = tenant.Id, ClinicaId = ResolveId("SGM") ?? string.Empty, Tipo = TipoIntervento.EcologiaAmbienteContrattoStorico, Fornitore = "Ecologia Ambiente", Frequenza = "contratto storico (fino 12/2025)", DataUltimoIntervento = new DateTime(2024, 2, 1, 0, 0, 0, DateTimeKind.Utc), ProssimaScadenza = new DateTime(2026, 1, 31, 0, 0, 0, DateTimeKind.Utc), ArchiviatoFaldoneAts = false, Note = "13/01/2025: richiesto nuovo registro vidimato CCIAA € 99,00 + IVA", Dettagli = new()
+                {
+                    ["Pagamento effettuato fino al"] = "31/01/2026",
+                    ["Contenitori forniti"] = "3 da 40lt",
+                    ["Rifiuti sanitari"] = "€ 709,00 + IVA",
+                    ["Contenitore supplementare"] = "€ 13,50 + IVA",
+                    ["Amalgama"] = "€ 90,00 + IVA",
+                    ["Compilazione MUD"] = "€ 90,00 + IVA",
+                    ["Registro carico/scarico"] = "€ 99,00 + IVA",
+                    ["Autoclave"] = "€ 440,00 + IVA",
+                    ["Smaltimento farmaci"] = "NO"
+                } },
+                new InterventoClinica { TenantId = tenant.Id, ClinicaId = ResolveId("BUSTO A.") ?? string.Empty, Tipo = TipoIntervento.EcologiaAmbienteContrattoStorico, Fornitore = "Ecologia Ambiente", Frequenza = "contratto storico (fino 12/2025)", DataUltimoIntervento = new DateTime(2024, 6, 1, 0, 0, 0, DateTimeKind.Utc), ProssimaScadenza = new DateTime(2026, 5, 31, 0, 0, 0, DateTimeKind.Utc), ArchiviatoFaldoneAts = false, Note = "13/01/2025: richiesto nuovo registro vidimato CCIAA € 99,00 + IVA", Dettagli = new()
+                {
+                    ["Pagamento effettuato fino al"] = "31/05/2026",
+                    ["Contenitori forniti"] = "3 da 40lt",
+                    ["Rifiuti sanitari"] = "€ 709,00 + IVA",
+                    ["Contenitore supplementare"] = "€ 13,50 + IVA",
+                    ["Amalgama"] = "€ 90,00 + IVA",
+                    ["Compilazione MUD"] = "€ 90,00 + IVA",
+                    ["Registro carico/scarico"] = "€ 99,00 + IVA",
+                    ["Autoclave"] = "€ 440,00 + IVA",
+                    ["Smaltimento farmaci"] = "€ 59,00 + IVA"
+                } },
+                new InterventoClinica { TenantId = tenant.Id, ClinicaId = ResolveId("BOLLATE") ?? string.Empty, Tipo = TipoIntervento.EcologiaAmbienteContrattoStorico, Fornitore = "Ecologia Ambiente", Frequenza = "contratto storico (fino 12/2025)", DataUltimoIntervento = new DateTime(2024, 10, 1, 0, 0, 0, DateTimeKind.Utc), ProssimaScadenza = new DateTime(2026, 9, 30, 0, 0, 0, DateTimeKind.Utc), ArchiviatoFaldoneAts = false, Note = "13/01/2025: richiesto nuovo registro vidimato CCIAA € 99,00 + IVA", Dettagli = new()
+                {
+                    ["Pagamento effettuato fino al"] = "30/09/2026",
+                    ["Contenitori forniti"] = "3 da 40lt",
+                    ["Rifiuti sanitari"] = "€ 709,00 + IVA",
+                    ["Contenitore supplementare"] = "€ 13,50 + IVA",
+                    ["Amalgama"] = "€ 90,00 + IVA",
+                    ["Compilazione MUD"] = "€ 90,00 + IVA",
+                    ["Registro carico/scarico"] = "€ 99,00 + IVA",
+                    ["Autoclave"] = "€ 440,00 + IVA",
+                    ["Smaltimento farmaci"] = "NO"
+                } },
+                new InterventoClinica { TenantId = tenant.Id, ClinicaId = ResolveId("MILANO6") ?? string.Empty, Tipo = TipoIntervento.EcologiaAmbienteContrattoStorico, Fornitore = "Ecologia Ambiente", Frequenza = "contratto storico (fino 12/2025)", DataUltimoIntervento = new DateTime(2025, 2, 1, 0, 0, 0, DateTimeKind.Utc), ProssimaScadenza = new DateTime(2027, 1, 31, 0, 0, 0, DateTimeKind.Utc), ArchiviatoFaldoneAts = false, Note = null, Dettagli = new()
+                {
+                    ["Pagamento effettuato fino al"] = "31/01/2026",
+                    ["Contenitori forniti"] = "3 da 40lt",
+                    ["Rifiuti sanitari"] = "€ 709,00 + IVA",
+                    ["Contenitore supplementare"] = "€ 13,50 + IVA",
+                    ["Amalgama"] = "€ 90,00 + IVA",
+                    ["Compilazione MUD"] = "€ 90,00 + IVA",
+                    ["Registro carico/scarico"] = "€ 99,00 + IVA",
+                    ["Autoclave"] = "€ 440,00 + IVA",
+                    ["Smaltimento farmaci"] = "NO"
+                } },
+                new InterventoClinica { TenantId = tenant.Id, ClinicaId = ResolveId("MILANO3") ?? string.Empty, Tipo = TipoIntervento.EcologiaAmbienteContrattoStorico, Fornitore = "Ecologia Ambiente", Frequenza = "contratto storico (fino 12/2025)", DataUltimoIntervento = new DateTime(2025, 4, 1, 0, 0, 0, DateTimeKind.Utc), ProssimaScadenza = new DateTime(2027, 3, 31, 0, 0, 0, DateTimeKind.Utc), ArchiviatoFaldoneAts = false, Note = null, Dettagli = new()
+                {
+                    ["Pagamento effettuato fino al"] = "31/03/2026",
+                    ["Contenitori forniti"] = "3 da 40lt",
+                    ["Rifiuti sanitari"] = "€ 709,00 + IVA",
+                    ["Contenitore supplementare"] = "€ 13,50 + IVA",
+                    ["Amalgama"] = "€ 90,00 + IVA",
+                    ["Compilazione MUD"] = "€ 90,00 + IVA",
+                    ["Registro carico/scarico"] = "€ 99,00 + IVA",
+                    ["Autoclave"] = "€ 440,00 + IVA",
+                    ["Smaltimento farmaci"] = "NO"
+                } },
+                new InterventoClinica { TenantId = tenant.Id, ClinicaId = ResolveId("BRUGHERIO") ?? string.Empty, Tipo = TipoIntervento.EcologiaAmbienteContrattoStorico, Fornitore = "Ecologia Ambiente", Frequenza = "contratto storico (fino 12/2025)", DataUltimoIntervento = new DateTime(2025, 7, 1, 0, 0, 0, DateTimeKind.Utc), ProssimaScadenza = new DateTime(2027, 6, 30, 0, 0, 0, DateTimeKind.Utc), ArchiviatoFaldoneAts = false, Note = null, Dettagli = new()
+                {
+                    ["Pagamento effettuato fino al"] = "30/06/2026",
+                    ["Contenitori forniti"] = "3 da 40lt",
+                    ["Rifiuti sanitari"] = "€ 709,00 + IVA",
+                    ["Contenitore supplementare"] = "€ 13,50 + IVA",
+                    ["Amalgama"] = "€ 90,00 + IVA",
+                    ["Compilazione MUD"] = "€ 90,00 + IVA",
+                    ["Registro carico/scarico"] = "€ 99,00 + IVA",
+                    ["Autoclave"] = "€ 440,00 + IVA",
+                    ["Smaltimento farmaci"] = "NO"
+                } },
+                new InterventoClinica { TenantId = tenant.Id, ClinicaId = ResolveId("COMASINA") ?? string.Empty, Tipo = TipoIntervento.EcologiaAmbienteContrattoStorico, Fornitore = "Ecologia Ambiente", Frequenza = "contratto storico (fino 12/2025)", DataUltimoIntervento = new DateTime(2025, 11, 1, 0, 0, 0, DateTimeKind.Utc), ProssimaScadenza = new DateTime(2027, 10, 31, 0, 0, 0, DateTimeKind.Utc), ArchiviatoFaldoneAts = false, Note = null, Dettagli = new()
+                {
+                    ["Pagamento effettuato fino al"] = "31/10/2026",
+                    ["Contenitori forniti"] = "3 da 40lt",
+                    ["Rifiuti sanitari"] = "€ 709,00 + IVA",
+                    ["Contenitore supplementare"] = "€ 13,50 + IVA",
+                    ["Amalgama"] = "€ 90,00 + IVA",
+                    ["Compilazione MUD"] = "€ 90,00 + IVA",
+                    ["Registro carico/scarico"] = "€ 359 + IVA",
+                    ["Autoclave"] = "€ 440,00 + IVA",
+                    ["Smaltimento farmaci"] = "NO"
+                } },
                 new InterventoClinica { TenantId = tenant.Id, ClinicaId = ResolveId("DESIO") ?? string.Empty, Tipo = TipoIntervento.EcologiaAmbienteContratto, Fornitore = "Ecologia Ambiente", Frequenza = "biennale", DataUltimoIntervento = new DateTime(2026, 1, 1, 0, 0, 0, DateTimeKind.Utc), ProssimaScadenza = new DateTime(2028, 12, 31, 0, 0, 0, DateTimeKind.Utc), ArchiviatoFaldoneAts = false, Note = "disdetta via PEC entro 90 gg dalla scadenza (ago-2028)", Dettagli = new()
                 {
                     ["Contenitori forniti"] = "5 da 40lt",
@@ -420,7 +597,6 @@ internal static class InterventiSeed
                 } },
         };
 
-        // Filtro safety: rimuove eventuali righe per cliniche assenti (in caso di rete custom).
         interventi = interventi.Where(i => !string.IsNullOrEmpty(i.ClinicaId)).ToList();
 
         if (interventi.Count > 0)

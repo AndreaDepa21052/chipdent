@@ -28,18 +28,76 @@ public class CalendarioInterventiController : Controller
         _tenant = tenant;
     }
 
-    public static readonly (TipoIntervento Tipo, string Titolo, string Icona, string Fornitore, string Frequenza)[] SezioniDef =
+    public record FornitoreInfo(string RagioneSociale, string? Indirizzo = null, string? Telefono = null,
+        string? Cellulare = null, string? Fax = null, string? Email = null, string? EmailSecondaria = null,
+        string? Pec = null, string? Note = null);
+
+    public record SezioneDefinizione(TipoIntervento Tipo, string Titolo, string Icona, string Frequenza, FornitoreInfo Fornitore);
+
+    /// <summary>
+    /// Anagrafica statica delle sezioni del calendario interventi.
+    /// I fornitori sono presi dalle anagrafiche presenti sul foglio xls fornito da Confident:
+    /// dove non era indicato (NOLOMEDICAL, manutenzione condizionatori, radiografico, bombole O₂)
+    /// si è messo un placeholder con il nome del fornitore di riferimento, modificabile dal back-office.
+    /// </summary>
+    public static readonly SezioneDefinizione[] SezioniDef =
     {
-        (TipoIntervento.RegistroAntincendio,         "Registro antincendio",                "🧯", "CVZ Antincendi S.r.l.",                "a 6 mesi"),
-        (TipoIntervento.PuliziaFiltriCondizionatori, "Pulizia filtri condizionatori",       "❄️", "Manutentore condizionatori",           "a 6 mesi"),
-        (TipoIntervento.MessaATerra,                 "Messa a terra (biennale)",            "⚡", "Motta Impianti",                       "biennale"),
-        (TipoIntervento.ImpiantoElettricoAnnuale,    "Impianto elettrico (annuale)",        "🔌", "Motta Impianti",                       "annuale"),
-        (TipoIntervento.ElettromedicaliBiennale,     "Elettromedicali (biennale)",          "🩺", "Motta Impianti",                       "biennale"),
-        (TipoIntervento.Radiografico,                "Radiografico",                        "🦷", "Esperto Qualificato Radioprotezione",  "annuale"),
-        (TipoIntervento.BombolaOssigeno,             "Bombola ossigeno",                    "🫧", "SOL Group",                            "—"),
-        (TipoIntervento.Nolomedical,                 "Nolomedical",                         "📦", "Nolomedical s.r.l.",                   "annuale"),
-        (TipoIntervento.EcologiaAmbienteContratto,   "Ecologia Ambiente — contratto",       "♻️", "Ecologia Ambiente",                    "biennale"),
-        (TipoIntervento.EcologiaAmbienteRentri,      "RENTRI + App FIR digitale",           "📋", "Ecologia Ambiente / RENTRI",           "annuale")
+        new(TipoIntervento.RegistroAntincendio,         "Registro antincendio",          "🧯", "a 6 mesi",
+            new FornitoreInfo("CVZ Antincendi S.r.l.",
+                Indirizzo: "Busto Arsizio – Via Volterra 14",
+                Telefono:  "+39 0331 678220",
+                Fax:       "+39 0331 322252",
+                Email:     "info@cvzantincendi.it",
+                Pec:       "nuovacavazzana@legalmail.it")),
+
+        new(TipoIntervento.PuliziaFiltriCondizionatori, "Pulizia filtri condizionatori", "❄️", "a 6 mesi",
+            new FornitoreInfo("Manutentore condizionatori",
+                Note: "Fornitore non indicato sul foglio xls — da completare in anagrafica.")),
+
+        new(TipoIntervento.MessaATerra,                 "Messa a terra (biennale)",      "⚡", "biennale",
+            new FornitoreInfo("V.E.M. Srl (sempre tramite Ing. Motta)",
+                Indirizzo: "Via Bellini 5 – Scanzorosciate (BG)",
+                Telefono:  "035 027 06 21",
+                Email:     "info@vemverifiche.com",
+                EmailSecondaria: "impiantielettrici@vemverifiche.com")),
+
+        new(TipoIntervento.ImpiantoElettricoAnnuale,    "Impianto elettrico (annuale)",  "🔌", "annuale",
+            new FornitoreInfo("Ing. Andrea Motta",
+                Indirizzo: "Via Medici del Vascello 23 sc. 4 – Milano",
+                Cellulare: "335 524 00 15",
+                Email:     "info@andreamotta.it",
+                EmailSecondaria: "andrea.motta@fastwebnet.it")),
+
+        new(TipoIntervento.ElettromedicaliBiennale,     "Elettromedicali (biennale)",    "🩺", "biennale",
+            new FornitoreInfo("Ing. Andrea Motta",
+                Indirizzo: "Via Medici del Vascello 23 sc. 4 – Milano",
+                Cellulare: "335 524 00 15",
+                Email:     "info@andreamotta.it",
+                EmailSecondaria: "andrea.motta@fastwebnet.it")),
+
+        new(TipoIntervento.Radiografico,                "Radiografico",                  "🦷", "annuale",
+            new FornitoreInfo("Esperto Qualificato Radioprotezione",
+                Note: "Fornitore non indicato sul foglio xls — da completare in anagrafica.")),
+
+        new(TipoIntervento.BombolaOssigeno,             "Bombola ossigeno",              "🫧", "—",
+            new FornitoreInfo("SOL Group",
+                Note: "Fornitore non indicato sul foglio xls — da completare in anagrafica.")),
+
+        new(TipoIntervento.Nolomedical,                 "Nolomedical",                   "📦", "annuale",
+            new FornitoreInfo("Nolomedical s.r.l.",
+                Note: "Contatti non indicati sul foglio xls — da completare in anagrafica.")),
+
+        new(TipoIntervento.EcologiaAmbienteContratto,   "Ecologia Ambiente — contratto (dal 01/01/2026)", "♻️", "biennale",
+            new FornitoreInfo("Ecologia Ambiente",
+                Note: "Disdetta via PEC entro 90 gg dalla scadenza (ago-2028).")),
+
+        new(TipoIntervento.EcologiaAmbienteContrattoStorico, "Ecologia Ambiente — contratto storico (fino 31/12/2025)", "📚", "storico",
+            new FornitoreInfo("Ecologia Ambiente",
+                Note: "Contratti precedenti al rinnovo del 01/01/2026 — mantenuti come storico.")),
+
+        new(TipoIntervento.EcologiaAmbienteRentri,      "Iscrizione RENTRI + App FIR",   "📋", "annuale",
+            new FornitoreInfo("Ecologia Ambiente / RENTRI",
+                Note: "Rinnovo pagamento entro il 30/4 di ogni anno."))
     };
 
     [HttpGet("")]
@@ -71,7 +129,8 @@ public class CalendarioInterventiController : Controller
                 Tipo = def.Tipo,
                 Titolo = def.Titolo,
                 Icona = def.Icona,
-                FornitoreDefault = def.Fornitore,
+                FornitoreDefault = def.Fornitore.RagioneSociale,
+                FornitoreInfo = def.Fornitore,
                 Frequenza = def.Frequenza
             };
             foreach (var c in cliniche)
@@ -124,17 +183,18 @@ public class CalendarioInterventiController : Controller
 
         ViewData["Clinica"] = clinica;
         ViewData["Tipo"] = tipo;
-        ViewData["Titolo"] = def.Titolo ?? tipo.ToString();
-        ViewData["FornitoreDefault"] = def.Fornitore ?? "";
-        ViewData["FrequenzaDefault"] = def.Frequenza ?? "";
+        ViewData["Titolo"] = def?.Titolo ?? tipo.ToString();
+        ViewData["FornitoreDefault"] = def?.Fornitore.RagioneSociale ?? "";
+        ViewData["FrequenzaDefault"] = def?.Frequenza ?? "";
+        ViewData["FornitoreInfo"] = def?.Fornitore;
 
         return PartialView("_Modale", iv ?? new InterventoClinica
         {
             TenantId = tid,
             ClinicaId = clinicaId,
             Tipo = tipo,
-            Fornitore = def.Fornitore ?? "",
-            Frequenza = def.Frequenza
+            Fornitore = def?.Fornitore.RagioneSociale ?? "",
+            Frequenza = def?.Frequenza
         });
     }
 
