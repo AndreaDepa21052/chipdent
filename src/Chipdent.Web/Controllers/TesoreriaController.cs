@@ -516,24 +516,59 @@ public class TesoreriaController : Controller
     /// Update bulk dei campi di una singola scadenza + della fattura associata.
     /// Tutti i campi del file Excel sono editabili.
     /// </summary>
+    /// <remarks>
+    /// I campi monetari arrivano come stringa e vengono parsati esplicitamente con
+    /// CultureInfo.InvariantCulture per evitare il bug del binder MVC: con cultura
+    /// it-IT, "1797.26" (inviato dall'input HTML5 type=number) veniva interpretato
+    /// come 179726 perché il "." è il separatore migliaia in italiano.
+    /// </remarks>
     [HttpPost("scadenza/{id}/modifica")]
     [ValidateAntiForgeryToken]
     public async Task<IActionResult> ModificaScadenza(string id,
         // Scadenza
-        DateTime dataScadenza, decimal totale, MetodoPagamento metodo, StatoScadenza stato,
+        DateTime dataScadenza, string totale, MetodoPagamento metodo, StatoScadenza stato,
         string? iban, string? note, string? clinicaId,
         DateTime? dataProgrammata, DateTime? dataPagamento, string? riferimentoPagamento,
         // Fattura
         string? fatturaId, string? numero, DateTime? meseCompetenza,
-        decimal? imponibile, decimal? iva, CategoriaSpesa? categoria,
+        string? imponibile, string? iva, CategoriaSpesa? categoria,
         TipoEmissioneFattura? tipoEmissione, bool bonificoMultiploCbi, string? noteFattura)
     {
         var tid = _tenant.TenantId!;
 
+        // Parser robusto: accetta sia "1797,26" (IT) sia "1797.26" (EN/HTML5).
+        // Rimuove spazi e separatori delle migliaia (come da fix bug binder culture).
+        static decimal ParseDec(string? s, decimal fallback = 0m)
+        {
+            if (string.IsNullOrWhiteSpace(s)) return fallback;
+            s = s.Trim();
+            // Se ci sono sia ',' sia '.', l'ultimo è il decimal separator: l'altro è migliaia.
+            int idxComma = s.LastIndexOf(',');
+            int idxDot   = s.LastIndexOf('.');
+            if (idxComma >= 0 && idxDot >= 0)
+            {
+                if (idxComma > idxDot) s = s.Replace(".", "").Replace(',', '.');
+                else                   s = s.Replace(",", "");
+            }
+            else if (idxComma >= 0)
+            {
+                s = s.Replace(',', '.');
+            }
+            // Tolgo eventuali separatori di migliaia residui (spazi).
+            s = s.Replace(" ", "");
+            return decimal.TryParse(s, System.Globalization.NumberStyles.Number,
+                System.Globalization.CultureInfo.InvariantCulture, out var v) ? v : fallback;
+        }
+        decimal? ParseDecOpt(string? s) => string.IsNullOrWhiteSpace(s) ? null : ParseDec(s);
+
+        var totaleDec     = ParseDec(totale);
+        var imponibileDec = ParseDecOpt(imponibile);
+        var ivaDec        = ParseDecOpt(iva);
+
         // ── Update scadenza ─────────────────────────────────────────
         var update = Builders<ScadenzaPagamento>.Update
             .Set(s => s.DataScadenza, DateTime.SpecifyKind(dataScadenza.Date, DateTimeKind.Utc))
-            .Set(s => s.Importo, totale)
+            .Set(s => s.Importo, totaleDec)
             .Set(s => s.Metodo, metodo)
             .Set(s => s.Stato, stato)
             .Set(s => s.Iban, string.IsNullOrWhiteSpace(iban) ? null : iban.Trim())
@@ -553,17 +588,16 @@ public class TesoreriaController : Controller
             var fatturaUpdate = Builders<FatturaFornitore>.Update
                 .Set(f => f.BonificoMultiploCbi, bonificoMultiploCbi)
                 .Set(f => f.Note, string.IsNullOrWhiteSpace(noteFattura) ? null : noteFattura)
+                .Set(f => f.Totale, totaleDec)
                 .Set(f => f.UpdatedAt, DateTime.UtcNow);
             if (!string.IsNullOrWhiteSpace(numero))
                 fatturaUpdate = fatturaUpdate.Set(f => f.Numero, numero.Trim());
             if (meseCompetenza.HasValue)
                 fatturaUpdate = fatturaUpdate.Set(f => f.MeseCompetenza,
                     DateTime.SpecifyKind(new DateTime(meseCompetenza.Value.Year, meseCompetenza.Value.Month, 1), DateTimeKind.Utc));
-            if (imponibile.HasValue) fatturaUpdate = fatturaUpdate.Set(f => f.Imponibile, imponibile.Value);
-            if (iva.HasValue)        fatturaUpdate = fatturaUpdate.Set(f => f.Iva, iva.Value);
-            // Totale fattura: usa il totale della scadenza in input se non vengono passati separatamente
-            fatturaUpdate = fatturaUpdate.Set(f => f.Totale, (imponibile ?? 0) + (iva ?? 0) > 0 ? (imponibile!.Value + iva!.Value) : totale);
-            if (categoria.HasValue)  fatturaUpdate = fatturaUpdate.Set(f => f.Categoria, categoria.Value);
+            if (imponibileDec.HasValue) fatturaUpdate = fatturaUpdate.Set(f => f.Imponibile, imponibileDec.Value);
+            if (ivaDec.HasValue)        fatturaUpdate = fatturaUpdate.Set(f => f.Iva, ivaDec.Value);
+            if (categoria.HasValue)     fatturaUpdate = fatturaUpdate.Set(f => f.Categoria, categoria.Value);
             if (tipoEmissione.HasValue)
             {
                 fatturaUpdate = fatturaUpdate.Set(f => f.TipoEmissione, tipoEmissione.Value);

@@ -7,9 +7,11 @@
     var f  = ViewData["Fornitore"] as Fornitore;
     var c  = ViewData["Clinica"]   as Clinica;
     var cliniche = (ViewData["Cliniche"] as List<Clinica>) ?? new();
-    var it = new CultureInfo("it-IT");
     string D(DateTime? d) => d?.ToString("yyyy-MM-dd") ?? "";
     string DM(DateTime? d) => d?.ToString("yyyy-MM") ?? "";
+    var origineLabel = fa?.Origine == OrigineFattura.PortaleFornitore ? "📥 Portale fornitore"
+                     : fa?.Origine == OrigineFattura.ImportExcel ? "📊 Import Excel"
+                     : "🖋 Back-office";
 }
 
 <form method="post" asp-action="ModificaScadenza" asp-route-id="@Model.Id" class="dettaglio-scadenza">
@@ -20,11 +22,6 @@
         <div>
             <h3 style="margin:0 0 4px;">Scadenza · <strong>@(f?.RagioneSociale ?? "—")</strong></h3>
             <div class="muted" style="font-size:.78rem;">
-                @{
-                    var origineLabel = fa?.Origine == OrigineFattura.PortaleFornitore ? "📥 Portale fornitore"
-                                     : fa?.Origine == OrigineFattura.ImportExcel ? "📊 Import Excel"
-                                     : "🖋 Back-office";
-                }
                 @origineLabel · caricata il @(fa?.CreatedAt.ToLocalTime().ToString("dd/MM/yyyy HH:mm") ?? Model.CreatedAt.ToLocalTime().ToString("dd/MM/yyyy HH:mm"))
                 @if (Model.UpdatedAt.HasValue)
                 {
@@ -35,115 +32,136 @@
         <button type="button" class="btn btn--ghost btn--sm" data-close-dlg aria-label="Chiudi">✕</button>
     </header>
 
-    <div class="dettaglio-scadenza__grid">
-        <div class="form-group">
-            <label class="form-label">Data scadenza</label>
-            <input class="form-control" type="date" name="dataScadenza" value="@D(Model.DataScadenza)" required />
-        </div>
-        <div class="form-group">
-            <label class="form-label">Mese competenza</label>
-            <input class="form-control" type="month" name="meseCompetenza" value="@DM(fa?.MeseCompetenza)" />
-        </div>
+    <div class="dettaglio-scadenza__body">
 
-        <div class="form-group">
-            <label class="form-label">Sede (LOC)</label>
-            <select class="form-control" name="clinicaId">
-                @foreach (var x in cliniche)
-                {
-                    <option value="@x.Id" selected="@(x.Id == Model.ClinicaId)">@x.Nome @(x.IsHolding ? "· holding" : "")</option>
-                }
-            </select>
-        </div>
-        <div class="form-group">
-            <label class="form-label">Tipo emissione (E/M)</label>
-            <select class="form-control" name="tipoEmissione">
-                @foreach (var v in Enum.GetValues<TipoEmissioneFattura>())
-                {
-                    <option value="@v" selected="@(fa?.TipoEmissione == v)">@v.LabelEsteso()</option>
-                }
-            </select>
-        </div>
+    <section class="dett-section">
+        <h4 class="dett-section__title">📅 Scadenza · documento</h4>
+        <div class="dett-grid-3">
+            <div class="form-group">
+                <label class="form-label">Data scadenza</label>
+                <input class="form-control" type="date" name="dataScadenza" value="@D(Model.DataScadenza)" required />
+            </div>
+            <div class="form-group">
+                <label class="form-label">Mese competenza</label>
+                <input class="form-control" type="month" name="meseCompetenza" value="@DM(fa?.MeseCompetenza)" />
+            </div>
+            <div class="form-group">
+                <label class="form-label">Sede (LOC)</label>
+                <select class="form-control" name="clinicaId">
+                    @foreach (var x in cliniche)
+                    {
+                        <option value="@x.Id" selected="@(x.Id == Model.ClinicaId)">@x.Nome @(x.IsHolding ? "· holding" : "")</option>
+                    }
+                </select>
+            </div>
 
-        <div class="form-group">
-            <label class="form-label">N° documento</label>
-            <input class="form-control" type="text" name="numero" value="@(fa?.Numero)" />
+            <div class="form-group">
+                <label class="form-label">Tipo emissione (E/M)</label>
+                <select class="form-control" name="tipoEmissione">
+                    @foreach (var v in Enum.GetValues<TipoEmissioneFattura>())
+                    {
+                        <option value="@v" selected="@(fa?.TipoEmissione == v)">@v.LabelEsteso()</option>
+                    }
+                </select>
+            </div>
+            <div class="form-group">
+                <label class="form-label">N° documento</label>
+                <input class="form-control" type="text" name="numero" value="@(fa?.Numero)" />
+            </div>
+            <div class="form-group">
+                <label class="form-label">Categoria (TIPO)</label>
+                <select class="form-control" name="categoria">
+                    @foreach (var v in Enum.GetValues<CategoriaSpesa>().OrderBy(x => x.Label()))
+                    {
+                        <option value="@v" selected="@((fa?.Categoria ?? Model.Categoria) == v)">@v.Label()</option>
+                    }
+                </select>
+            </div>
         </div>
-        <div class="form-group">
-            <label class="form-label">Categoria (TIPO)</label>
-            <select class="form-control" name="categoria">
-                @foreach (var v in Enum.GetValues<CategoriaSpesa>().OrderBy(x => x.Label()))
-                {
-                    <option value="@v" selected="@((fa?.Categoria ?? Model.Categoria) == v)">@v.Label()</option>
-                }
-            </select>
-        </div>
+    </section>
 
-        <div class="form-group">
-            <label class="form-label">Imponibile (IMPORTO)</label>
-            <input class="form-control" type="number" step="0.01" name="imponibile" value="@(fa?.Imponibile.ToString("0.00", CultureInfo.InvariantCulture))" />
-        </div>
-        <div class="form-group">
-            <label class="form-label">IVA (€)</label>
-            <input class="form-control" type="number" step="0.01" name="iva" value="@(fa?.Iva.ToString("0.00", CultureInfo.InvariantCulture))" />
-        </div>
+    <section class="dett-section">
+        <h4 class="dett-section__title">💶 Importi · pagamento</h4>
+        <div class="dett-grid-3">
+            <div class="form-group">
+                <label class="form-label">Imponibile (IMPORTO)</label>
+                <input class="form-control" type="number" step="0.01" name="imponibile" value="@(fa?.Imponibile.ToString("0.00", CultureInfo.InvariantCulture))" />
+            </div>
+            <div class="form-group">
+                <label class="form-label">IVA (€)</label>
+                <input class="form-control" type="number" step="0.01" name="iva" value="@(fa?.Iva.ToString("0.00", CultureInfo.InvariantCulture))" />
+            </div>
+            <div class="form-group">
+                <label class="form-label">Totale (IMPORTO TOTALE)</label>
+                <input class="form-control" type="number" step="0.01" name="totale" value="@Model.Importo.ToString("0.00", CultureInfo.InvariantCulture)" required />
+            </div>
 
-        <div class="form-group">
-            <label class="form-label">Totale (IMPORTO TOTALE)</label>
-            <input class="form-control" type="number" step="0.01" name="totale" value="@Model.Importo.ToString("0.00", CultureInfo.InvariantCulture)" required />
+            <div class="form-group">
+                <label class="form-label">Metodo pagamento</label>
+                <select class="form-control" name="metodo">
+                    @foreach (var v in Enum.GetValues<MetodoPagamento>())
+                    {
+                        <option value="@v" selected="@(Model.Metodo == v)">@v.Label()</option>
+                    }
+                </select>
+            </div>
+            <div class="form-group">
+                <label class="form-label">Stato</label>
+                <select class="form-control" name="stato">
+                    @foreach (var v in Enum.GetValues<StatoScadenza>())
+                    {
+                        <option value="@v" selected="@(Model.Stato == v)">@v.Label()</option>
+                    }
+                </select>
+            </div>
+            <div class="form-group dett-checkbox">
+                <label class="form-label">Bonifico Multiplo CBI</label>
+                <label class="dett-toggle">
+                    <input type="checkbox" name="bonificoMultiploCbi" value="true" @((fa?.BonificoMultiploCbi ?? false) ? "checked" : "") />
+                    <span>BM — distinta multipla</span>
+                </label>
+            </div>
         </div>
-        <div class="form-group">
-            <label class="form-label">Metodo pagamento</label>
-            <select class="form-control" name="metodo">
-                @foreach (var v in Enum.GetValues<MetodoPagamento>())
-                {
-                    <option value="@v" selected="@(Model.Metodo == v)">@v.Label()</option>
-                }
-            </select>
-        </div>
+    </section>
 
-        <div class="form-group">
-            <label class="form-label">Stato</label>
-            <select class="form-control" name="stato">
-                @foreach (var v in Enum.GetValues<StatoScadenza>())
-                {
-                    <option value="@v" selected="@(Model.Stato == v)">@v.Label()</option>
-                }
-            </select>
-        </div>
-        <div class="form-group" style="display:flex; align-items:center; gap:8px;">
-            <input id="bm-flag" type="checkbox" name="bonificoMultiploCbi" value="true" @((fa?.BonificoMultiploCbi ?? false) ? "checked" : "") />
-            <label for="bm-flag" style="margin:0; font-size:.85rem;">Bonifico Multiplo CBI (BM)</label>
-        </div>
+    <section class="dett-section">
+        <h4 class="dett-section__title">🏦 Tracciamento bonifico · IBAN</h4>
+        <div class="dett-grid-3">
+            <div class="form-group">
+                <label class="form-label">Data programmata</label>
+                <input class="form-control" type="date" name="dataProgrammata" value="@D(Model.DataProgrammata)" />
+            </div>
+            <div class="form-group">
+                <label class="form-label">Data pagamento effettivo</label>
+                <input class="form-control" type="date" name="dataPagamento" value="@D(Model.DataPagamento)" />
+            </div>
+            <div class="form-group">
+                <label class="form-label">Riferimento (CRO/distinta)</label>
+                <input class="form-control" type="text" name="riferimentoPagamento" value="@Model.RiferimentoPagamento" placeholder="es. CRO 12345" />
+            </div>
 
-        <div class="form-group">
-            <label class="form-label">Data programmata</label>
-            <input class="form-control" type="date" name="dataProgrammata" value="@D(Model.DataProgrammata)" />
+            <div class="form-group dett-full">
+                <label class="form-label">IBAN del fornitore</label>
+                <input class="form-control" type="text" name="iban" value="@Model.Iban" placeholder="ITxx X xxxxx xxxxx xxxxxxxxxxxx" style="font-family: ui-monospace, monospace;" />
+            </div>
         </div>
-        <div class="form-group">
-            <label class="form-label">Data pagamento effettivo</label>
-            <input class="form-control" type="date" name="dataPagamento" value="@D(Model.DataPagamento)" />
-        </div>
+    </section>
 
-        <div class="form-group full">
-            <label class="form-label">Riferimento pagamento (CRO/distinta)</label>
-            <input class="form-control" type="text" name="riferimentoPagamento" value="@Model.RiferimentoPagamento" placeholder="es. CRO 12345" />
+    <section class="dett-section">
+        <h4 class="dett-section__title">📝 Note</h4>
+        <div class="dett-grid-2">
+            <div class="form-group">
+                <label class="form-label">Note scadenza</label>
+                <textarea class="form-control" name="note" rows="2">@Model.Note</textarea>
+            </div>
+            <div class="form-group">
+                <label class="form-label">Note fattura</label>
+                <textarea class="form-control" name="noteFattura" rows="2">@(fa?.Note)</textarea>
+            </div>
         </div>
+    </section>
 
-        <div class="form-group full">
-            <label class="form-label">IBAN del fornitore</label>
-            <input class="form-control" type="text" name="iban" value="@Model.Iban" placeholder="ITxx X xxxxx xxxxx xxxxxxxxxxxx" />
-        </div>
-
-        <div class="form-group full">
-            <label class="form-label">Note scadenza</label>
-            <textarea class="form-control" name="note" rows="2">@Model.Note</textarea>
-        </div>
-
-        <div class="form-group full">
-            <label class="form-label">Note fattura</label>
-            <textarea class="form-control" name="noteFattura" rows="2">@(fa?.Note)</textarea>
-        </div>
-    </div>
+    </div><!-- /body -->
 
     <footer class="dettaglio-scadenza__foot">
         <button type="button" class="btn btn--ghost" data-close-dlg>Annulla</button>
@@ -152,11 +170,41 @@
 </form>
 
 <style>
-    .dettaglio-scadenza { padding: var(--s-4) var(--s-5); display: flex; flex-direction: column; gap: var(--s-4); }
-    .dettaglio-scadenza__head { display: flex; align-items: flex-start; justify-content: space-between; gap: var(--s-3); }
-    .dettaglio-scadenza__grid { display: grid; grid-template-columns: 1fr 1fr; gap: var(--s-3); }
-    .dettaglio-scadenza__grid .full { grid-column: 1 / -1; }
-    .dettaglio-scadenza__foot { display: flex; gap: 8px; justify-content: flex-end; padding-top: var(--s-2); border-top: 1px dashed var(--c-divider, #ece0cc); }
-    .dettaglio-scadenza .form-control { font-size: .85rem; padding: 6px 10px; height: 34px; }
-    .dettaglio-scadenza textarea.form-control { height: auto; }
+    .dettaglio-scadenza { display: flex; flex-direction: column; max-height: 90vh; }
+    .dettaglio-scadenza__head {
+        display: flex; align-items: flex-start; justify-content: space-between; gap: var(--s-3);
+        padding: var(--s-3) var(--s-5); border-bottom: 1px solid var(--c-divider, #ece0cc);
+        background: rgba(196,120,48,0.04);
+    }
+    .dettaglio-scadenza__body { padding: var(--s-3) var(--s-5); overflow-y: auto; }
+    .dettaglio-scadenza__foot {
+        display: flex; gap: 8px; justify-content: flex-end;
+        padding: var(--s-3) var(--s-5); border-top: 1px solid var(--c-divider, #ece0cc);
+        background: rgba(196,120,48,0.02);
+    }
+
+    .dett-section { margin-bottom: var(--s-3); }
+    .dett-section:last-child { margin-bottom: 0; }
+    .dett-section__title {
+        margin: 0 0 6px; font-size: .72rem; font-weight: 700;
+        text-transform: uppercase; letter-spacing: .08em;
+        color: var(--c-ink-soft, #7a5c3a);
+    }
+
+    .dett-grid-3 { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px 12px; }
+    .dett-grid-2 { display: grid; grid-template-columns: repeat(2, 1fr); gap: 8px 12px; }
+    .dett-full { grid-column: 1 / -1; }
+
+    .dettaglio-scadenza .form-group { margin: 0; }
+    .dettaglio-scadenza .form-label { display: block; font-size: .7rem; color: var(--c-ink-muted, #998); margin-bottom: 2px; font-weight: 600; }
+    .dettaglio-scadenza .form-control { font-size: .82rem; padding: 5px 8px; height: 32px; }
+    .dettaglio-scadenza textarea.form-control { height: auto; resize: vertical; min-height: 48px; }
+
+    .dett-toggle { display: flex; align-items: center; gap: 6px; height: 32px; font-size: .82rem; color: var(--c-ink, #3b1e0c); }
+    .dett-toggle input { margin: 0; }
+
+    @@media (max-width: 720px) {
+        .dett-grid-3 { grid-template-columns: 1fr 1fr; }
+        .dett-grid-2 { grid-template-columns: 1fr; }
+    }
 </style>

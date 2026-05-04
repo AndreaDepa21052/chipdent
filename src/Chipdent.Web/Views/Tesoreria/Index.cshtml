@@ -794,7 +794,7 @@
     </form>
 </dialog>
 
-<dialog id="dlg-dettaglio" style="border:0; border-radius: 14px; padding: 0; max-width: 720px; width: 92vw; box-shadow: 0 24px 80px rgba(59,30,12,0.22);">
+<dialog id="dlg-dettaglio" style="border:0; border-radius: 14px; padding: 0; max-width: 1040px; width: 94vw; box-shadow: 0 24px 80px rgba(59,30,12,0.22);">
     <div data-dettaglio-body>
         <div style="padding: 32px; text-align:center; color:#888;">caricamento…</div>
     </div>
@@ -945,8 +945,13 @@
                 dlgProg.showModal();
             });
         });
-        document.querySelectorAll('[data-close-dlg]').forEach(function (b) {
-            b.addEventListener('click', function () { b.closest('dialog').close(); });
+        // Event delegation: cattura anche i [data-close-dlg] iniettati a runtime nelle
+        // modali partial (es. _DettaglioScadenza), che non esistono al page-load.
+        document.addEventListener('click', function (ev) {
+            var b = ev.target.closest('[data-close-dlg]');
+            if (!b) return;
+            var dlg = b.closest('dialog');
+            if (dlg) { ev.preventDefault(); dlg.close(); }
         });
 
         // ── Selezione massiva per distinta SEPA ─────────────────────────
