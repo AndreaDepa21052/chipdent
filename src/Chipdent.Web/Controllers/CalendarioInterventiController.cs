@@ -1,4 +1,5 @@
 using Chipdent.Web.Domain.Entities;
+using Chipdent.Web.Infrastructure.Audit;
 using Chipdent.Web.Infrastructure.Identity;
 using Chipdent.Web.Infrastructure.Mongo;
 using Chipdent.Web.Infrastructure.Tenancy;
@@ -21,11 +22,13 @@ public class CalendarioInterventiController : Controller
 {
     private readonly MongoContext _mongo;
     private readonly ITenantContext _tenant;
+    private readonly IAuditService _audit;
 
-    public CalendarioInterventiController(MongoContext mongo, ITenantContext tenant)
+    public CalendarioInterventiController(MongoContext mongo, ITenantContext tenant, IAuditService audit)
     {
         _mongo = mongo;
         _tenant = tenant;
+        _audit = audit;
     }
 
     public record FornitoreInfo(string RagioneSociale, string? Indirizzo = null, string? Telefono = null,
@@ -147,13 +150,38 @@ public class CalendarioInterventiController : Controller
         }
 
         var inter30 = oggi.AddDays(30);
+        var inter60 = oggi.AddDays(60);
+
+        // Pannello proattivo: scaduti + in scadenza ≤60gg, ordinati per urgenza.
+        var clinicaMap = cliniche.ToDictionary(c => c.Id, c => c.Nome);
+        var defMap = SezioniDef.ToDictionary(d => d.Tipo);
+        var urgenti = interventi
+            .Where(i => i.ProssimaScadenza.HasValue && i.ProssimaScadenza.Value.Date <= inter60)
+            .Where(i => clinicaMap.ContainsKey(i.ClinicaId)) // rispetta lo scope clinica del direttore
+            .Select(i =>
+            {
+                defMap.TryGetValue(i.Tipo, out var d);
+                return new AzioneUrgente
+                {
+                    Intervento = i,
+                    ClinicaNome = clinicaMap[i.ClinicaId],
+                    TitoloSezione = d?.Titolo ?? i.Tipo.ToString(),
+                    IconaSezione = d?.Icona ?? "🛠️",
+                    Fornitore = d?.Fornitore,
+                    GiorniAllaScadenza = (int)Math.Round((i.ProssimaScadenza!.Value.Date - oggi).TotalDays)
+                };
+            })
+            .OrderBy(a => a.GiorniAllaScadenza)
+            .ToList();
+
         var vm = new CalendarioInterventiViewModel
         {
             Sezioni = sezioni,
             Cliniche = cliniche,
             Totali = interventi.Count,
             Scaduti = interventi.Count(i => i.ProssimaScadenza.HasValue && i.ProssimaScadenza.Value.Date < oggi),
-            Imminenti = interventi.Count(i => i.ProssimaScadenza.HasValue && i.ProssimaScadenza.Value.Date >= oggi && i.ProssimaScadenza.Value.Date <= inter30)
+            Imminenti = interventi.Count(i => i.ProssimaScadenza.HasValue && i.ProssimaScadenza.Value.Date >= oggi && i.ProssimaScadenza.Value.Date <= inter30),
+            Urgenti = urgenti
         };
 
         ViewData["Section"] = "calendario-interventi";
@@ -198,6 +226,43 @@ public class CalendarioInterventiController : Controller
         });
     }
 
+    /// <summary>
+    /// Cronologia modifiche per una singola voce (clinica × tipologia).
+    /// Restituisce una partial usata dentro la modale di edit.
+    /// </summary>
+    [HttpGet("cronologia")]
+    public async Task<IActionResult> Cronologia(string clinicaId, TipoIntervento tipo)
+    {
+        var tid = _tenant.TenantId!;
+        if (_tenant.ClinicaIds.Count > 0 && !_tenant.CanAccessClinica(clinicaId)) return Forbid();
+
+        var iv = await _mongo.InterventiClinica
+            .Find(x => x.TenantId == tid && x.ClinicaId == clinicaId && x.Tipo == tipo)
+            .FirstOrDefaultAsync();
+
+        // L'audit usa EntityId = id dell'intervento. Uno stesso slot (clinica × tipo) può aver
+        // avuto più Id nel tempo (creazione → cancellazione → ricreazione), quindi raccogliamo
+        // anche le righe storiche con label che inizia col titolo della tipologia + clinica.
+        var clinica = await _mongo.Cliniche.Find(c => c.Id == clinicaId && c.TenantId == tid).FirstOrDefaultAsync();
+        var def = SezioniDef.FirstOrDefault(s => s.Tipo == tipo);
+        var label = $"{def?.Titolo ?? tipo.ToString()} · {clinica?.Nome ?? "—"}";
+
+        var filter = iv is null
+            ? Builders<AuditEntry>.Filter.And(
+                Builders<AuditEntry>.Filter.Eq(a => a.TenantId, tid),
+                Builders<AuditEntry>.Filter.Eq(a => a.EntityType, "InterventoClinica"),
+                Builders<AuditEntry>.Filter.Eq(a => a.EntityLabel, label))
+            : Builders<AuditEntry>.Filter.And(
+                Builders<AuditEntry>.Filter.Eq(a => a.TenantId, tid),
+                Builders<AuditEntry>.Filter.Eq(a => a.EntityType, "InterventoClinica"),
+                Builders<AuditEntry>.Filter.Or(
+                    Builders<AuditEntry>.Filter.Eq(a => a.EntityId, iv.Id),
+                    Builders<AuditEntry>.Filter.Eq(a => a.EntityLabel, label)));
+
+        var voci = await _mongo.Audit.Find(filter).SortByDescending(a => a.CreatedAt).Limit(50).ToListAsync();
+        return PartialView("_Cronologia", voci);
+    }
+
     [HttpPost("salva")]
     [ValidateAntiForgeryToken]
     public async Task<IActionResult> Salva(string clinicaId, TipoIntervento tipo, string? fornitore, string? frequenza,
@@ -216,9 +281,13 @@ public class CalendarioInterventiController : Controller
             .Where(kv => !string.IsNullOrWhiteSpace(kv.Value))
             .ToDictionary(kv => kv.Key, kv => kv.Value.Trim());
 
+        var clinica = await _mongo.Cliniche.Find(c => c.Id == clinicaId && c.TenantId == tid).FirstOrDefaultAsync();
+        var def = SezioniDef.FirstOrDefault(s => s.Tipo == tipo);
+        var label = $"{def?.Titolo ?? tipo.ToString()} · {clinica?.Nome ?? "—"}";
+
         if (existing is null)
         {
-            await _mongo.InterventiClinica.InsertOneAsync(new InterventoClinica
+            var nuovo = new InterventoClinica
             {
                 TenantId = tid,
                 ClinicaId = clinicaId,
@@ -230,21 +299,41 @@ public class CalendarioInterventiController : Controller
                 ArchiviatoFaldoneAts = archiviatoFaldoneAts,
                 Note = note,
                 Dettagli = puliti
-            });
+            };
+            await _mongo.InterventiClinica.InsertOneAsync(nuovo);
+            await _audit.LogDiffAsync<InterventoClinica>(null, nuovo, "InterventoClinica", label, AuditAction.Created, User);
         }
         else
         {
+            var updated = new InterventoClinica
+            {
+                Id = existing.Id,
+                TenantId = existing.TenantId,
+                ClinicaId = existing.ClinicaId,
+                Tipo = existing.Tipo,
+                Fornitore = fornitore ?? "",
+                Frequenza = frequenza,
+                DataUltimoIntervento = ToUtc(dataUltimoIntervento),
+                ProssimaScadenza = ToUtc(prossimaScadenza),
+                ArchiviatoFaldoneAts = archiviatoFaldoneAts,
+                Note = note,
+                Dettagli = puliti,
+                CreatedAt = existing.CreatedAt,
+                UpdatedAt = DateTime.UtcNow
+            };
             await _mongo.InterventiClinica.UpdateOneAsync(
                 x => x.Id == existing.Id,
                 Builders<InterventoClinica>.Update
-                    .Set(x => x.Fornitore, fornitore ?? "")
-                    .Set(x => x.Frequenza, frequenza)
-                    .Set(x => x.DataUltimoIntervento, ToUtc(dataUltimoIntervento))
-                    .Set(x => x.ProssimaScadenza, ToUtc(prossimaScadenza))
-                    .Set(x => x.ArchiviatoFaldoneAts, archiviatoFaldoneAts)
-                    .Set(x => x.Note, note)
-                    .Set(x => x.Dettagli, puliti)
-                    .Set(x => x.UpdatedAt, DateTime.UtcNow));
+                    .Set(x => x.Fornitore, updated.Fornitore)
+                    .Set(x => x.Frequenza, updated.Frequenza)
+                    .Set(x => x.DataUltimoIntervento, updated.DataUltimoIntervento)
+                    .Set(x => x.ProssimaScadenza, updated.ProssimaScadenza)
+                    .Set(x => x.ArchiviatoFaldoneAts, updated.ArchiviatoFaldoneAts)
+                    .Set(x => x.Note, updated.Note)
+                    .Set(x => x.Dettagli, updated.Dettagli)
+                    .Set(x => x.UpdatedAt, updated.UpdatedAt));
+            await _audit.LogDiffAsync(existing, updated, "InterventoClinica", label, AuditAction.Updated, User, null,
+                nameof(InterventoClinica.ClinicaId), nameof(InterventoClinica.Tipo));
         }
 
         TempData["flash"] = "Intervento salvato.";
@@ -265,7 +354,17 @@ public class CalendarioInterventiController : Controller
     {
         var tid = _tenant.TenantId!;
         if (_tenant.ClinicaIds.Count > 0 && !_tenant.CanAccessClinica(clinicaId)) return Forbid();
-        await _mongo.InterventiClinica.DeleteOneAsync(x => x.TenantId == tid && x.ClinicaId == clinicaId && x.Tipo == tipo);
+
+        var existing = await _mongo.InterventiClinica.Find(x => x.TenantId == tid && x.ClinicaId == clinicaId && x.Tipo == tipo).FirstOrDefaultAsync();
+        if (existing is not null)
+        {
+            var clinica = await _mongo.Cliniche.Find(c => c.Id == clinicaId && c.TenantId == tid).FirstOrDefaultAsync();
+            var def = SezioniDef.FirstOrDefault(s => s.Tipo == tipo);
+            var label = $"{def?.Titolo ?? tipo.ToString()} · {clinica?.Nome ?? "—"}";
+            await _mongo.InterventiClinica.DeleteOneAsync(x => x.Id == existing.Id);
+            await _audit.LogAsync("InterventoClinica", existing.Id, label, AuditAction.Deleted, actor: User);
+        }
+
         TempData["flash"] = "Riga rimossa dal calendario.";
         if (returnTo == "clinica")
             return RedirectToAction("Details", "Cliniche", new { id = clinicaId });

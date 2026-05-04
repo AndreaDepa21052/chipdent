@@ -52,6 +52,108 @@
     }
 </div>
 
+@{
+    // Pannello proattivo: massimo 8 voci visibili (le altre dietro un "mostra altre N").
+    var topUrgenti = Model.Urgenti.Take(8).ToList();
+    var altreUrgenti = Model.Urgenti.Skip(8).ToList();
+}
+@if (topUrgenti.Count > 0)
+{
+    <section class="action-panel">
+        <div class="action-panel__head">
+            <div>
+                <h3 class="action-panel__title">⚡ Azioni urgenti</h3>
+                <div class="action-panel__sub">
+                    @Model.Scaduti scadut@(Model.Scaduti == 1 ? "a" : "e") · @Model.Imminenti in scadenza ≤ 30 gg
+                    · @Model.Urgenti.Count entro 60 gg da gestire
+                </div>
+            </div>
+        </div>
+
+        <div class="action-panel__list">
+            @foreach (var a in topUrgenti)
+            {
+                var iv = a.Intervento;
+                <article class="action-row @(a.IsScaduto ? "is-overdue" : (a.GiorniAllaScadenza <= 30 ? "is-soon" : ""))">
+                    <div class="action-row__when">
+                        @if (a.IsScaduto)
+                        {
+                            <span class="action-row__badge action-row__badge--danger">scaduto da @(-a.GiorniAllaScadenza)gg</span>
+                        }
+                        else if (a.GiorniAllaScadenza == 0)
+                        {
+                            <span class="action-row__badge action-row__badge--warn">oggi</span>
+                        }
+                        else
+                        {
+                            <span class="action-row__badge @(a.GiorniAllaScadenza <= 30 ? "action-row__badge--warn" : "")">tra @a.GiorniAllaScadenza gg</span>
+                        }
+                        <div class="action-row__date">@iv.ProssimaScadenza?.ToString("dd MMM yyyy", System.Globalization.CultureInfo.GetCultureInfo("it-IT"))</div>
+                    </div>
+                    <div class="action-row__what">
+                        <div class="action-row__title">@a.IconaSezione @a.TitoloSezione</div>
+                        <div class="action-row__meta">
+                            <strong>@a.ClinicaNome</strong>
+                            @if (a.Fornitore is not null) { <text> · </text> <span class="muted">@a.Fornitore.RagioneSociale</span> }
+                        </div>
+                    </div>
+                    <div class="action-row__cta">
+                        @if (a.Fornitore is not null && !string.IsNullOrEmpty(a.Fornitore.Email))
+                        {
+                            <a class="btn btn--ghost btn--sm" href="@a.MailtoUrl()" title="Componi mail al fornitore">📧 Contatta</a>
+                        }
+                        @if (a.Fornitore is not null && !string.IsNullOrEmpty(a.Fornitore.Telefono))
+                        {
+                            <a class="btn btn--ghost btn--sm" href="tel:@a.Fornitore.Telefono.Replace(" ", "")" title="Chiama il fornitore">📞</a>
+                        }
+                        else if (a.Fornitore is not null && !string.IsNullOrEmpty(a.Fornitore.Cellulare))
+                        {
+                            <a class="btn btn--ghost btn--sm" href="tel:@a.Fornitore.Cellulare.Replace(" ", "")" title="Chiama il fornitore">📞</a>
+                        }
+                        <button type="button" class="btn btn--primary btn--sm"
+                                data-open-modale
+                                data-clinica="@iv.ClinicaId"
+                                data-tipo="@iv.Tipo">📅 Pianifica</button>
+                    </div>
+                </article>
+            }
+        </div>
+
+        @if (altreUrgenti.Count > 0)
+        {
+            <details class="action-panel__more">
+                <summary>＋ altre @altreUrgenti.Count voci entro 60 giorni</summary>
+                <div class="action-panel__list">
+                    @foreach (var a in altreUrgenti)
+                    {
+                        var iv = a.Intervento;
+                        <article class="action-row">
+                            <div class="action-row__when">
+                                <span class="action-row__badge">tra @a.GiorniAllaScadenza gg</span>
+                                <div class="action-row__date">@iv.ProssimaScadenza?.ToString("dd MMM yyyy", System.Globalization.CultureInfo.GetCultureInfo("it-IT"))</div>
+                            </div>
+                            <div class="action-row__what">
+                                <div class="action-row__title">@a.IconaSezione @a.TitoloSezione</div>
+                                <div class="action-row__meta"><strong>@a.ClinicaNome</strong></div>
+                            </div>
+                            <div class="action-row__cta">
+                                @if (a.Fornitore is not null && !string.IsNullOrEmpty(a.Fornitore.Email))
+                                {
+                                    <a class="btn btn--ghost btn--sm" href="@a.MailtoUrl()">📧</a>
+                                }
+                                <button type="button" class="btn btn--ghost btn--sm"
+                                        data-open-modale
+                                        data-clinica="@iv.ClinicaId"
+                                        data-tipo="@iv.Tipo">📅 Pianifica</button>
+                            </div>
+                        </article>
+                    }
+                </div>
+            </details>
+        }
+    </section>
+}
+
 @foreach (var sez in Model.Sezioni)
 {
     var conScad = sez.Righe.Count(r => r.Intervento?.ProssimaScadenza != null);
@@ -177,6 +279,59 @@
     @@media (max-width: 1280px) {
         .cal-tabs .tab { padding: var(--s-2) 8px; font-size: .78rem; }
     }
+
+    /* ── Pannello proattivo "Azioni urgenti" ────────────────────── */
+    .action-panel {
+        background: linear-gradient(180deg, rgba(245, 232, 208, 0.55) 0%, rgba(245, 232, 208, 0.18) 100%);
+        border: 1px solid var(--c-border);
+        border-left: 4px solid var(--c-warning, #c47830);
+        border-radius: var(--r-lg);
+        padding: var(--s-4);
+        margin-bottom: var(--s-5);
+        box-shadow: var(--shadow-sm);
+    }
+    .action-panel__head { display: flex; align-items: flex-start; justify-content: space-between; margin-bottom: var(--s-3); }
+    .action-panel__title { margin: 0 0 4px; font-size: 1.05rem; color: var(--c-ink-strong); }
+    .action-panel__sub   { font-size: .82rem; color: var(--c-ink-muted); }
+    .action-panel__list  { display: flex; flex-direction: column; gap: var(--s-2); }
+    .action-panel__more  { margin-top: var(--s-3); }
+    .action-panel__more summary { cursor: pointer; font-size: .85rem; color: var(--c-accent-strong); padding: 4px 0; }
+    .action-panel__more .action-panel__list { margin-top: var(--s-2); }
+
+    .action-row {
+        display: grid;
+        grid-template-columns: 140px 1fr auto;
+        align-items: center;
+        gap: var(--s-3);
+        padding: 10px 12px;
+        background: #fff;
+        border: 1px solid var(--c-divider);
+        border-radius: var(--r-md);
+    }
+    .action-row.is-overdue { border-left: 3px solid var(--c-danger, #b8442e); }
+    .action-row.is-soon    { border-left: 3px solid var(--c-warning, #c47830); }
+    .action-row__when     { font-size: .78rem; color: var(--c-ink-soft); }
+    .action-row__date     { margin-top: 2px; }
+    .action-row__badge    { display: inline-block; padding: 2px 8px; border-radius: 999px; background: var(--c-bg-panel); font-weight: 700; font-size: .72rem; color: var(--c-ink); }
+    .action-row__badge--warn   { background: rgba(196, 120, 48, 0.15); color: var(--c-warning, #c47830); }
+    .action-row__badge--danger { background: rgba(184, 68, 46, 0.15); color: var(--c-danger, #b8442e); }
+    .action-row__title    { font-weight: 600; color: var(--c-ink-strong); margin-bottom: 2px; font-size: .9rem; }
+    .action-row__meta     { font-size: .8rem; color: var(--c-ink-soft); }
+    .action-row__cta      { display: flex; gap: 6px; flex-wrap: wrap; justify-content: flex-end; }
+
+    /* ── Cronologia modifiche dentro la modale ──────────────────── */
+    .modale-cronologia { padding: 0 var(--s-5) var(--s-5); }
+    .modale-cronologia summary { cursor: pointer; font-size: .85rem; color: var(--c-accent-strong); padding: 6px 0; }
+    .cronologia { list-style: none; padding: 0; margin: var(--s-2) 0 0; display: flex; flex-direction: column; gap: 8px; }
+    .cronologia__item { padding: 8px 10px; background: #fff; border: 1px solid var(--c-divider); border-radius: var(--r-sm); font-size: .82rem; }
+    .cronologia__head { display: flex; align-items: center; gap: 8px; margin-bottom: 4px; }
+    .cronologia__user { font-weight: 600; color: var(--c-ink); }
+    .cronologia__when { color: var(--c-ink-muted); margin-left: auto; font-size: .75rem; }
+    .cronologia__changes { list-style: none; padding-left: 6px; margin: 4px 0 0; font-size: .78rem; color: var(--c-ink-soft); }
+    .cronologia__changes li { margin-bottom: 2px; line-height: 1.5; }
+    .cronologia__old { color: var(--c-danger, #b8442e); text-decoration: line-through; }
+    .cronologia__new { color: var(--c-success, #2f7a44); font-weight: 600; }
+    .cronologia__arrow { color: var(--c-ink-muted); margin: 0 4px; }
 </style>
 
 @section Scripts {

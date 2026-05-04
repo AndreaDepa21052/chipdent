@@ -1,0 +1,62 @@
+@model List<Chipdent.Web.Domain.Entities.AuditEntry>
+@{
+    string FormatField(string f) => f switch
+    {
+        "DataUltimoIntervento" => "Ultimo intervento",
+        "ProssimaScadenza" => "Prossima scadenza",
+        "ArchiviatoFaldoneAts" => "Archiviato in faldone ATS",
+        "Note" => "Note",
+        "Fornitore" => "Fornitore",
+        "Frequenza" => "Frequenza",
+        "Dettagli" => "Dettagli",
+        _ => f
+    };
+    string FormatVal(string? v) => string.IsNullOrEmpty(v) ? "—" : (v.Length > 80 ? v[..77] + "…" : v);
+    string ActionLabel(Chipdent.Web.Domain.Entities.AuditAction a) => a switch
+    {
+        Chipdent.Web.Domain.Entities.AuditAction.Created => "creato",
+        Chipdent.Web.Domain.Entities.AuditAction.Updated => "aggiornato",
+        Chipdent.Web.Domain.Entities.AuditAction.Deleted => "eliminato",
+        _ => a.ToString().ToLowerInvariant()
+    };
+    string ActionBadge(Chipdent.Web.Domain.Entities.AuditAction a) => a switch
+    {
+        Chipdent.Web.Domain.Entities.AuditAction.Created => "badge--success",
+        Chipdent.Web.Domain.Entities.AuditAction.Deleted => "badge--danger",
+        _ => "badge"
+    };
+}
+
+@if (Model.Count == 0)
+{
+    <p class="muted" style="font-size:.82rem; margin: 0;">Nessuna modifica tracciata su questa voce.</p>
+}
+else
+{
+    <ul class="cronologia">
+        @foreach (var e in Model)
+        {
+            <li class="cronologia__item">
+                <div class="cronologia__head">
+                    <span class="badge @ActionBadge(e.Action)">@ActionLabel(e.Action)</span>
+                    <span class="cronologia__user">@e.UserName</span>
+                    <span class="cronologia__when">@e.CreatedAt.ToLocalTime().ToString("dd/MM/yyyy HH:mm")</span>
+                </div>
+                @if (e.Changes.Count > 0)
+                {
+                    <ul class="cronologia__changes">
+                        @foreach (var c in e.Changes)
+                        {
+                            <li>
+                                <strong>@FormatField(c.Field)</strong>:
+                                <span class="cronologia__old">@FormatVal(c.OldValue)</span>
+                                <span class="cronologia__arrow">→</span>
+                                <span class="cronologia__new">@FormatVal(c.NewValue)</span>
+                            </li>
+                        }
+                    </ul>
+                }
+            </li>
+        }
+    </ul>
+}
