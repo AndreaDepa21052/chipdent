@@ -41,6 +41,13 @@ public class ScadenzaPagamento : TenantEntity
 
     /// <summary>Snapshot dell'IBAN ordinante usato per il bonifico (clinica o tenant).</summary>
     public string? IbanOrdinanteUsato { get; set; }
+
+    /// <summary>
+    /// Riferimento alla scadenza "padre" quando questa è una rata derivata.
+    /// Tipicamente le righe F24 (ritenute, IVA) sono figlie del compenso o della fattura
+    /// che le ha generate. La UI le mostra rientranti sotto la padre. Null = scadenza autonoma.
+    /// </summary>
+    public string? ScadenzaPadreId { get; set; }
 }
 
 public enum MetodoPagamento
@@ -59,12 +66,15 @@ public enum StatoScadenza
 {
     /// <summary>Da pagare nel futuro.</summary>
     DaPagare,
-    /// <summary>Bonifico già inserito in distinta o programmato.</summary>
+    /// <summary>Bonifico già inserito in distinta o programmato (stato interno UX).</summary>
     Programmato,
     /// <summary>Pagato e quietanzato.</summary>
     Pagato,
-    /// <summary>Scaduto e non pagato (gestito a parte come stato "rosso").</summary>
+    /// <summary>Scaduto e non pagato (stato interno UX, derivato da DaPagare + data).</summary>
     Insoluto,
-    /// <summary>Annullato (es. fattura stornata o nota credito).</summary>
-    Annullato
+    /// <summary>Annullato (stato interno UX, es. nota credito).</summary>
+    Annullato,
+    /// <summary>Insolvenza definitiva: pagamento mai effettuato e non più dovuto
+    /// (stralcio, transazione a zero, fornitore fallito). Confident lo chiama "Mai pagato".</summary>
+    MaiPagato
 }

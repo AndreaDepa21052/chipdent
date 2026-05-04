@@ -26,9 +26,28 @@ public class FatturaFornitore : TenantEntity
     public decimal Iva { get; set; }
     public decimal Totale { get; set; }
 
-    /// <summary>Flag legacy mantenuti per fedeltà al file Excel originario.</summary>
-    public string? FlagEM { get; set; }   // E/M: Emessa/Manuale
-    public bool FlagBM { get; set; }      // BM: Bonifico Manuale
+    /// <summary>
+    /// Tipo emissione della fattura. Mappa la colonna "E/M" del file Excel di Confident:
+    /// E = elettronica (SDI/PEC), M = manuale (cartacea/PDF non SDI). Default NonSpecificato.
+    /// </summary>
+    public TipoEmissioneFattura TipoEmissione { get; set; } = TipoEmissioneFattura.NonSpecificato;
+
+    /// <summary>
+    /// Se true, le scadenze derivate finiscono in distinta "Bonifico Multiplo CBI" (BM nel file
+    /// Excel di Confident). Non è un bonifico manuale: è il formato CBI multi-beneficiario.
+    /// </summary>
+    public bool BonificoMultiploCbi { get; set; }
+
+    /// <summary>Flag legacy: stringa originale colonna E/M dal file Excel ("E", "M", "A", "O", …).
+    /// Mantenuto per compatibilità retroattiva. Per la logica usare <see cref="TipoEmissione"/>.</summary>
+    public string? FlagEM { get; set; }
+
+    /// <summary>Alias retrocompatibile di <see cref="BonificoMultiploCbi"/>.</summary>
+    public bool FlagBM
+    {
+        get => BonificoMultiploCbi;
+        set => BonificoMultiploCbi = value;
+    }
 
     public string? Note { get; set; }
 
@@ -65,4 +84,16 @@ public enum OrigineFattura
     Backoffice,
     PortaleFornitore,
     ImportExcel
+}
+
+/// <summary>
+/// Tipo emissione fattura (colonna "E/M" del file Excel Confident).
+/// </summary>
+public enum TipoEmissioneFattura
+{
+    NonSpecificato = 0,
+    /// <summary>Fattura elettronica (transitata per SDI / PEC).</summary>
+    Elettronica = 1,
+    /// <summary>Fattura manuale (cartacea, PDF, altri canali non SDI).</summary>
+    Manuale = 2
 }

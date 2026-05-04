@@ -121,8 +121,12 @@ public class TesoreriaController : Controller
                     Categoria = s.Categoria,
                     Note = s.Note ?? fa?.Note,
                     Iban = s.Iban,
-                    FlagBM = fa?.FlagBM ?? false,
+                    FlagBM = fa?.BonificoMultiploCbi ?? false,
                     FlagEM = fa?.FlagEM,
+                    TipoEmissione = fa?.TipoEmissione ?? TipoEmissioneFattura.NonSpecificato,
+                    BonificoMultiploCbi = fa?.BonificoMultiploCbi ?? false,
+                    IsHolding = c?.IsHolding ?? false,
+                    ScadenzaPadreId = s.ScadenzaPadreId,
                     HasAllegato = !string.IsNullOrEmpty(fa?.AllegatoPath)
                 };
             }).ToList();
@@ -261,7 +265,13 @@ public class TesoreriaController : Controller
             Totale = vm.Imponibile + vm.Iva,
             Note = vm.Note,
             FlagEM = vm.FlagEM,
-            FlagBM = vm.FlagBM,
+            BonificoMultiploCbi = vm.FlagBM,
+            TipoEmissione = vm.FlagEM?.Trim().ToUpperInvariant() switch
+            {
+                "E" => TipoEmissioneFattura.Elettronica,
+                "M" => TipoEmissioneFattura.Manuale,
+                _   => TipoEmissioneFattura.NonSpecificato
+            },
             Origine = OrigineFattura.Backoffice,
             CaricataDaUserId = User.FindFirst(ClaimTypes.NameIdentifier)?.Value,
             Stato = StatoFattura.Approvata,           // back-office: approvata di default
@@ -977,14 +987,33 @@ public class TesoreriaController : Controller
         return s.Stato;
     }
 
+    /// <summary>
+    /// Sigla 3 caratteri usata da Confident nel file scadenziario (BOL, BUS, CCH, COM, COR,
+    /// DES, GIU, MI3, MI6, MI7, MI9, SGM, VAR, BRU, CMS).
+    /// </summary>
     private static string SiglaSede(Clinica? c)
     {
         if (c is null) return "—";
-        var nome = (c.Nome ?? "").Trim().ToUpperInvariant();
-        // Estrae sigla da "Confident Milano Centro" → MIL, "Confident Roma EUR" → ROM, etc.
-        var parts = nome.Split(' ', StringSplitOptions.RemoveEmptyEntries);
-        var token = parts.Length >= 2 ? parts[1] : (c.Citta ?? "").ToUpperInvariant();
-        return string.IsNullOrEmpty(token) ? "—" : new string(token.Take(3).ToArray());
+        var nome = (c.Nome ?? "").Trim().ToUpperInvariant().Replace(".", "").Replace(" ", "");
+        return nome switch
+        {
+            "DESIO"     => "DES",
+            "VARESE"    => "VAR",
+            "GIUSSANO"  => "GIU",
+            "CORMANO"   => "COR",
+            "COMO"      => "COM",
+            "MILANO7"   => "MI7",
+            "MILANO9"   => "MI9",
+            "SGM"       => "SGM",
+            "BUSTOA"    => "BUS",
+            "BOLLATE"   => "BOL",
+            "MILANO6"   => "MI6",
+            "MILANO3"   => "MI3",
+            "BRUGHERIO" => "BRU",
+            "COMASINA"  => "CMS",
+            "CCH"       => "CCH",
+            _ => string.IsNullOrEmpty(nome) ? "—" : new string(nome.Take(3).ToArray())
+        };
     }
 
     private static string Csv(string? s)

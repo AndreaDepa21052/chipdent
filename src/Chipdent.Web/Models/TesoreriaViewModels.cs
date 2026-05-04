@@ -59,7 +59,15 @@ public class RigaTesoreria
     public string? Iban { get; set; }
     public bool FlagBM { get; set; }
     public string? FlagEM { get; set; }
+    public TipoEmissioneFattura TipoEmissione { get; set; } = TipoEmissioneFattura.NonSpecificato;
+    public bool BonificoMultiploCbi { get; set; }
     public bool HasAllegato { get; set; }
+
+    /// <summary>True se la sede destinataria è la holding del gruppo (CCH).</summary>
+    public bool IsHolding { get; set; }
+
+    /// <summary>Id della scadenza padre quando questa è una rata derivata (F24/ritenute).</summary>
+    public string? ScadenzaPadreId { get; set; }
 
     /// <summary>True se la data dichiarata diverge dall'attesa oltre la tolleranza.</summary>
     public bool ScadenzaFuoriTermini =>

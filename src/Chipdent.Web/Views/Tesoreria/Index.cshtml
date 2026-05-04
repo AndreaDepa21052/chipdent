@@ -1,11 +1,15 @@
 @model Chipdent.Web.Models.TesoreriaIndexViewModel
 @using Chipdent.Web.Models
 @using Chipdent.Web.Domain.Entities
+@using Chipdent.Web.Domain.Common
 @using System.Globalization
 @{
     ViewData["Title"] = "Tesoreria — Scadenziario pagamenti";
     var oggi = DateTime.UtcNow.Date;
     var it = new CultureInfo("it-IT");
+    // Pre-calcolo set degli id padre per indentare le scadenze figlie F24/ritenute.
+    var idPadri = Model.Righe.Where(r => !string.IsNullOrEmpty(r.ScadenzaPadreId))
+                              .Select(r => r.ScadenzaPadreId!).ToHashSet();
 }
 
 @functions {
@@ -18,6 +22,7 @@
         StatoScadenza.Programmato => "<span class='badge' style='background:#e3edff; color:#2457a4;'>📅 programmato</span>",
         StatoScadenza.DaPagare => "<span class='badge' style='background:#fff2dd; color:#a86010;'>● da pagare</span>",
         StatoScadenza.Insoluto => "<span class='badge' style='background:#fbe1e1; color:#a83a3a;'>⚠ scaduto</span>",
+        StatoScadenza.MaiPagato => "<span class='badge' style='background:#444; color:#fff;'>✕ mai pagato</span>",
         StatoScadenza.Annullato => "<span class='badge' style='background:#eee; color:#666;'>annullato</span>",
         _ => $"<span class='badge'>{s}</span>"
     };
@@ -177,11 +182,11 @@
         </div>
         <div>
             <label class="muted" style="font-size:.75rem;">Categoria</label>
-            <select class="form-control" name="Categoria" style="width: 160px;">
+            <select class="form-control" name="Categoria" style="width: 200px;">
                     <option value="">Tutte</option>
-                    @foreach (var v in Enum.GetValues<CategoriaSpesa>())
+                    @foreach (var v in Enum.GetValues<CategoriaSpesa>().OrderBy(x => x.Label()))
                     {
-                        <option value="@v" selected="@(Model.Filtro.Categoria == v)">@v</option>
+                        <option value="@v" selected="@(Model.Filtro.Categoria == v)">@v.Label()</option>
                     }
                 </select>
             </div>
@@ -191,7 +196,7 @@
                     <option value="">Tutti</option>
                     @foreach (var v in Enum.GetValues<StatoScadenza>())
                     {
-                        <option value="@v" selected="@(Model.Filtro.Stato == v)">@v</option>
+                        <option value="@v" selected="@(Model.Filtro.Stato == v)">@v.Label()</option>
                     }
                 </select>
             </div>
@@ -201,7 +206,7 @@
                     <option value="">Tutti</option>
                     @foreach (var v in Enum.GetValues<MetodoPagamento>())
                     {
-                        <option value="@v" selected="@(Model.Filtro.Metodo == v)">@v</option>
+                        <option value="@v" selected="@(Model.Filtro.Metodo == v)">@v.Label()</option>
                     }
                 </select>
             </div>
@@ -238,6 +243,7 @@
                         <th>Data</th>
                         <th title="Scadenza calcolata dai termini contrattuali">Attesa</th>
                         <th>LOC</th>
+                        <th title="Tipo emissione fattura — E: elettronica, M: manuale">E/M</th>
                         <th>N° Doc</th>
                         <th>Fornitore</th>
                         <th style="text-align:right;">Totale</th>
@@ -249,15 +255,20 @@
                 <tbody>
                 @foreach (var r in Model.Righe)
                 {
+                    var isFiglia = !string.IsNullOrEmpty(r.ScadenzaPadreId);
+                    var isPadre  = idPadri.Contains(r.ScadenzaId);
                     var rowStyle = r.ScadenzaFuoriTermini
                         ? "background: rgba(255,165,0,0.05); border-left: 3px solid #c47830;"
                         : r.Stato == StatoScadenza.Insoluto
                             ? "background: rgba(168,58,58,0.06);"
-                            : "";
+                            : r.Stato == StatoScadenza.MaiPagato
+                                ? "background: rgba(120,120,120,0.06); opacity:.7;"
+                                : "";
                     var bonificabile = r.Stato == StatoScadenza.DaPagare
+                        && !r.BonificoMultiploCbi // BM va in distinta CBI multipla, non SEPA singola
                         && (r.Metodo == MetodoPagamento.Bonifico || r.Metodo == MetodoPagamento.Altro);
-                    var totaleTooltip = $"Imponibile {EurDec(r.Imponibile)} · IVA {EurDec(r.Iva)} · Categoria {r.Categoria}";
-                    <tr style="@rowStyle">
+                    var totaleTooltip = $"Imponibile {EurDec(r.Imponibile)} · IVA {EurDec(r.Iva)} · Categoria {r.Categoria.Label()}";
+                    <tr style="@rowStyle" data-padre-id="@r.ScadenzaPadreId">
                         <td>
                             @if (bonificabile)
                             {
@@ -265,6 +276,7 @@
                             }
                         </td>
                         <td>
+                            @if (isFiglia) { <span title="Scadenza derivata (es. F24 / ritenute)" style="color:#c47830; margin-right:4px;">↳</span> }
                             @r.DataScadenza.ToString("dd/MM/yy")
                             @if (r.ScadenzaFuoriTermini)
                             {
@@ -283,7 +295,13 @@
                                 <span title="Termini di pagamento non configurati sull'anagrafica fornitore">—</span>
                             }
                         </td>
-                        <td><code>@r.Loc</code></td>
+                        <td>
+                            <code>@r.Loc</code>
+                            @if (r.IsHolding) { <span class="badge" title="Soggetto pagatore: holding del gruppo" style="margin-left:4px; background:#3b1e0c; color:#f5e8d0; font-size:.65rem;">HOLDING</span> }
+                        </td>
+                        <td title="@r.TipoEmissione.LabelEsteso()" style="text-align:center; font-weight:600; color: @(r.TipoEmissione == TipoEmissioneFattura.Elettronica ? "#2d7a50" : (r.TipoEmissione == TipoEmissioneFattura.Manuale ? "#c47830" : "#bbb"));">
+                            @r.TipoEmissione.Label()
+                        </td>
                         <td>
                             @r.NumeroDoc
                             @if (r.HasAllegato)
@@ -293,10 +311,16 @@
                         </td>
                         <td>
                             <strong>@r.FornitoreNome</strong>
-                            <div class="muted" style="font-size: .72rem; line-height: 1;">@r.Categoria</div>
+                            <div class="muted" style="font-size: .72rem; line-height: 1;">@r.Categoria.Label()</div>
                         </td>
                         <td style="text-align:right;" title="@totaleTooltip"><strong>@EurDec(r.Totale)</strong></td>
-                        <td><span class="badge">@r.Metodo</span></td>
+                        <td>
+                            <span class="badge">@r.Metodo.Label()</span>
+                            @if (r.BonificoMultiploCbi)
+                            {
+                                <span class="badge" title="Bonifico Multiplo CBI: incluso in distinta multi-beneficiario, non in SEPA singola" style="margin-left:4px; background:#fff7e6; color:#c47830;">CBI</span>
+                            }
+                        </td>
                         <td>@Html.Raw(StatoBadge(r.Stato))</td>
                         <td style="white-space:nowrap;">
                             @if (r.Stato == StatoScadenza.DaPagare || r.Stato == StatoScadenza.Insoluto)
@@ -320,7 +344,7 @@
                 }
                 @if (Model.Righe.Count == 0)
                 {
-                    <tr><td colspan="10" class="muted" style="text-align:center; padding: var(--s-5);">Nessuna scadenza per i filtri impostati.</td></tr>
+                    <tr><td colspan="11" class="muted" style="text-align:center; padding: var(--s-5);">Nessuna scadenza per i filtri impostati.</td></tr>
                 }
                 </tbody>
             </table>

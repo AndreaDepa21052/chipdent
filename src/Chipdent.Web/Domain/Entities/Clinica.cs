@@ -12,6 +12,13 @@ public class Clinica : TenantEntity
     public int NumeroRiuniti { get; set; }
     public ClinicaStato Stato { get; set; } = ClinicaStato.Operativa;
 
+    /// <summary>
+    /// True per la sigla "holding" (es. CCH) usata da Confident come soggetto pagatore
+    /// dei costi cross-sede e centrali. Non è una clinica clinica, ma è un soggetto
+    /// economico che genera fatture/scadenze nello scadenziario.
+    /// </summary>
+    public bool IsHolding { get; set; }
+
     /// <summary>Organico target (n. dipendenti) usato dal modulo Headcount per il gap "vs target".</summary>
     public int? OrganicoTarget { get; set; }
 

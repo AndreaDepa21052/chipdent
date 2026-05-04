@@ -64,6 +64,7 @@ public enum StatoFornitore
 /// </summary>
 public enum CategoriaSpesa
 {
+    // ── Voci legacy generiche (mantenute per compatibilità) ──
     Acqua,
     Energia,
     Gas,
@@ -77,5 +78,35 @@ public enum CategoriaSpesa
     Marketing,
     Trasporti,
     AltreSpeseFisse,
-    Altro
+    Altro,
+
+    // ── 32 categorie chiuse del file scadenziario di Confident ──
+    EnergiaElettrica,
+    Locazione,
+    SpeseCondominiali,
+    Assicurazione,
+    Leasing,
+    Software,
+    It,
+    NoleggioIt,
+    Laboratorio,
+    MaterialeMedico,
+    ServizioPulizia,
+    Royalties,
+    CanoneMarketing,
+    EntranceFee,
+    DueDiligence,
+    FinanziamentiPassivi,
+    OneriFinanziari,
+    FondoInvestimento,
+    ImposteTasse,
+    DirezioneSanitaria,
+    Medici,
+    CompensoAmministratore,
+    CompensoConsigliere,
+    CostiPersonale,
+    CostiInizioAttivita,
+    RimborsoAmministratore,
+    AltriRicaviVari,
+    Dividendi
 }
