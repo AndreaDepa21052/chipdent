@@ -1,0 +1,157 @@
+@model Chipdent.Web.Models.CalendarioInterventiViewModel
+@using Chipdent.Web.Domain.Entities
+@{
+    ViewData["Title"] = "Calendario interventi";
+    var oggi = DateTime.UtcNow.Date;
+    var tipoFiltro = ViewData["TipoFiltro"] as TipoIntervento?;
+
+    string Stato(InterventoClinica? iv)
+    {
+        if (iv?.ProssimaScadenza is null) return "—";
+        var gg = (iv.ProssimaScadenza.Value.Date - oggi).TotalDays;
+        if (gg < 0) return "scaduta";
+        if (gg <= 30) return "imminente";
+        if (gg <= 90) return "in arrivo";
+        return "ok";
+    }
+
+    string Badge(InterventoClinica? iv) => Stato(iv) switch
+    {
+        "scaduta"   => "badge--danger",
+        "imminente" => "badge--warning",
+        "in arrivo" => "badge",
+        "ok"        => "badge--success",
+        _           => "badge"
+    };
+
+    string MeseAnno(DateTime? d) => d?.ToString("MMM-yy", System.Globalization.CultureInfo.GetCultureInfo("it-IT")) ?? "—";
+}
+
+<partial name="_Flash" />
+
+<div class="page-head">
+    <div>
+        <h2>📅 Calendario interventi</h2>
+        <p class="page-head__sub">
+            @Model.Totali interventi tracciati ·
+            <strong style="color: var(--c-danger, #b8442e);">@Model.Scaduti scaduti</strong> ·
+            <strong style="color: var(--c-warning, #c47830);">@Model.Imminenti in scadenza ≤ 30 gg</strong>
+        </p>
+    </div>
+    <div class="page-head__actions">
+        <a class="btn @(tipoFiltro is null ? "btn--primary" : "btn--ghost")" asp-action="Index">Tutte</a>
+    </div>
+</div>
+
+<div class="tabs" style="margin-bottom: var(--s-4); flex-wrap: wrap;">
+    <a class="tab @(tipoFiltro is null ? "is-active" : "")" asp-action="Index">Tutte</a>
+    @foreach (var def in Chipdent.Web.Controllers.CalendarioInterventiController.SezioniDef)
+    {
+        <a class="tab @(tipoFiltro == def.Tipo ? "is-active" : "")"
+           asp-action="Index" asp-route-tipo="@def.Tipo">@def.Icona @def.Titolo</a>
+    }
+</div>
+
+@foreach (var sez in Model.Sezioni)
+{
+    var conScad = sez.Righe.Count(r => r.Intervento?.ProssimaScadenza != null);
+    <section class="card" style="margin-bottom: var(--s-5);">
+        <div class="card__header" style="align-items:flex-start;">
+            <div>
+                <h3 class="card__title">@sez.Icona @sez.Titolo</h3>
+                <div class="muted" style="font-size:.82rem;">
+                    Fornitore: <strong>@sez.FornitoreDefault</strong> · Frequenza: @sez.Frequenza · @conScad / @sez.Righe.Count cliniche tracciate
+                </div>
+            </div>
+        </div>
+
+        <div class="table-wrap">
+            <table class="table">
+                <thead>
+                    <tr>
+                        <th>Studio</th>
+                        <th>Ultimo intervento</th>
+                        <th>Archiviato in faldone ATS</th>
+                        <th>Prossima scadenza</th>
+                        <th>Note</th>
+                        <th></th>
+                    </tr>
+                </thead>
+                <tbody>
+                    @foreach (var r in sez.Righe)
+                    {
+                        var iv = r.Intervento;
+                        <tr>
+                            <td><strong>@r.ClinicaNome</strong></td>
+                            <td>@MeseAnno(iv?.DataUltimoIntervento)</td>
+                            <td>
+                                @if (iv?.ArchiviatoFaldoneAts == true) { <span class="badge badge--success">☑</span> }
+                                else { <span class="muted">—</span> }
+                            </td>
+                            <td>
+                                @if (iv?.ProssimaScadenza is not null)
+                                {
+                                    <span class="badge @Badge(iv)">@MeseAnno(iv.ProssimaScadenza)</span>
+                                }
+                                else { <span class="muted">—</span> }
+                            </td>
+                            <td style="max-width: 360px; font-size:.85rem;">@(iv?.Note ?? "")</td>
+                            <td style="text-align:right;">
+                                <button type="button" class="btn btn--ghost btn--sm"
+                                        data-open-modale
+                                        data-clinica="@r.ClinicaId"
+                                        data-tipo="@sez.Tipo">
+                                    @(iv is null ? "+ Compila" : "✎ Modifica")
+                                </button>
+                            </td>
+                        </tr>
+                    }
+                </tbody>
+            </table>
+        </div>
+    </section>
+}
+
+<dialog id="dlg-intervento" class="dlg-intervento">
+    <div data-modale-body>
+        <div style="padding: var(--s-5); text-align:center; color: var(--c-ink-muted);">Caricamento…</div>
+    </div>
+</dialog>
+
+<style>
+    dialog.dlg-intervento {
+        border: 0; border-radius: 14px; padding: 0;
+        max-width: 560px; width: 92vw;
+        box-shadow: 0 24px 80px rgba(59, 30, 12, 0.22);
+    }
+    dialog.dlg-intervento::backdrop { background: rgba(59, 30, 12, 0.35); backdrop-filter: blur(2px); }
+    .dett-grid { display: grid; grid-template-columns: 1fr 1fr; gap: var(--s-3); }
+    .dett-grid .full { grid-column: 1 / -1; }
+</style>
+
+@section Scripts {
+<script>
+    (function () {
+        const dlg = document.getElementById('dlg-intervento');
+        const body = dlg.querySelector('[data-modale-body]');
+
+        async function open(clinicaId, tipo) {
+            body.innerHTML = '<div style="padding:32px; text-align:center; color:#888;">Caricamento…</div>';
+            dlg.showModal();
+            try {
+                const r = await fetch(`@Url.Action("Modale")?clinicaId=${encodeURIComponent(clinicaId)}&tipo=${encodeURIComponent(tipo)}`);
+                if (!r.ok) throw new Error(r.statusText);
+                body.innerHTML = await r.text();
+            } catch (e) {
+                body.innerHTML = '<div style="padding:24px; color:#b8442e;">Errore caricamento.</div>';
+            }
+        }
+
+        document.addEventListener('click', (ev) => {
+            const t = ev.target.closest('[data-open-modale]');
+            if (t) { ev.preventDefault(); open(t.dataset.clinica, t.dataset.tipo); return; }
+            if (ev.target.matches('[data-close-dlg]')) { ev.preventDefault(); dlg.close(); }
+        });
+    })();
+</script>
+}

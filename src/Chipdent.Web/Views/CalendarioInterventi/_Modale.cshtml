@@ -1,0 +1,121 @@
+@model Chipdent.Web.Domain.Entities.InterventoClinica
+@using Chipdent.Web.Domain.Entities
+@{
+    var clinica = ViewData["Clinica"] as Chipdent.Web.Domain.Entities.Clinica;
+    var tipo = (TipoIntervento)(ViewData["Tipo"] ?? Model.Tipo);
+    var titolo = (string?)ViewData["Titolo"] ?? tipo.ToString();
+    var fornitoreDefault = (string?)ViewData["FornitoreDefault"] ?? "";
+    var frequenzaDefault = (string?)ViewData["FrequenzaDefault"] ?? "";
+    var returnTo = ViewContext.HttpContext.Request.Query["returnTo"].ToString();
+
+    // Campi extra previsti per tipologia (label → chiave del dictionary).
+    (string Label, string Key)[] DettagliPerTipo(TipoIntervento t) => t switch
+    {
+        TipoIntervento.EcologiaAmbienteContratto => new[]
+        {
+            ("Contenitori forniti", "Contenitori forniti"),
+            ("Rifiuti sanitari", "Rifiuti sanitari"),
+            ("Contenitore supplementare", "Contenitore supplementare"),
+            ("Amalgama", "Amalgama"),
+            ("Compilazione MUD", "Compilazione MUD"),
+            ("Registro carico/scarico", "Registro carico/scarico"),
+            ("Autoclave", "Autoclave"),
+            ("Smaltimento farmaci", "Smaltimento farmaci"),
+            ("Ritiro toner", "Ritiro toner"),
+        },
+        TipoIntervento.EcologiaAmbienteRentri => new[]
+        {
+            ("Codice identificativo", "Codice identificativo"),
+            ("Numero iscrizione", "Numero iscrizione"),
+            ("Diritto segreteria (€)", "Diritto segreteria (€)"),
+            ("Contributo annuale (€)", "Contributo annuale (€)"),
+            ("PIN App FIR", "PIN App FIR"),
+            ("App scaricata", "App scaricata"),
+        },
+        _ => Array.Empty<(string, string)>()
+    };
+
+    var extra = DettagliPerTipo(tipo);
+}
+
+<form method="post" asp-action="Salva" style="padding: var(--s-5);">
+    @Html.AntiForgeryToken()
+    <input type="hidden" name="clinicaId" value="@(clinica?.Id ?? Model.ClinicaId)" />
+    <input type="hidden" name="tipo" value="@tipo" />
+    @if (!string.IsNullOrEmpty(returnTo))
+    {
+        <input type="hidden" name="returnTo" value="@returnTo" />
+    }
+
+    <div style="display:flex; align-items:flex-start; justify-content:space-between; gap: var(--s-3); margin-bottom: var(--s-4);">
+        <div>
+            <h3 style="margin:0 0 4px;">@titolo</h3>
+            <div class="muted" style="font-size:.85rem;">
+                <strong>@(clinica?.Nome ?? "—")</strong>
+                @if (clinica is not null) { <text> · @clinica.Citta</text> }
+            </div>
+        </div>
+        <button type="button" class="btn btn--ghost btn--sm" data-close-dlg aria-label="Chiudi">✕</button>
+    </div>
+
+    <div class="form-grid">
+        <div class="form-group">
+            <label class="form-label">Fornitore</label>
+            <input class="form-control" name="fornitore" value="@(string.IsNullOrEmpty(Model.Fornitore) ? fornitoreDefault : Model.Fornitore)" />
+        </div>
+        <div class="form-group">
+            <label class="form-label">Frequenza</label>
+            <input class="form-control" name="frequenza" value="@(Model.Frequenza ?? frequenzaDefault)" placeholder="es. annuale, biennale, a 6 mesi" />
+        </div>
+        <div class="form-group">
+            <label class="form-label">Ultimo intervento</label>
+            <input class="form-control" type="date" name="dataUltimoIntervento" value="@Model.DataUltimoIntervento?.ToString("yyyy-MM-dd")" />
+        </div>
+        <div class="form-group">
+            <label class="form-label">Prossima scadenza</label>
+            <input class="form-control" type="date" name="prossimaScadenza" value="@Model.ProssimaScadenza?.ToString("yyyy-MM-dd")" />
+        </div>
+        <div class="form-group full" style="display:flex; align-items:center; gap:8px;">
+            <input id="archiv" type="checkbox" name="archiviatoFaldoneAts" value="true" @(Model.ArchiviatoFaldoneAts ? "checked" : "") />
+            <label for="archiv" style="margin:0;">Archiviato in faldone ATS</label>
+        </div>
+        <div class="form-group full">
+            <label class="form-label">Note</label>
+            <textarea class="form-control" name="note" rows="2" placeholder="es. Effettuato il 12/01/2026 / Programmato per il…">@Model.Note</textarea>
+        </div>
+    </div>
+
+    @if (extra.Length > 0)
+    {
+        <div style="margin-top: var(--s-4); padding-top: var(--s-3); border-top: 1px dashed var(--c-divider);">
+            <div class="muted" style="font-size:.82rem; margin-bottom: var(--s-2);">Dettagli specifici</div>
+            <div class="dett-grid">
+                @foreach (var (label, key) in extra)
+                {
+                    var val = Model.Dettagli.TryGetValue(key, out var v) ? v : "";
+                    <div class="form-group">
+                        <label class="form-label">@label</label>
+                        <input class="form-control" name="dettagli[@key]" value="@val" />
+                    </div>
+                }
+            </div>
+        </div>
+    }
+
+    <div style="display:flex; gap:8px; justify-content:flex-end; margin-top: var(--s-4);">
+        <button type="button" class="btn btn--ghost" data-close-dlg>Annulla</button>
+        <button type="submit" class="btn btn--primary">Salva</button>
+    </div>
+</form>
+
+@if (!string.IsNullOrEmpty(Model.Id))
+{
+    <form method="post" asp-action="Elimina" style="padding: 0 var(--s-5) var(--s-5); border-top: 1px dashed var(--c-divider); margin-top: -8px;"
+          onsubmit="return confirm('Rimuovere questa riga dal calendario?');">
+        @Html.AntiForgeryToken()
+        <input type="hidden" name="clinicaId" value="@(clinica?.Id ?? Model.ClinicaId)" />
+        <input type="hidden" name="tipo" value="@tipo" />
+        @if (!string.IsNullOrEmpty(returnTo)) { <input type="hidden" name="returnTo" value="@returnTo" /> }
+        <button type="submit" class="btn btn--ghost btn--sm" style="margin-top: var(--s-3); color: var(--c-danger, #b8442e);">🗑 Rimuovi questa riga</button>
+    </form>
+}

@@ -73,4 +73,5 @@ public class MongoContext
     public IMongoCollection<DistaccoDipendente> Distacchi => Database.GetCollection<DistaccoDipendente>("distacchi");
     public IMongoCollection<IscrizioneRentri> Rentri => Database.GetCollection<IscrizioneRentri>("rentri");
     public IMongoCollection<ProtocolloClinica> ProtocolliClinica => Database.GetCollection<ProtocolloClinica>("protocolliClinica");
+    public IMongoCollection<InterventoClinica> InterventiClinica => Database.GetCollection<InterventoClinica>("interventiClinica");
 }

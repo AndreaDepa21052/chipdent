@@ -78,11 +78,16 @@ public class ClinicheController : Controller
             .Find(p => p.TenantId == _tenant.TenantId && p.ClinicaId == id)
             .SortByDescending(p => p.DataAdozione).ToListAsync();
 
+        var interventi = await _mongo.InterventiClinica
+            .Find(i => i.TenantId == _tenant.TenantId && i.ClinicaId == id)
+            .ToListAsync();
+
         ViewData["Section"] = "cliniche";
         ViewData["Dottori"] = dottori;
         ViewData["Dipendenti"] = dipendenti;
         ViewData["Rentri"] = rentri;
         ViewData["Protocolli"] = protocolli;
+        ViewData["Interventi"] = interventi;
         return View(clinica);
     }
 

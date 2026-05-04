@@ -6,6 +6,11 @@
     var dipendenti = (List<Dipendente>?)ViewData["Dipendenti"] ?? new();
     var rentri = ViewData["Rentri"] as IscrizioneRentri;
     var protocolli = (List<ProtocolloClinica>?)ViewData["Protocolli"] ?? new();
+    var interventi = (List<InterventoClinica>?)ViewData["Interventi"] ?? new();
+    var oggi = DateTime.UtcNow.Date;
+    var sezDef = Chipdent.Web.Controllers.CalendarioInterventiController.SezioniDef;
+    var queryTab = Context.Request.Query["tab"].ToString();
+    var activeTab = string.IsNullOrEmpty(queryTab) ? "anagrafica" : queryTab;
 }
 
 <partial name="_Flash" />
@@ -23,6 +28,13 @@
     </div>
 </div>
 
+<div class="tabs" data-clinica-tabs style="margin-bottom: var(--s-5);">
+    <a class="tab @(activeTab == "anagrafica" ? "is-active" : "")"  href="#" data-tab="anagrafica">Anagrafica &amp; team</a>
+    <a class="tab @(activeTab == "compliance" ? "is-active" : "")"  href="#" data-tab="compliance">RENTRI &amp; protocolli</a>
+    <a class="tab @(activeTab == "interventi" ? "is-active" : "")"  href="#" data-tab="interventi">🛠️ Calendario interventi <span class="tab__count">@interventi.Count(i => i.ProssimaScadenza != null && i.ProssimaScadenza.Value.Date >= oggi && i.ProssimaScadenza.Value.Date <= oggi.AddDays(60))</span></a>
+</div>
+
+<section data-tab-pane="anagrafica" style="@(activeTab == "anagrafica" ? "" : "display:none;")">
 <div class="detail-grid">
     <div class="card">
         <div class="card__header">
@@ -64,7 +76,7 @@
 </div>
 
 <div style="margin-top: var(--s-6);">
-    <div class="card">
+    <div class="card" data-team-card>
         <div class="card__header">
             <h3 class="card__title">Team della sede</h3>
         </div>
@@ -102,6 +114,9 @@
     </div>
 </div>
 
+</section><!-- /tab anagrafica -->
+
+<section data-tab-pane="compliance" style="@(activeTab == "compliance" ? "" : "display:none;")">
 <div class="grid" style="grid-template-columns: 1fr 1fr; gap: var(--s-4); margin-top: var(--s-4);">
     <!-- RENTRI -->
     <div class="card">
@@ -224,3 +239,165 @@
         </details>
     </div>
 </div>
+</section><!-- /tab compliance -->
+
+<section data-tab-pane="interventi" style="@(activeTab == "interventi" ? "" : "display:none;")">
+    <div class="card">
+        <div class="card__header" style="align-items:flex-start;">
+            <div>
+                <h3 class="card__title">🛠️ Calendario interventi</h3>
+                <div class="muted" style="font-size:.82rem;">
+                    Manutenzioni e contratti ricorrenti tracciati per questa sede.
+                    @{
+                        var imminenti = interventi.Count(i => i.ProssimaScadenza != null && i.ProssimaScadenza.Value.Date >= oggi && i.ProssimaScadenza.Value.Date <= oggi.AddDays(60));
+                        var scaduti = interventi.Count(i => i.ProssimaScadenza != null && i.ProssimaScadenza.Value.Date < oggi);
+                    }
+                    @if (scaduti > 0) { <strong style="color: var(--c-danger, #b8442e);">@scaduti scaduti</strong> <text>·</text> }
+                    @imminenti in scadenza ≤ 60 gg
+                </div>
+            </div>
+            <a class="btn btn--ghost btn--sm" asp-controller="CalendarioInterventi" asp-action="Index">Vai al calendario completo →</a>
+        </div>
+
+        <div class="table-wrap">
+            <table class="table">
+                <thead>
+                    <tr>
+                        <th>Tipologia</th>
+                        <th>Fornitore</th>
+                        <th>Frequenza</th>
+                        <th>Ultimo</th>
+                        <th>Prossima scadenza</th>
+                        <th>Faldone ATS</th>
+                        <th></th>
+                    </tr>
+                </thead>
+                <tbody>
+                    @foreach (var def in sezDef)
+                    {
+                        var iv = interventi.FirstOrDefault(x => x.Tipo == def.Tipo);
+                        var gg = iv?.ProssimaScadenza is null ? (double?)null : (iv.ProssimaScadenza.Value.Date - oggi).TotalDays;
+                        string badge = gg switch
+                        {
+                            null => "badge",
+                            < 0 => "badge--danger",
+                            <= 30 => "badge--warning",
+                            <= 90 => "badge",
+                            _ => "badge--success"
+                        };
+                        <tr>
+                            <td>@def.Icona <strong>@def.Titolo</strong></td>
+                            <td>@(string.IsNullOrEmpty(iv?.Fornitore) ? def.Fornitore : iv!.Fornitore)</td>
+                            <td>@(iv?.Frequenza ?? def.Frequenza)</td>
+                            <td>@(iv?.DataUltimoIntervento?.ToString("MMM-yy", System.Globalization.CultureInfo.GetCultureInfo("it-IT")) ?? "—")</td>
+                            <td>
+                                @if (iv?.ProssimaScadenza is not null)
+                                {
+                                    <span class="badge @badge">@iv.ProssimaScadenza.Value.ToString("MMM-yy", System.Globalization.CultureInfo.GetCultureInfo("it-IT"))</span>
+                                }
+                                else { <span class="muted">—</span> }
+                            </td>
+                            <td>
+                                @if (iv?.ArchiviatoFaldoneAts == true) { <span class="badge badge--success">☑</span> }
+                                else { <span class="muted">—</span> }
+                            </td>
+                            <td style="text-align:right;">
+                                <button type="button" class="btn btn--ghost btn--sm"
+                                        data-open-modale-clinica
+                                        data-clinica="@Model.Id"
+                                        data-tipo="@def.Tipo">
+                                    @(iv is null ? "+ Compila" : "✎ Modifica")
+                                </button>
+                            </td>
+                        </tr>
+                    }
+                </tbody>
+            </table>
+        </div>
+
+        @if (interventi.Any(i => !string.IsNullOrEmpty(i.Note) || i.Dettagli.Count > 0))
+        {
+            <details style="margin-top: var(--s-3);">
+                <summary class="muted" style="cursor:pointer; font-size:.85rem;">Mostra note e dettagli per ciascuna voce</summary>
+                <ul class="list" style="margin-top: var(--s-2);">
+                    @foreach (var iv in interventi.Where(i => !string.IsNullOrEmpty(i.Note) || i.Dettagli.Count > 0))
+                    {
+                        var defm = sezDef.FirstOrDefault(d => d.Tipo == iv.Tipo);
+                        <li class="list__item" style="align-items:flex-start;">
+                            <div class="list__icon">@(string.IsNullOrEmpty(defm.Icona) ? "🛠️" : defm.Icona)</div>
+                            <div>
+                                <div class="list__title">@(string.IsNullOrEmpty(defm.Titolo) ? iv.Tipo.ToString() : defm.Titolo)</div>
+                                @if (!string.IsNullOrEmpty(iv.Note))
+                                {
+                                    <div class="list__meta">@iv.Note</div>
+                                }
+                                @if (iv.Dettagli.Count > 0)
+                                {
+                                    <div class="muted" style="font-size:.78rem; margin-top:4px;">
+                                        @string.Join(" · ", iv.Dettagli.Select(kv => $"{kv.Key}: {kv.Value}"))
+                                    </div>
+                                }
+                            </div>
+                        </li>
+                    }
+                </ul>
+            </details>
+        }
+    </div>
+</section>
+
+<dialog id="dlg-intervento-clinica" class="dlg-intervento-clinica">
+    <div data-modale-body>
+        <div style="padding: 24px; text-align:center; color:#888;">Caricamento…</div>
+    </div>
+</dialog>
+
+<style>
+    dialog.dlg-intervento-clinica {
+        border: 0; border-radius: 14px; padding: 0;
+        max-width: 560px; width: 92vw;
+        box-shadow: 0 24px 80px rgba(59, 30, 12, 0.22);
+    }
+    dialog.dlg-intervento-clinica::backdrop { background: rgba(59, 30, 12, 0.35); backdrop-filter: blur(2px); }
+    .dett-grid { display: grid; grid-template-columns: 1fr 1fr; gap: var(--s-3); }
+    .dett-grid .full { grid-column: 1 / -1; }
+</style>
+
+@section Scripts {
+<script>
+    (function () {
+        // ── Tab switching (persiste nella querystring così che back-nav torni qui) ──
+        const tabs = document.querySelectorAll('[data-clinica-tabs] .tab');
+        const panes = document.querySelectorAll('[data-tab-pane]');
+        tabs.forEach(t => t.addEventListener('click', (ev) => {
+            ev.preventDefault();
+            const target = t.dataset.tab;
+            tabs.forEach(x => x.classList.toggle('is-active', x === t));
+            panes.forEach(p => p.style.display = (p.dataset.tabPane === target ? '' : 'none'));
+            const u = new URL(location.href);
+            u.searchParams.set('tab', target);
+            history.replaceState(null, '', u.toString());
+        }));
+
+        // ── Modale intervento (riusa stesso endpoint del Calendario interventi globale) ──
+        const dlg = document.getElementById('dlg-intervento-clinica');
+        const body = dlg.querySelector('[data-modale-body]');
+        async function openModale(clinicaId, tipo) {
+            body.innerHTML = '<div style="padding:32px; text-align:center; color:#888;">Caricamento…</div>';
+            dlg.showModal();
+            try {
+                const r = await fetch(`@Url.Action("Modale", "CalendarioInterventi")?clinicaId=${encodeURIComponent(clinicaId)}&tipo=${encodeURIComponent(tipo)}&returnTo=clinica`);
+                if (!r.ok) throw new Error(r.statusText);
+                body.innerHTML = await r.text();
+            } catch (e) {
+                body.innerHTML = '<div style="padding:24px; color:#b8442e;">Errore caricamento.</div>';
+            }
+        }
+        document.addEventListener('click', (ev) => {
+            const t = ev.target.closest('[data-open-modale-clinica]');
+            if (t) { ev.preventDefault(); openModale(t.dataset.clinica, t.dataset.tipo); return; }
+            if (ev.target.matches('[data-close-dlg]')) { ev.preventDefault(); dlg.close(); }
+        });
+    })();
+</script>
+}

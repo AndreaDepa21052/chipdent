@@ -48,20 +48,50 @@ public static class MongoSeeder
                 logger.LogInformation("Seeded owner user {Email}", ownerEmail);
             }
 
+            // Migrazione one-shot: rimuove le 3 cliniche demo storiche (Confident Milano Centro / Roma EUR / Torino)
+            // così che la rete reale Confident (14 sedi Lombardia) venga seedata al primo avvio successivo.
+            var legacyNames = new[] { "Confident Milano Centro", "Confident Roma EUR", "Confident Torino" };
+            var legacyCliniche = await ctx.Cliniche
+                .Find(c => c.TenantId == tenant.Id && legacyNames.Contains(c.Nome))
+                .ToListAsync(ct);
+            if (legacyCliniche.Count > 0)
+            {
+                var legacyIds = legacyCliniche.Select(c => c.Id).ToList();
+                await ctx.Cliniche.DeleteManyAsync(c => legacyIds.Contains(c.Id), ct);
+                await ctx.DocumentiClinica.DeleteManyAsync(d => d.TenantId == tenant.Id && legacyIds.Contains(d.ClinicaId), ct);
+                await ctx.DVRs.DeleteManyAsync(d => d.TenantId == tenant.Id && legacyIds.Contains(d.ClinicaId), ct);
+                await ctx.ProtocolliClinica.DeleteManyAsync(p => p.TenantId == tenant.Id && legacyIds.Contains(p.ClinicaId), ct);
+                await ctx.Rentri.DeleteManyAsync(r => r.TenantId == tenant.Id && legacyIds.Contains(r.ClinicaId), ct);
+                await ctx.InterventiClinica.DeleteManyAsync(i => i.TenantId == tenant.Id && legacyIds.Contains(i.ClinicaId), ct);
+                logger.LogInformation("Migrated out {Count} legacy demo cliniche", legacyCliniche.Count);
+            }
+
             var cliniche = await ctx.Cliniche.Find(c => c.TenantId == tenant.Id).ToListAsync(ct);
             if (cliniche.Count == 0)
             {
+                // Rete reale Confident (Lombardia). Indirizzi/telefono/email sono dati demo verosimili.
                 cliniche = new()
                 {
-                    new Clinica { TenantId = tenant.Id, Nome = "Confident Milano Centro", Citta = "Milano", Indirizzo = "Via Dante 12", Telefono = "+39 02 1234567", Email = "milano@confident.it", NumeroRiuniti = 6, Stato = ClinicaStato.Operativa, Latitudine = 45.4654, Longitudine = 9.1859, IbanOrdinante = "IT45R0306901604100000123456", BicOrdinante = "BCITITMM", RagioneSocialeOrdinante = "Confident Milano S.r.l." },
-                    new Clinica { TenantId = tenant.Id, Nome = "Confident Roma EUR", Citta = "Roma", Indirizzo = "Viale Europa 88", Telefono = "+39 06 9876543", Email = "roma@confident.it", NumeroRiuniti = 8, Stato = ClinicaStato.Operativa, Latitudine = 41.8338, Longitudine = 12.4691, IbanOrdinante = "IT78W0306905020100000654321", BicOrdinante = "BCITITMM", RagioneSocialeOrdinante = "Confident Roma S.r.l." },
-                    new Clinica { TenantId = tenant.Id, Nome = "Confident Torino", Citta = "Torino", Indirizzo = "Corso Vittorio 5", Telefono = "+39 011 5556677", Email = "torino@confident.it", NumeroRiuniti = 4, Stato = ClinicaStato.InApertura, Latitudine = 45.0703, Longitudine = 7.6869 }
+                    new Clinica { TenantId = tenant.Id, Nome = "DESIO",      Citta = "Desio (MB)",          Indirizzo = "Via Garibaldi 24",      Telefono = "+39 0362 123450", Email = "desio@confident.it",      NumeroRiuniti = 5, Stato = ClinicaStato.Operativa, Latitudine = 45.6207, Longitudine = 9.2096, IbanOrdinante = "IT60X0306901604100000123450", BicOrdinante = "BCITITMM", RagioneSocialeOrdinante = "Confident Desio S.r.l." },
+                    new Clinica { TenantId = tenant.Id, Nome = "VARESE",     Citta = "Varese",              Indirizzo = "Corso Matteotti 18",    Telefono = "+39 0332 234561", Email = "varese@confident.it",     NumeroRiuniti = 5, Stato = ClinicaStato.Operativa, Latitudine = 45.8205, Longitudine = 8.8251, IbanOrdinante = "IT60X0306901604100000123451", BicOrdinante = "BCITITMM", RagioneSocialeOrdinante = "Confident Varese S.r.l." },
+                    new Clinica { TenantId = tenant.Id, Nome = "GIUSSANO",   Citta = "Giussano (MB)",       Indirizzo = "Via Italia 9",          Telefono = "+39 0362 345672", Email = "giussano@confident.it",   NumeroRiuniti = 4, Stato = ClinicaStato.Operativa, Latitudine = 45.6979, Longitudine = 9.2047, IbanOrdinante = "IT60X0306901604100000123452", BicOrdinante = "BCITITMM", RagioneSocialeOrdinante = "Confident Giussano S.r.l." },
+                    new Clinica { TenantId = tenant.Id, Nome = "CORMANO",    Citta = "Cormano (MI)",        Indirizzo = "Via Roma 33",           Telefono = "+39 02 615783",   Email = "cormano@confident.it",    NumeroRiuniti = 4, Stato = ClinicaStato.Operativa, Latitudine = 45.5470, Longitudine = 9.1641, IbanOrdinante = "IT60X0306901604100000123453", BicOrdinante = "BCITITMM", RagioneSocialeOrdinante = "Confident Cormano S.r.l." },
+                    new Clinica { TenantId = tenant.Id, Nome = "COMO",       Citta = "Como",                Indirizzo = "Viale Lecco 41",        Telefono = "+39 031 456784",  Email = "como@confident.it",       NumeroRiuniti = 3, Stato = ClinicaStato.Operativa, Latitudine = 45.8081, Longitudine = 9.0852, IbanOrdinante = "IT60X0306901604100000123454", BicOrdinante = "BCITITMM", RagioneSocialeOrdinante = "Confident Como S.r.l." },
+                    new Clinica { TenantId = tenant.Id, Nome = "MILANO7",    Citta = "Milano",              Indirizzo = "Via Settembrini 7",     Telefono = "+39 02 567895",   Email = "milano7@confident.it",    NumeroRiuniti = 6, Stato = ClinicaStato.Operativa, Latitudine = 45.4806, Longitudine = 9.2024, IbanOrdinante = "IT60X0306901604100000123455", BicOrdinante = "BCITITMM", RagioneSocialeOrdinante = "Confident Milano 7 S.r.l." },
+                    new Clinica { TenantId = tenant.Id, Nome = "MILANO9",    Citta = "Milano",              Indirizzo = "Via Padova 99",         Telefono = "+39 02 678906",   Email = "milano9@confident.it",    NumeroRiuniti = 5, Stato = ClinicaStato.Operativa, Latitudine = 45.4983, Longitudine = 9.2305, IbanOrdinante = "IT60X0306901604100000123456", BicOrdinante = "BCITITMM", RagioneSocialeOrdinante = "Confident Milano 9 S.r.l." },
+                    new Clinica { TenantId = tenant.Id, Nome = "SGM",        Citta = "San Giuliano Milanese", Indirizzo = "Via Della Repubblica 12", Telefono = "+39 02 789017", Email = "sgm@confident.it",       NumeroRiuniti = 4, Stato = ClinicaStato.Operativa, Latitudine = 45.3997, Longitudine = 9.2862, IbanOrdinante = "IT60X0306901604100000123457", BicOrdinante = "BCITITMM", RagioneSocialeOrdinante = "Confident SGM S.r.l." },
+                    new Clinica { TenantId = tenant.Id, Nome = "BUSTO A.",   Citta = "Busto Arsizio (VA)",  Indirizzo = "Via Volta 14",          Telefono = "+39 0331 890128", Email = "bustoa@confident.it",     NumeroRiuniti = 4, Stato = ClinicaStato.Operativa, Latitudine = 45.6111, Longitudine = 8.8497, IbanOrdinante = "IT60X0306901604100000123458", BicOrdinante = "BCITITMM", RagioneSocialeOrdinante = "Confident Busto Arsizio S.r.l." },
+                    new Clinica { TenantId = tenant.Id, Nome = "BOLLATE",    Citta = "Bollate (MI)",        Indirizzo = "Via Magenta 22",        Telefono = "+39 02 901239",   Email = "bollate@confident.it",    NumeroRiuniti = 4, Stato = ClinicaStato.Operativa, Latitudine = 45.5481, Longitudine = 9.1167, IbanOrdinante = "IT60X0306901604100000123459", BicOrdinante = "BCITITMM", RagioneSocialeOrdinante = "Confident Bollate S.r.l." },
+                    new Clinica { TenantId = tenant.Id, Nome = "MILANO6",    Citta = "Milano",              Indirizzo = "Via Lorenteggio 60",    Telefono = "+39 02 012340",   Email = "milano6@confident.it",    NumeroRiuniti = 5, Stato = ClinicaStato.Operativa, Latitudine = 45.4500, Longitudine = 9.1430, IbanOrdinante = "IT60X0306901604100000123460", BicOrdinante = "BCITITMM", RagioneSocialeOrdinante = "Confident Milano 6 S.r.l." },
+                    new Clinica { TenantId = tenant.Id, Nome = "MILANO3",    Citta = "Milano",              Indirizzo = "Via Tre Castelli 3",    Telefono = "+39 02 123451",   Email = "milano3@confident.it",    NumeroRiuniti = 5, Stato = ClinicaStato.Operativa, Latitudine = 45.4615, Longitudine = 9.1900, IbanOrdinante = "IT60X0306901604100000123461", BicOrdinante = "BCITITMM", RagioneSocialeOrdinante = "Confident Milano 3 S.r.l." },
+                    new Clinica { TenantId = tenant.Id, Nome = "BRUGHERIO",  Citta = "Brugherio (MB)",      Indirizzo = "Via San Maurizio 4",    Telefono = "+39 039 234562",  Email = "brugherio@confident.it",  NumeroRiuniti = 3, Stato = ClinicaStato.Operativa, Latitudine = 45.5524, Longitudine = 9.2980, IbanOrdinante = "IT60X0306901604100000123462", BicOrdinante = "BCITITMM", RagioneSocialeOrdinante = "Confident Brugherio S.r.l." },
+                    new Clinica { TenantId = tenant.Id, Nome = "COMASINA",   Citta = "Milano",              Indirizzo = "Viale Comasina 200",    Telefono = "+39 02 345673",   Email = "comasina@confident.it",   NumeroRiuniti = 3, Stato = ClinicaStato.InApertura, Latitudine = 45.5290, Longitudine = 9.1690, IbanOrdinante = "IT60X0306901604100000123463", BicOrdinante = "BCITITMM", RagioneSocialeOrdinante = "Confident Comasina S.r.l." }
                 };
                 await ctx.Cliniche.InsertManyAsync(cliniche, cancellationToken: ct);
                 logger.LogInformation("Seeded {Count} cliniche", cliniche.Count);
             }
 
-            var milanoIdSeed = cliniche.FirstOrDefault(c => c.Citta == "Milano")?.Id;
+            var milanoIdSeed = cliniche.FirstOrDefault(c => c.Nome == "MILANO7")?.Id;
             if (!string.IsNullOrEmpty(milanoIdSeed))
             {
                 const string direttoreEmail = "direttore.milano@chipdent.it";
@@ -98,13 +128,13 @@ public static class MongoSeeder
 
             if (!await ctx.Dottori.Find(d => d.TenantId == tenant.Id).AnyAsync(ct))
             {
-                var milano = cliniche.FirstOrDefault(c => c.Citta == "Milano")?.Id;
-                var roma = cliniche.FirstOrDefault(c => c.Citta == "Roma")?.Id;
+                var milano = cliniche.FirstOrDefault(c => c.Nome == "MILANO7")?.Id;
+                var altraSede = cliniche.FirstOrDefault(c => c.Nome == "BUSTO A.")?.Id;
                 var dottori = new[]
                 {
                     new Dottore { TenantId = tenant.Id, Nome = "Marco", Cognome = "Bianchi", Email = "m.bianchi@confident.it", Specializzazione = "Implantologia", NumeroAlbo = "MI-1234", ScadenzaAlbo = DateTime.UtcNow.AddMonths(8), TipoContratto = TipoContratto.Collaborazione, ClinicaPrincipaleId = milano },
                     new Dottore { TenantId = tenant.Id, Nome = "Laura", Cognome = "Ferri", Email = "l.ferri@confident.it", Specializzazione = "Ortodonzia", NumeroAlbo = "MI-2210", ScadenzaAlbo = DateTime.UtcNow.AddMonths(2), TipoContratto = TipoContratto.LiberoProfessionista, ClinicaPrincipaleId = milano },
-                    new Dottore { TenantId = tenant.Id, Nome = "Paolo", Cognome = "Rizzo", Email = "p.rizzo@confident.it", Specializzazione = "Endodonzia", NumeroAlbo = "RM-887", ScadenzaAlbo = DateTime.UtcNow.AddYears(2), TipoContratto = TipoContratto.Collaborazione, ClinicaPrincipaleId = roma }
+                    new Dottore { TenantId = tenant.Id, Nome = "Paolo", Cognome = "Rizzo", Email = "p.rizzo@confident.it", Specializzazione = "Endodonzia", NumeroAlbo = "VA-887", ScadenzaAlbo = DateTime.UtcNow.AddYears(2), TipoContratto = TipoContratto.Collaborazione, ClinicaPrincipaleId = altraSede }
                 };
                 await ctx.Dottori.InsertManyAsync(dottori, cancellationToken: ct);
                 logger.LogInformation("Seeded {Count} dottori", dottori.Length);
@@ -112,11 +142,11 @@ public static class MongoSeeder
 
             if (!await ctx.Dipendenti.Find(d => d.TenantId == tenant.Id).AnyAsync(ct))
             {
-                var milano = cliniche.FirstOrDefault(c => c.Citta == "Milano")?.Id ?? string.Empty;
-                var roma = cliniche.FirstOrDefault(c => c.Citta == "Roma")?.Id ?? string.Empty;
+                var milano = cliniche.FirstOrDefault(c => c.Nome == "MILANO7")?.Id ?? string.Empty;
+                var altraSede = cliniche.FirstOrDefault(c => c.Nome == "BUSTO A.")?.Id ?? string.Empty;
                 var dipendenti = new[]
                 {
-                    new Dipendente { TenantId = tenant.Id, Nome = "Sara", Cognome = "Conti", Sesso = Sesso.F, Email = "s.conti@confident.it", Telefono = "+39 333 1112233", Nazionalita = "Italiana", IndirizzoResidenza = "Via Roma 12", CittaResidenza = "Roma", CapResidenza = "00100", Ruolo = RuoloDipendente.ASO, ClinicaId = roma, DataPrimoRapporto = DateTime.UtcNow.AddYears(-5), DataAssunzione = DateTime.UtcNow.AddYears(-3), Ccnl = "Studi professionali", LivelloContratto = "4° livello", MeseAnnoCcnl = "Mar 2022", MonteOreSettimanale = 38, BeneficioTicket = true, ExTirocinante = true, TitoloStudio = "Diploma operatore servizi sociali", AutocertificazioneTitolo = true, ScadenzaCartaIdentita = DateTime.UtcNow.AddYears(2), GiorniFerieResidui = 12, Stato = StatoDipendente.Attivo },
+                    new Dipendente { TenantId = tenant.Id, Nome = "Sara", Cognome = "Conti", Sesso = Sesso.F, Email = "s.conti@confident.it", Telefono = "+39 333 1112233", Nazionalita = "Italiana", IndirizzoResidenza = "Via Volta 14", CittaResidenza = "Busto Arsizio", CapResidenza = "21052", Ruolo = RuoloDipendente.ASO, ClinicaId = altraSede, DataPrimoRapporto = DateTime.UtcNow.AddYears(-5), DataAssunzione = DateTime.UtcNow.AddYears(-3), Ccnl = "Studi professionali", LivelloContratto = "4° livello", MeseAnnoCcnl = "Mar 2022", MonteOreSettimanale = 38, BeneficioTicket = true, ExTirocinante = true, TitoloStudio = "Diploma operatore servizi sociali", AutocertificazioneTitolo = true, ScadenzaCartaIdentita = DateTime.UtcNow.AddYears(2), GiorniFerieResidui = 12, Stato = StatoDipendente.Attivo },
                     new Dipendente { TenantId = tenant.Id, Nome = "Giulia", Cognome = "Moretti", Sesso = Sesso.F, Email = "g.moretti@confident.it", Telefono = "+39 333 4445566", Nazionalita = "Italiana", IndirizzoResidenza = "Via Milano 5", CittaResidenza = "Milano", CapResidenza = "20100", Ruolo = RuoloDipendente.Igienista, ClinicaId = milano, DataAssunzione = DateTime.UtcNow.AddYears(-1), Ccnl = "Studi professionali", LivelloContratto = "3° livello", MonteOreSettimanale = 38, BeneficioTicket = true, TitoloStudio = "Laurea in Igiene Dentale", ScadenzaCartaIdentita = DateTime.UtcNow.AddYears(4), GiorniFerieResidui = 22, Stato = StatoDipendente.Attivo },
                     new Dipendente { TenantId = tenant.Id, Nome = "Federica", Cognome = "Marini", Sesso = Sesso.F, Email = "f.marini@confident.it", Cellulare = "+39 333 7778899", Nazionalita = "Italiana", IndirizzoResidenza = "Corso Buenos Aires 99", CittaResidenza = "Milano", CapResidenza = "20124", Ruolo = RuoloDipendente.Segreteria, ClinicaId = milano, DataAssunzione = DateTime.UtcNow.AddMonths(-2), Ccnl = "Studi professionali", LivelloContratto = "5° livello", MonteOreSettimanale = 30, DataScadenzaContratto = DateTime.UtcNow.AddMonths(10), TitoloStudio = "Diploma maturità classica", ScadenzaCartaIdentita = DateTime.UtcNow.AddYears(3), ScadenzaPermessoSoggiorno = DateTime.UtcNow.AddDays(45), GiorniFerieResidui = 24, Stato = StatoDipendente.Onboarding }
                 };
@@ -220,6 +250,7 @@ public static class MongoSeeder
             await SeedTesoreriaAsync(ctx, hasher, tenant, cliniche, logger, ct);
             await SeedCashflowAsync(ctx, tenant, cliniche, logger, ct);
             await SeedChecklistDipendenteAsync(ctx, tenant, cliniche, logger, ct);
+            await InterventiSeed.SeedAsync(ctx, tenant, cliniche, logger, ct);
 
             // Crea/aggiorna fornitori-ombra per i dottori (collaborazione/libero professionista)
             var ombraCreati = await ombraService.SyncTenantAsync(tenant.Id, ct);
@@ -409,9 +440,9 @@ public static class MongoSeeder
         if (cliniche.Count < 2) return;
 
         var oggi = DateTime.UtcNow.Date;
-        var milano = cliniche.FirstOrDefault(c => c.Citta == "Milano");
-        var roma = cliniche.FirstOrDefault(c => c.Citta == "Roma");
-        var torino = cliniche.FirstOrDefault(c => c.Citta == "Torino");
+        var milano = cliniche.FirstOrDefault(c => c.Nome == "MILANO7");
+        var roma = cliniche.FirstOrDefault(c => c.Nome == "BUSTO A.");
+        var torino = cliniche.FirstOrDefault(c => c.Nome == "BRUGHERIO");
 
         var dipendenti = await ctx.Dipendenti.Find(d => d.TenantId == tenant.Id).ToListAsync(ct);
 
