@@ -488,6 +488,101 @@ public class TesoreriaController : Controller
         return RedirectToAction(nameof(Index));
     }
 
+    /// <summary>
+    /// Restituisce la modale di dettaglio/modifica per una singola scadenza.
+    /// Mostra TUTTI i campi del file Excel (DATA, COMPETENZA, LOC, E/M, BM, n° doc,
+    /// FORNITORE, IMPORTO, IVA, IMPORTO TOTALE, MET PAG, STATUS, TIPO, NOTE, IBAN)
+    /// e ne consente l'edit (eccetto i metadati di audit, in sola lettura).
+    /// </summary>
+    [HttpGet("scadenza/{id}/dettaglio")]
+    public async Task<IActionResult> DettaglioScadenza(string id)
+    {
+        var tid = _tenant.TenantId!;
+        var s = await _mongo.ScadenzePagamento.Find(x => x.Id == id && x.TenantId == tid).FirstOrDefaultAsync();
+        if (s is null) return NotFound();
+        var fa = await _mongo.Fatture.Find(x => x.Id == s.FatturaId && x.TenantId == tid).FirstOrDefaultAsync();
+        var f = await _mongo.Fornitori.Find(x => x.Id == s.FornitoreId && x.TenantId == tid).FirstOrDefaultAsync();
+        var c = await _mongo.Cliniche.Find(x => x.Id == s.ClinicaId && x.TenantId == tid).FirstOrDefaultAsync();
+        var allClinics = await _mongo.Cliniche.Find(x => x.TenantId == tid).SortBy(x => x.Nome).ToListAsync();
+
+        ViewData["Fattura"]  = fa;
+        ViewData["Fornitore"] = f;
+        ViewData["Clinica"]  = c;
+        ViewData["Cliniche"] = allClinics;
+        return PartialView("_DettaglioScadenza", s);
+    }
+
+    /// <summary>
+    /// Update bulk dei campi di una singola scadenza + della fattura associata.
+    /// Tutti i campi del file Excel sono editabili.
+    /// </summary>
+    [HttpPost("scadenza/{id}/modifica")]
+    [ValidateAntiForgeryToken]
+    public async Task<IActionResult> ModificaScadenza(string id,
+        // Scadenza
+        DateTime dataScadenza, decimal totale, MetodoPagamento metodo, StatoScadenza stato,
+        string? iban, string? note, string? clinicaId,
+        DateTime? dataProgrammata, DateTime? dataPagamento, string? riferimentoPagamento,
+        // Fattura
+        string? fatturaId, string? numero, DateTime? meseCompetenza,
+        decimal? imponibile, decimal? iva, CategoriaSpesa? categoria,
+        TipoEmissioneFattura? tipoEmissione, bool bonificoMultiploCbi, string? noteFattura)
+    {
+        var tid = _tenant.TenantId!;
+
+        // ── Update scadenza ─────────────────────────────────────────
+        var update = Builders<ScadenzaPagamento>.Update
+            .Set(s => s.DataScadenza, DateTime.SpecifyKind(dataScadenza.Date, DateTimeKind.Utc))
+            .Set(s => s.Importo, totale)
+            .Set(s => s.Metodo, metodo)
+            .Set(s => s.Stato, stato)
+            .Set(s => s.Iban, string.IsNullOrWhiteSpace(iban) ? null : iban.Trim())
+            .Set(s => s.Note, string.IsNullOrWhiteSpace(note) ? null : note)
+            .Set(s => s.DataProgrammata, dataProgrammata.HasValue ? DateTime.SpecifyKind(dataProgrammata.Value.Date, DateTimeKind.Utc) : (DateTime?)null)
+            .Set(s => s.DataPagamento,   dataPagamento.HasValue   ? DateTime.SpecifyKind(dataPagamento.Value.Date,   DateTimeKind.Utc) : (DateTime?)null)
+            .Set(s => s.RiferimentoPagamento, string.IsNullOrWhiteSpace(riferimentoPagamento) ? null : riferimentoPagamento.Trim())
+            .Set(s => s.UpdatedAt, DateTime.UtcNow);
+        if (!string.IsNullOrEmpty(clinicaId)) update = update.Set(s => s.ClinicaId, clinicaId);
+        if (categoria.HasValue)               update = update.Set(s => s.Categoria, categoria.Value);
+
+        await _mongo.ScadenzePagamento.UpdateOneAsync(s => s.Id == id && s.TenantId == tid, update);
+
+        // ── Update fattura associata (se presente) ──────────────────
+        if (!string.IsNullOrEmpty(fatturaId))
+        {
+            var fatturaUpdate = Builders<FatturaFornitore>.Update
+                .Set(f => f.BonificoMultiploCbi, bonificoMultiploCbi)
+                .Set(f => f.Note, string.IsNullOrWhiteSpace(noteFattura) ? null : noteFattura)
+                .Set(f => f.UpdatedAt, DateTime.UtcNow);
+            if (!string.IsNullOrWhiteSpace(numero))
+                fatturaUpdate = fatturaUpdate.Set(f => f.Numero, numero.Trim());
+            if (meseCompetenza.HasValue)
+                fatturaUpdate = fatturaUpdate.Set(f => f.MeseCompetenza,
+                    DateTime.SpecifyKind(new DateTime(meseCompetenza.Value.Year, meseCompetenza.Value.Month, 1), DateTimeKind.Utc));
+            if (imponibile.HasValue) fatturaUpdate = fatturaUpdate.Set(f => f.Imponibile, imponibile.Value);
+            if (iva.HasValue)        fatturaUpdate = fatturaUpdate.Set(f => f.Iva, iva.Value);
+            // Totale fattura: usa il totale della scadenza in input se non vengono passati separatamente
+            fatturaUpdate = fatturaUpdate.Set(f => f.Totale, (imponibile ?? 0) + (iva ?? 0) > 0 ? (imponibile!.Value + iva!.Value) : totale);
+            if (categoria.HasValue)  fatturaUpdate = fatturaUpdate.Set(f => f.Categoria, categoria.Value);
+            if (tipoEmissione.HasValue)
+            {
+                fatturaUpdate = fatturaUpdate.Set(f => f.TipoEmissione, tipoEmissione.Value);
+                fatturaUpdate = fatturaUpdate.Set(f => f.FlagEM, tipoEmissione.Value switch {
+                    TipoEmissioneFattura.Elettronica => "E",
+                    TipoEmissioneFattura.Manuale     => "M",
+                    _ => null
+                });
+            }
+            if (!string.IsNullOrEmpty(clinicaId))
+                fatturaUpdate = fatturaUpdate.Set(f => f.ClinicaId, clinicaId);
+
+            await _mongo.Fatture.UpdateOneAsync(f => f.Id == fatturaId && f.TenantId == tid, fatturaUpdate);
+        }
+
+        TempData["flash"] = "Scadenza aggiornata.";
+        return RedirectToAction(nameof(Index));
+    }
+
     [HttpPost("scadenza/{id}/annulla")]
     [ValidateAntiForgeryToken]
     public async Task<IActionResult> AnnullaScadenza(string id)

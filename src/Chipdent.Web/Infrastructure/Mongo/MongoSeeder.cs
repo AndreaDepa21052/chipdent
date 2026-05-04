@@ -301,6 +301,25 @@ public static class MongoSeeder
     /// </summary>
     private static async Task SeedTesoreriaAsync(MongoContext ctx, IPasswordHasher hasher, Tenant tenant, List<Clinica> cliniche, ILogger logger, CancellationToken ct)
     {
+        // Migrazione idempotente: un vecchio seed generava scadenze con DataScadenzaAttesa
+        // sistematicamente diversa dalla DataScadenza, facendo apparire ⚠️ "fuori termini" su
+        // tutti i record. Per i record già presenti, riallineiamo l'attesa alla dichiarata
+        // se la divergenza è > 60gg (segno di dato seedato a caso, non di vero mismatch).
+        var tooFar = await ctx.ScadenzePagamento.Find(s => s.TenantId == tenant.Id && s.DataScadenzaAttesa != null).ToListAsync(ct);
+        var daRiallineare = tooFar
+            .Where(s => Math.Abs((s.DataScadenza.Date - s.DataScadenzaAttesa!.Value.Date).TotalDays) > 60)
+            .ToList();
+        foreach (var s in daRiallineare)
+        {
+            await ctx.ScadenzePagamento.UpdateOneAsync(
+                x => x.Id == s.Id,
+                Builders<ScadenzaPagamento>.Update.Set(x => x.DataScadenzaAttesa, s.DataScadenza));
+        }
+        if (daRiallineare.Count > 0)
+        {
+            logger.LogInformation("Migrated: realigned DataScadenzaAttesa on {Count} legacy demo scadenze", daRiallineare.Count);
+        }
+
         if (await ctx.Fornitori.Find(f => f.TenantId == tenant.Id).AnyAsync(ct)) return;
         if (cliniche.Count == 0) return;
 
@@ -384,12 +403,13 @@ public static class MongoSeeder
                       : giornoOffset <= 7 ? (rng.NextDouble() < 0.5 ? StatoScadenza.Programmato : StatoScadenza.DaPagare)
                       : StatoScadenza.DaPagare;
 
-            // Calcolo scadenza attesa dai termini del fornitore. Per il 25% delle righe
-            // applichiamo una divergenza voluta (±5..15 gg) per dimostrare il warning.
+            // Calcolo scadenza attesa dai termini del fornitore. Default: scadenza dichiarata
+            // = scadenza attesa (nessun warning). Solo il 15% delle righe ha una divergenza
+            // voluta per dimostrare il flag "fuori termini".
             var attesa = Chipdent.Web.Infrastructure.Sepa.PagamentiHelper
                 .CalcolaScadenzaAttesa(dataEm, f.TerminiPagamentoGiorni, f.BasePagamento);
-            DateTime dataScadFinale = dataScad;
-            if (rng.NextDouble() < 0.25)
+            DateTime dataScadFinale = attesa;
+            if (rng.NextDouble() < 0.15)
             {
                 dataScadFinale = attesa.AddDays(rng.Next(-15, -5));   // dichiarata "anticipata" rispetto all'atteso
             }

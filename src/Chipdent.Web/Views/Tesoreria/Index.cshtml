@@ -36,7 +36,9 @@
     var maxTotaleGiorno = righePerGiorno.Count == 0 ? 0m : righePerGiorno.Values.Max(l => l.Sum(r => r.Totale));
 
     // Helper: costruisce un URL preservando filtri attuali e sostituendo cm/Dal/Al/tab.
-    string CalUrl(DateTime? mese = null, DateTime? dataFiltro = null, bool clearDate = false)
+    // clearSort = true rimuove eventuali sort/dir preesistenti (utile per i link sull'header
+    // della tabella, dove il caller imposta sort/dir nuovi).
+    string CalUrl(DateTime? mese = null, DateTime? dataFiltro = null, bool clearDate = false, bool clearSort = false)
     {
         var qp = new Dictionary<string, string?>(StringComparer.OrdinalIgnoreCase);
         if (!string.IsNullOrEmpty(Model.Filtro.Q))            qp["Q"] = Model.Filtro.Q;
@@ -46,8 +48,8 @@
         if (Model.Filtro.Stato.HasValue)                      qp["Stato"] = Model.Filtro.Stato.ToString();
         if (Model.Filtro.Metodo.HasValue)                     qp["Metodo"] = Model.Filtro.Metodo.ToString();
         if (Model.Filtro.SoloFuoriTermini)                    qp["SoloFuoriTermini"] = "true";
-        if (!string.IsNullOrEmpty(Model.Filtro.Sort))         qp["Sort"] = Model.Filtro.Sort;
-        if (!string.IsNullOrEmpty(Model.Filtro.Dir))          qp["Dir"]  = Model.Filtro.Dir;
+        if (!clearSort && !string.IsNullOrEmpty(Model.Filtro.Sort)) qp["Sort"] = Model.Filtro.Sort;
+        if (!clearSort && !string.IsNullOrEmpty(Model.Filtro.Dir))  qp["Dir"]  = Model.Filtro.Dir;
         // cm: mese visibile del calendario
         if (mese.HasValue) qp["cm"] = mese.Value.ToString("yyyy-MM");
         // Dal/Al
@@ -463,13 +465,55 @@
         <span class="muted" style="font-size:.85rem;">@Model.Righe.Count righe</span>
     </div>
 
-    <form method="get" class="tesoreria-filter" style="display:flex; flex-wrap:wrap; gap:6px; padding: var(--s-3); align-items:center; border-bottom: 1px solid var(--c-border, #ece0cc);">
+    @{
+        // Conta i filtri attivi per il riepilogo nel summary del pannello collassabile.
+        var filtroAttiviCount = 0;
+        if (!string.IsNullOrEmpty(Model.Filtro.Q))           filtroAttiviCount++;
+        if (!string.IsNullOrEmpty(Model.Filtro.FornitoreId)) filtroAttiviCount++;
+        if (!string.IsNullOrEmpty(Model.Filtro.ClinicaId))   filtroAttiviCount++;
+        if (Model.Filtro.Categoria.HasValue)                 filtroAttiviCount++;
+        if (Model.Filtro.Stato.HasValue)                     filtroAttiviCount++;
+        if (Model.Filtro.Metodo.HasValue)                    filtroAttiviCount++;
+        if (Model.Filtro.Dal.HasValue)                       filtroAttiviCount++;
+        if (Model.Filtro.Al.HasValue)                        filtroAttiviCount++;
+        if (Model.Filtro.SoloFuoriTermini)                   filtroAttiviCount++;
+    }
+
+    <details class="tesoreria-filter-wrap" data-persist-key="tesoreria-filtri-aperti">
+        <summary>
+            <span class="tesoreria-filter-wrap__icon">⚙</span>
+            <span>Filtri</span>
+            @if (filtroAttiviCount > 0)
+            {
+                <span class="tesoreria-filter-wrap__count">@filtroAttiviCount attivi</span>
+            }
+            <span class="tesoreria-filter-wrap__hint muted" style="font-size:.78rem; margin-left:auto;">click per espandere/nascondere</span>
+        </summary>
+
+    <form method="get" class="tesoreria-filter" style="display:flex; flex-wrap:wrap; gap:6px; padding: var(--s-3); align-items:center; border-top: 1px solid var(--c-border, #ece0cc); border-bottom: 1px solid var(--c-border, #ece0cc);">
         <style>
             .tesoreria-filter .form-control { font-size: .82rem; padding: 6px 10px; height: 34px; min-width: 0; }
             .tesoreria-filter .btn { height: 34px; }
             .tesoreria-filter .form-check { font-size: .9rem; }
             /* Pulsanti azione sempre alla fine del wrap */
             .tesoreria-filter .filter-actions { margin-left: auto; display: flex; gap: 6px; }
+            /* Pannello filtri collassabile */
+            .tesoreria-filter-wrap > summary {
+                list-style: none; cursor: pointer;
+                display: flex; align-items: center; gap: 8px;
+                padding: 8px 14px; font-size: .85rem; font-weight: 600; color: var(--c-ink-strong, #3b1e0c);
+                background: rgba(196,120,48,0.04);
+            }
+            .tesoreria-filter-wrap > summary::-webkit-details-marker { display: none; }
+            .tesoreria-filter-wrap > summary:hover { background: rgba(196,120,48,0.08); }
+            .tesoreria-filter-wrap__icon { display:inline-flex; align-items:center; justify-content:center; width: 22px; height: 22px; border-radius: 50%; background: var(--c-accent, #c47830); color: #fff; font-size: .75rem; }
+            .tesoreria-filter-wrap[open] > summary .tesoreria-filter-wrap__icon::after { content: " ▾"; }
+            .tesoreria-filter-wrap:not([open]) > summary .tesoreria-filter-wrap__icon::after { content: " ▸"; }
+            .tesoreria-filter-wrap__icon::after { font-size: .55rem; margin-left: -1px; }
+            .tesoreria-filter-wrap__count {
+                display:inline-block; padding: 1px 8px; border-radius: 999px;
+                background: var(--c-accent, #c47830); color: #fff; font-size: .68rem; font-weight: 700;
+            }
         </style>
         <input class="form-control" name="Q" value="@Model.Filtro.Q" placeholder="🔍 Cerca fornitore, n° doc, note…" style="min-width: 200px; flex: 1 1 200px;" />
 
@@ -526,6 +570,7 @@
             <a class="btn btn--ghost btn--sm" asp-action="Index">Reset</a>
         </div>
     </form>
+    </details>
 
         <div id="sepa-toolbar" data-sepa-toolbar style="display:none; padding: 10px 16px; background: #fff7e6; border-top: 1px solid #ece0cc; border-bottom: 1px solid #ece0cc; align-items: center; gap: 12px;">
             <strong style="color:#3b1e0c;">
@@ -541,15 +586,18 @@
                 @{
                     string SortLink(string col, string label, string? title = null)
                     {
+                        // Se la colonna è già attiva, alterno asc↔desc; altrimenti parto da asc.
                         var nextDir = (Model.Filtro.Sort == col && Model.Filtro.Dir == "asc") ? "desc" : "asc";
                         var arrow = (Model.Filtro.Sort == col)
                             ? (Model.Filtro.Dir == "desc" ? " ▼" : " ▲")
                             : "";
-                        var url = CalUrl(mese: calMese);
+                        // CalUrl con clearSort = true così il sort esistente non resta nell'URL
+                        // (altrimenti MVC riceverebbe due ?sort= e prenderebbe il primo, ignorando il click).
+                        var url = CalUrl(mese: calMese, clearSort: true);
                         var sep = url.Contains('?') ? "&" : "?";
-                        url += $"{sep}sort={col}&dir={nextDir}";
+                        url += $"{sep}Sort={col}&Dir={nextDir}";
                         var t = title is null ? "" : $" title=\"{title}\"";
-                        return $"<a href=\"{url}\"{t} style=\"color:inherit; text-decoration:none;\">{label}<span style=\"opacity:.6\">{arrow}</span></a>";
+                        return $"<a href=\"{url}\"{t} style=\"color:inherit; text-decoration:none; cursor:pointer;\">{label}<span style=\"opacity:.6\">{arrow}</span></a>";
                     }
                 }
                 <thead>
@@ -648,6 +696,7 @@
                             }
                         </td>
                         <td style="white-space:nowrap;">
+                            <button type="button" class="btn btn--ghost btn--sm" data-edit-trigger data-id="@r.ScadenzaId" title="Dettagli e modifica">ℹ️</button>
                             @if (r.Stato == StatoScadenza.DaPagare || r.Stato == StatoScadenza.Insoluto)
                             {
                                 <button type="button" class="btn btn--ghost btn--sm" data-pay-trigger data-id="@r.ScadenzaId" title="Segna pagato">✓</button>
@@ -656,13 +705,6 @@
                             else if (r.Stato == StatoScadenza.Programmato)
                             {
                                 <button type="button" class="btn btn--ghost btn--sm" data-pay-trigger data-id="@r.ScadenzaId" title="Conferma pagato">✓</button>
-                            }
-                            @if (r.Stato != StatoScadenza.Pagato && r.Stato != StatoScadenza.Annullato)
-                            {
-                                <form asp-action="AnnullaScadenza" asp-route-id="@r.ScadenzaId" method="post" style="display:inline;" onsubmit="return confirm('Annullare la scadenza?');">
-                                    @Html.AntiForgeryToken()
-                                    <button type="submit" class="btn btn--ghost btn--sm" title="Annulla">✕</button>
-                                </form>
                             }
                         </td>
                     </tr>
@@ -752,9 +794,28 @@
     </form>
 </dialog>
 
+<dialog id="dlg-dettaglio" style="border:0; border-radius: 14px; padding: 0; max-width: 720px; width: 92vw; box-shadow: 0 24px 80px rgba(59,30,12,0.22);">
+    <div data-dettaglio-body>
+        <div style="padding: 32px; text-align:center; color:#888;">caricamento…</div>
+    </div>
+</dialog>
+
 @section Scripts {
 <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
 <script>
+    // Persistenza stato dei <details> con data-persist-key in localStorage
+    (function () {
+        document.querySelectorAll('details[data-persist-key]').forEach(function (d) {
+            var k = 'cd:' + d.dataset.persistKey;
+            var v = localStorage.getItem(k);
+            if (v === '1') d.open = true;
+            else if (v === '0') d.open = false;
+            d.addEventListener('toggle', function () {
+                localStorage.setItem(k, d.open ? '1' : '0');
+            });
+        });
+    })();
+
     // Tabs della pagina Tesoreria (Scadenze / Dashboard).
     // I chart sono in un pane inizialmente nascosto: alla prima attivazione del tab
     // chiamiamo resize() per fargli prendere le dimensioni reali del canvas.
@@ -854,12 +915,28 @@
         // Modali
         var dlgPaga = document.getElementById('dlg-paga');
         var dlgProg = document.getElementById('dlg-prog');
+        var dlgDett = document.getElementById('dlg-dettaglio');
+        var dettBody = dlgDett.querySelector('[data-dettaglio-body]');
         var formPaga = document.getElementById('form-paga');
         var formProg = document.getElementById('form-prog');
         document.querySelectorAll('[data-pay-trigger]').forEach(function (btn) {
             btn.addEventListener('click', function () {
                 formPaga.action = '/tesoreria/scadenza/' + btn.dataset.id + '/paga';
                 dlgPaga.showModal();
+            });
+        });
+        // Modale Dettagli/Modifica: caricamento lazy del partial
+        document.querySelectorAll('[data-edit-trigger]').forEach(function (btn) {
+            btn.addEventListener('click', async function () {
+                dettBody.innerHTML = '<div style="padding:32px; text-align:center; color:#888;">caricamento…</div>';
+                dlgDett.showModal();
+                try {
+                    var r = await fetch('/tesoreria/scadenza/' + btn.dataset.id + '/dettaglio');
+                    if (!r.ok) throw new Error(r.statusText);
+                    dettBody.innerHTML = await r.text();
+                } catch (e) {
+                    dettBody.innerHTML = '<div style="padding:24px; color:#b8442e;">errore caricamento</div>';
+                }
             });
         });
         document.querySelectorAll('[data-schedule-trigger]').forEach(function (btn) {
