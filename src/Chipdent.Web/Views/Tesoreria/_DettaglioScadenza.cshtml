@@ -12,6 +12,13 @@
     var origineLabel = fa?.Origine == OrigineFattura.PortaleFornitore ? "📥 Portale fornitore"
                      : fa?.Origine == OrigineFattura.ImportExcel ? "📊 Import Excel"
                      : "🖋 Back-office";
+
+    // Le scadenze già pagate sono congelate: nessun campo modificabile.
+    // (Gli annulli/note vanno fatti tramite nota di credito o nuova scadenza,
+    // non sovrascrivendo lo storico contabile.)
+    var bloccato = Model.Stato == StatoScadenza.Pagato;
+    var ro = bloccato ? "readonly" : "";
+    var dis = bloccato ? "disabled" : "";
 }
 
 <form method="post" asp-action="ModificaScadenza" asp-route-id="@Model.Id" class="dettaglio-scadenza">
@@ -20,19 +27,41 @@
 
     <header class="dettaglio-scadenza__head">
         <div>
-            <h3 style="margin:0 0 4px;">Scadenza · <strong>@(f?.RagioneSociale ?? "—")</strong></h3>
+            <h3 style="margin:0 0 4px;">
+                Scadenza · <strong>@(f?.RagioneSociale ?? "—")</strong>
+                @if (bloccato)
+                {
+                    <span class="badge" style="background:#dff5e6; color:#1f6e3a; font-size:.7rem; margin-left:8px;">🔒 PAGATA · sola lettura</span>
+                }
+            </h3>
             <div class="muted" style="font-size:.78rem;">
                 @origineLabel · caricata il @(fa?.CreatedAt.ToLocalTime().ToString("dd/MM/yyyy HH:mm") ?? Model.CreatedAt.ToLocalTime().ToString("dd/MM/yyyy HH:mm"))
                 @if (Model.UpdatedAt.HasValue)
                 {
                     <text> · ultima modifica @Model.UpdatedAt.Value.ToLocalTime().ToString("dd/MM/yyyy HH:mm")</text>
                 }
+                @if (bloccato && Model.DataPagamento.HasValue)
+                {
+                    <text> · <strong style="color:#1f6e3a;">✓ pagata il @Model.DataPagamento.Value.ToString("dd/MM/yyyy")</strong></text>
+                    @if (!string.IsNullOrEmpty(Model.RiferimentoPagamento))
+                    {
+                        <text> · CRO @Model.RiferimentoPagamento</text>
+                    }
+                }
             </div>
         </div>
         <button type="button" class="btn btn--ghost btn--sm" data-close-dlg aria-label="Chiudi">✕</button>
     </header>
 
-    <div class="dettaglio-scadenza__body">
+    @if (bloccato)
+    {
+        <div style="background: #fff7e6; border-bottom: 1px solid #ece0cc; padding: 8px 20px; font-size:.82rem; color: var(--c-ink-soft, #7a5c3a);">
+            ℹ️ Una scadenza pagata è uno storico contabile e non può essere modificata.
+            Per correzioni: <strong>nota di credito</strong> dal fornitore o <strong>nuova scadenza compensativa</strong>.
+        </div>
+    }
+
+    <fieldset class="dettaglio-scadenza__body" @(bloccato ? "disabled" : "")>
 
     <section class="dett-section">
         <h4 class="dett-section__title">📅 Scadenza · documento</h4>
@@ -161,11 +190,14 @@
         </div>
     </section>
 
-    </div><!-- /body -->
+    </fieldset><!-- /body -->
 
     <footer class="dettaglio-scadenza__foot">
-        <button type="button" class="btn btn--ghost" data-close-dlg>Annulla</button>
-        <button type="submit" class="btn btn--primary">💾 Salva modifiche</button>
+        <button type="button" class="btn btn--ghost" data-close-dlg>@(bloccato ? "Chiudi" : "Annulla")</button>
+        @if (!bloccato)
+        {
+            <button type="submit" class="btn btn--primary">💾 Salva modifiche</button>
+        }
     </footer>
 </form>
 
@@ -199,6 +231,16 @@
     .dettaglio-scadenza .form-label { display: block; font-size: .7rem; color: var(--c-ink-muted, #998); margin-bottom: 2px; font-weight: 600; }
     .dettaglio-scadenza .form-control { font-size: .82rem; padding: 5px 8px; height: 32px; }
     .dettaglio-scadenza textarea.form-control { height: auto; resize: vertical; min-height: 48px; }
+
+    /* Stato "bloccato" (Pagato): tutto in sola lettura, look discreto */
+    .dettaglio-scadenza fieldset { border: 0; padding: var(--s-3) var(--s-5); margin: 0; }
+    .dettaglio-scadenza fieldset[disabled] .form-control,
+    .dettaglio-scadenza fieldset[disabled] .dett-toggle {
+        background: rgba(0,0,0,0.03);
+        color: var(--c-ink-soft, #7a5c3a);
+        cursor: not-allowed;
+    }
+    .dettaglio-scadenza fieldset[disabled] .form-label { color: #b9a98c; }
 
     .dett-toggle { display: flex; align-items: center; gap: 6px; height: 32px; font-size: .82rem; color: var(--c-ink, #3b1e0c); }
     .dett-toggle input { margin: 0; }

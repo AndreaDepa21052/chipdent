@@ -536,6 +536,17 @@ public class TesoreriaController : Controller
     {
         var tid = _tenant.TenantId!;
 
+        // Lock contabile: una scadenza già Pagata è uno storico immutabile.
+        // Chi vuole correggerla deve emettere nota di credito o creare una nuova
+        // scadenza compensativa, non sovrascrivere il dato.
+        var corrente = await _mongo.ScadenzePagamento.Find(s => s.Id == id && s.TenantId == tid).FirstOrDefaultAsync();
+        if (corrente is null) return NotFound();
+        if (corrente.Stato == StatoScadenza.Pagato)
+        {
+            TempData["flash"] = "Scadenza già pagata: lo storico contabile non è modificabile.";
+            return RedirectToAction(nameof(Index));
+        }
+
         // Parser robusto: accetta sia "1797,26" (IT) sia "1797.26" (EN/HTML5).
         // Rimuove spazi e separatori delle migliaia (come da fix bug binder culture).
         static decimal ParseDec(string? s, decimal fallback = 0m)
