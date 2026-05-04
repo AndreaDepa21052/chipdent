@@ -10,6 +10,60 @@
     // Pre-calcolo set degli id padre per indentare le scadenze figlie F24/ritenute.
     var idPadri = Model.Righe.Where(r => !string.IsNullOrEmpty(r.ScadenzaPadreId))
                               .Select(r => r.ScadenzaPadreId!).ToHashSet();
+
+    // ── Calendario "split-view": determino il mese visibile (cm = "yyyy-MM") ──
+    var cmRaw = Context.Request.Query["cm"].ToString();
+    DateTime calMese;
+    if (!string.IsNullOrEmpty(cmRaw) && DateTime.TryParseExact(cmRaw, "yyyy-MM", CultureInfo.InvariantCulture, DateTimeStyles.AssumeLocal, out var parsed))
+    {
+        calMese = new DateTime(parsed.Year, parsed.Month, 1);
+    }
+    else if (Model.Filtro.Dal.HasValue)
+    {
+        calMese = new DateTime(Model.Filtro.Dal.Value.Year, Model.Filtro.Dal.Value.Month, 1);
+    }
+    else
+    {
+        calMese = new DateTime(oggi.Year, oggi.Month, 1);
+    }
+
+    // Aggrego le scadenze per giorno (solo del mese visibile). Lo statuso più "caldo" vince
+    // per la dot principale; il totale euro alimenta l'heatmap.
+    var righePerGiorno = Model.Righe
+        .Where(r => r.DataScadenza.Year == calMese.Year && r.DataScadenza.Month == calMese.Month)
+        .GroupBy(r => r.DataScadenza.Date)
+        .ToDictionary(g => g.Key, g => g.ToList());
+    var maxTotaleGiorno = righePerGiorno.Count == 0 ? 0m : righePerGiorno.Values.Max(l => l.Sum(r => r.Totale));
+
+    // Helper: costruisce un URL preservando filtri attuali e sostituendo cm/Dal/Al/tab.
+    string CalUrl(DateTime? mese = null, DateTime? dataFiltro = null, bool clearDate = false)
+    {
+        var qp = new Dictionary<string, string?>(StringComparer.OrdinalIgnoreCase);
+        if (!string.IsNullOrEmpty(Model.Filtro.Q))            qp["Q"] = Model.Filtro.Q;
+        if (!string.IsNullOrEmpty(Model.Filtro.FornitoreId))  qp["FornitoreId"] = Model.Filtro.FornitoreId;
+        if (!string.IsNullOrEmpty(Model.Filtro.ClinicaId))    qp["ClinicaId"] = Model.Filtro.ClinicaId;
+        if (Model.Filtro.Categoria.HasValue)                  qp["Categoria"] = Model.Filtro.Categoria.ToString();
+        if (Model.Filtro.Stato.HasValue)                      qp["Stato"] = Model.Filtro.Stato.ToString();
+        if (Model.Filtro.Metodo.HasValue)                     qp["Metodo"] = Model.Filtro.Metodo.ToString();
+        if (Model.Filtro.SoloFuoriTermini)                    qp["SoloFuoriTermini"] = "true";
+        // cm: mese visibile del calendario
+        if (mese.HasValue) qp["cm"] = mese.Value.ToString("yyyy-MM");
+        // Dal/Al
+        if (dataFiltro.HasValue)
+        {
+            qp["Dal"] = dataFiltro.Value.ToString("yyyy-MM-dd");
+            qp["Al"]  = dataFiltro.Value.ToString("yyyy-MM-dd");
+        }
+        else if (!clearDate)
+        {
+            if (Model.Filtro.Dal.HasValue) qp["Dal"] = Model.Filtro.Dal.Value.ToString("yyyy-MM-dd");
+            if (Model.Filtro.Al.HasValue)  qp["Al"]  = Model.Filtro.Al.Value.ToString("yyyy-MM-dd");
+        }
+        qp["tab"] = "scadenze";
+        var qs = string.Join("&", qp.Where(kv => !string.IsNullOrEmpty(kv.Value))
+                                    .Select(kv => $"{Uri.EscapeDataString(kv.Key)}={Uri.EscapeDataString(kv.Value!)}"));
+        return Url.Action("Index") + (string.IsNullOrEmpty(qs) ? "" : "?" + qs);
+    }
 }
 
 @functions {
@@ -133,8 +187,7 @@
     </div>
 </div>
 
-<div class="grid" style="grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: var(--s-4); margin-bottom: var(--s-4);">
-    <div class="card" style="min-width: 0;">
+<div class="card" style="min-width: 0; margin-bottom: var(--s-4);">
         <div class="card__header"><h3 class="card__title">Top fornitori — esposto</h3></div>
         <ul class="list" style="margin: 0;">
             @foreach (var t in Model.TopFornitori)
@@ -154,14 +207,193 @@
             }
         </ul>
     </div>
-    <div class="card" style="min-width: 0;">
-        <div class="card__header"><h3 class="card__title">Calendario @oggi.ToString("MMMM yyyy", it)</h3></div>
-        <div id="mini-cal" style="padding: var(--s-3);"></div>
-    </div>
-</div>
 </section><!-- /tab dashboard -->
 
 <section data-tab-pane="scadenze" style="@(activeTab == "scadenze" ? "" : "display:none;")">
+
+<style>
+    .scadenze-split { display: grid; grid-template-columns: 320px minmax(0, 1fr); gap: var(--s-4); align-items: start; }
+    @@media (max-width: 1100px) { .scadenze-split { grid-template-columns: 1fr; } }
+    .scadenze-grid { min-width: 0; }
+
+    .scadenze-cal {
+        position: sticky; top: var(--s-4);
+        background: var(--c-bg-panel, #fff);
+        border: 1px solid var(--c-border, #ece0cc);
+        border-radius: var(--r-lg, 12px);
+        padding: var(--s-3);
+        box-shadow: var(--shadow-sm, 0 1px 2px rgba(0,0,0,0.04));
+        font-size: .82rem;
+    }
+    .scadenze-cal__head { display:flex; align-items:center; justify-content:space-between; gap: var(--s-2); margin-bottom: var(--s-2); }
+    .scadenze-cal__title { text-align:center; flex: 1; }
+    .scadenze-cal__title strong { color: var(--c-ink-strong, #3b1e0c); text-transform: capitalize; }
+    .scadenze-cal__nav {
+        display:inline-flex; align-items:center; justify-content:center;
+        width: 28px; height: 28px; border-radius: 6px;
+        text-decoration:none; color: var(--c-ink-muted, #7a5c3a);
+        background: rgba(196,120,48,0.06); font-size: 1rem; font-weight: 700;
+    }
+    .scadenze-cal__nav:hover { background: rgba(196,120,48,0.16); color: var(--c-accent-strong, #a86010); }
+    .scadenze-cal__clear {
+        display:block; text-align:center; padding: 4px 8px; margin-bottom: var(--s-2);
+        font-size:.72rem; text-decoration:none;
+        background: rgba(196,120,48,0.10); color: var(--c-accent-strong, #a86010);
+        border-radius: 999px; border: 1px solid rgba(196,120,48,0.25);
+    }
+    .scadenze-cal__clear--today { background: transparent; color: var(--c-ink-muted); border-color: transparent; }
+    .scadenze-cal__clear:hover { background: rgba(196,120,48,0.18); }
+
+    .scadenze-cal__grid { display: grid; grid-template-columns: repeat(7, 1fr); gap: 2px; }
+    .scadenze-cal__dow { text-align:center; color: #b9a98c; font-size: .68rem; font-weight: 700; padding: 4px 0 6px; text-transform: uppercase; letter-spacing: .04em; }
+
+    .scadenze-cal__cell {
+        position: relative;
+        display: flex; flex-direction: column; align-items: center; justify-content: flex-start;
+        aspect-ratio: 1;
+        border-radius: 6px;
+        text-decoration: none;
+        color: var(--c-ink, #3b1e0c);
+        padding: 3px 2px 4px;
+        transition: transform .08s ease-out, box-shadow .12s ease-out;
+        border: 1px solid transparent;
+        overflow: hidden;
+    }
+    .scadenze-cal__cell:hover { transform: translateY(-1px); box-shadow: 0 2px 6px rgba(59,30,12,0.12); border-color: rgba(196,120,48,0.35); }
+    .scadenze-cal__cell--blank { pointer-events: none; }
+    .scadenze-cal__cell.is-empty { color: var(--c-ink-muted, #998); cursor: default; pointer-events: none; }
+    .scadenze-cal__cell.is-past:not(.is-today) { color: #998; }
+    .scadenze-cal__cell.is-today { border-color: var(--c-accent-strong, #a86010); border-width: 2px; padding: 2px 1px 3px; }
+    .scadenze-cal__cell.is-selected {
+        background: var(--c-accent-strong, #a86010) !important; color: #fff !important;
+        box-shadow: 0 4px 12px rgba(168,96,16,0.35);
+    }
+    .scadenze-cal__cell.is-selected .scadenze-cal__amt { color: rgba(255,255,255,.85); }
+
+    .scadenze-cal__day { font-size: .82rem; font-weight: 600; line-height: 1; }
+    .scadenze-cal__amt { font-size: .56rem; line-height: 1; margin-top: 2px; color: var(--c-ink-soft, #7a5c3a); font-variant-numeric: tabular-nums; }
+    .scadenze-cal__dots { display:flex; gap: 2px; margin-top: auto; padding-bottom: 1px; }
+    .scadenze-cal__dots .dot { width: 4px; height: 4px; border-radius: 50%; }
+
+    .dot.dot--red   { background: #b8442e; }
+    .dot.dot--amber { background: #c47830; }
+    .dot.dot--blue  { background: #2457a4; }
+    .dot.dot--green { background: #2d7a50; }
+    .dot.dot--grey  { background: #888; }
+
+    .scadenze-cal__legend { display: flex; flex-wrap: wrap; gap: 6px 10px; align-items: center; margin-top: var(--s-3); padding-top: var(--s-2); border-top: 1px dashed var(--c-divider, #ece0cc); font-size: .68rem; color: var(--c-ink-muted, #998); }
+    .scadenze-cal__legend .dot { width: 7px; height: 7px; border-radius: 50%; margin-right: 2px; }
+</style>
+
+<div class="scadenze-split">
+    <aside class="scadenze-cal">
+        @{
+            var meseLabel = calMese.ToString("MMMM yyyy", it);
+            meseLabel = char.ToUpper(meseLabel[0]) + meseLabel[1..];
+            var prev = calMese.AddMonths(-1);
+            var next = calMese.AddMonths(1);
+            var primoGiorno = calMese;
+            var ultimoGiorno = calMese.AddMonths(1).AddDays(-1);
+            // lunedì = 0
+            var startDow = ((int)primoGiorno.DayOfWeek + 6) % 7;
+            var giornoFiltrato = (Model.Filtro.Dal.HasValue && Model.Filtro.Al.HasValue && Model.Filtro.Dal.Value.Date == Model.Filtro.Al.Value.Date)
+                ? Model.Filtro.Dal!.Value.Date
+                : (DateTime?)null;
+            var totMese = righePerGiorno.Sum(kv => kv.Value.Sum(r => r.Totale));
+            string EurDecLocal(decimal v) => v.ToString("N2", it) + " €";
+        }
+
+        <div class="scadenze-cal__head">
+            <a class="scadenze-cal__nav" href="@CalUrl(mese: prev)" title="Mese precedente">‹</a>
+            <div class="scadenze-cal__title">
+                <strong>@meseLabel</strong>
+                <div class="muted" style="font-size:.72rem; line-height:1;">@righePerGiorno.Sum(kv => kv.Value.Count) scadenze · @EurDecLocal(totMese)</div>
+            </div>
+            <a class="scadenze-cal__nav" href="@CalUrl(mese: next)" title="Mese successivo">›</a>
+        </div>
+
+        @if (giornoFiltrato.HasValue)
+        {
+            <a class="scadenze-cal__clear" href="@CalUrl(mese: calMese, clearDate: true)" title="Rimuovi filtro data">
+                ⊗ filtro: @giornoFiltrato.Value.ToString("dd MMM yyyy", it)
+            </a>
+        }
+        else
+        {
+            <a class="scadenze-cal__clear scadenze-cal__clear--today" href="@CalUrl(mese: new DateTime(oggi.Year, oggi.Month, 1), dataFiltro: oggi)">
+                Oggi
+            </a>
+        }
+
+        <div class="scadenze-cal__grid">
+            @foreach (var d in new[] { "L", "M", "M", "G", "V", "S", "D" })
+            {
+                <div class="scadenze-cal__dow">@d</div>
+            }
+            @for (var i = 0; i < startDow; i++)
+            {
+                <div class="scadenze-cal__cell scadenze-cal__cell--blank"></div>
+            }
+            @for (var d = 1; d <= ultimoGiorno.Day; d++)
+            {
+                var data = new DateTime(calMese.Year, calMese.Month, d);
+                righePerGiorno.TryGetValue(data, out var righe);
+                var totGiorno = righe?.Sum(r => r.Totale) ?? 0m;
+                var isToday = data == oggi;
+                var isSelected = giornoFiltrato.HasValue && giornoFiltrato.Value == data;
+                var isPast = data < oggi;
+
+                // Heatmap: intensità relativa al massimo del mese (0..1) → opacity del fill ambra.
+                var heat = (maxTotaleGiorno > 0 && totGiorno > 0) ? (double)(totGiorno / maxTotaleGiorno) : 0.0;
+                var bgStyle = heat > 0
+                    ? $"background: rgba(196, 120, 48, {Math.Round(0.10 + 0.50 * heat, 2).ToString(CultureInfo.InvariantCulture)});"
+                    : "";
+
+                // Stati presenti nel giorno (per i pallini)
+                var hasOverdue = righe?.Any(r => r.Stato == StatoScadenza.Insoluto) ?? false;
+                var hasDaPagare = righe?.Any(r => r.Stato == StatoScadenza.DaPagare) ?? false;
+                var hasProgr   = righe?.Any(r => r.Stato == StatoScadenza.Programmato) ?? false;
+                var hasPagato  = righe?.Any(r => r.Stato == StatoScadenza.Pagato) ?? false;
+                var hasMaiPag  = righe?.Any(r => r.Stato == StatoScadenza.MaiPagato) ?? false;
+
+                var clsList = new List<string> { "scadenze-cal__cell" };
+                if (isToday)    clsList.Add("is-today");
+                if (isSelected) clsList.Add("is-selected");
+                if (isPast)     clsList.Add("is-past");
+                if (righe is null) clsList.Add("is-empty");
+
+                var tooltip = righe is null
+                    ? data.ToString("dd MMM yyyy", it)
+                    : $"{data.ToString("dd MMM yyyy", it)} — {righe.Count} scadenz{(righe.Count == 1 ? "a" : "e")} · {EurDecLocal(totGiorno)}";
+
+                <a class="@string.Join(' ', clsList)" style="@bgStyle"
+                   href="@CalUrl(mese: calMese, dataFiltro: data)"
+                   title="@tooltip">
+                    <span class="scadenze-cal__day">@d</span>
+                    @if (righe is not null)
+                    {
+                        <span class="scadenze-cal__amt">@(totGiorno >= 1000 ? $"{Math.Round(totGiorno / 1000, 1).ToString("0.#", it)}k" : Math.Round(totGiorno, 0).ToString("0", it))</span>
+                        <span class="scadenze-cal__dots">
+                            @if (hasOverdue) { <span class="dot dot--red"   title="Scadute"></span> }
+                            @if (hasDaPagare){ <span class="dot dot--amber" title="Da pagare"></span> }
+                            @if (hasProgr)   { <span class="dot dot--blue"  title="Programmate"></span> }
+                            @if (hasPagato)  { <span class="dot dot--green" title="Pagate"></span> }
+                            @if (hasMaiPag)  { <span class="dot dot--grey"  title="Mai pagate"></span> }
+                        </span>
+                    }
+                </a>
+            }
+        </div>
+
+        <div class="scadenze-cal__legend">
+            <span class="dot dot--red"></span>scaduta
+            <span class="dot dot--amber"></span>da pagare
+            <span class="dot dot--blue"></span>programmata
+            <span class="dot dot--green"></span>pagata
+        </div>
+    </aside>
+
+<div class="scadenze-grid">
 <div class="card" style="padding:0; margin-bottom: var(--s-4); min-width: 0;">
     <div class="card__header" style="padding: var(--s-3) var(--s-3) 0;">
         <h3 class="card__title">Scadenze</h3>
@@ -352,6 +584,8 @@
             </table>
         </div>
     </div>
+</div><!-- /scadenze-grid -->
+</div><!-- /scadenze-split -->
 </section><!-- /tab scadenze -->
 
 <!-- ── Modali pagamento ──────────────────────────────────────── -->
@@ -525,45 +759,6 @@
                 }
             });
         }
-
-        // Mini calendario con pallini sui giorni con scadenze
-        var dotsByDay = {};
-        @foreach (var r in Model.Righe.Where(x => x.Stato != StatoScadenza.Pagato && x.Stato != StatoScadenza.Annullato).OrderBy(x => x.DataScadenza))
-        {
-            <text>
-            (function () {
-                var k = '@r.DataScadenza.ToString("yyyy-MM-dd")';
-                if (!dotsByDay[k]) dotsByDay[k] = { count: 0, total: 0, status: '@r.Stato' };
-                dotsByDay[k].count++;
-                dotsByDay[k].total += @r.Totale.ToString("0.##", System.Globalization.CultureInfo.InvariantCulture);
-                if ('@r.Stato' === 'Insoluto') dotsByDay[k].status = 'Insoluto';
-            })();
-            </text>
-        }
-
-        var cal = document.getElementById('mini-cal');
-        var oggi = new Date();
-        var anno = oggi.getFullYear(), mese = oggi.getMonth();
-        var primo = new Date(anno, mese, 1);
-        var ultimo = new Date(anno, mese + 1, 0);
-        var startDow = (primo.getDay() + 6) % 7; // lunedì = 0
-        var html = '<div style="display:grid; grid-template-columns: repeat(7, 1fr); gap:2px; font-size:.72rem;">';
-        ['L','M','M','G','V','S','D'].forEach(function (d) { html += '<div style="text-align:center; color:#999; padding:4px 0;">' + d + '</div>'; });
-        for (var i = 0; i < startDow; i++) html += '<div></div>';
-        for (var d = 1; d <= ultimo.getDate(); d++) {
-            var ds = new Date(anno, mese, d);
-            var iso = ds.toISOString().slice(0, 10);
-            var info = dotsByDay[iso];
-            var isToday = (d === oggi.getDate());
-            var bg = isToday ? '#fff2dd' : '';
-            var color = info ? (info.status === 'Insoluto' ? '#a83a3a' : '#c47830') : '#ddd';
-            html += '<div title="' + iso + (info ? ' · ' + info.count + ' scadenze · ' + info.total.toLocaleString('it-IT') + ' €' : '') + '" style="aspect-ratio:1; display:flex; flex-direction:column; align-items:center; justify-content:center; border-radius: 6px; background:' + bg + '; cursor:default;">';
-            html += '<span style="font-weight:' + (isToday ? '700' : '500') + ';">' + d + '</span>';
-            if (info) html += '<span style="height:6px; width:6px; border-radius:50%; background:' + color + '; margin-top:2px;"></span>';
-            html += '</div>';
-        }
-        html += '</div>';
-        cal.innerHTML = html;
 
         // Modali
         var dlgPaga = document.getElementById('dlg-paga');
