@@ -84,14 +84,15 @@
 
 html, body { height: 100%; }
 
-/* Scala globalmente del ~20% (equivalente a zoom Chrome ~80%): tutti i valori in rem
-   ereditano questa base, gli elementi in px qui sotto sono già adeguati. */
-html { font-size: 12.8px; }
+/* Base tipografica: html in px definisce la scala dei rem, body fissa la dimensione
+   del testo corrente. Aumentata rispetto alla scala precedente (12.8/12px) per
+   migliorare la leggibilità su schermi standard. */
+html { font-size: 14.5px; }
 
 body {
     margin: 0;
     font-family: var(--f-sans);
-    font-size: 12px;
+    font-size: 13.5px;
     line-height: 1.55;
     color: var(--c-ink);
     background:
