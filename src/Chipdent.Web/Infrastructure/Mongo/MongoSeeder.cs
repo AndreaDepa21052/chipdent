@@ -228,7 +228,6 @@ public static class MongoSeeder
                 foreach (var d in dipsList)
                 {
                     corsi.Add(new Corso { TenantId = tenant.Id, DestinatarioId = d.Id, DestinatarioTipo = DestinatarioCorso.Dipendente, Tipo = TipoCorso.Antincendio, DataConseguimento = DateTime.UtcNow.AddYears(-2), Scadenza = DateTime.UtcNow.AddMonths(4) });
-                    corsi.Add(new Corso { TenantId = tenant.Id, DestinatarioId = d.Id, DestinatarioTipo = DestinatarioCorso.Dipendente, Tipo = TipoCorso.PrimoSoccorso, DataConseguimento = DateTime.UtcNow.AddYears(-1), Scadenza = DateTime.UtcNow.AddMonths(15) });
                 }
                 await ctx.Corsi.InsertManyAsync(corsi, cancellationToken: ct);
                 logger.LogInformation("Seeded {Count} corsi", corsi.Count);

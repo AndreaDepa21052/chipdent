@@ -45,7 +45,7 @@ public class DipendentiController : Controller
         var corsiNomina = await _mongo.Corsi
             .Find(c => c.TenantId == _tenant.TenantId
                 && c.DestinatarioTipo == DestinatarioCorso.Dipendente
-                && (c.Tipo == TipoCorso.RLS || c.Tipo == TipoCorso.Antincendio || c.Tipo == TipoCorso.PrimoSoccorso))
+                && (c.Tipo == TipoCorso.RLS || c.Tipo == TipoCorso.Antincendio))
             .ToListAsync();
         var nomine = Chipdent.Web.Infrastructure.Rls.RlsAggregator
             .NomineAttivePerDipendente(corsiNomina, DateTime.UtcNow);

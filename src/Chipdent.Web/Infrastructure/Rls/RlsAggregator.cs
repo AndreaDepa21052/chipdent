@@ -65,12 +65,11 @@ public class CorsiPerTipoGroup
 
 public static class RlsAggregator
 {
-    /// <summary>Tipologie di "nomina" — corsi che identificano un addetto designato (RLS, Antincendio, Primo soccorso).</summary>
+    /// <summary>Tipologie di "nomina" — corsi che identificano un addetto designato (RLS, Antincendio).</summary>
     public static readonly TipoCorso[] TipiNomina =
     {
         TipoCorso.RLS,
-        TipoCorso.Antincendio,
-        TipoCorso.PrimoSoccorso
+        TipoCorso.Antincendio
     };
 
     public static (string Label, string Icon) Meta(TipoCorso t) => t switch
