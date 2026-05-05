@@ -17,6 +17,89 @@
     document.querySelectorAll("[data-year]").forEach(function (el) {
         el.textContent = new Date().getFullYear();
     });
+
+    // ── Filtro tabelle lato DOM ────────────────────────────────────────────
+    // Markup atteso:
+    //   <div data-table-search>
+    //     <input class="table-search__input" placeholder="Cerca…" />
+    //     <span class="table-search__count" data-singular="risultato" data-plural="risultati"></span>
+    //     ...table...
+    //   </div>
+    // L'input filtra le righe del primo <table> (o dell'elemento con data-table-search-target)
+    // confrontando il testo normalizzato di tutta la riga con i token digitati (AND).
+    function normalize(s) {
+        return (s || "")
+            .toString()
+            .toLowerCase()
+            .normalize("NFD")
+            .replace(/[̀-ͯ]/g, "");
+    }
+
+    function setupTableSearch(root) {
+        var input = root.querySelector(".table-search__input");
+        if (!input) return;
+        var targetSel = root.getAttribute("data-table-search-target");
+        var table = targetSel ? root.querySelector(targetSel) : root.querySelector("table");
+        if (!table) return;
+        var tbody = table.tBodies[0];
+        if (!tbody) return;
+        var rows = Array.prototype.slice.call(tbody.rows);
+
+        // Pre-calcola il testo normalizzato di ogni riga per evitare lavoro inutile a ogni keystroke.
+        rows.forEach(function (r) {
+            r.__searchText = normalize(r.textContent);
+        });
+
+        var counter = root.querySelector(".table-search__count");
+        var emptyMsg = root.querySelector(".table-search__empty");
+        var clearBtn = root.querySelector(".table-search__clear");
+
+        function apply() {
+            var q = normalize(input.value).trim();
+            var tokens = q.length ? q.split(/\s+/) : [];
+            var visible = 0;
+            rows.forEach(function (r) {
+                var match = tokens.every(function (t) { return r.__searchText.indexOf(t) !== -1; });
+                r.style.display = match ? "" : "none";
+                if (match) visible++;
+            });
+            if (counter) {
+                if (tokens.length === 0) {
+                    counter.textContent = "";
+                } else {
+                    var sing = counter.getAttribute("data-singular") || "risultato";
+                    var plur = counter.getAttribute("data-plural") || "risultati";
+                    counter.textContent = visible + " " + (visible === 1 ? sing : plur);
+                }
+            }
+            if (emptyMsg) {
+                emptyMsg.style.display = (visible === 0 && tokens.length > 0) ? "" : "none";
+            }
+            if (clearBtn) {
+                clearBtn.style.visibility = input.value.length > 0 ? "visible" : "hidden";
+            }
+        }
+
+        input.addEventListener("input", apply);
+        if (clearBtn) {
+            clearBtn.addEventListener("click", function () {
+                input.value = "";
+                apply();
+                input.focus();
+            });
+        }
+        // Esc per pulire rapidamente.
+        input.addEventListener("keydown", function (ev) {
+            if (ev.key === "Escape" && input.value) {
+                ev.preventDefault();
+                input.value = "";
+                apply();
+            }
+        });
+        apply();
+    }
+
+    document.querySelectorAll("[data-table-search]").forEach(setupTableSearch);
 })();
 
 window.Chipdent = window.Chipdent || {};

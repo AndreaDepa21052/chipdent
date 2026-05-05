@@ -1,0 +1,27 @@
+@*
+    Search bar lato DOM per tabelle.
+    Uso:
+        <div data-table-search>
+            <partial name="_TableSearch" model='new ViewDataDictionary(ViewData) { ["Placeholder"] = "Cerca clinica…" }' />
+            <table class="table">…</table>
+        </div>
+    Il <div data-table-search> deve avvolgere ANCHE la <table>: il filtro JS cerca
+    la tabella all'interno dello stesso wrapper.
+*@
+@{
+    var placeholder = (ViewData["Placeholder"] as string) ?? "Cerca…";
+    var singular = (ViewData["Singular"] as string) ?? "risultato";
+    var plural = (ViewData["Plural"] as string) ?? "risultati";
+}
+<div class="table-search">
+    <div class="table-search__field">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+            <circle cx="11" cy="11" r="7"/>
+            <path d="m21 21-4.3-4.3"/>
+        </svg>
+        <input type="search" class="form-control table-search__input"
+               placeholder="@placeholder" autocomplete="off" spellcheck="false" />
+        <button type="button" class="table-search__clear" aria-label="Pulisci ricerca">✕</button>
+    </div>
+    <span class="table-search__count" data-singular="@singular" data-plural="@plural" aria-live="polite"></span>
+</div>

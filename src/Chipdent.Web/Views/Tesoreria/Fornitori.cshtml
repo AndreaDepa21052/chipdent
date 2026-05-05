@@ -28,6 +28,9 @@
 }
 else
 {
+    <div data-table-search>
+        <partial name="_TableSearch" model='new Microsoft.AspNetCore.Mvc.ViewFeatures.ViewDataDictionary(ViewData) { ["Placeholder"] = "Cerca fornitore per ragione sociale, P.IVA, categoria…", ["Singular"] = "fornitore", ["Plural"] = "fornitori" }' />
+        <div class="table-search__empty">Nessun fornitore corrisponde alla ricerca.</div>
     <div class="card" style="padding:0; overflow:auto;">
         <table class="table">
             <thead>
@@ -80,5 +83,6 @@ else
             }
             </tbody>
         </table>
+    </div>
     </div>
 }
