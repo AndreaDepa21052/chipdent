@@ -1,4 +1,5 @@
 using Chipdent.Web.Domain.Entities;
+using Chipdent.Web.Infrastructure.Rls;
 
 namespace Chipdent.Web.Models;
 
@@ -11,6 +12,12 @@ public class RlsOverviewViewModel
     public int DvrInScadenza { get; set; }
     public int DvrDaApprovare { get; set; }
     public IReadOnlyList<RlsAlertItem> Alerts { get; set; } = Array.Empty<RlsAlertItem>();
+
+    /// <summary>Nomine attive (RLS, Antincendio, Primo soccorso) raggruppate per tipologia.</summary>
+    public IReadOnlyList<NomineGroup> Nomine { get; set; } = Array.Empty<NomineGroup>();
+
+    /// <summary>Corsi in scadenza/scaduti raggruppati per tipologia.</summary>
+    public IReadOnlyList<CorsiPerTipoGroup> CorsiPerTipo { get; set; } = Array.Empty<CorsiPerTipoGroup>();
 }
 
 public record RlsAlertItem(string Kind, string Title, string Subtitle, DateTime? Quando, string Severity);

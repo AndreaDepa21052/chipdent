@@ -41,8 +41,18 @@ public class DipendentiController : Controller
             .ToListAsync();
 
         var cliniche = await CliniceLookupAsync();
+
+        var corsiNomina = await _mongo.Corsi
+            .Find(c => c.TenantId == _tenant.TenantId
+                && c.DestinatarioTipo == DestinatarioCorso.Dipendente
+                && (c.Tipo == TipoCorso.RLS || c.Tipo == TipoCorso.Antincendio || c.Tipo == TipoCorso.PrimoSoccorso))
+            .ToListAsync();
+        var nomine = Chipdent.Web.Infrastructure.Rls.RlsAggregator
+            .NomineAttivePerDipendente(corsiNomina, DateTime.UtcNow);
+
         ViewData["Section"] = "dipendenti";
         ViewData["Cliniche"] = cliniche;
+        ViewData["Nomine"] = nomine;
         return View(items);
     }
 

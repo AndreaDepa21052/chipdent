@@ -1,7 +1,23 @@
+@using Chipdent.Web.Infrastructure.Rls
 @model Chipdent.Web.Models.RlsOverviewViewModel
 @{
     ViewData["Title"] = "RLS / Sicurezza";
     ViewData["Tab"] = "overview";
+
+    string BadgeFor(StatoCompliance s) => s switch
+    {
+        StatoCompliance.InRegola => "badge badge--success",
+        StatoCompliance.InScadenza => "badge badge--warning",
+        StatoCompliance.Scaduto => "badge badge--danger",
+        _ => "badge"
+    };
+    string LabelFor(StatoCompliance s) => s switch
+    {
+        StatoCompliance.InRegola => "in regola",
+        StatoCompliance.InScadenza => "in scadenza",
+        StatoCompliance.Scaduto => "scaduto",
+        _ => "—"
+    };
 }
 
 <partial name="_Flash" />
@@ -51,17 +67,138 @@
     </div>
 </div>
 
-<div class="card">
+<!-- ── Nomine attive: RLS / Antincendio / Primo soccorso ── -->
+<div class="card" style="margin-bottom: var(--s-6);">
     <div class="card__header">
-        <h3 class="card__title">Alert</h3>
-        <span class="badge badge--accent">@Model.Alerts.Count totali</span>
+        <h3 class="card__title">Nomine attive per sede</h3>
+        <span class="muted" style="font-size:.85rem;">RLS, addetti antincendio e primo soccorso (ultima nomina registrata per persona).</span>
     </div>
-    @if (Model.Alerts.Count == 0)
+
+    <div class="grid" style="grid-template-columns: repeat(auto-fit, minmax(320px, 1fr)); gap: var(--s-4);">
+        @foreach (var g in Model.Nomine)
+        {
+            <div class="card" style="padding: var(--s-4); background: var(--c-bg-soft, #faf6ee);">
+                <div class="card__header" style="margin-bottom: var(--s-3);">
+                    <h4 class="card__title" style="font-size:1rem;">@g.Icon @g.Label</h4>
+                    <span class="badge">@g.Totali</span>
+                </div>
+
+                @if (g.Items.Count == 0)
+                {
+                    <p class="muted" style="margin:0; font-size:.85rem;">Nessun addetto designato.</p>
+                }
+                else
+                {
+                    <ul class="list" style="margin:0;">
+                        @foreach (var item in g.Items)
+                        {
+                            <li class="list__item" style="padding: var(--s-2) 0;">
+                                <div>
+                                    <div class="list__title" style="font-size:.9rem;">@item.Nome</div>
+                                    <div class="muted" style="font-size:.78rem;">
+                                        @item.ClinicaNome · @item.Ruolo
+                                        @if (!string.IsNullOrWhiteSpace(item.VerbaleNomina))
+                                        {
+                                            <text> · verb. @item.VerbaleNomina</text>
+                                        }
+                                    </div>
+                                </div>
+                                <div style="text-align:right;">
+                                    <span class="@BadgeFor(item.Stato)"><span class="dot"></span>@LabelFor(item.Stato)</span>
+                                    @if (item.Scadenza.HasValue)
+                                    {
+                                        <div class="muted" style="font-size:.72rem; margin-top:2px;">
+                                            scade @item.Scadenza.Value.ToString("dd/MM/yyyy")
+                                        </div>
+                                    }
+                                </div>
+                            </li>
+                        }
+                    </ul>
+                }
+
+                @if (g.ClinicheSenzaCopertura.Count > 0)
+                {
+                    <div style="margin-top: var(--s-3); padding-top: var(--s-3); border-top: 1px solid rgba(59,30,12,.08);">
+                        <div class="muted" style="font-size:.78rem; margin-bottom: var(--s-2);">
+                            <strong style="color: var(--c-danger, #b8442e);">⚠ Sedi senza addetto:</strong>
+                        </div>
+                        <div style="display:flex; flex-wrap:wrap; gap: 4px;">
+                            @foreach (var nome in g.ClinicheSenzaCopertura)
+                            {
+                                <span class="badge badge--danger"><span class="dot"></span>@nome</span>
+                            }
+                        </div>
+                    </div>
+                }
+            </div>
+        }
+    </div>
+</div>
+
+<!-- ── Corsi in scadenza raggruppati per tipologia ── -->
+<div class="card" style="margin-bottom: var(--s-6);">
+    <div class="card__header">
+        <h3 class="card__title">Corsi in scadenza per tipologia</h3>
+        <span class="muted" style="font-size:.85rem;">
+            Solo corsi scaduti o in scadenza entro 3 mesi. Mostrata l'ultima registrazione per persona.
+        </span>
+    </div>
+
+    @if (Model.CorsiPerTipo.Count == 0)
     {
-        <p style="color: var(--c-ink-soft); margin:0;">Tutto in regola, nessuna scadenza imminente. 🎯</p>
+        <p style="color: var(--c-ink-soft); margin:0;">Nessun corso in scadenza nei prossimi 3 mesi. 🎯</p>
     }
     else
     {
+        @foreach (var g in Model.CorsiPerTipo)
+        {
+            <details open style="margin-bottom: var(--s-3); border: 1px solid rgba(59,30,12,.08); border-radius: 10px;">
+                <summary style="padding: var(--s-3) var(--s-4); cursor:pointer; display:flex; align-items:center; gap: var(--s-3); list-style:none;">
+                    <span style="font-size:1.1rem;">@g.Icon</span>
+                    <strong style="flex:1;">@g.Label</strong>
+                    @if (g.Scaduti > 0)
+                    {
+                        <span class="badge badge--danger"><span class="dot"></span>@g.Scaduti scaduti</span>
+                    }
+                    @if (g.InScadenza > 0)
+                    {
+                        <span class="badge badge--warning"><span class="dot"></span>@g.InScadenza in scadenza</span>
+                    }
+                </summary>
+                <ul class="list" style="margin: 0; padding: 0 var(--s-4) var(--s-3);">
+                    @foreach (var item in g.Items)
+                    {
+                        <li class="list__item">
+                            <div>
+                                <div class="list__title">@item.PersonaNome</div>
+                                <div class="muted" style="font-size:.78rem;">@item.ClinicaNome · @item.Ruolo</div>
+                            </div>
+                            <div class="list__when" style="text-align:right;">
+                                <span class="@BadgeFor(item.Stato)"><span class="dot"></span>@LabelFor(item.Stato)</span>
+                                @if (item.Scadenza.HasValue)
+                                {
+                                    <div class="muted" style="font-size:.72rem; margin-top:2px;">
+                                        @item.Scadenza.Value.ToString("dd/MM/yyyy")
+                                    </div>
+                                }
+                            </div>
+                        </li>
+                    }
+                </ul>
+            </details>
+        }
+    }
+</div>
+
+<!-- ── Alert mix (visite + DVR) ── -->
+@if (Model.Alerts.Count > 0)
+{
+    <div class="card">
+        <div class="card__header">
+            <h3 class="card__title">Altri alert (visite mediche e DVR)</h3>
+            <span class="badge badge--accent">@Model.Alerts.Count totali</span>
+        </div>
         <ul class="list">
             @foreach (var a in Model.Alerts)
             {
@@ -70,10 +207,6 @@
                         @if (a.Kind == "visita")
                         {
                             <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M22 12h-4l-3 9L9 3l-3 9H2"/></svg>
-                        }
-                        else if (a.Kind == "corso")
-                        {
-                            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M22 10v6M2 10l10-5 10 5-10 5z"/><path d="M6 12v5c3 3 9 3 12 0v-5"/></svg>
                         }
                         else
                         {
@@ -97,5 +230,5 @@
                 </li>
             }
         </ul>
-    }
-</div>
+    </div>
+}

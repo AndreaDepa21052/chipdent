@@ -1,7 +1,10 @@
 @model IReadOnlyList<Chipdent.Web.Domain.Entities.Dipendente>
+@using Chipdent.Web.Domain.Entities
 @{
     ViewData["Title"] = "Dipendenti";
     var cliniche = (Dictionary<string, string>?)ViewData["Cliniche"] ?? new();
+    var nomine = (IReadOnlyDictionary<string, HashSet<TipoCorso>>?)ViewData["Nomine"]
+                 ?? new Dictionary<string, HashSet<TipoCorso>>();
 }
 
 <partial name="_Flash" />
@@ -38,6 +41,7 @@ else
                     <th>Ruolo</th>
                     <th>Sede</th>
                     <th>Contratto</th>
+                    <th>Nomine</th>
                     <th>Ferie</th>
                     <th>Stato</th>
                     <th></th>
@@ -54,6 +58,32 @@ else
                         <td>@d.Ruolo</td>
                         <td>@(cliniche.TryGetValue(d.ClinicaId, out var n) ? n : "—")</td>
                         <td>@d.TipoContratto</td>
+                        <td>
+                            @{
+                                var nm = nomine.GetValueOrDefault(d.Id);
+                            }
+                            @if (nm is null || nm.Count == 0)
+                            {
+                                <span class="muted" style="font-size:.75rem;">—</span>
+                            }
+                            else
+                            {
+                                <div style="display:flex; gap:4px; flex-wrap:wrap;">
+                                    @if (nm.Contains(TipoCorso.RLS))
+                                    {
+                                        <span class="badge" title="RLS">🛡 RLS</span>
+                                    }
+                                    @if (nm.Contains(TipoCorso.Antincendio))
+                                    {
+                                        <span class="badge" title="Addetto antincendio">🔥 AI</span>
+                                    }
+                                    @if (nm.Contains(TipoCorso.PrimoSoccorso))
+                                    {
+                                        <span class="badge" title="Addetto primo soccorso">🚑 PS</span>
+                                    }
+                                </div>
+                            }
+                        </td>
                         <td>
                             @d.GiorniFerieResidui gg
                             @if (d.GiorniFerieResidui <= 5)
