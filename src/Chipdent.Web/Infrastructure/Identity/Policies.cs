@@ -7,41 +7,48 @@ namespace Chipdent.Web.Infrastructure.Identity;
 /// Policy di autorizzazione allineate alla mappa funzionale Chipdent
 /// (Management / Direttore / Backoffice / Staff). Owner è una variante tecnica
 /// di Management usata solo per il last-owner-guard del workspace.
+/// PlatformAdmin è un super-utente sopra Owner: vede tutto e gestisce
+/// la visibilità dei menu per gli altri ruoli.
 /// </summary>
 public static class Policies
 {
-    public const string RequireOwner      = nameof(RequireOwner);
-    public const string RequireManagement = nameof(RequireManagement);
-    public const string RequireDirettore  = nameof(RequireDirettore);
-    public const string RequireBackoffice = nameof(RequireBackoffice);
-    public const string RequireFornitore  = nameof(RequireFornitore);
-    public const string RequireTesoreria  = nameof(RequireTesoreria);
+    public const string RequireOwner         = nameof(RequireOwner);
+    public const string RequireManagement    = nameof(RequireManagement);
+    public const string RequireDirettore     = nameof(RequireDirettore);
+    public const string RequireBackoffice    = nameof(RequireBackoffice);
+    public const string RequireFornitore     = nameof(RequireFornitore);
+    public const string RequireTesoreria     = nameof(RequireTesoreria);
+    public const string RequirePlatformAdmin = nameof(RequirePlatformAdmin);
 
     public static class Names
     {
-        public const string Owner      = "Owner";
-        public const string Management = "Management";
-        public const string Direttore  = "Direttore";
-        public const string Backoffice = "Backoffice";
-        public const string Staff      = "Staff";
-        public const string Fornitore  = "Fornitore";
+        public const string Owner         = "Owner";
+        public const string Management    = "Management";
+        public const string Direttore     = "Direttore";
+        public const string Backoffice    = "Backoffice";
+        public const string Staff         = "Staff";
+        public const string Fornitore     = "Fornitore";
+        public const string PlatformAdmin = "PlatformAdmin";
     }
 
     public static void Configure(AuthorizationOptions o)
     {
+        // PlatformAdmin: super-utente, accesso esclusivo al pannello visibilità menu.
+        o.AddPolicy(RequirePlatformAdmin, p => p.RequireRole(Names.PlatformAdmin));
+
         // Owner: amministratore tecnico del workspace (last-owner-guard).
-        o.AddPolicy(RequireOwner,      p => p.RequireRole(Names.Owner));
+        o.AddPolicy(RequireOwner,      p => p.RequireRole(Names.PlatformAdmin, Names.Owner));
 
         // Management: vista direzionale completa (Admin/CEO/COO/HR Director).
-        o.AddPolicy(RequireManagement, p => p.RequireRole(Names.Owner, Names.Management));
+        o.AddPolicy(RequireManagement, p => p.RequireRole(Names.PlatformAdmin, Names.Owner, Names.Management));
 
         // Direttore: operatività di sede (turni, sostituzioni, comunicazioni mgmt).
         // Il Backoffice NON è incluso: non gestisce scheduling.
-        o.AddPolicy(RequireDirettore,  p => p.RequireRole(Names.Owner, Names.Management, Names.Direttore));
+        o.AddPolicy(RequireDirettore,  p => p.RequireRole(Names.PlatformAdmin, Names.Owner, Names.Management, Names.Direttore));
 
         // Backoffice: anagrafiche e compliance (dottori/dipendenti/RLS).
         // Il Direttore è incluso: può gestire le anagrafiche della propria sede.
-        o.AddPolicy(RequireBackoffice, p => p.RequireRole(Names.Owner, Names.Management, Names.Backoffice, Names.Direttore));
+        o.AddPolicy(RequireBackoffice, p => p.RequireRole(Names.PlatformAdmin, Names.Owner, Names.Management, Names.Backoffice, Names.Direttore));
 
         // Fornitore: utente esterno autenticato con accesso al solo portale /fornitori.
         // Non viene MAI incluso nelle altre policy: vede solo i propri dati.
@@ -51,23 +58,28 @@ public static class Policies
         // Le azioni di pagamento (paga/programma/annulla, distinte SEPA, dati bancari)
         // restano Owner-only via [Authorize(Policy = RequireOwner)] puntuale sui metodi.
         // Direttore escluso: la tesoreria è cross-sede.
-        o.AddPolicy(RequireTesoreria, p => p.RequireRole(Names.Owner, Names.Management, Names.Backoffice));
+        o.AddPolicy(RequireTesoreria, p => p.RequireRole(Names.PlatformAdmin, Names.Owner, Names.Management, Names.Backoffice));
     }
 }
 
 public static class UserAccess
 {
+    public static bool IsPlatformAdmin(this ClaimsPrincipal? user) =>
+        user?.IsInRole(Policies.Names.PlatformAdmin) == true;
+
     public static bool IsOwner(this ClaimsPrincipal? user) =>
-        user?.IsInRole(Policies.Names.Owner) == true;
+        user is not null && (user.IsInRole(Policies.Names.Owner) || user.IsPlatformAdmin());
 
     public static bool IsManagement(this ClaimsPrincipal? user) =>
-        user is not null && (user.IsInRole(Policies.Names.Owner) || user.IsInRole(Policies.Names.Management));
+        user is not null && (user.IsInRole(Policies.Names.Owner)
+                             || user.IsInRole(Policies.Names.Management)
+                             || user.IsPlatformAdmin());
 
     public static bool IsDirettore(this ClaimsPrincipal? user) =>
-        user?.IsInRole(Policies.Names.Direttore) == true;
+        user is not null && (user.IsInRole(Policies.Names.Direttore) || user.IsPlatformAdmin());
 
     public static bool IsBackoffice(this ClaimsPrincipal? user) =>
-        user?.IsInRole(Policies.Names.Backoffice) == true;
+        user is not null && (user.IsInRole(Policies.Names.Backoffice) || user.IsPlatformAdmin());
 
     public static bool IsStaff(this ClaimsPrincipal? user) =>
         user?.IsInRole(Policies.Names.Staff) == true;
@@ -76,7 +88,7 @@ public static class UserAccess
         user?.IsInRole(Policies.Names.Fornitore) == true;
 
     /// <summary>
-    /// Vero se l'utente ha visibilità completa su tutto il tenant (Management/Owner).
+    /// Vero se l'utente ha visibilità completa su tutto il tenant (Management/Owner/PlatformAdmin).
     /// Direttore, Backoffice e Staff sono sempre limitati al proprio scope.
     /// </summary>
     public static bool HasFullTenantAccess(this ClaimsPrincipal? user) => user.IsManagement();

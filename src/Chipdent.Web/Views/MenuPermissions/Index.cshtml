@@ -1,0 +1,100 @@
+@model Chipdent.Web.Models.MenuPermissionsViewModel
+@{
+    ViewData["Title"] = "Permessi menu";
+    ViewData["Section"] = "menu-permessi";
+
+    string RoleLabel(string role) => role switch
+    {
+        "Owner"      => "Owner",
+        "Management" => "Management",
+        "Direttore"  => "Direttore",
+        "Backoffice" => "Backoffice",
+        "Staff"      => "Staff",
+        _ => role
+    };
+}
+
+@if (!string.IsNullOrEmpty(Model.Flash))
+{
+    <div class="flash flash--ok" style="margin-bottom: var(--s-3);">@Model.Flash</div>
+}
+
+<div class="page-head">
+    <div>
+        <h2>Permessi menu</h2>
+        <p class="page-head__sub">
+            Decidi quali sezioni della sidebar sono visibili a ciascun ruolo. Le scelte sono globali su tutto il workspace.
+            L'amministratore di piattaforma vede sempre tutto e non è configurabile.
+        </p>
+    </div>
+</div>
+
+<form method="post" asp-action="Save">
+    @Html.AntiForgeryToken()
+
+    @foreach (var group in Model.Groups)
+    {
+        <div class="card" style="margin-bottom: var(--s-4);">
+            <div class="card__header" style="display:flex; align-items:center; justify-content:space-between;">
+                <h3 class="card__title">@group.Label</h3>
+                <span class="muted" style="font-size: 0.8rem;">@group.Sections.Count voci</span>
+            </div>
+            <div style="padding: var(--s-3) 0; overflow-x: auto;">
+                <table class="table" style="width:100%; border-collapse: collapse;">
+                    <thead>
+                        <tr>
+                            <th style="text-align:left; padding: 8px 12px; border-bottom:1px solid var(--c-border, #e9e1d3);">Sezione</th>
+                            @foreach (var role in Model.Roles)
+                            {
+                                <th style="text-align:center; padding: 8px 12px; border-bottom:1px solid var(--c-border, #e9e1d3); min-width: 100px;">
+                                    @RoleLabel(role)
+                                </th>
+                            }
+                        </tr>
+                    </thead>
+                    <tbody>
+                        @foreach (var sec in group.Sections)
+                        {
+                            <tr>
+                                <td style="padding: 8px 12px; border-bottom:1px solid var(--c-bg-soft, #faf6f0);">
+                                    <strong>@sec.Label</strong>
+                                    <div class="muted" style="font-size: 0.75rem; font-family: 'JetBrains Mono', monospace;">@sec.Slug</div>
+                                </td>
+                                @foreach (var role in Model.Roles)
+                                {
+                                    var visible = !Model.IsHidden(role, sec.Slug);
+                                    <td style="text-align:center; padding: 8px 12px; border-bottom:1px solid var(--c-bg-soft, #faf6f0);">
+                                        <input type="checkbox"
+                                               name="visible[@role][@sec.Slug]"
+                                               value="1"
+                                               @(visible ? "checked" : "") />
+                                    </td>
+                                }
+                            </tr>
+                        }
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    }
+
+    <div class="form-actions" style="position: sticky; bottom: 0; background: var(--c-bg, #fff); padding: var(--s-3) 0; border-top: 1px solid var(--c-border, #e9e1d3); display:flex; gap: var(--s-2);">
+        <button type="submit" class="btn btn--primary">Salva permessi menu</button>
+        <a asp-action="Index" class="btn btn--ghost">Annulla</a>
+    </div>
+</form>
+
+<script>
+    // Helper: doppio click sull'header colonna ruolo per attivare/disattivare tutto.
+    (function () {
+        var headers = document.querySelectorAll('thead th[data-role]');
+        headers.forEach(function (h) {
+            h.addEventListener('dblclick', function () {
+                var role = h.dataset.role;
+                var checks = document.querySelectorAll('input[name^="visible[' + role + ']"]');
+                var allOn = Array.from(checks).every(function (c) { return c.checked; });
+                checks.forEach(function (c) { c.checked = !allOn; });
+            });
+        });
+    })();
+</script>

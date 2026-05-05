@@ -5,7 +5,6 @@ namespace Chipdent.Web.Models;
 public class LoginViewModel
 {
     [Required(ErrorMessage = "Email obbligatoria")]
-    [EmailAddress(ErrorMessage = "Email non valida")]
     [Display(Name = "Email")]
     public string Email { get; set; } = string.Empty;
 

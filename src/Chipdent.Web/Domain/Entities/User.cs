@@ -45,7 +45,12 @@ public enum UserRole
     Backoffice = 10,
     Direttore = 20,
     Management = 30,
-    Owner = 99
+    Owner = 99,
+    /// <summary>
+    /// Amministratore di piattaforma: vede tutti i menu e gestisce le visibilità
+    /// dei menu per ciascun ruolo. Sopra a Owner.
+    /// </summary>
+    PlatformAdmin = 100
 }
 
 public enum LinkedPersonType

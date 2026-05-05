@@ -48,6 +48,33 @@ public static class MongoSeeder
                 logger.LogInformation("Seeded owner user {Email}", ownerEmail);
             }
 
+            // Amministratore di piattaforma: super-utente sopra Owner. Vede tutti i menu
+            // e può configurare la visibilità dei menu per gli altri ruoli.
+            const string platformAdminEmail = "depa";
+            var platformAdmin = await ctx.Users.Find(u => u.Email == platformAdminEmail).FirstOrDefaultAsync(ct);
+            if (platformAdmin is null)
+            {
+                platformAdmin = new User
+                {
+                    TenantId = tenant.Id,
+                    Email = platformAdminEmail,
+                    PasswordHash = hasher.Hash("depa.123"),
+                    FullName = "Amministratore di piattaforma",
+                    Role = UserRole.PlatformAdmin,
+                    IsActive = true
+                };
+                await ctx.Users.InsertOneAsync(platformAdmin, cancellationToken: ct);
+                logger.LogInformation("Seeded platform admin user {Email}", platformAdminEmail);
+            }
+            else if (platformAdmin.Role != UserRole.PlatformAdmin)
+            {
+                await ctx.Users.UpdateOneAsync(
+                    u => u.Id == platformAdmin.Id,
+                    Builders<User>.Update.Set(u => u.Role, UserRole.PlatformAdmin),
+                    cancellationToken: ct);
+                logger.LogInformation("Promoted user {Email} to PlatformAdmin", platformAdminEmail);
+            }
+
             // Migrazione one-shot: rimuove le 3 cliniche demo storiche (Confident Milano Centro / Roma EUR / Torino)
             // così che la rete reale Confident (14 sedi Lombardia) venga seedata al primo avvio successivo.
             var legacyNames = new[] { "Confident Milano Centro", "Confident Roma EUR", "Confident Torino" };

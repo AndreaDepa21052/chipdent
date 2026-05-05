@@ -25,6 +25,7 @@ builder.Services.AddSingleton<Chipdent.Web.Infrastructure.Insights.OcrScadenzeEx
 builder.Services.AddScoped<Chipdent.Web.Infrastructure.Audit.IAuditService, Chipdent.Web.Infrastructure.Audit.AuditService>();
 builder.Services.AddScoped<Chipdent.Web.Infrastructure.Sepa.FornitoreOmbraService>();
 builder.Services.AddScoped<Chipdent.Web.Infrastructure.Cashflow.CashflowForecaster>();
+builder.Services.AddScoped<Chipdent.Web.Services.IMenuVisibilityService, Chipdent.Web.Services.MongoMenuVisibilityService>();
 
 builder.Services
     .AddAuthentication(CookieAuthenticationDefaults.AuthenticationScheme)

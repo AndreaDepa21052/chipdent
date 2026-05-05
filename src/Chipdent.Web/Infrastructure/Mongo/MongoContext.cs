@@ -74,4 +74,5 @@ public class MongoContext
     public IMongoCollection<IscrizioneRentri> Rentri => Database.GetCollection<IscrizioneRentri>("rentri");
     public IMongoCollection<ProtocolloClinica> ProtocolliClinica => Database.GetCollection<ProtocolloClinica>("protocolliClinica");
     public IMongoCollection<InterventoClinica> InterventiClinica => Database.GetCollection<InterventoClinica>("interventiClinica");
+    public IMongoCollection<MenuVisibility> MenuVisibilities => Database.GetCollection<MenuVisibility>("menuVisibilities");
 }
