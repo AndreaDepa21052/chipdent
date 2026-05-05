@@ -1,6 +1,7 @@
 using Chipdent.Web.Domain.Entities;
 using Chipdent.Web.Infrastructure.Identity;
 using Chipdent.Web.Infrastructure.Mongo;
+using Chipdent.Web.Infrastructure.Rls;
 using Chipdent.Web.Infrastructure.Tenancy;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
@@ -106,12 +107,50 @@ public class ClinicheController : Controller
             .Find(i => i.TenantId == _tenant.TenantId && i.ClinicaId == id)
             .ToListAsync();
 
+        // ── RLS / sicurezza per la sede ─────────────────────────────
+        var dipendentiIds = dipendenti.Select(d => d.Id).ToHashSet();
+        var dottoriIds = dottori.Select(d => d.Id).ToHashSet();
+        var corsi = await _mongo.Corsi
+            .Find(c => c.TenantId == _tenant.TenantId
+                && ((c.DestinatarioTipo == DestinatarioCorso.Dipendente && dipendentiIds.Contains(c.DestinatarioId))
+                    || (c.DestinatarioTipo == DestinatarioCorso.Dottore && dottoriIds.Contains(c.DestinatarioId))
+                    || (c.DestinatarioTipo == DestinatarioCorso.Clinica && c.DestinatarioId == id)))
+            .ToListAsync();
+        var visiteSede = await _mongo.VisiteMediche
+            .Find(v => v.TenantId == _tenant.TenantId && dipendentiIds.Contains(v.DipendenteId))
+            .ToListAsync();
+        var dvrSede = await _mongo.DVRs
+            .Find(d => d.TenantId == _tenant.TenantId && d.ClinicaId == id)
+            .SortByDescending(d => d.DataApprovazione)
+            .ToListAsync();
+
+        var allCliniche = await _mongo.Cliniche
+            .Find(c => c.TenantId == _tenant.TenantId).ToListAsync();
+        var now = DateTime.UtcNow;
+        var soon = now.AddMonths(3);
+        var nomineSede = RlsAggregator.Nomine(
+            corsi,
+            dipendenti.ToDictionary(d => d.Id),
+            dottori.ToDictionary(d => d.Id),
+            allCliniche.ToDictionary(c => c.Id),
+            now, soon, clinicaFilter: id);
+        var corsiSede = RlsAggregator.CorsiInScadenzaPerTipo(
+            corsi,
+            dipendenti.ToDictionary(d => d.Id),
+            dottori.ToDictionary(d => d.Id),
+            allCliniche.ToDictionary(c => c.Id),
+            now, soon, clinicaFilter: id);
+
         ViewData["Section"] = "cliniche";
         ViewData["Dottori"] = dottori;
         ViewData["Dipendenti"] = dipendenti;
         ViewData["Rentri"] = rentri;
         ViewData["Protocolli"] = protocolli;
         ViewData["Interventi"] = interventi;
+        ViewData["NomineRls"] = nomineSede;
+        ViewData["CorsiRls"] = corsiSede;
+        ViewData["VisiteRls"] = visiteSede;
+        ViewData["DvrRls"] = dvrSede;
         return View(clinica);
     }
 

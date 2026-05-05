@@ -1,6 +1,7 @@
 using Chipdent.Web.Domain.Entities;
 using Chipdent.Web.Infrastructure.Identity;
 using Chipdent.Web.Infrastructure.Mongo;
+using Chipdent.Web.Infrastructure.Rls;
 using Chipdent.Web.Infrastructure.Tenancy;
 using Chipdent.Web.Models;
 using Microsoft.AspNetCore.Authorization;
@@ -34,37 +35,32 @@ public class RlsController : Controller
         var visite = await _mongo.VisiteMediche.Find(v => v.TenantId == tid).ToListAsync();
         var corsi = await _mongo.Corsi.Find(c => c.TenantId == tid).ToListAsync();
         var dvr = await _mongo.DVRs.Find(d => d.TenantId == tid).ToListAsync();
-        var dipLookup = (await _mongo.Dipendenti.Find(d => d.TenantId == tid).ToListAsync())
-            .ToDictionary(d => d.Id, d => d.NomeCompleto);
-        var dotLookup = (await _mongo.Dottori.Find(d => d.TenantId == tid).ToListAsync())
-            .ToDictionary(d => d.Id, d => d.NomeCompleto);
-        var clinLookup = (await _mongo.Cliniche.Find(c => c.TenantId == tid).ToListAsync())
-            .ToDictionary(c => c.Id, c => c.Nome);
+        var dipendenti = await _mongo.Dipendenti.Find(d => d.TenantId == tid).ToListAsync();
+        var dottori = await _mongo.Dottori.Find(d => d.TenantId == tid).ToListAsync();
+        var cliniche = await _mongo.Cliniche.Find(c => c.TenantId == tid).ToListAsync();
+
+        var dipLookup = dipendenti.ToDictionary(d => d.Id);
+        var dotLookup = dottori.ToDictionary(d => d.Id);
+        var clinLookup = cliniche.ToDictionary(c => c.Id);
+        var dipNameLookup = dipendenti.ToDictionary(d => d.Id, d => d.NomeCompleto);
+        var clinNameLookup = cliniche.ToDictionary(c => c.Id, c => c.Nome);
 
         var alerts = new List<RlsAlertItem>();
         foreach (var v in visite.Where(v => v.ScadenzaIdoneita is not null && v.ScadenzaIdoneita < soon))
         {
-            var name = dipLookup.GetValueOrDefault(v.DipendenteId, "—");
+            var name = dipNameLookup.GetValueOrDefault(v.DipendenteId, "—");
             var sev = v.ScadenzaIdoneita < now ? "danger" : "warning";
             alerts.Add(new RlsAlertItem("visita", $"Idoneità {name}", $"scade il {v.ScadenzaIdoneita:dd/MM/yyyy}", v.ScadenzaIdoneita, sev));
         }
-        foreach (var c in corsi.Where(c => c.Scadenza is not null && c.Scadenza < soon))
-        {
-            var name = c.DestinatarioTipo switch
-            {
-                DestinatarioCorso.Dottore => dotLookup.GetValueOrDefault(c.DestinatarioId, "—"),
-                DestinatarioCorso.Dipendente => dipLookup.GetValueOrDefault(c.DestinatarioId, "—"),
-                _ => clinLookup.GetValueOrDefault(c.DestinatarioId, "—")
-            };
-            var sev = c.Scadenza < now ? "danger" : "warning";
-            alerts.Add(new RlsAlertItem("corso", $"{c.Tipo} — {name}", $"scade il {c.Scadenza:dd/MM/yyyy}", c.Scadenza, sev));
-        }
         foreach (var d in dvr.Where(d => d.ProssimaRevisione is not null && d.ProssimaRevisione < soon))
         {
-            var name = clinLookup.GetValueOrDefault(d.ClinicaId, "—");
+            var name = clinNameLookup.GetValueOrDefault(d.ClinicaId, "—");
             var sev = d.ProssimaRevisione < now ? "danger" : "warning";
             alerts.Add(new RlsAlertItem("dvr", $"DVR {name} v{d.Versione}", $"revisione entro {d.ProssimaRevisione:dd/MM/yyyy}", d.ProssimaRevisione, sev));
         }
+
+        var nomine = RlsAggregator.Nomine(corsi, dipLookup, dotLookup, clinLookup, now, soon);
+        var corsiPerTipo = RlsAggregator.CorsiInScadenzaPerTipo(corsi, dipLookup, dotLookup, clinLookup, now, soon);
 
         ViewData["Section"] = "rls";
         return View(new RlsOverviewViewModel
@@ -75,7 +71,9 @@ public class RlsController : Controller
             CorsiScaduti = corsi.Count(c => c.Scadenza < now),
             DvrInScadenza = dvr.Count(d => d.ProssimaRevisione is not null && d.ProssimaRevisione < soon),
             DvrDaApprovare = dvr.Count(d => d.Stato == StatoDVR.Bozza || d.Stato == StatoDVR.DaRivedere),
-            Alerts = alerts.OrderBy(a => a.Quando).ToList()
+            Alerts = alerts.OrderBy(a => a.Quando).ToList(),
+            Nomine = nomine,
+            CorsiPerTipo = corsiPerTipo
         });
     }
 

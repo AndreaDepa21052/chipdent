@@ -1,5 +1,6 @@
 @model Chipdent.Web.Domain.Entities.Clinica
 @using Chipdent.Web.Domain.Entities
+@using Chipdent.Web.Infrastructure.Rls
 @{
     ViewData["Title"] = Model.Nome;
     var dottori = (List<Dottore>?)ViewData["Dottori"] ?? new();
@@ -7,10 +8,35 @@
     var rentri = ViewData["Rentri"] as IscrizioneRentri;
     var protocolli = (List<ProtocolloClinica>?)ViewData["Protocolli"] ?? new();
     var interventi = (List<InterventoClinica>?)ViewData["Interventi"] ?? new();
+    var nomineRls = (IReadOnlyList<NomineGroup>?)ViewData["NomineRls"] ?? Array.Empty<NomineGroup>();
+    var corsiRls = (IReadOnlyList<CorsiPerTipoGroup>?)ViewData["CorsiRls"] ?? Array.Empty<CorsiPerTipoGroup>();
+    var visiteRls = (List<VisitaMedica>?)ViewData["VisiteRls"] ?? new();
+    var dvrRls = (List<DVR>?)ViewData["DvrRls"] ?? new();
     var oggi = DateTime.UtcNow.Date;
+    var oggiUtc = DateTime.UtcNow;
+    var sogliaRls = oggiUtc.AddMonths(3);
     var sezDef = Chipdent.Web.Controllers.CalendarioInterventiController.SezioniDef;
     var queryTab = Context.Request.Query["tab"].ToString();
     var activeTab = string.IsNullOrEmpty(queryTab) ? "anagrafica" : queryTab;
+
+    string BadgeForRls(StatoCompliance s) => s switch
+    {
+        StatoCompliance.InRegola => "badge badge--success",
+        StatoCompliance.InScadenza => "badge badge--warning",
+        StatoCompliance.Scaduto => "badge badge--danger",
+        _ => "badge"
+    };
+    string LabelForRls(StatoCompliance s) => s switch
+    {
+        StatoCompliance.InRegola => "in regola",
+        StatoCompliance.InScadenza => "in scadenza",
+        StatoCompliance.Scaduto => "scaduto",
+        _ => "—"
+    };
+
+    int TotaliNomine = nomineRls.Sum(n => n.Items.Count);
+    int CorsiCriticIRls = corsiRls.Sum(g => g.Scaduti + g.InScadenza);
+    int VisiteCriticIRls = visiteRls.Count(v => v.ScadenzaIdoneita.HasValue && v.ScadenzaIdoneita < sogliaRls);
 }
 
 <partial name="_Flash" />
@@ -31,6 +57,7 @@
 <div class="tabs" data-clinica-tabs style="margin-bottom: var(--s-5);">
     <a class="tab @(activeTab == "anagrafica" ? "is-active" : "")"  href="#" data-tab="anagrafica">Anagrafica &amp; team</a>
     <a class="tab @(activeTab == "compliance" ? "is-active" : "")"  href="#" data-tab="compliance">RENTRI &amp; protocolli</a>
+    <a class="tab @(activeTab == "rls" ? "is-active" : "")"  href="#" data-tab="rls">🛡 RLS / Sicurezza @if (CorsiCriticIRls + VisiteCriticIRls > 0) { <span class="tab__count">@(CorsiCriticIRls + VisiteCriticIRls)</span> }</a>
     <a class="tab @(activeTab == "interventi" ? "is-active" : "")"  href="#" data-tab="interventi">🛠️ Calendario interventi <span class="tab__count">@interventi.Count(i => i.ProssimaScadenza != null && i.ProssimaScadenza.Value.Date >= oggi && i.ProssimaScadenza.Value.Date <= oggi.AddDays(60))</span></a>
 </div>
 
@@ -240,6 +267,225 @@
     </div>
 </div>
 </section><!-- /tab compliance -->
+
+<section data-tab-pane="rls" style="@(activeTab == "rls" ? "" : "display:none;")">
+    <div class="grid grid--stats" style="margin-bottom: var(--s-5);">
+        <div class="stat">
+            <div class="stat__label">Addetti designati</div>
+            <div class="stat__value">@TotaliNomine</div>
+            <div class="stat__hint">RLS, antincendio, primo soccorso</div>
+        </div>
+        <div class="stat">
+            <div class="stat__label">Corsi critici</div>
+            <div class="stat__value">@CorsiCriticIRls</div>
+            <div class="stat__hint">scaduti o in scadenza ≤ 3 mesi</div>
+        </div>
+        <div class="stat">
+            <div class="stat__label">Visite mediche critiche</div>
+            <div class="stat__value">@VisiteCriticIRls</div>
+            <div class="stat__hint">idoneità in scadenza ≤ 3 mesi</div>
+        </div>
+        <div class="stat">
+            <div class="stat__label">DVR</div>
+            <div class="stat__value">@dvrRls.Count</div>
+            <div class="stat__hint">
+                @{
+                    var dvrAttivo = dvrRls.FirstOrDefault();
+                }
+                @if (dvrAttivo is null)
+                {
+                    <text>nessun DVR registrato</text>
+                }
+                else
+                {
+                    <text>v@(dvrAttivo.Versione) · @dvrAttivo.Stato</text>
+                }
+            </div>
+        </div>
+    </div>
+
+    <!-- Nomine designate per la sede -->
+    <div class="card" style="margin-bottom: var(--s-5);">
+        <div class="card__header">
+            <h3 class="card__title">Nomine designate</h3>
+            <a class="btn btn--ghost btn--sm" asp-controller="Rls" asp-action="Corsi">Gestisci nel modulo RLS →</a>
+        </div>
+
+        <div class="grid" style="grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: var(--s-4);">
+            @foreach (var g in nomineRls)
+            {
+                <div style="padding: var(--s-3); border: 1px solid rgba(59,30,12,.08); border-radius: 10px;">
+                    <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom: var(--s-2);">
+                        <strong>@g.Icon @g.Label</strong>
+                        @if (g.Items.Count == 0)
+                        {
+                            <span class="badge badge--danger"><span class="dot"></span>nessun addetto</span>
+                        }
+                        else
+                        {
+                            <span class="badge">@g.Items.Count</span>
+                        }
+                    </div>
+                    @if (g.Items.Count == 0)
+                    {
+                        <p class="muted" style="margin:0; font-size:.82rem;">Designare un addetto per questa tipologia.</p>
+                    }
+                    else
+                    {
+                        <ul class="list" style="margin:0;">
+                            @foreach (var item in g.Items)
+                            {
+                                <li class="list__item" style="padding: var(--s-2) 0;">
+                                    <div>
+                                        <div class="list__title" style="font-size:.9rem;">@item.Nome</div>
+                                        <div class="muted" style="font-size:.78rem;">@item.Ruolo
+                                            @if (!string.IsNullOrWhiteSpace(item.VerbaleNomina))
+                                            {
+                                                <text> · verb. @item.VerbaleNomina</text>
+                                            }
+                                        </div>
+                                    </div>
+                                    <div style="text-align:right;">
+                                        <span class="@BadgeForRls(item.Stato)"><span class="dot"></span>@LabelForRls(item.Stato)</span>
+                                        @if (item.Scadenza.HasValue)
+                                        {
+                                            <div class="muted" style="font-size:.72rem; margin-top:2px;">@item.Scadenza.Value.ToString("dd/MM/yyyy")</div>
+                                        }
+                                    </div>
+                                </li>
+                            }
+                        </ul>
+                    }
+                </div>
+            }
+        </div>
+    </div>
+
+    <!-- Corsi in scadenza per il personale di sede -->
+    <div class="card" style="margin-bottom: var(--s-5);">
+        <div class="card__header">
+            <h3 class="card__title">Corsi del personale di sede in scadenza</h3>
+            <span class="muted" style="font-size:.85rem;">Personale assegnato a questa sede.</span>
+        </div>
+        @if (corsiRls.Count == 0)
+        {
+            <p style="color: var(--c-ink-soft); margin:0;">Nessun corso in scadenza nei prossimi 3 mesi. 🎯</p>
+        }
+        else
+        {
+            @foreach (var g in corsiRls)
+            {
+                <details open style="margin-bottom: var(--s-3); border: 1px solid rgba(59,30,12,.08); border-radius: 10px;">
+                    <summary style="padding: var(--s-3) var(--s-4); cursor:pointer; display:flex; align-items:center; gap: var(--s-3); list-style:none;">
+                        <span style="font-size:1.05rem;">@g.Icon</span>
+                        <strong style="flex:1;">@g.Label</strong>
+                        @if (g.Scaduti > 0)
+                        {
+                            <span class="badge badge--danger"><span class="dot"></span>@g.Scaduti scaduti</span>
+                        }
+                        @if (g.InScadenza > 0)
+                        {
+                            <span class="badge badge--warning"><span class="dot"></span>@g.InScadenza in scadenza</span>
+                        }
+                    </summary>
+                    <ul class="list" style="margin: 0; padding: 0 var(--s-4) var(--s-3);">
+                        @foreach (var item in g.Items)
+                        {
+                            <li class="list__item">
+                                <div>
+                                    <div class="list__title">@item.PersonaNome</div>
+                                    <div class="muted" style="font-size:.78rem;">@item.Ruolo</div>
+                                </div>
+                                <div class="list__when" style="text-align:right;">
+                                    <span class="@BadgeForRls(item.Stato)"><span class="dot"></span>@LabelForRls(item.Stato)</span>
+                                    @if (item.Scadenza.HasValue)
+                                    {
+                                        <div class="muted" style="font-size:.72rem; margin-top:2px;">@item.Scadenza.Value.ToString("dd/MM/yyyy")</div>
+                                    }
+                                </div>
+                            </li>
+                        }
+                    </ul>
+                </details>
+            }
+        }
+    </div>
+
+    <!-- Visite mediche del personale di sede -->
+    <div class="card" style="margin-bottom: var(--s-5);">
+        <div class="card__header">
+            <h3 class="card__title">Visite mediche del personale di sede</h3>
+            <span class="muted" style="font-size:.85rem;">Solo dipendenti con idoneità in scadenza.</span>
+        </div>
+        @{
+            var visiteCritiche = visiteRls
+                .Where(v => v.ScadenzaIdoneita.HasValue && v.ScadenzaIdoneita < sogliaRls)
+                .OrderBy(v => v.ScadenzaIdoneita)
+                .ToList();
+            var dipMap = dipendenti.ToDictionary(d => d.Id, d => d.NomeCompleto);
+        }
+        @if (visiteCritiche.Count == 0)
+        {
+            <p class="muted" style="margin:0;">Nessuna visita medica in scadenza nei prossimi 3 mesi.</p>
+        }
+        else
+        {
+            <ul class="list" style="margin:0;">
+                @foreach (var v in visiteCritiche)
+                {
+                    var stato = RlsAggregator.ComputeStato(v.ScadenzaIdoneita, oggiUtc, sogliaRls);
+                    <li class="list__item">
+                        <div>
+                            <div class="list__title">@(dipMap.GetValueOrDefault(v.DipendenteId, "—"))</div>
+                            <div class="muted" style="font-size:.78rem;">esito @v.Esito</div>
+                        </div>
+                        <div class="list__when" style="text-align:right;">
+                            <span class="@BadgeForRls(stato)"><span class="dot"></span>@LabelForRls(stato)</span>
+                            @if (v.ScadenzaIdoneita.HasValue)
+                            {
+                                <div class="muted" style="font-size:.72rem; margin-top:2px;">@v.ScadenzaIdoneita.Value.ToString("dd/MM/yyyy")</div>
+                            }
+                        </div>
+                    </li>
+                }
+            </ul>
+        }
+    </div>
+
+    <!-- DVR -->
+    <div class="card">
+        <div class="card__header">
+            <h3 class="card__title">DVR di sede</h3>
+            <a class="btn btn--ghost btn--sm" asp-controller="Rls" asp-action="Dvr">Gestisci DVR →</a>
+        </div>
+        @if (dvrRls.Count == 0)
+        {
+            <p class="muted" style="margin:0;">Nessun DVR registrato per questa sede.</p>
+        }
+        else
+        {
+            <ul class="list" style="margin:0;">
+                @foreach (var d in dvrRls)
+                {
+                    var statoDvr = RlsAggregator.ComputeStato(d.ProssimaRevisione, oggiUtc, sogliaRls);
+                    <li class="list__item">
+                        <div>
+                            <div class="list__title">DVR v@(d.Versione)</div>
+                            <div class="muted" style="font-size:.78rem;">approvato il @d.DataApprovazione.ToString("dd/MM/yyyy") · stato @d.Stato</div>
+                        </div>
+                        <div class="list__when" style="text-align:right;">
+                            <span class="@BadgeForRls(statoDvr)"><span class="dot"></span>@LabelForRls(statoDvr)</span>
+                            @if (d.ProssimaRevisione.HasValue)
+                            {
+                                <div class="muted" style="font-size:.72rem; margin-top:2px;">prossima @d.ProssimaRevisione.Value.ToString("dd/MM/yyyy")</div>
+                            }
+                        </div>
+                    </li>
+                }
+            </ul>
+        }
+    </div>
+</section><!-- /tab rls -->
 
 <section data-tab-pane="interventi" style="@(activeTab == "interventi" ? "" : "display:none;")">
     <div class="card">
