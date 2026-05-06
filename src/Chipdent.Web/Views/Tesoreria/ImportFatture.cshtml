@@ -1,0 +1,270 @@
+@model Chipdent.Web.Models.ImportFattureIndexViewModel
+@using System.Globalization
+@{
+    ViewData["Title"] = "Importa fatture passive";
+    ViewData["Crumb"] = "Tesoreria";
+    var it = new CultureInfo("it-IT");
+    var err = TempData["flash-err"] as string;
+}
+
+<partial name="_Flash" />
+@if (!string.IsNullOrEmpty(err))
+{
+    <div class="alert alert--danger" data-auto-dismiss="6000">@err</div>
+}
+
+<div class="page-head">
+    <div>
+        <h2>📥 Importa file fatture passive</h2>
+        <p class="page-head__sub">
+            Carica il file <strong>Scadenziario_Tina.xlsx</strong> (con i fogli <em>CCH</em> e <em>Ident</em>),
+            oppure i due CSV mensili <em>CCH_*.csv</em> e <em>Ident_*.csv</em>.
+            I caricamenti sono <strong>append-only</strong>: nessun batch viene mai sovrascritto o cancellato.
+        </p>
+    </div>
+    <div class="page-head__actions">
+        <a class="btn btn--ghost" asp-action="Index">← Tesoreria</a>
+    </div>
+</div>
+
+<style>
+    .imp-grid { display:grid; grid-template-columns: 1.4fr 1fr; gap:18px; align-items:start; }
+    @@media (max-width: 1000px) { .imp-grid { grid-template-columns: 1fr; } }
+
+    .imp-drop {
+        border: 2px dashed var(--c-accent, #c47830);
+        border-radius: 14px;
+        padding: 28px 22px;
+        text-align: center;
+        background: linear-gradient(180deg, #fffaf0 0%, #fff6e2 100%);
+        transition: background .15s, border-color .15s, transform .15s;
+        cursor: pointer;
+        min-height: 200px;
+        display:flex; flex-direction:column; align-items:center; justify-content:center; gap:10px;
+    }
+    .imp-drop.is-hover { background:#fff1d0; border-color:#3b1e0c; transform: scale(1.005); }
+    .imp-drop input[type=file] { display:none; }
+    .imp-drop__icon { font-size:36px; }
+    .imp-drop__hint { color: var(--c-ink-soft, #7a5c3a); font-size:.9rem; }
+    .imp-files { margin-top: 14px; }
+    .imp-files__row {
+        display:flex; align-items:center; gap:10px; padding:8px 12px;
+        background:#f5e8d0; border-radius:8px; margin-bottom:6px; font-size:.92rem;
+    }
+    .imp-files__row .badge { background:#3b1e0c; color:#fff; border-radius:6px; padding:2px 8px; font-size:.75rem; }
+    .imp-files__row .rm { margin-left:auto; cursor:pointer; color:#a33; font-weight:700; }
+    .imp-stats { display:grid; grid-template-columns: repeat(4, minmax(0,1fr)); gap:10px; margin-bottom:18px; }
+    .imp-kpi { background:#fff; border:1px solid #e9dcc1; border-radius:10px; padding:12px 14px; }
+    .imp-kpi .lbl { font-size:.72rem; text-transform:uppercase; letter-spacing:.5px; color:#7a5c3a; }
+    .imp-kpi .val { font-size:1.5rem; font-weight:700; color:#3b1e0c; }
+    .imp-step { display:flex; gap:10px; align-items:flex-start; margin-bottom:10px; }
+    .imp-step__n { width:26px; height:26px; border-radius:50%; background:#c47830; color:#fff; display:flex; align-items:center; justify-content:center; font-weight:700; flex-shrink:0; font-size:.85rem; }
+    .imp-step__text { font-size:.92rem; color:#3b1e0c; line-height:1.45; }
+    .table-batch tbody tr:hover { background:#fff7e8; cursor:pointer; }
+    .pill { display:inline-block; padding:2px 9px; border-radius:99px; font-size:.72rem; font-weight:600; }
+    .pill--ok { background:#d6f5dc; color:#1a6b32; }
+    .pill--warn { background:#fbe5b8; color:#7a4a00; }
+    .pill--err { background:#fcd9d9; color:#9a1c1c; }
+    .pill--type { background:#e7e0f5; color:#473780; }
+</style>
+
+<div class="imp-stats">
+    <div class="imp-kpi"><div class="lbl">Caricamenti</div><div class="val">@Model.TotaleBatch</div></div>
+    <div class="imp-kpi"><div class="lbl">Righe totali</div><div class="val">@Model.TotaleRighe.ToString("N0", it)</div></div>
+    <div class="imp-kpi"><div class="lbl">Righe con errori</div><div class="val">@Model.TotaleRigheConErrore.ToString("N0", it)</div></div>
+    <div class="imp-kpi">
+        <div class="lbl">Ultimo</div>
+        <div class="val" style="font-size:1rem;">
+            @(Model.UltimoCaricamento.HasValue
+                ? Model.UltimoCaricamento.Value.ToLocalTime().ToString("dd/MM/yyyy HH:mm")
+                : "—")
+        </div>
+    </div>
+</div>
+
+<div class="imp-grid">
+    <div class="card">
+        <h3 style="margin-top:0;">Nuovo caricamento</h3>
+        <form id="impForm" asp-action="ImportFatturePost" method="post" enctype="multipart/form-data">
+            @Html.AntiForgeryToken()
+            <label id="impDrop" class="imp-drop" for="impFiles">
+                <div class="imp-drop__icon">📄</div>
+                <div><strong>Trascina qui i file</strong> o clicca per selezionare</div>
+                <div class="imp-drop__hint">
+                    Accetta <code>.xlsx</code> (1 file) oppure <code>.csv</code> (uno o due file).<br>
+                    Max 25 MB totali.
+                </div>
+                <input id="impFiles" name="files" type="file" multiple accept=".xlsx,.csv">
+            </label>
+
+            <div id="impFiles__list" class="imp-files"></div>
+
+            <div style="margin-top:14px;">
+                <label for="impNote" style="font-size:.82rem; color:#7a5c3a;">Nota (facoltativa)</label>
+                <input id="impNote" name="note" type="text" maxlength="200"
+                       placeholder="es. Marzo 2026 — chiusura mese"
+                       style="width:100%; margin-top:4px; padding:8px 10px; border:1px solid #e9dcc1; border-radius:8px;">
+            </div>
+
+            <div style="margin-top:16px; display:flex; gap:10px; align-items:center;">
+                <button id="impSubmit" type="submit" class="btn btn--primary" disabled>
+                    📥 Avvia importazione
+                </button>
+                <span id="impHint" class="muted" style="font-size:.85rem;">Seleziona almeno un file per procedere.</span>
+            </div>
+        </form>
+    </div>
+
+    <div class="card">
+        <h3 style="margin-top:0;">Come funziona</h3>
+        <div class="imp-step">
+            <div class="imp-step__n">1</div>
+            <div class="imp-step__text">Carica un <strong>XLSX</strong> a 2 fogli (CCH + Ident) <em>oppure</em> uno o due <strong>CSV</strong>.</div>
+        </div>
+        <div class="imp-step">
+            <div class="imp-step__n">2</div>
+            <div class="imp-step__text">Il sistema riconosce automaticamente la sezione (CCH / Ident) leggendo l'header e il nome del file.</div>
+        </div>
+        <div class="imp-step">
+            <div class="imp-step__n">3</div>
+            <div class="imp-step__text">Vedi la sintesi del batch e il dettaglio riga-per-riga. Le righe con dati mancanti o non parsabili sono marcate <span class="pill pill--err">errore</span>.</div>
+        </div>
+        <div class="imp-step">
+            <div class="imp-step__n">4</div>
+            <div class="imp-step__text">Lo storico è <strong>immutabile</strong>: ogni caricamento resta tracciato per audit.</div>
+        </div>
+    </div>
+</div>
+
+<h3 style="margin-top:32px;">Storico caricamenti</h3>
+@if (Model.Batches.Count == 0)
+{
+    <div class="card"><p class="muted">Nessun caricamento ancora effettuato.</p></div>
+}
+else
+{
+    <div class="card" style="padding:0; overflow:auto;">
+        <table class="table table-batch">
+            <thead>
+                <tr>
+                    <th>Data caricamento</th>
+                    <th>Caricato da</th>
+                    <th>Tipo</th>
+                    <th>Files</th>
+                    <th style="text-align:right;">Righe</th>
+                    <th style="text-align:right;">Valide</th>
+                    <th style="text-align:right;">Errori</th>
+                    <th>Nota</th>
+                    <th></th>
+                </tr>
+            </thead>
+            <tbody>
+            @foreach (var b in Model.Batches)
+            {
+                var url = Url.Action("ImportFattureDettaglio", new { id = b.Id });
+                <tr onclick="location.href='@url'">
+                    <td>@b.DataCaricamento.ToLocalTime().ToString("dd/MM/yyyy HH:mm")</td>
+                    <td>@b.CaricatoDa</td>
+                    <td><span class="pill pill--type">@b.Tipo</span></td>
+                    <td>
+                        @foreach (var f in b.Files)
+                        {
+                            <div style="font-size:.82rem;">
+                                <span class="pill @(f.Sezione == "CCH" ? "pill--ok" : (f.Sezione == "Ident" ? "pill--warn" : "pill--err"))">@f.Sezione</span>
+                                @f.NomeFile <span class="muted">· @f.RigheTotali righe</span>
+                            </div>
+                        }
+                    </td>
+                    <td style="text-align:right;"><strong>@b.TotaleRighe.ToString("N0", it)</strong></td>
+                    <td style="text-align:right; color:#1a6b32;">@b.RigheValide.ToString("N0", it)</td>
+                    <td style="text-align:right; color:@(b.RigheConErrore > 0 ? "#9a1c1c" : "#7a5c3a");">
+                        @b.RigheConErrore.ToString("N0", it)
+                    </td>
+                    <td class="muted" style="max-width:220px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;">@(b.Note ?? "—")</td>
+                    <td><a class="btn btn--ghost btn--sm" href="@url">Dettaglio →</a></td>
+                </tr>
+            }
+            </tbody>
+        </table>
+    </div>
+}
+
+<script>
+(function () {
+    const drop = document.getElementById('impDrop');
+    const input = document.getElementById('impFiles');
+    const list = document.getElementById('impFiles__list');
+    const submit = document.getElementById('impSubmit');
+    const hint = document.getElementById('impHint');
+
+    function fmt(n) {
+        if (n < 1024) return n + ' B';
+        if (n < 1024*1024) return (n/1024).toFixed(1) + ' KB';
+        return (n/1024/1024).toFixed(2) + ' MB';
+    }
+
+    function detectSez(name) {
+        const u = name.toUpperCase();
+        if (u.indexOf('CCH') >= 0) return ['CCH', 'pill--ok'];
+        if (u.indexOf('IDENT') >= 0) return ['Ident', 'pill--warn'];
+        if (u.endsWith('.XLSX')) return ['XLSX (multi-sheet)', 'pill--type'];
+        return ['?', 'pill--err'];
+    }
+
+    function validate(files) {
+        list.innerHTML = '';
+        if (!files || files.length === 0) {
+            submit.disabled = true;
+            hint.textContent = 'Seleziona almeno un file per procedere.';
+            return;
+        }
+        const arr = Array.from(files);
+        let total = 0;
+        let xlsxCount = 0, csvCount = 0, otherCount = 0;
+        arr.forEach(f => {
+            total += f.size;
+            const ext = f.name.split('.').pop().toLowerCase();
+            if (ext === 'xlsx') xlsxCount++;
+            else if (ext === 'csv') csvCount++;
+            else otherCount++;
+            const [sez, cls] = detectSez(f.name);
+            const row = document.createElement('div');
+            row.className = 'imp-files__row';
+            row.innerHTML = `<span class="pill ${cls}">${sez}</span><strong>${f.name}</strong><span class="muted">${fmt(f.size)}</span>`;
+            list.appendChild(row);
+        });
+
+        let problem = null;
+        if (otherCount > 0) problem = 'Sono ammessi solo .xlsx o .csv.';
+        else if (xlsxCount > 1) problem = 'Carica un solo file .xlsx alla volta.';
+        else if (xlsxCount === 1 && csvCount > 0) problem = 'Carica .xlsx oppure .csv, non entrambi.';
+        else if (csvCount > 2) problem = 'Massimo due file .csv (CCH + Ident).';
+        else if (total > 25 * 1024 * 1024) problem = 'Dimensione totale oltre 25 MB.';
+
+        if (problem) {
+            submit.disabled = true;
+            hint.style.color = '#9a1c1c';
+            hint.textContent = problem;
+        } else {
+            submit.disabled = false;
+            hint.style.color = '';
+            hint.textContent = `Pronto: ${arr.length} file, ${fmt(total)}.`;
+        }
+    }
+
+    input.addEventListener('change', () => validate(input.files));
+
+    ['dragenter','dragover'].forEach(ev => drop.addEventListener(ev, e => {
+        e.preventDefault(); e.stopPropagation(); drop.classList.add('is-hover');
+    }));
+    ['dragleave','drop'].forEach(ev => drop.addEventListener(ev, e => {
+        e.preventDefault(); e.stopPropagation(); drop.classList.remove('is-hover');
+    }));
+    drop.addEventListener('drop', e => {
+        if (e.dataTransfer && e.dataTransfer.files) {
+            input.files = e.dataTransfer.files;
+            validate(input.files);
+        }
+    });
+})();
+</script>

@@ -75,4 +75,6 @@ public class MongoContext
     public IMongoCollection<ProtocolloClinica> ProtocolliClinica => Database.GetCollection<ProtocolloClinica>("protocolliClinica");
     public IMongoCollection<InterventoClinica> InterventiClinica => Database.GetCollection<InterventoClinica>("interventiClinica");
     public IMongoCollection<MenuVisibility> MenuVisibilities => Database.GetCollection<MenuVisibility>("menuVisibilities");
+    public IMongoCollection<ImportFatturePassiveBatch> ImportFattureBatches => Database.GetCollection<ImportFatturePassiveBatch>("importFattureBatches");
+    public IMongoCollection<ImportFatturaRiga> ImportFattureRighe => Database.GetCollection<ImportFatturaRiga>("importFattureRighe");
 }

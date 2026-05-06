@@ -1,0 +1,142 @@
+@model Chipdent.Web.Models.ImportFattureDettaglioViewModel
+@using System.Globalization
+@{
+    ViewData["Title"] = "Dettaglio import fatture";
+    ViewData["Crumb"] = "Tesoreria";
+    var it = new CultureInfo("it-IT");
+    var b = Model.Batch;
+}
+
+<partial name="_Flash" />
+
+<div class="page-head">
+    <div>
+        <h2>📥 Caricamento del @b.DataCaricamento.ToLocalTime().ToString("dd/MM/yyyy HH:mm")</h2>
+        <p class="page-head__sub">
+            Caricato da <strong>@Model.CaricatoDaNome</strong> · Tipo
+            <span class="pill pill--type">@b.Tipo</span>
+            @if (!string.IsNullOrEmpty(b.Note)) { <text>· <em>@b.Note</em></text> }
+        </p>
+    </div>
+    <div class="page-head__actions">
+        <a class="btn btn--ghost" asp-action="ImportFatture">← Tutti i caricamenti</a>
+    </div>
+</div>
+
+<style>
+    .imp-stats { display:grid; grid-template-columns: repeat(4, minmax(0,1fr)); gap:10px; margin-bottom:18px; }
+    .imp-kpi { background:#fff; border:1px solid #e9dcc1; border-radius:10px; padding:12px 14px; }
+    .imp-kpi .lbl { font-size:.72rem; text-transform:uppercase; letter-spacing:.5px; color:#7a5c3a; }
+    .imp-kpi .val { font-size:1.5rem; font-weight:700; color:#3b1e0c; }
+    .pill { display:inline-block; padding:2px 9px; border-radius:99px; font-size:.72rem; font-weight:600; }
+    .pill--ok { background:#d6f5dc; color:#1a6b32; }
+    .pill--warn { background:#fbe5b8; color:#7a4a00; }
+    .pill--err { background:#fcd9d9; color:#9a1c1c; }
+    .pill--type { background:#e7e0f5; color:#473780; }
+    .file-block { margin-top: 18px; }
+    .file-block__head {
+        display:flex; align-items:center; gap:12px; padding:10px 14px;
+        background:#3b1e0c; color:#f5e8d0; border-radius:10px 10px 0 0;
+    }
+    .file-block__head h3 { margin:0; font-size:1rem; flex:1; }
+    .file-block__head .meta { font-size:.78rem; opacity:.85; }
+    .file-block__totals {
+        display:flex; gap:18px; padding:10px 14px; background:#fff7e8;
+        border-left:1px solid #e9dcc1; border-right:1px solid #e9dcc1; font-size:.88rem;
+    }
+    .file-block__totals strong { color:#3b1e0c; }
+    .grid-righe { padding:0; overflow:auto; border:1px solid #e9dcc1; border-radius:0 0 10px 10px; }
+    .grid-righe table { width:100%; border-collapse: collapse; font-size:.85rem; }
+    .grid-righe th, .grid-righe td { padding:6px 10px; border-bottom:1px solid #f1e6cf; white-space: nowrap; }
+    .grid-righe th { position:sticky; top:0; background:#fff7e8; text-align:left; font-weight:600; color:#3b1e0c; }
+    .grid-righe tr.has-err { background: #fff5f5; }
+    .grid-righe td.num { text-align:right; font-variant-numeric: tabular-nums; }
+    .err-list { font-size:.75rem; color:#9a1c1c; margin-top:2px; }
+</style>
+
+<div class="imp-stats">
+    <div class="imp-kpi"><div class="lbl">File</div><div class="val">@b.Files.Count</div></div>
+    <div class="imp-kpi"><div class="lbl">Righe totali</div><div class="val">@b.TotaleRighe.ToString("N0", it)</div></div>
+    <div class="imp-kpi"><div class="lbl">Righe valide</div><div class="val" style="color:#1a6b32;">@b.RigheValide.ToString("N0", it)</div></div>
+    <div class="imp-kpi"><div class="lbl">Righe con errori</div><div class="val" style="color:@(b.RigheConErrore > 0 ? "#9a1c1c" : "#3b1e0c");">@b.RigheConErrore.ToString("N0", it)</div></div>
+</div>
+
+@foreach (var g in Model.Files)
+{
+    var sezCls = g.Header.Sezione == "CCH" ? "pill--ok" : (g.Header.Sezione == "Ident" ? "pill--warn" : "pill--err");
+    <div class="file-block">
+        <div class="file-block__head">
+            <span class="pill @sezCls">@g.Header.Sezione</span>
+            <h3>@g.Header.NomeFile</h3>
+            <span class="meta">
+                @g.Header.RigheTotali righe ·
+                @g.Header.RigheValide valide ·
+                @g.Header.RigheConErrore con errori ·
+                @((g.Header.DimensioneByte / 1024.0).ToString("N1", it)) KB
+            </span>
+        </div>
+        <div class="file-block__totals">
+            <span>Tot. documenti: <strong>@g.TotaleDocumenti.ToString("N2", it) €</strong></span>
+            <span>Netto a pagare: <strong>@g.TotaleNetto.ToString("N2", it) €</strong></span>
+            @if (g.Header.Sezione == "CCH")
+            {
+                <span>IVA: <strong>@g.TotaleIva.ToString("N2", it) €</strong></span>
+            }
+            <span class="muted" style="margin-left:auto;">SHA-256: <code style="font-size:.72rem;">@(g.Header.ChecksumSha256?.Substring(0, Math.Min(16, g.Header.ChecksumSha256.Length)) ?? "—")…</code></span>
+        </div>
+
+        <div class="grid-righe">
+            <table>
+                <thead>
+                    <tr>
+                        <th>#</th>
+                        <th>Protocollo</th>
+                        <th>Data reg.</th>
+                        <th>Numero</th>
+                        <th>Data doc.</th>
+                        <th>Fornitore</th>
+                        <th>Tipo doc.</th>
+                        <th class="num">Totale</th>
+                        @if (g.Header.Sezione == "CCH") { <th class="num">IVA</th> }
+                        <th class="num">Netto</th>
+                        <th class="num">Ritenuta</th>
+                        <th>Causale</th>
+                        <th>Allegati</th>
+                        <th>Stato</th>
+                    </tr>
+                </thead>
+                <tbody>
+                @foreach (var r in g.Righe)
+                {
+                    <tr class="@(r.HaErrori ? "has-err" : "")">
+                        <td>@r.NumeroRiga</td>
+                        <td>@r.Protocollo</td>
+                        <td>@(r.DataRegistrazione?.ToString("dd/MM/yyyy") ?? "—")</td>
+                        <td>@r.Numero</td>
+                        <td>@(r.DataDocumento?.ToString("dd/MM/yyyy") ?? "—")</td>
+                        <td>@r.Fornitore</td>
+                        <td>@r.TipoDocumento</td>
+                        <td class="num">@(r.TotaleDocumento?.ToString("N2", it) ?? "—")</td>
+                        @if (g.Header.Sezione == "CCH") { <td class="num">@(r.Iva?.ToString("N2", it) ?? "—")</td> }
+                        <td class="num">@(r.NettoAPagare?.ToString("N2", it) ?? "—")</td>
+                        <td class="num">@(r.Ritenuta?.ToString("N2", it) ?? "—")</td>
+                        <td>@r.Causale</td>
+                        <td>@r.Allegati</td>
+                        <td>
+                            @if (r.HaErrori)
+                            {
+                                <span class="pill pill--err">errore</span>
+                                <div class="err-list">@string.Join(" · ", r.Errori)</div>
+                            }
+                            else
+                            {
+                                <span class="pill pill--ok">ok</span>
+                            }
+                        </td>
+                    </tr>
+                }
+                </tbody>
+            </table>
+        </div>
+    </div>
+}
