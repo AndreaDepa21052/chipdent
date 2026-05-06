@@ -258,3 +258,43 @@ public class DistinteIndexViewModel
 {
     public List<Chipdent.Web.Domain.Entities.DistintaPagamento> Distinte { get; set; } = new();
 }
+
+// ── Import fatture passive (CSV CCH/Ident + XLSX) ────────────────
+public class ImportFattureIndexViewModel
+{
+    public List<ImportFattureBatchRow> Batches { get; set; } = new();
+    public int TotaleBatch { get; set; }
+    public int TotaleRighe { get; set; }
+    public int TotaleRigheConErrore { get; set; }
+    public DateTime? UltimoCaricamento { get; set; }
+}
+
+public class ImportFattureBatchRow
+{
+    public string Id { get; set; } = string.Empty;
+    public DateTime DataCaricamento { get; set; }
+    public string CaricatoDa { get; set; } = string.Empty;
+    public string Tipo { get; set; } = string.Empty; // Xlsx | Csv
+    public List<Chipdent.Web.Domain.Entities.ImportFatturaFile> Files { get; set; } = new();
+    public int TotaleRighe { get; set; }
+    public int RigheValide { get; set; }
+    public int RigheConErrore { get; set; }
+    public string? Note { get; set; }
+}
+
+public class ImportFattureDettaglioViewModel
+{
+    public Chipdent.Web.Domain.Entities.ImportFatturePassiveBatch Batch { get; set; } = null!;
+    public string CaricatoDaNome { get; set; } = string.Empty;
+    /// <summary>Righe raggruppate per file (sheet o csv).</summary>
+    public List<ImportFattureFileGroup> Files { get; set; } = new();
+}
+
+public class ImportFattureFileGroup
+{
+    public Chipdent.Web.Domain.Entities.ImportFatturaFile Header { get; set; } = null!;
+    public List<Chipdent.Web.Domain.Entities.ImportFatturaRiga> Righe { get; set; } = new();
+    public decimal TotaleDocumenti => Righe.Sum(r => r.TotaleDocumento ?? 0);
+    public decimal TotaleNetto => Righe.Sum(r => r.NettoAPagare ?? 0);
+    public decimal TotaleIva => Righe.Sum(r => r.Iva ?? 0);
+}

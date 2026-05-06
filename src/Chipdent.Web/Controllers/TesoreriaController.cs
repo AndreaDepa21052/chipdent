@@ -5,6 +5,7 @@ using Chipdent.Web.Domain.Entities;
 using Chipdent.Web.Infrastructure.Identity;
 using Chipdent.Web.Infrastructure.Mongo;
 using Chipdent.Web.Infrastructure.Sepa;
+using Chipdent.Web.Infrastructure.Tesoreria;
 using Chipdent.Web.Infrastructure.Storage;
 using Chipdent.Web.Infrastructure.Tenancy;
 using Chipdent.Web.Models;
@@ -1212,5 +1213,211 @@ public class TesoreriaController : Controller
         if (s.Contains(';') || s.Contains('"') || s.Contains('\n'))
             return "\"" + s.Replace("\"", "\"\"") + "\"";
         return s;
+    }
+
+    // ─────────────────────────────────────────────────────────────
+    //  IMPORT FATTURE PASSIVE (CCH/Ident — CSV o XLSX)
+    // ─────────────────────────────────────────────────────────────
+
+    /// <summary>Lista cronologica dei batch di importazione (append-only).</summary>
+    [HttpGet("import-fatture")]
+    public async Task<IActionResult> ImportFatture()
+    {
+        var tid = _tenant.TenantId!;
+        var batches = await _mongo.ImportFattureBatches
+            .Find(b => b.TenantId == tid)
+            .SortByDescending(b => b.DataCaricamento)
+            .ToListAsync();
+
+        var vm = new ImportFattureIndexViewModel
+        {
+            Batches = batches.Select(b => new ImportFattureBatchRow
+            {
+                Id = b.Id,
+                DataCaricamento = b.DataCaricamento,
+                CaricatoDa = string.IsNullOrEmpty(b.CaricatoDaNome) ? "—" : b.CaricatoDaNome,
+                Tipo = b.Tipo.ToString(),
+                Files = b.Files,
+                TotaleRighe = b.TotaleRighe,
+                RigheValide = b.RigheValide,
+                RigheConErrore = b.RigheConErrore,
+                Note = b.Note
+            }).ToList(),
+            TotaleBatch = batches.Count,
+            TotaleRighe = batches.Sum(b => b.TotaleRighe),
+            TotaleRigheConErrore = batches.Sum(b => b.RigheConErrore),
+            UltimoCaricamento = batches.Count > 0 ? batches[0].DataCaricamento : null
+        };
+
+        ViewBag.Section = "tesoreria-import-fatture";
+        return View("ImportFatture", vm);
+    }
+
+    /// <summary>Dettaglio batch: KPI e griglia righe per ciascun file/sheet.</summary>
+    [HttpGet("import-fatture/{id}")]
+    public async Task<IActionResult> ImportFattureDettaglio(string id)
+    {
+        var tid = _tenant.TenantId!;
+        var batch = await _mongo.ImportFattureBatches
+            .Find(b => b.Id == id && b.TenantId == tid)
+            .FirstOrDefaultAsync();
+        if (batch == null) return NotFound();
+
+        var righe = await _mongo.ImportFattureRighe
+            .Find(r => r.BatchId == id && r.TenantId == tid)
+            .ToListAsync();
+
+        var groups = batch.Files
+            .Select(f => new ImportFattureFileGroup
+            {
+                Header = f,
+                Righe = righe
+                    .Where(r => r.NomeFile == f.NomeFile)
+                    .OrderBy(r => r.NumeroRiga)
+                    .ToList()
+            })
+            .ToList();
+
+        var caricatoDa = batch.CaricatoDaNome;
+        if (string.IsNullOrEmpty(caricatoDa) && !string.IsNullOrEmpty(batch.CaricatoDaUserId))
+        {
+            var u = await _mongo.Users.Find(x => x.Id == batch.CaricatoDaUserId).FirstOrDefaultAsync();
+            caricatoDa = u?.FullName ?? "—";
+        }
+
+        var vm = new ImportFattureDettaglioViewModel
+        {
+            Batch = batch,
+            CaricatoDaNome = string.IsNullOrEmpty(caricatoDa) ? "—" : caricatoDa,
+            Files = groups
+        };
+
+        ViewBag.Section = "tesoreria-import-fatture";
+        return View("ImportFattureDettaglio", vm);
+    }
+
+    /// <summary>POST upload: accetta 1 .xlsx oppure 1-2 .csv. Append-only.</summary>
+    [HttpPost("import-fatture")]
+    [ValidateAntiForgeryToken]
+    [RequestSizeLimit(MaxUploadBytes)]
+    public async Task<IActionResult> ImportFatturePost(List<IFormFile> files, string? note)
+    {
+        if (files == null || files.Count == 0)
+        {
+            TempData["flash-err"] = "Nessun file selezionato.";
+            return RedirectToAction(nameof(ImportFatture));
+        }
+        if (files.Sum(f => f.Length) > MaxUploadBytes)
+        {
+            TempData["flash-err"] = "Dimensione totale dei file oltre il limite (25 MB).";
+            return RedirectToAction(nameof(ImportFatture));
+        }
+
+        var tid = _tenant.TenantId!;
+        var userId = User.FindFirstValue(ClaimTypes.NameIdentifier) ?? string.Empty;
+        var userName = User.Identity?.Name ?? "—";
+
+        var batch = new ImportFatturePassiveBatch
+        {
+            TenantId = tid,
+            DataCaricamento = DateTime.UtcNow,
+            CaricatoDaUserId = userId,
+            CaricatoDaNome = userName,
+            Note = string.IsNullOrWhiteSpace(note) ? null : note.Trim()
+        };
+
+        var righeBatch = new List<ImportFatturaRiga>();
+
+        try
+        {
+            // Caso 1 — un singolo XLSX (anche se l'utente lo carica in un controllo multi-file).
+            var xlsx = files.FirstOrDefault(f =>
+                f.FileName.EndsWith(".xlsx", StringComparison.OrdinalIgnoreCase));
+
+            if (xlsx != null)
+            {
+                batch.Tipo = TipoImportFatture.Xlsx;
+                using var ms = new MemoryStream();
+                await xlsx.CopyToAsync(ms);
+                var bytes = ms.ToArray();
+                var parsed = FattureImportParser.ParseXlsx(xlsx.FileName, bytes);
+                if (parsed.Count == 0)
+                {
+                    TempData["flash-err"] = "Il file XLSX non contiene fogli leggibili.";
+                    return RedirectToAction(nameof(ImportFatture));
+                }
+                foreach (var p in parsed)
+                {
+                    AppendParsedFile(batch, righeBatch, p);
+                }
+            }
+            else
+            {
+                // Caso 2 — uno o più CSV.
+                var csvs = files
+                    .Where(f => f.FileName.EndsWith(".csv", StringComparison.OrdinalIgnoreCase))
+                    .ToList();
+                if (csvs.Count == 0)
+                {
+                    TempData["flash-err"] = "Formati supportati: .xlsx (1 file) oppure .csv (uno o due file).";
+                    return RedirectToAction(nameof(ImportFatture));
+                }
+                batch.Tipo = TipoImportFatture.Csv;
+                foreach (var f in csvs)
+                {
+                    using var ms = new MemoryStream();
+                    await f.CopyToAsync(ms);
+                    var bytes = ms.ToArray();
+                    var parsed = FattureImportParser.ParseCsv(f.FileName, bytes);
+                    AppendParsedFile(batch, righeBatch, parsed);
+                }
+            }
+        }
+        catch (Exception ex)
+        {
+            TempData["flash-err"] = "Errore nel parsing del file: " + ex.Message;
+            return RedirectToAction(nameof(ImportFatture));
+        }
+
+        if (righeBatch.Count == 0)
+        {
+            TempData["flash-err"] = "Nessuna riga importata: verifica intestazioni e contenuto del file.";
+            return RedirectToAction(nameof(ImportFatture));
+        }
+
+        batch.TotaleRighe = righeBatch.Count;
+        batch.RigheConErrore = righeBatch.Count(r => r.HaErrori);
+        batch.RigheValide = batch.TotaleRighe - batch.RigheConErrore;
+
+        await _mongo.ImportFattureBatches.InsertOneAsync(batch);
+        foreach (var r in righeBatch)
+        {
+            r.TenantId = tid;
+            r.BatchId = batch.Id;
+        }
+        await _mongo.ImportFattureRighe.InsertManyAsync(righeBatch);
+
+        TempData["flash"] =
+            $"Importate {batch.TotaleRighe} righe (valide {batch.RigheValide}, con errori {batch.RigheConErrore}).";
+        return RedirectToAction(nameof(ImportFattureDettaglio), new { id = batch.Id });
+    }
+
+    private static void AppendParsedFile(
+        ImportFatturePassiveBatch batch,
+        List<ImportFatturaRiga> accumulator,
+        FattureImportParser.ParsedFile parsed)
+    {
+        var righeConErr = parsed.Righe.Count(r => r.HaErrori);
+        batch.Files.Add(new ImportFatturaFile
+        {
+            NomeFile = parsed.NomeFile,
+            Sezione = parsed.Sezione,
+            DimensioneByte = parsed.DimensioneByte,
+            ChecksumSha256 = parsed.ChecksumSha256,
+            RigheTotali = parsed.Righe.Count,
+            RigheConErrore = righeConErr,
+            RigheValide = parsed.Righe.Count - righeConErr
+        });
+        accumulator.AddRange(parsed.Righe);
     }
 }
