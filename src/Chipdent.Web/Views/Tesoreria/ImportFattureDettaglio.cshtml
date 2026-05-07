@@ -52,6 +52,112 @@
     .grid-righe tr.has-err { background: #fff5f5; }
     .grid-righe td.num { text-align:right; font-variant-numeric: tabular-nums; }
     .err-list { font-size:.75rem; color:#9a1c1c; margin-top:2px; }
+
+    /* ── Search overlay ─────────────────────────────────────────── */
+    .imp-search-fab {
+        position: fixed; right: 24px; bottom: 24px;
+        z-index: 60;
+        display: inline-flex; align-items: center; gap: 8px;
+        padding: 12px 18px;
+        background: linear-gradient(135deg, #c47830 0%, #3b1e0c 100%);
+        color: #fff7e8; font-weight: 600; font-size: .92rem;
+        border: none; border-radius: 999px; cursor: pointer;
+        box-shadow: 0 10px 30px rgba(59,30,12,.28), 0 2px 6px rgba(59,30,12,.18);
+        transition: transform .18s, box-shadow .18s;
+    }
+    .imp-search-fab:hover { transform: translateY(-2px) scale(1.02); box-shadow: 0 16px 36px rgba(59,30,12,.32); }
+    .imp-search-fab kbd {
+        background: rgba(255,255,255,.18); padding: 2px 6px; border-radius: 4px;
+        font-size: .72rem; font-family: 'JetBrains Mono', monospace;
+    }
+    @@keyframes impFadeIn { from { opacity:0; backdrop-filter: blur(0); } to { opacity:1; backdrop-filter: blur(6px); } }
+    @@keyframes impSlideDown { from { transform: translateY(-12px); opacity:0; } to { transform: translateY(0); opacity:1; } }
+
+    .imp-search-overlay {
+        position: fixed; inset: 0; z-index: 80;
+        background: rgba(40, 22, 8, .55);
+        backdrop-filter: blur(6px) saturate(140%);
+        -webkit-backdrop-filter: blur(6px) saturate(140%);
+        display: none;
+        animation: impFadeIn .18s ease-out;
+    }
+    .imp-search-overlay.is-open { display: block; }
+
+    .imp-search-panel {
+        position: absolute; top: 8vh; left: 50%; transform: translateX(-50%);
+        width: min(720px, 92vw);
+        background: linear-gradient(180deg, #fffaf0 0%, #fff6e2 100%);
+        border-radius: 18px;
+        box-shadow: 0 30px 80px rgba(0,0,0,.4), 0 0 0 1px rgba(196,120,48,.25);
+        padding: 18px 18px 14px;
+        animation: impSlideDown .22s cubic-bezier(.2,.8,.2,1);
+    }
+    .imp-search-panel__field {
+        display: flex; align-items: center; gap: 12px;
+        padding: 10px 14px; background: #fff;
+        border: 2px solid #e9dcc1; border-radius: 12px;
+        transition: border-color .15s, box-shadow .15s;
+    }
+    .imp-search-panel__field:focus-within {
+        border-color: #c47830;
+        box-shadow: 0 0 0 4px rgba(196,120,48,.18);
+    }
+    .imp-search-panel__field svg { flex-shrink: 0; opacity: .6; }
+    .imp-search-panel input {
+        flex: 1; border: none; outline: none; background: transparent;
+        font-size: 1.05rem; color: #3b1e0c;
+        font-family: inherit;
+    }
+    .imp-search-panel input::placeholder { color: #b29a78; }
+    .imp-search-panel__hint {
+        margin-top: 10px;
+        display: flex; flex-wrap: wrap; gap: 14px; align-items: center;
+        font-size: .78rem; color: #7a5c3a;
+    }
+    .imp-search-panel__hint kbd {
+        background: #fff; border: 1px solid #e9dcc1; border-radius: 5px;
+        padding: 1px 6px; font-family: 'JetBrains Mono', monospace; font-size: .72rem;
+    }
+    .imp-search-panel__summary {
+        margin-top: 14px; padding-top: 12px;
+        border-top: 1px dashed #e9dcc1;
+        display: grid; gap: 6px;
+        max-height: 40vh; overflow-y: auto;
+    }
+    .imp-search-panel__row {
+        display: flex; align-items: center; gap: 10px;
+        padding: 8px 12px; border-radius: 8px;
+        background: rgba(255,255,255,.6);
+        font-size: .88rem; color: #3b1e0c;
+        cursor: pointer;
+        transition: background .12s, transform .12s;
+    }
+    .imp-search-panel__row:hover { background: #fff; transform: translateX(2px); }
+    .imp-search-panel__row.is-empty { color: #b29a78; cursor: default; }
+    .imp-search-panel__row.is-empty:hover { background: rgba(255,255,255,.6); transform: none; }
+    .imp-search-panel__row strong { flex: 1; }
+    .imp-search-panel__row .count {
+        background: #c47830; color: #fff; border-radius: 999px;
+        padding: 2px 10px; font-size: .75rem; font-weight: 700;
+        min-width: 28px; text-align: center;
+    }
+    .imp-search-panel__row.is-empty .count { background: #d8c8a8; }
+
+    /* highlight nelle celle */
+    .grid-righe mark {
+        background: #ffe89a; color: #3b1e0c; padding: 0 2px; border-radius: 3px;
+        box-shadow: 0 0 0 1px rgba(196,120,48,.4) inset;
+    }
+    .file-block.is-search-empty { opacity: .35; }
+    .file-block .imp-match-badge {
+        margin-left: auto;
+        background: rgba(255,255,255,.18);
+        border-radius: 999px; padding: 2px 10px;
+        font-size: .72rem; font-weight: 600;
+        opacity: 0; transform: scale(.8);
+        transition: opacity .15s, transform .15s;
+    }
+    .file-block.is-search-active .imp-match-badge { opacity: 1; transform: scale(1); }
 </style>
 
 <div class="imp-stats">
@@ -64,7 +170,7 @@
 @foreach (var g in Model.Files)
 {
     var sezCls = g.Header.Sezione == "CCH" ? "pill--ok" : (g.Header.Sezione == "Ident" ? "pill--warn" : "pill--err");
-    <div class="file-block">
+    <div class="file-block" data-file-block data-file-name="@g.Header.NomeFile">
         <div class="file-block__head">
             <span class="pill @sezCls">@g.Header.Sezione</span>
             <h3>@g.Header.NomeFile</h3>
@@ -74,6 +180,7 @@
                 @g.Header.RigheConErrore con errori ·
                 @((g.Header.DimensioneByte / 1024.0).ToString("N1", it)) KB
             </span>
+            <span class="imp-match-badge"><span data-match-count>0</span> match</span>
         </div>
         <div class="file-block__totals">
             <span>Tot. documenti: <strong>@g.TotaleDocumenti.ToString("N2", it) €</strong></span>
@@ -140,3 +247,177 @@
         </div>
     </div>
 }
+
+<button type="button" id="impSearchFab" class="imp-search-fab" aria-label="Apri ricerca">
+    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+        <circle cx="11" cy="11" r="7"/>
+        <path d="m21 21-4.3-4.3"/>
+    </svg>
+    <span>Cerca</span>
+    <kbd>⌘K</kbd>
+</button>
+
+<div id="impSearchOverlay" class="imp-search-overlay" role="dialog" aria-modal="true" aria-label="Ricerca nelle tabelle">
+    <div class="imp-search-panel" role="document">
+        <div class="imp-search-panel__field">
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                <circle cx="11" cy="11" r="7"/>
+                <path d="m21 21-4.3-4.3"/>
+            </svg>
+            <input id="impSearchInput" type="search" autocomplete="off" spellcheck="false"
+                   placeholder="Cerca fornitore, numero, protocollo, importo…" />
+        </div>
+        <div class="imp-search-panel__hint">
+            <span><kbd>↵</kbd> chiude e mantiene il filtro</span>
+            <span><kbd>Esc</kbd> annulla</span>
+            <span><kbd>↑</kbd>/<kbd>↓</kbd> naviga i file</span>
+            <span style="margin-left:auto;" id="impSearchTotal">—</span>
+        </div>
+        <div id="impSearchSummary" class="imp-search-panel__summary"></div>
+    </div>
+</div>
+
+<script>
+(function () {
+    const fab = document.getElementById('impSearchFab');
+    const overlay = document.getElementById('impSearchOverlay');
+    const input = document.getElementById('impSearchInput');
+    const summary = document.getElementById('impSearchSummary');
+    const totalEl = document.getElementById('impSearchTotal');
+    const fileBlocks = Array.from(document.querySelectorAll('[data-file-block]'));
+
+    // Pre-cache righe e testo normalizzato per blocco
+    const blocks = fileBlocks.map(block => {
+        const tbody = block.querySelector('table tbody');
+        const rows = tbody ? Array.from(tbody.rows) : [];
+        rows.forEach(r => {
+            // Ricostruisco textContent originale (senza <mark>) per evitare contaminazione
+            r.__origCells = Array.from(r.cells).map(c => c.innerHTML);
+            r.__searchText = normalize(r.textContent);
+        });
+        return {
+            el: block,
+            name: block.dataset.fileName,
+            rows,
+            badge: block.querySelector('[data-match-count]'),
+        };
+    });
+
+    function normalize(s) {
+        return (s || '').toString().toLowerCase()
+            .normalize('NFD').replace(/[̀-ͯ]/g, '');
+    }
+
+    function escapeHtml(s) {
+        return s.replace(/[&<>"']/g, ch => ({
+            '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;'
+        }[ch]));
+    }
+
+    function escapeRegex(s) {
+        return s.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+    }
+
+    function open() {
+        overlay.classList.add('is-open');
+        document.body.style.overflow = 'hidden';
+        setTimeout(() => input.focus(), 30);
+    }
+    function close() {
+        overlay.classList.remove('is-open');
+        document.body.style.overflow = '';
+    }
+
+    function apply() {
+        const raw = input.value.trim();
+        const q = normalize(raw);
+        const tokens = q.length ? q.split(/\s+/) : [];
+        let totalMatches = 0;
+        const summaryRows = [];
+
+        const highlightRegex = tokens.length
+            ? new RegExp('(' + tokens.map(escapeRegex).join('|') + ')', 'gi')
+            : null;
+
+        blocks.forEach(b => {
+            let visible = 0;
+            b.rows.forEach((r, i) => {
+                const match = tokens.length === 0
+                    || tokens.every(t => r.__searchText.indexOf(t) !== -1);
+                r.style.display = match ? '' : 'none';
+                if (match) visible++;
+
+                // Highlight: sostituisco la cella con la versione marcata; se nessuna query, ripristino.
+                Array.from(r.cells).forEach((c, ci) => {
+                    const orig = r.__origCells[ci] || '';
+                    if (!highlightRegex || !match) {
+                        c.innerHTML = orig;
+                    } else {
+                        // Solo dentro nodi di testo: per semplicità ricostruisco da textContent
+                        // dei wrapper testuali, lasciando i tag innesto (es. <span>) intatti.
+                        c.innerHTML = highlightWithinHtml(orig, highlightRegex);
+                    }
+                });
+            });
+            if (b.badge) b.badge.textContent = visible;
+            b.el.classList.toggle('is-search-active', tokens.length > 0);
+            b.el.classList.toggle('is-search-empty', tokens.length > 0 && visible === 0);
+            totalMatches += visible;
+            summaryRows.push({ name: b.name, count: visible, el: b.el });
+        });
+
+        // Summary panel
+        summary.innerHTML = '';
+        if (tokens.length === 0) {
+            totalEl.textContent = blocks.reduce((a, b) => a + b.rows.length, 0) + ' righe totali';
+            summaryRows.forEach(r => {
+                const div = document.createElement('div');
+                div.className = 'imp-search-panel__row';
+                div.innerHTML = `<strong>${escapeHtml(r.name)}</strong><span class="count">${r.el.querySelectorAll('tbody tr').length}</span>`;
+                div.addEventListener('click', () => { close(); r.el.scrollIntoView({ behavior: 'smooth', block: 'start' }); });
+                summary.appendChild(div);
+            });
+        } else {
+            totalEl.textContent = totalMatches + ' match in ' + summaryRows.filter(r => r.count > 0).length + ' file';
+            summaryRows.forEach(r => {
+                const div = document.createElement('div');
+                div.className = 'imp-search-panel__row' + (r.count === 0 ? ' is-empty' : '');
+                div.innerHTML = `<strong>${escapeHtml(r.name)}</strong><span class="count">${r.count}</span>`;
+                if (r.count > 0) {
+                    div.addEventListener('click', () => { close(); r.el.scrollIntoView({ behavior: 'smooth', block: 'start' }); });
+                }
+                summary.appendChild(div);
+            });
+        }
+    }
+
+    // Evidenzia i match preservando i tag HTML esistenti nella cella.
+    function highlightWithinHtml(html, regex) {
+        // Itero sui chunk: preservo tutto ciò che è dentro un tag, applico il regex solo al testo fra i tag.
+        return html.replace(/(<[^>]+>)|([^<]+)/g, (m, tag, text) => {
+            if (tag) return tag;
+            return text.replace(regex, '<mark>$1</mark>');
+        });
+    }
+
+    fab.addEventListener('click', open);
+    overlay.addEventListener('click', e => { if (e.target === overlay) close(); });
+    input.addEventListener('input', apply);
+    input.addEventListener('keydown', e => {
+        if (e.key === 'Escape') { input.value = ''; apply(); close(); }
+        else if (e.key === 'Enter') { close(); }
+    });
+    document.addEventListener('keydown', e => {
+        const isCmdK = (e.key === 'k' || e.key === 'K') && (e.metaKey || e.ctrlKey);
+        const isSlash = e.key === '/' && !overlay.classList.contains('is-open')
+            && !/^(INPUT|TEXTAREA|SELECT)$/.test(document.activeElement?.tagName || '');
+        if (isCmdK || isSlash) {
+            e.preventDefault();
+            overlay.classList.contains('is-open') ? close() : open();
+        }
+    });
+
+    // Inizializza il pannello con il riepilogo "totale righe per file"
+    apply();
+})();
+</script>
