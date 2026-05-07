@@ -158,6 +158,36 @@
         transition: opacity .15s, transform .15s;
     }
     .file-block.is-search-active .imp-match-badge { opacity: 1; transform: scale(1); }
+
+    /* ── Resizable columns ──────────────────────────────────────── */
+    .grid-righe table { table-layout: fixed; }
+    .grid-righe th { position: sticky; top: 0; }
+    .grid-righe th, .grid-righe td { overflow: hidden; text-overflow: ellipsis; }
+    .grid-righe th { position: relative; }
+    .col-resizer {
+        position: absolute; top: 0; right: -3px; width: 8px; height: 100%;
+        cursor: col-resize; user-select: none;
+        background: transparent;
+        z-index: 5;
+    }
+    .col-resizer::after {
+        content: ''; position: absolute; top: 6px; bottom: 6px; right: 3px;
+        width: 2px; border-radius: 2px;
+        background: transparent;
+        transition: background .15s;
+    }
+    .col-resizer:hover::after, .col-resizer.is-dragging::after { background: #c47830; }
+    .grid-righe table.is-resizing { user-select: none; }
+    .grid-righe table.is-resizing * { cursor: col-resize !important; }
+    .col-reset-btn {
+        position: absolute; top: 6px; right: 8px;
+        font-size: .68rem; color: rgba(245,232,208,.7);
+        background: rgba(0,0,0,.18); border: none; border-radius: 4px;
+        padding: 2px 6px; cursor: pointer;
+        opacity: 0; transition: opacity .15s;
+    }
+    .file-block:hover .col-reset-btn { opacity: 1; }
+    .col-reset-btn:hover { color: #fff; background: rgba(0,0,0,.35); }
 </style>
 
 <div class="imp-stats">
@@ -170,7 +200,7 @@
 @foreach (var g in Model.Files)
 {
     var sezCls = g.Header.Sezione == "CCH" ? "pill--ok" : (g.Header.Sezione == "Ident" ? "pill--warn" : "pill--err");
-    <div class="file-block" data-file-block data-file-name="@g.Header.NomeFile">
+    <div class="file-block" data-file-block data-file-name="@g.Header.NomeFile" data-batch-id="@b.Id">
         <div class="file-block__head">
             <span class="pill @sezCls">@g.Header.Sezione</span>
             <h3>@g.Header.NomeFile</h3>
@@ -181,6 +211,7 @@
                 @((g.Header.DimensioneByte / 1024.0).ToString("N1", it)) KB
             </span>
             <span class="imp-match-badge"><span data-match-count>0</span> match</span>
+            <button type="button" class="col-reset-btn" data-reset-cols title="Ripristina larghezze colonne">↺ reset</button>
         </div>
         <div class="file-block__totals">
             <span>Tot. documenti: <strong>@g.TotaleDocumenti.ToString("N2", it) €</strong></span>
@@ -276,6 +307,118 @@
         <div id="impSearchSummary" class="imp-search-panel__summary"></div>
     </div>
 </div>
+
+<script>
+// ── Resizable columns con persistenza in localStorage ────────────
+(function () {
+    const MIN_W = 50;
+    const MAX_W = 800;
+
+    function storageKey(block) {
+        return 'imp-cols:' + (block.dataset.batchId || '') + ':' + (block.dataset.fileName || '');
+    }
+
+    function setupBlock(block) {
+        const table = block.querySelector('.grid-righe table');
+        if (!table) return;
+        const headers = Array.from(table.tHead.rows[0].cells);
+        const key = storageKey(block);
+
+        // colgroup per ancorare le larghezze (più affidabile di width sui th)
+        let colgroup = table.querySelector('colgroup');
+        if (!colgroup) {
+            colgroup = document.createElement('colgroup');
+            headers.forEach(() => colgroup.appendChild(document.createElement('col')));
+            table.insertBefore(colgroup, table.firstChild);
+        }
+        const cols = Array.from(colgroup.children);
+
+        // Restore da localStorage
+        let saved = {};
+        try { saved = JSON.parse(localStorage.getItem(key) || '{}') || {}; } catch (_) {}
+        headers.forEach((th, i) => {
+            const w = saved[i];
+            if (w && Number.isFinite(w)) cols[i].style.width = w + 'px';
+        });
+
+        // Crea handle per ogni th (tranne l'ultimo, dove non ha senso un resizer a destra)
+        headers.forEach((th, i) => {
+            if (i === headers.length - 1) return;
+            const handle = document.createElement('span');
+            handle.className = 'col-resizer';
+            handle.setAttribute('aria-hidden', 'true');
+            th.appendChild(handle);
+
+            handle.addEventListener('mousedown', e => startDrag(e, i, th, table, cols, key));
+            handle.addEventListener('dblclick', () => {
+                // doppio click = autoresize sulla colonna (in base al contenuto visibile)
+                const w = autoSize(table, i);
+                cols[i].style.width = w + 'px';
+                persist(table, cols, key);
+            });
+        });
+
+        // Bottone reset nel block header
+        const resetBtn = block.querySelector('[data-reset-cols]');
+        if (resetBtn) {
+            resetBtn.addEventListener('click', () => {
+                cols.forEach(c => { c.style.width = ''; });
+                try { localStorage.removeItem(key); } catch (_) {}
+            });
+        }
+    }
+
+    function startDrag(e, index, th, table, cols, key) {
+        e.preventDefault();
+        const handle = e.currentTarget;
+        const startX = e.clientX;
+        const startW = th.getBoundingClientRect().width;
+        handle.classList.add('is-dragging');
+        table.classList.add('is-resizing');
+
+        function onMove(ev) {
+            let w = startW + (ev.clientX - startX);
+            w = Math.max(MIN_W, Math.min(MAX_W, w));
+            cols[index].style.width = w + 'px';
+        }
+        function onUp() {
+            document.removeEventListener('mousemove', onMove);
+            document.removeEventListener('mouseup', onUp);
+            handle.classList.remove('is-dragging');
+            table.classList.remove('is-resizing');
+            persist(table, cols, key);
+        }
+        document.addEventListener('mousemove', onMove);
+        document.addEventListener('mouseup', onUp);
+    }
+
+    function persist(table, cols, key) {
+        const out = {};
+        cols.forEach((c, i) => {
+            const w = c.style.width;
+            if (w) out[i] = parseFloat(w);
+        });
+        try { localStorage.setItem(key, JSON.stringify(out)); } catch (_) {}
+    }
+
+    function autoSize(table, index) {
+        // misura il contenuto: usa un canvas per approssimare la width massima
+        const cells = [table.tHead.rows[0].cells[index]]
+            .concat(Array.from(table.tBodies[0].rows).map(r => r.cells[index]).filter(Boolean));
+        const ctx = document.createElement('canvas').getContext('2d');
+        const sample = window.getComputedStyle(cells[0]);
+        ctx.font = sample.fontWeight + ' ' + sample.fontSize + ' ' + sample.fontFamily;
+        let max = 60;
+        cells.forEach(c => {
+            const w = ctx.measureText(c.textContent.trim()).width + 28; // padding
+            if (w > max) max = w;
+        });
+        return Math.max(MIN_W, Math.min(MAX_W, Math.round(max)));
+    }
+
+    document.querySelectorAll('[data-file-block]').forEach(setupBlock);
+})();
+</script>
 
 <script>
 (function () {
