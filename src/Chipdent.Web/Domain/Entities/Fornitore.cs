@@ -9,6 +9,10 @@ namespace Chipdent.Web.Domain.Entities;
 /// </summary>
 public class Fornitore : TenantEntity
 {
+    /// <summary>Codice anagrafico interno, univoco per tenant. Es. "F0001" per i fornitori
+    /// aziendali o "D0001" per i dottori (Fornitore-ombra collegato al Dottore).</summary>
+    public string? Codice { get; set; }
+
     public string RagioneSociale { get; set; } = string.Empty;
     public string? PartitaIva { get; set; }
     public string? CodiceFiscale { get; set; }

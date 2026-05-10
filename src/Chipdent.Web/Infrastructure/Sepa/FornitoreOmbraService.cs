@@ -41,6 +41,7 @@ public class FornitoreOmbraService
             var nuovo = new Fornitore
             {
                 TenantId = dottore.TenantId,
+                Codice = dottore.Codice,
                 RagioneSociale = ragioneSociale,
                 PartitaIva = dottore.PartitaIVA,
                 CodiceFiscale = dottore.CodiceFiscale,
@@ -59,6 +60,7 @@ public class FornitoreOmbraService
 
         // Allineo i campi che possono cambiare lato Dottore
         var update = Builders<Fornitore>.Update
+            .Set(f => f.Codice, dottore.Codice)
             .Set(f => f.RagioneSociale, ragioneSociale)
             .Set(f => f.PartitaIva, dottore.PartitaIVA)
             .Set(f => f.CodiceFiscale, dottore.CodiceFiscale)

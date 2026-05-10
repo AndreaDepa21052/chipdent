@@ -37,6 +37,7 @@ else
         <table class="table">
             <thead>
                 <tr>
+                    <th style="white-space:nowrap;">Codice</th>
                     <th>Nome</th>
                     <th>Specializzazione</th>
                     <th>Albo</th>
@@ -50,6 +51,7 @@ else
                 {
                     var alboInScadenza = d.ScadenzaAlbo is not null && d.ScadenzaAlbo < DateTime.UtcNow.AddMonths(3);
                     <tr>
+                        <td class="muted" style="white-space:nowrap;">@(string.IsNullOrEmpty(d.Codice) ? "—" : d.Codice)</td>
                         <td>
                             <div class="strong">@d.NomeCompleto</div>
                             <div class="muted">@d.Email</div>

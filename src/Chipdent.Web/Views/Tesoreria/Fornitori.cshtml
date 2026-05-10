@@ -35,6 +35,7 @@ else
         <table class="table">
             <thead>
                 <tr>
+                    <th style="white-space:nowrap;">Codice</th>
                     <th>Ragione sociale</th>
                     <th>P.IVA</th>
                     <th>Categoria</th>
@@ -49,6 +50,7 @@ else
             @foreach (var r in Model.Fornitori)
             {
                 <tr>
+                    <td class="muted" style="white-space:nowrap;">@(string.IsNullOrEmpty(r.Fornitore.Codice) ? "—" : r.Fornitore.Codice)</td>
                     <td><strong>@r.Fornitore.RagioneSociale</strong></td>
                     <td class="muted">@(r.Fornitore.PartitaIva ?? "—")</td>
                     <td>@r.Fornitore.CategoriaDefault</td>

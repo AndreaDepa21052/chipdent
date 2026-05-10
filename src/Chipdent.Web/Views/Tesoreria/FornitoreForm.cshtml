@@ -31,7 +31,13 @@
         </div>
     }
 
-    <div class="grid" style="grid-template-columns: 2fr 1fr; gap: var(--s-3);">
+    <div class="grid" style="grid-template-columns: 1fr 2fr 1fr; gap: var(--s-3);">
+        <div class="form-group">
+            <label class="form-label" asp-for="Codice">Codice</label>
+            <input class="form-control" asp-for="Codice" placeholder="@(isNew ? "auto F####" : "")" />
+            <span class="hint">@(isNew ? "Lascia vuoto per auto-generare." : "Codice anagrafico interno.")</span>
+        </div>
+
         <div class="form-group">
             <label class="form-label" asp-for="RagioneSociale">Ragione sociale *</label>
             <input class="form-control" asp-for="RagioneSociale" required />

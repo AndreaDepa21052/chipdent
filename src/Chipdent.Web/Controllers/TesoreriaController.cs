@@ -705,9 +705,14 @@ public class TesoreriaController : Controller
             return View("FornitoreForm", vm);
         }
 
+        var codice = string.IsNullOrWhiteSpace(vm.Codice)
+            ? await GenerateCodiceFornitoreAsync()
+            : vm.Codice!.Trim();
+
         var f = new Fornitore
         {
             TenantId = _tenant.TenantId!,
+            Codice = codice,
             RagioneSociale = vm.RagioneSociale.Trim(),
             PartitaIva = vm.PartitaIva,
             CodiceFiscale = vm.CodiceFiscale,
@@ -745,6 +750,7 @@ public class TesoreriaController : Controller
         return View("FornitoreForm", new FornitoreFormViewModel
         {
             Id = f.Id,
+            Codice = f.Codice,
             RagioneSociale = f.RagioneSociale,
             PartitaIva = f.PartitaIva,
             CodiceFiscale = f.CodiceFiscale,
@@ -776,8 +782,10 @@ public class TesoreriaController : Controller
             return View("FornitoreForm", vm);
         }
 
+        var codiceAggiornato = string.IsNullOrWhiteSpace(vm.Codice) ? f.Codice : vm.Codice!.Trim();
         await _mongo.Fornitori.UpdateOneAsync(x => x.Id == id,
             Builders<Fornitore>.Update
+                .Set(x => x.Codice, codiceAggiornato)
                 .Set(x => x.RagioneSociale, vm.RagioneSociale.Trim())
                 .Set(x => x.PartitaIva, vm.PartitaIva)
                 .Set(x => x.CodiceFiscale, vm.CodiceFiscale)
@@ -1124,6 +1132,24 @@ public class TesoreriaController : Controller
         target.AllegatoPath = stored.RelativePath;
         target.AllegatoSize = stored.SizeBytes;
         return null;
+    }
+
+    /// <summary>Genera il prossimo codice fornitore disponibile nel formato F#### (4 cifre).
+    /// Si basa sul massimo numerico esistente con prefisso "F" per il tenant corrente.</summary>
+    private async Task<string> GenerateCodiceFornitoreAsync()
+    {
+        var tid = _tenant.TenantId!;
+        var esistenti = await _mongo.Fornitori
+            .Find(f => f.TenantId == tid && f.Codice != null && f.Codice != "")
+            .Project(f => f.Codice)
+            .ToListAsync();
+        var maxNum = 0;
+        foreach (var c in esistenti)
+        {
+            if (string.IsNullOrEmpty(c) || c[0] != 'F') continue;
+            if (int.TryParse(c.AsSpan(1), out var n) && n > maxNum) maxNum = n;
+        }
+        return $"F{maxNum + 1:D4}";
     }
 
     private async Task CreaUtentePortaleAsync(Fornitore f, string email, string password)

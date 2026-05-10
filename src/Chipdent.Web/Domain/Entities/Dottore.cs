@@ -4,6 +4,9 @@ namespace Chipdent.Web.Domain.Entities;
 
 public class Dottore : TenantEntity
 {
+    /// <summary>Codice anagrafico interno, univoco per tenant. Es. "D0001".</summary>
+    public string? Codice { get; set; }
+
     // Identità
     public string Nome { get; set; } = string.Empty;
     public string Cognome { get; set; } = string.Empty;
