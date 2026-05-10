@@ -152,25 +152,6 @@
          data-cronologia-url="@Url.Action("Cronologia", new { clinicaId = clinica?.Id ?? Model.ClinicaId, tipo = tipo })">
     <summary>📜 Cronologia modifiche</summary>
     <div data-cronologia-body>
-        <div class="muted" style="font-size:.8rem;">caricamento…</div>
+        <div class="muted" style="font-size:.8rem;">apri per caricare…</div>
     </div>
 </details>
-
-<script>
-    (function () {
-        const det = document.currentScript.previousElementSibling;
-        const body = det.querySelector('[data-cronologia-body]');
-        let loaded = false;
-        det.addEventListener('toggle', async () => {
-            if (!det.open || loaded) return;
-            loaded = true;
-            try {
-                const r = await fetch(det.dataset.cronologiaUrl);
-                body.innerHTML = r.ok ? await r.text() : '<p class="muted" style="font-size:.8rem;">errore caricamento</p>';
-            } catch {
-                body.innerHTML = '<p class="muted" style="font-size:.8rem;">errore caricamento</p>';
-                loaded = false;
-            }
-        });
-    })();
-</script>
