@@ -17,7 +17,7 @@ public class DipendentiController : Controller
 {
     private const long MaxAllegatoBytes = 10 * 1024 * 1024;
     private static readonly HashSet<string> AllegatoEstensioniAmmesse = new(StringComparer.OrdinalIgnoreCase)
-        { ".pdf", ".png", ".jpg", ".jpeg" };
+        { ".pdf", ".png", ".jpg", ".jpeg", ".doc", ".docx" };
 
     private readonly MongoContext _mongo;
     private readonly ITenantContext _tenant;
@@ -95,6 +95,19 @@ public class DipendentiController : Controller
                        && c.DestinatarioTipo == DestinatarioCorso.Dipendente)
             .SortByDescending(c => c.DataConseguimento).ToListAsync();
 
+        var disciplinari = await _mongo.Disciplinari
+            .Find(p => p.TenantId == _tenant.TenantId && p.DipendenteId == id)
+            .SortByDescending(p => p.DataApertura).ToListAsync();
+        var premi = await _mongo.Premi
+            .Find(p => p.TenantId == _tenant.TenantId && p.DipendenteId == id)
+            .SortByDescending(p => p.Data).ToListAsync();
+        var valutazioni = await _mongo.Valutazioni
+            .Find(p => p.TenantId == _tenant.TenantId && p.DipendenteId == id)
+            .SortByDescending(p => p.Data).ToListAsync();
+        var documenti = await _mongo.DocumentiDipendente
+            .Find(p => p.TenantId == _tenant.TenantId && p.DipendenteId == id)
+            .ToListAsync();
+
         ViewData["Section"] = "dipendenti";
         return View("Profile", new DipendenteProfileViewModel
         {
@@ -107,8 +120,159 @@ public class DipendentiController : Controller
             Tab = tab,
             Distacchi = distacchi,
             VisiteMediche = visite,
-            Corsi = corsi
+            Corsi = corsi,
+            Disciplinari = disciplinari,
+            Premi = premi,
+            Valutazioni = valutazioni,
+            Documenti = documenti
         });
+    }
+
+    // ─────────────────────────────────────────────────────────────
+    //  ORGANIGRAMMA OPERATIVO
+    // ─────────────────────────────────────────────────────────────
+    [HttpGet("organigramma")]
+    public async Task<IActionResult> Organigramma(string? clinicaId = null)
+    {
+        var attivi = await _mongo.Dipendenti
+            .Find(d => d.TenantId == _tenant.TenantId && d.Stato != StatoDipendente.Cessato
+                       && (clinicaId == null || d.ClinicaId == clinicaId))
+            .SortBy(d => d.Cognome).ToListAsync();
+
+        var cliniche = await CliniceListAsync();
+        ViewData["Section"] = "dipendenti";
+        ViewData["Cliniche"] = cliniche;
+        ViewData["ClinicaIdFilter"] = clinicaId;
+        return View("Organigramma", attivi);
+    }
+
+    // ─────────────────────────────────────────────────────────────
+    //  EXPORT mensile movimenti (assunzioni/cessazioni/proroghe/distacchi)
+    // ─────────────────────────────────────────────────────────────
+    [HttpGet("movimenti")]
+    public async Task<IActionResult> Movimenti(int? anno = null, int? mese = null)
+    {
+        var oggi = DateTime.UtcNow;
+        var a = anno ?? oggi.Year;
+        var m = mese ?? oggi.Month;
+
+        var report = await BuildMovimentiAsync(a, m);
+
+        ViewData["Section"] = "dipendenti";
+        ViewData["Anno"] = a;
+        ViewData["Mese"] = m;
+        return View("Movimenti", report);
+    }
+
+    [HttpGet("movimenti/csv")]
+    public async Task<IActionResult> MovimentiCsv(int anno, int mese)
+    {
+        var report = await BuildMovimentiAsync(anno, mese);
+
+        var sb = new System.Text.StringBuilder();
+        sb.AppendLine("Mese/Anno;Società;N. assunzioni;N. annullamento assunzioni;N. cessazioni anticipate;N. contratti non rinnovati;N. contratti non rinnovati prossimo mese;N. proroghe;N. distacchi;N. rettifiche/annullamento distacchi;N. trasformazioni/aumento livello;Note");
+        foreach (var r in report.Righe)
+        {
+            sb.Append(report.MeseAnnoLabel).Append(';');
+            sb.Append(Csv(r.ClinicaNome)).Append(';');
+            sb.Append(r.NumeroAssunzioni).Append(';');
+            sb.Append(r.NumeroAnnullamentiAssunzione).Append(';');
+            sb.Append(r.NumeroCessazioniAnticipate).Append(';');
+            sb.Append(r.NumeroContrattiNonRinnovati).Append(';');
+            sb.Append(r.NumeroContrattiNonRinnovatiProssimoMese).Append(';');
+            sb.Append(r.NumeroProroghe).Append(';');
+            sb.Append(r.NumeroDistacchi).Append(';');
+            sb.Append(r.NumeroRettificheDistacchi).Append(';');
+            sb.Append(r.NumeroTrasformazioniLivello).Append(';');
+            sb.Append(Csv(string.Join(" | ", r.Note))).AppendLine();
+        }
+
+        var bytes = System.Text.Encoding.UTF8.GetPreamble().Concat(System.Text.Encoding.UTF8.GetBytes(sb.ToString())).ToArray();
+        var fileName = $"movimenti-dipendenti-{anno:0000}-{mese:00}.csv";
+        return File(bytes, "text/csv", fileName);
+
+        static string Csv(string? s) => s is null ? "" : (s.Contains(';') || s.Contains('"') || s.Contains('\n')) ? "\"" + s.Replace("\"", "\"\"") + "\"" : s;
+    }
+
+    private async Task<MovimentiMensiliReport> BuildMovimentiAsync(int anno, int mese)
+    {
+        var inizio = new DateTime(anno, mese, 1, 0, 0, 0, DateTimeKind.Utc);
+        var fine = inizio.AddMonths(1);
+        var inizioMeseSucc = fine;
+        var fineMeseSucc = fine.AddMonths(1);
+
+        var cliniche = await CliniceListAsync();
+        var dipendenti = await _mongo.Dipendenti
+            .Find(d => d.TenantId == _tenant.TenantId)
+            .ToListAsync();
+        var distacchi = await _mongo.Distacchi
+            .Find(x => x.TenantId == _tenant.TenantId)
+            .ToListAsync();
+
+        var righe = new List<MovimentoMensileRiga>();
+        foreach (var c in cliniche)
+        {
+            var dipClin = dipendenti.Where(d => d.ClinicaId == c.Id).ToList();
+            var note = new List<string>();
+
+            int assunzioni = dipClin.Count(d => d.DataAssunzione >= inizio && d.DataAssunzione < fine);
+            int cessazioniAnticipate = dipClin.Count(d => d.DataDimissioni.HasValue
+                && d.DataDimissioni.Value >= inizio && d.DataDimissioni.Value < fine
+                && d.DataScadenzaContratto.HasValue
+                && d.DataDimissioni.Value < d.DataScadenzaContratto.Value);
+            int nonRinnovati = dipClin.Count(d => d.DataScadenzaContratto.HasValue
+                && d.DataScadenzaContratto.Value >= inizio && d.DataScadenzaContratto.Value < fine
+                && d.IsCessato);
+            int nonRinnovatiProssimo = dipClin.Count(d => d.DataScadenzaContratto.HasValue
+                && d.DataScadenzaContratto.Value >= inizioMeseSucc && d.DataScadenzaContratto.Value < fineMeseSucc
+                && d.IsCessato);
+            int proroghe = dipClin.Count(d => d.DataScadenzaProroga.HasValue
+                && d.DataScadenzaProroga.Value >= inizio && d.DataScadenzaProroga.Value < fine);
+            int trasformazioni = dipClin.Count(d => (d.DataTrasformazioneContratto.HasValue
+                    && d.DataTrasformazioneContratto.Value >= inizio && d.DataTrasformazioneContratto.Value < fine)
+                || (d.DataAumentoLivelli.HasValue
+                    && d.DataAumentoLivelli.Value >= inizio && d.DataAumentoLivelli.Value < fine));
+
+            var nuoviDistacchi = distacchi.Count(x => x.ClinicaDistaccoId == c.Id
+                && x.DataInizio >= inizio && x.DataInizio < fine);
+            var rettificheDistacchi = distacchi.Count(x => x.ClinicaDistaccoId == c.Id
+                && x.DataFine.HasValue && x.DataFine.Value >= inizio && x.DataFine.Value < fine);
+
+            // Annotazioni nominative per i casi che ne valgono la pena
+            foreach (var d in dipClin.Where(d => d.DataAumentoLivelli.HasValue
+                && d.DataAumentoLivelli.Value >= inizio && d.DataAumentoLivelli.Value < fine))
+            {
+                note.Add($"{d.NomeCompleto}: aumento livello");
+            }
+            foreach (var d in dipClin.Where(d => d.DataTrasformazioneContratto.HasValue
+                && d.DataTrasformazioneContratto.Value >= inizio && d.DataTrasformazioneContratto.Value < fine))
+            {
+                note.Add($"{d.NomeCompleto}: trasformazione contratto");
+            }
+
+            righe.Add(new MovimentoMensileRiga
+            {
+                ClinicaId = c.Id,
+                ClinicaNome = c.Nome,
+                NumeroAssunzioni = assunzioni,
+                NumeroAnnullamentiAssunzione = 0,
+                NumeroCessazioniAnticipate = cessazioniAnticipate,
+                NumeroContrattiNonRinnovati = nonRinnovati,
+                NumeroContrattiNonRinnovatiProssimoMese = nonRinnovatiProssimo,
+                NumeroProroghe = proroghe,
+                NumeroDistacchi = nuoviDistacchi,
+                NumeroRettificheDistacchi = rettificheDistacchi,
+                NumeroTrasformazioniLivello = trasformazioni,
+                Note = note
+            });
+        }
+
+        return new MovimentiMensiliReport
+        {
+            Anno = anno,
+            Mese = mese,
+            Righe = righe
+        };
     }
 
     // ─────────────────────────────────────────────────────────────
@@ -243,6 +407,304 @@ public class DipendentiController : Controller
         await _audit.LogAsync("Dipendente", id, dip.NomeCompleto, AuditAction.Updated, actor: User);
         TempData["flash"] = $"Corso «{tipo}» registrato.";
         return RedirectToAction(nameof(Details), new { id, tab = "compliance" });
+    }
+
+    // ─────────────────────────────────────────────────────────────
+    //  DOCUMENTI fascicolo dipendente (frontespizio ASO)
+    // ─────────────────────────────────────────────────────────────
+    [HttpPost("{id}/documenti/upsert")]
+    [Authorize(Policy = Policies.RequireBackoffice)]
+    [ValidateAntiForgeryToken]
+    [RequestSizeLimit(MaxAllegatoBytes)]
+    public async Task<IActionResult> UpsertDocumento(string id, TipoDocumentoDipendente tipo,
+        string? etichettaLibera, DateTime? dataAcquisizione, DateTime? scadenza, string? note, IFormFile? allegato)
+    {
+        var dip = await Load(id);
+        if (dip is null) return NotFound();
+
+        var existing = await _mongo.DocumentiDipendente
+            .Find(x => x.TenantId == _tenant.TenantId && x.DipendenteId == id && x.Tipo == tipo
+                       && (tipo != TipoDocumentoDipendente.Altro || x.EtichettaLibera == etichettaLibera))
+            .FirstOrDefaultAsync();
+
+        var doc = existing ?? new DocumentoDipendente
+        {
+            TenantId = _tenant.TenantId!,
+            DipendenteId = id,
+            Tipo = tipo,
+            EtichettaLibera = etichettaLibera
+        };
+        doc.DataAcquisizione = dataAcquisizione.HasValue
+            ? DateTime.SpecifyKind(dataAcquisizione.Value.Date, DateTimeKind.Utc)
+            : DateTime.UtcNow.Date;
+        doc.Scadenza = scadenza.HasValue ? DateTime.SpecifyKind(scadenza.Value.Date, DateTimeKind.Utc) : null;
+        doc.Note = note;
+        doc.UpdatedAt = DateTime.UtcNow;
+
+        if (allegato is { Length: > 0 })
+        {
+            var err = await TryAttachAsync(allegato, "documenti-dipendente",
+                (path, name, size) => { doc.AllegatoNome = name; doc.AllegatoPath = path; doc.AllegatoSize = size; });
+            if (err is not null)
+            {
+                TempData["flash"] = err;
+                return RedirectToAction(nameof(Details), new { id, tab = "documenti" });
+            }
+        }
+
+        if (existing is null)
+        {
+            await _mongo.DocumentiDipendente.InsertOneAsync(doc);
+        }
+        else
+        {
+            await _mongo.DocumentiDipendente.ReplaceOneAsync(x => x.Id == doc.Id, doc);
+        }
+
+        await _audit.LogAsync("Dipendente", id, dip.NomeCompleto, AuditAction.Updated, actor: User);
+        TempData["flash"] = "Documento aggiornato.";
+        return RedirectToAction(nameof(Details), new { id, tab = "documenti" });
+    }
+
+    [HttpPost("{id}/documenti/{docId}/elimina")]
+    [Authorize(Policy = Policies.RequireBackoffice)]
+    [ValidateAntiForgeryToken]
+    public async Task<IActionResult> EliminaDocumento(string id, string docId)
+    {
+        await _mongo.DocumentiDipendente.DeleteOneAsync(x => x.Id == docId && x.TenantId == _tenant.TenantId && x.DipendenteId == id);
+        TempData["flash"] = "Documento rimosso.";
+        return RedirectToAction(nameof(Details), new { id, tab = "documenti" });
+    }
+
+    // ─────────────────────────────────────────────────────────────
+    //  PROCEDIMENTI DISCIPLINARI (4 step)
+    // ─────────────────────────────────────────────────────────────
+    [HttpPost("{id}/disciplinari/nuovo")]
+    [Authorize(Policy = Policies.RequireBackoffice)]
+    [ValidateAntiForgeryToken]
+    public async Task<IActionResult> NuovoDisciplinare(string id, string oggetto, DateTime dataApertura, string? note)
+    {
+        var dip = await Load(id);
+        if (dip is null) return NotFound();
+
+        if (string.IsNullOrWhiteSpace(oggetto))
+        {
+            TempData["flash"] = "Indica l'oggetto del procedimento.";
+            return RedirectToAction(nameof(Details), new { id, tab = "disciplinari" });
+        }
+
+        var p = new ProcedimentoDisciplinare
+        {
+            TenantId = _tenant.TenantId!,
+            DipendenteId = id,
+            DipendenteNome = dip.NomeCompleto,
+            Oggetto = oggetto.Trim(),
+            DataApertura = DateTime.SpecifyKind(dataApertura.Date, DateTimeKind.Utc),
+            Note = note,
+            Stato = StatoProcedimento.Aperto
+        };
+        await _mongo.Disciplinari.InsertOneAsync(p);
+        await _audit.LogAsync("Dipendente", id, dip.NomeCompleto, AuditAction.Updated, actor: User);
+        TempData["flash"] = "Procedimento disciplinare aperto.";
+        return RedirectToAction(nameof(Details), new { id, tab = "disciplinari" });
+    }
+
+    [HttpPost("{id}/disciplinari/{procId}/step")]
+    [Authorize(Policy = Policies.RequireBackoffice)]
+    [ValidateAntiForgeryToken]
+    [RequestSizeLimit(MaxAllegatoBytes)]
+    public async Task<IActionResult> AggiornaStepDisciplinare(string id, string procId, int step,
+        DateTime data, string? note, EsitoProcedimento? esito, IFormFile? allegato)
+    {
+        var dip = await Load(id);
+        if (dip is null) return NotFound();
+
+        var proc = await _mongo.Disciplinari.Find(x => x.Id == procId && x.TenantId == _tenant.TenantId && x.DipendenteId == id).FirstOrDefaultAsync();
+        if (proc is null) return NotFound();
+
+        if (step is < 1 or > 4) return BadRequest();
+
+        string? allegatoPath = null, allegatoNome = null; long? allegatoSize = null;
+        if (allegato is { Length: > 0 })
+        {
+            var err = await TryAttachAsync(allegato, "disciplinari",
+                (path, name, size) => { allegatoPath = path; allegatoNome = name; allegatoSize = size; });
+            if (err is not null)
+            {
+                TempData["flash"] = err;
+                return RedirectToAction(nameof(Details), new { id, tab = "disciplinari" });
+            }
+        }
+
+        var dt = DateTime.SpecifyKind(data.Date, DateTimeKind.Utc);
+        var update = Builders<ProcedimentoDisciplinare>.Update.Set(p => p.UpdatedAt, DateTime.UtcNow);
+        switch (step)
+        {
+            case 1:
+                update = update.Set(p => p.Step1LetteraData, dt).Set(p => p.Step1Note, note);
+                if (allegatoPath != null) update = update.Set(p => p.Step1AllegatoPath, allegatoPath).Set(p => p.Step1AllegatoNome, allegatoNome).Set(p => p.Step1AllegatoSize, allegatoSize);
+                update = update.Set(p => p.Stato, StatoProcedimento.InCorso);
+                break;
+            case 2:
+                update = update.Set(p => p.Step2FirmataData, dt).Set(p => p.Step2Note, note);
+                if (allegatoPath != null) update = update.Set(p => p.Step2AllegatoPath, allegatoPath).Set(p => p.Step2AllegatoNome, allegatoNome).Set(p => p.Step2AllegatoSize, allegatoSize);
+                break;
+            case 3:
+                update = update.Set(p => p.Step3RispostaData, dt).Set(p => p.Step3Note, note);
+                if (allegatoPath != null) update = update.Set(p => p.Step3AllegatoPath, allegatoPath).Set(p => p.Step3AllegatoNome, allegatoNome).Set(p => p.Step3AllegatoSize, allegatoSize);
+                break;
+            case 4:
+                update = update.Set(p => p.Step4ConclusioneData, dt).Set(p => p.Step4Note, note).Set(p => p.Step4Esito, esito).Set(p => p.Stato, StatoProcedimento.Concluso);
+                if (allegatoPath != null) update = update.Set(p => p.Step4AllegatoPath, allegatoPath).Set(p => p.Step4AllegatoNome, allegatoNome).Set(p => p.Step4AllegatoSize, allegatoSize);
+                break;
+        }
+
+        await _mongo.Disciplinari.UpdateOneAsync(x => x.Id == procId, update);
+        await _audit.LogAsync("Dipendente", id, dip.NomeCompleto, AuditAction.Updated, actor: User);
+        TempData["flash"] = $"Step {step} registrato.";
+        return RedirectToAction(nameof(Details), new { id, tab = "disciplinari" });
+    }
+
+    [HttpPost("{id}/disciplinari/{procId}/elimina")]
+    [Authorize(Policy = Policies.RequireManagement)]
+    [ValidateAntiForgeryToken]
+    public async Task<IActionResult> EliminaDisciplinare(string id, string procId)
+    {
+        await _mongo.Disciplinari.DeleteOneAsync(x => x.Id == procId && x.TenantId == _tenant.TenantId && x.DipendenteId == id);
+        TempData["flash"] = "Procedimento eliminato.";
+        return RedirectToAction(nameof(Details), new { id, tab = "disciplinari" });
+    }
+
+    // ─────────────────────────────────────────────────────────────
+    //  PREMI / BONUS / WELFARE
+    // ─────────────────────────────────────────────────────────────
+    [HttpPost("{id}/premi/nuovo")]
+    [Authorize(Policy = Policies.RequireBackoffice)]
+    [ValidateAntiForgeryToken]
+    [RequestSizeLimit(MaxAllegatoBytes)]
+    public async Task<IActionResult> NuovoPremio(string id, TipoPremio tipo, string descrizione,
+        DateTime data, decimal? importo, string? motivazione, string? note, IFormFile? allegato)
+    {
+        var dip = await Load(id);
+        if (dip is null) return NotFound();
+
+        if (string.IsNullOrWhiteSpace(descrizione))
+        {
+            TempData["flash"] = "Indica una descrizione.";
+            return RedirectToAction(nameof(Details), new { id, tab = "premi" });
+        }
+
+        var premio = new PremioDipendente
+        {
+            TenantId = _tenant.TenantId!,
+            DipendenteId = id,
+            DipendenteNome = dip.NomeCompleto,
+            Tipo = tipo,
+            Descrizione = descrizione.Trim(),
+            Data = DateTime.SpecifyKind(data.Date, DateTimeKind.Utc),
+            Importo = importo,
+            Motivazione = motivazione,
+            Note = note
+        };
+
+        if (allegato is { Length: > 0 })
+        {
+            var err = await TryAttachAsync(allegato, "premi",
+                (path, name, size) => { premio.AllegatoNome = name; premio.AllegatoPath = path; premio.AllegatoSize = size; });
+            if (err is not null)
+            {
+                TempData["flash"] = err;
+                return RedirectToAction(nameof(Details), new { id, tab = "premi" });
+            }
+        }
+
+        await _mongo.Premi.InsertOneAsync(premio);
+        await _audit.LogAsync("Dipendente", id, dip.NomeCompleto, AuditAction.Updated, actor: User);
+        TempData["flash"] = "Premio registrato.";
+        return RedirectToAction(nameof(Details), new { id, tab = "premi" });
+    }
+
+    [HttpPost("{id}/premi/{premioId}/elimina")]
+    [Authorize(Policy = Policies.RequireManagement)]
+    [ValidateAntiForgeryToken]
+    public async Task<IActionResult> EliminaPremio(string id, string premioId)
+    {
+        await _mongo.Premi.DeleteOneAsync(x => x.Id == premioId && x.TenantId == _tenant.TenantId && x.DipendenteId == id);
+        TempData["flash"] = "Premio rimosso.";
+        return RedirectToAction(nameof(Details), new { id, tab = "premi" });
+    }
+
+    // ─────────────────────────────────────────────────────────────
+    //  SCHEDE DI VALUTAZIONE
+    // ─────────────────────────────────────────────────────────────
+    [HttpPost("{id}/valutazioni/nuova")]
+    [Authorize(Policy = Policies.RequireDirettore)]
+    [ValidateAntiForgeryToken]
+    [RequestSizeLimit(MaxAllegatoBytes)]
+    public async Task<IActionResult> NuovaValutazione(string id, string periodo, DateTime data,
+        string? valutatoreNome, int? competenze, int? comportamento, int? teamwork, int? puntualita,
+        int? obiettivi, int? finale, DateTime? dataColloquio, bool firmaDipendente, bool firmaValutatore,
+        string? obiettiviTesto, string? puntiForza, string? areeMiglioramento, string? commenti,
+        StatoSchedaValutazione stato, IFormFile? allegato)
+    {
+        var dip = await Load(id);
+        if (dip is null) return NotFound();
+
+        if (string.IsNullOrWhiteSpace(periodo))
+        {
+            TempData["flash"] = "Indica il periodo di riferimento (es. 2026 H1).";
+            return RedirectToAction(nameof(Details), new { id, tab = "valutazioni" });
+        }
+
+        var sch = new SchedaValutazione
+        {
+            TenantId = _tenant.TenantId!,
+            DipendenteId = id,
+            DipendenteNome = dip.NomeCompleto,
+            Periodo = periodo.Trim(),
+            Data = DateTime.SpecifyKind(data.Date, DateTimeKind.Utc),
+            ValutatoreNome = valutatoreNome ?? User.Identity?.Name,
+            PunteggioCompetenze = competenze,
+            PunteggioComportamento = comportamento,
+            PunteggioTeamwork = teamwork,
+            PunteggioPuntualita = puntualita,
+            PunteggioObiettivi = obiettivi,
+            PunteggioFinale = finale,
+            DataColloquio = dataColloquio.HasValue ? DateTime.SpecifyKind(dataColloquio.Value.Date, DateTimeKind.Utc) : null,
+            FirmaDipendente = firmaDipendente,
+            FirmaValutatore = firmaValutatore,
+            Obiettivi = obiettiviTesto,
+            PuntiDiForza = puntiForza,
+            AreeDiMiglioramento = areeMiglioramento,
+            Commenti = commenti,
+            Stato = stato
+        };
+
+        if (allegato is { Length: > 0 })
+        {
+            var err = await TryAttachAsync(allegato, "valutazioni",
+                (path, name, size) => { sch.AllegatoNome = name; sch.AllegatoPath = path; sch.AllegatoSize = size; });
+            if (err is not null)
+            {
+                TempData["flash"] = err;
+                return RedirectToAction(nameof(Details), new { id, tab = "valutazioni" });
+            }
+        }
+
+        await _mongo.Valutazioni.InsertOneAsync(sch);
+        await _audit.LogAsync("Dipendente", id, dip.NomeCompleto, AuditAction.Updated, actor: User);
+        TempData["flash"] = "Scheda di valutazione registrata.";
+        return RedirectToAction(nameof(Details), new { id, tab = "valutazioni" });
+    }
+
+    [HttpPost("{id}/valutazioni/{schedaId}/elimina")]
+    [Authorize(Policy = Policies.RequireDirettore)]
+    [ValidateAntiForgeryToken]
+    public async Task<IActionResult> EliminaValutazione(string id, string schedaId)
+    {
+        await _mongo.Valutazioni.DeleteOneAsync(x => x.Id == schedaId && x.TenantId == _tenant.TenantId && x.DipendenteId == id);
+        TempData["flash"] = "Scheda di valutazione rimossa.";
+        return RedirectToAction(nameof(Details), new { id, tab = "valutazioni" });
     }
 
     private async Task<string?> TryAttachAsync(IFormFile file, string folder, Action<string, string, long> apply)

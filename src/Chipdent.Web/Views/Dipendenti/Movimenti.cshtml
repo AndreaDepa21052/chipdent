@@ -1,0 +1,95 @@
+@model Chipdent.Web.Models.MovimentiMensiliReport
+@using System.Globalization
+@{
+    ViewData["Title"] = "Movimenti dipendenti — " + Model.MeseAnnoLabel;
+    var ci = CultureInfo.GetCultureInfo("it-IT");
+    var anno = (int)ViewData["Anno"]!;
+    var mese = (int)ViewData["Mese"]!;
+    var oggi = DateTime.UtcNow;
+}
+
+<partial name="_Flash" />
+
+<div class="page-head">
+    <div>
+        <h2>Movimenti dipendenti</h2>
+        <p class="page-head__sub">@Model.MeseAnnoLabel — riepilogo per sede di assunzioni, cessazioni, proroghe, distacchi e trasformazioni</p>
+    </div>
+    <div class="page-head__actions">
+        <a class="btn btn--ghost" asp-action="Index">← Lista</a>
+        <a class="btn btn--primary" asp-action="MovimentiCsv" asp-route-anno="@anno" asp-route-mese="@mese">⬇ Export CSV</a>
+    </div>
+</div>
+
+<div class="card" style="padding: var(--s-3); margin-bottom: var(--s-4);">
+    <form method="get" asp-action="Movimenti" style="display:flex; gap:8px; align-items:center; flex-wrap:wrap;">
+        <label class="form-label" style="margin:0;">Mese</label>
+        <select class="form-control" name="mese" style="max-width:160px;">
+            @for (int m = 1; m <= 12; m++)
+            {
+                <option value="@m" selected="@(m == mese)">@ci.DateTimeFormat.GetMonthName(m)</option>
+            }
+        </select>
+        <label class="form-label" style="margin:0;">Anno</label>
+        <select class="form-control" name="anno" style="max-width:120px;">
+            @for (int y = oggi.Year - 3; y <= oggi.Year + 1; y++)
+            {
+                <option value="@y" selected="@(y == anno)">@y</option>
+            }
+        </select>
+        <button type="submit" class="btn btn--primary btn--sm">Aggiorna</button>
+    </form>
+</div>
+
+<div class="grid grid--stats" style="margin-bottom: var(--s-4);">
+    <div class="stat"><div class="stat__label">Assunzioni</div><div class="stat__value" style="color:#1f6e3a;">@Model.TotaleAssunzioni</div></div>
+    <div class="stat"><div class="stat__label">Cessazioni</div><div class="stat__value" style="color:#a83a3a;">@Model.TotaleCessazioni</div></div>
+    <div class="stat"><div class="stat__label">Proroghe</div><div class="stat__value">@Model.TotaleProroghe</div></div>
+    <div class="stat"><div class="stat__label">Distacchi</div><div class="stat__value">@Model.TotaleDistacchi</div></div>
+    <div class="stat"><div class="stat__label">Trasformazioni</div><div class="stat__value" style="color:#a86010;">@Model.TotaleTrasformazioni</div></div>
+</div>
+
+<div class="card" style="padding:0; overflow:auto;">
+    <table class="table">
+        <thead>
+            <tr>
+                <th>Mese/Anno</th>
+                <th>Società</th>
+                <th>Assunzioni</th>
+                <th>Annull. assunzioni</th>
+                <th>Cessazioni anticipate</th>
+                <th>Non rinnovati</th>
+                <th>Non rinnovati prossimo mese</th>
+                <th>Proroghe</th>
+                <th>Distacchi</th>
+                <th>Rettifiche distacchi</th>
+                <th>Trasformazioni / livello</th>
+                <th>Note</th>
+            </tr>
+        </thead>
+        <tbody>
+            @foreach (var r in Model.Righe)
+            {
+                <tr>
+                    <td>@Model.MeseAnnoLabel</td>
+                    <td><strong>@r.ClinicaNome</strong></td>
+                    <td>@(r.NumeroAssunzioni == 0 ? "" : r.NumeroAssunzioni.ToString())</td>
+                    <td>@(r.NumeroAnnullamentiAssunzione == 0 ? "" : r.NumeroAnnullamentiAssunzione.ToString())</td>
+                    <td>@(r.NumeroCessazioniAnticipate == 0 ? "" : r.NumeroCessazioniAnticipate.ToString())</td>
+                    <td>@(r.NumeroContrattiNonRinnovati == 0 ? "" : r.NumeroContrattiNonRinnovati.ToString())</td>
+                    <td>@(r.NumeroContrattiNonRinnovatiProssimoMese == 0 ? "" : r.NumeroContrattiNonRinnovatiProssimoMese.ToString())</td>
+                    <td>@(r.NumeroProroghe == 0 ? "" : r.NumeroProroghe.ToString())</td>
+                    <td>@(r.NumeroDistacchi == 0 ? "" : r.NumeroDistacchi.ToString())</td>
+                    <td>@(r.NumeroRettificheDistacchi == 0 ? "" : r.NumeroRettificheDistacchi.ToString())</td>
+                    <td>@(r.NumeroTrasformazioniLivello == 0 ? "" : r.NumeroTrasformazioniLivello.ToString())</td>
+                    <td class="muted" style="font-size:.8rem;">@string.Join(" · ", r.Note)</td>
+                </tr>
+            }
+        </tbody>
+    </table>
+</div>
+
+<p class="muted" style="margin-top: var(--s-3); font-size:.85rem;">
+    Il riepilogo è calcolato in tempo reale dalle anagrafiche dipendenti e dai distacchi registrati.
+    Le colonne corrispondono al modello "Elenco assunzioni / cessazioni / proroghe / distacchi" usato in precedenza in Excel.
+</p>

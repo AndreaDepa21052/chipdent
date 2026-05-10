@@ -1,0 +1,45 @@
+@using Chipdent.Web.Domain.Entities
+@{
+    var d = (Dipendente)ViewData["Dipendente"]!;
+    var byManager = (Dictionary<string, List<Dipendente>>)ViewData["Children"]!;
+    var clinicheLookup = (Dictionary<string, string>)ViewData["Cliniche"]!;
+    var children = byManager.TryGetValue(d.Id, out var list) ? list : new List<Dipendente>();
+    var clinicaNome = clinicheLookup.TryGetValue(d.ClinicaId, out var n) ? n : "—";
+}
+<div class="org-tree__item">
+    <div class="org-node">
+        <div class="org-node__avatar">@d.Iniziali</div>
+        <div class="org-node__main">
+            <div class="org-node__name">
+                <a asp-controller="Dipendenti" asp-action="Details" asp-route-id="@d.Id" style="color:inherit; text-decoration:none;">
+                    @d.NomeCompleto
+                </a>
+            </div>
+            <div class="org-node__sub">
+                <span>@d.Ruolo</span>
+                @if (!string.IsNullOrWhiteSpace(d.MansioneSpecifica))
+                {
+                    <span> · @d.MansioneSpecifica</span>
+                }
+                <span> · 📍 @clinicaNome</span>
+                @if (children.Count > 0)
+                {
+                    <span> · 👥 @children.Count</span>
+                }
+            </div>
+        </div>
+        <div class="org-node__actions">
+            <a class="btn btn--ghost btn--sm" asp-controller="Dipendenti" asp-action="Details" asp-route-id="@d.Id" title="Apri scheda">↗ Apri</a>
+            <a class="btn btn--ghost btn--sm" asp-controller="Dipendenti" asp-action="Edit" asp-route-id="@d.Id" title="Modifica">✎ Modifica</a>
+        </div>
+    </div>
+    @if (children.Count > 0)
+    {
+        <div class="org-children">
+            @foreach (var child in children)
+            {
+                @await Html.PartialAsync("_OrgNode", new ViewDataDictionary(ViewData) { ["Dipendente"] = child, ["Children"] = byManager, ["Cliniche"] = clinicheLookup })
+            }
+        </div>
+    }
+</div>

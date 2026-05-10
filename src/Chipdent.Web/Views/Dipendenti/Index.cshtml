@@ -15,6 +15,8 @@
         <p class="page-head__sub">@Model.Count membri · @Model.Count(d => d.Stato == Chipdent.Web.Domain.Entities.StatoDipendente.Attivo) attivi</p>
     </div>
     <div class="page-head__actions">
+        <a class="btn btn--ghost" asp-action="Organigramma">🌳 Organigramma</a>
+        <a class="btn btn--ghost" asp-action="Movimenti">📊 Movimenti mese</a>
         <a class="btn btn--primary" asp-action="Create">+ Nuovo dipendente</a>
     </div>
 </div>
