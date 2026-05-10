@@ -22,7 +22,15 @@
             I caricamenti sono <strong>append-only</strong>: nessun batch viene mai sovrascritto o cancellato.
         </p>
     </div>
-    <div class="page-head__actions">
+    <div class="page-head__actions" style="display:flex; gap:8px; flex-wrap:wrap;">
+        <form asp-action="SyncFornitoriDaImport" method="post" style="display:inline;">
+            @Html.AntiForgeryToken()
+            <button type="submit" class="btn btn--ghost"
+                    title="Crea in anagrafica fornitori tutti i nominativi citati nei batch importati che non sono ancora censiti."
+                    onclick="return confirm('Verificare i fornitori citati nei file fatture importati e creare in anagrafica quelli mancanti?');">
+                ⇆ Allinea anagrafica fornitori
+            </button>
+        </form>
         <a class="btn btn--ghost" asp-action="Index">← Tesoreria</a>
     </div>
 </div>

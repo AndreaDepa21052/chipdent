@@ -1428,6 +1428,93 @@ public class TesoreriaController : Controller
         return RedirectToAction(nameof(ImportFattureDettaglio), new { id = batch.Id });
     }
 
+    /// <summary>Scansiona tutti i fornitori citati nelle righe importate da
+    /// "Importa fatture" e crea quelli mancanti nell'anagrafica fornitori,
+    /// assegnando un codice progressivo F####.</summary>
+    [HttpPost("import-fatture/sync-fornitori")]
+    [ValidateAntiForgeryToken]
+    public async Task<IActionResult> SyncFornitoriDaImport()
+    {
+        var tid = _tenant.TenantId!;
+
+        var fornitoriEsistenti = await _mongo.Fornitori
+            .Find(f => f.TenantId == tid)
+            .Project(f => new { f.RagioneSociale, f.Codice })
+            .ToListAsync();
+
+        var giaPresenti = new HashSet<string>(
+            fornitoriEsistenti
+                .Select(f => NormalizzaRagioneSociale(f.RagioneSociale))
+                .Where(s => !string.IsNullOrEmpty(s)),
+            StringComparer.Ordinal);
+
+        var maxCodice = 0;
+        foreach (var f in fornitoriEsistenti)
+        {
+            if (string.IsNullOrEmpty(f.Codice) || f.Codice[0] != 'F') continue;
+            if (int.TryParse(f.Codice.AsSpan(1), out var n) && n > maxCodice) maxCodice = n;
+        }
+
+        var nomiDallImport = await _mongo.ImportFattureRighe
+            .Find(r => r.TenantId == tid && r.Fornitore != null && r.Fornitore != "")
+            .Project(r => r.Fornitore!)
+            .ToListAsync();
+
+        // Dedup mantenendo la prima occorrenza (più "pulita") tra varianti uguali normalizzate
+        var daCreare = new Dictionary<string, string>(StringComparer.Ordinal);
+        foreach (var nome in nomiDallImport)
+        {
+            var raw = (nome ?? "").Trim();
+            if (raw.Length == 0) continue;
+            var key = NormalizzaRagioneSociale(raw);
+            if (string.IsNullOrEmpty(key)) continue;
+            if (giaPresenti.Contains(key)) continue;
+            if (daCreare.ContainsKey(key)) continue;
+            daCreare[key] = raw;
+        }
+
+        if (daCreare.Count == 0)
+        {
+            TempData["flash"] = "Anagrafica fornitori già allineata: nessun nuovo fornitore da creare.";
+            return RedirectToAction(nameof(ImportFatture));
+        }
+
+        var nuovi = new List<Fornitore>();
+        foreach (var ragSoc in daCreare.Values.OrderBy(v => v, StringComparer.OrdinalIgnoreCase))
+        {
+            maxCodice++;
+            nuovi.Add(new Fornitore
+            {
+                TenantId = tid,
+                Codice = $"F{maxCodice:D4}",
+                RagioneSociale = ragSoc,
+                CategoriaDefault = CategoriaSpesa.AltreSpeseFisse,
+                Stato = StatoFornitore.Attivo,
+                TerminiPagamentoGiorni = 30,
+                BasePagamento = BasePagamento.DataFattura,
+                Note = "Creato automaticamente dall'import fatture passive."
+            });
+        }
+        await _mongo.Fornitori.InsertManyAsync(nuovi);
+
+        TempData["flash"] = $"Aggiunti {nuovi.Count} nuovi fornitori dall'anagrafica import fatture.";
+        return RedirectToAction(nameof(ImportFatture));
+    }
+
+    /// <summary>Normalizza una ragione sociale per il confronto: lowercase,
+    /// rimozione spazi/punteggiatura non significativa, collapse di whitespace.
+    /// Sufficiente a riconoscere "AGESP SPA" == "AGESP S.P.A.".</summary>
+    private static string NormalizzaRagioneSociale(string? s)
+    {
+        if (string.IsNullOrWhiteSpace(s)) return string.Empty;
+        var sb = new StringBuilder(s.Length);
+        foreach (var ch in s)
+        {
+            if (char.IsLetterOrDigit(ch)) sb.Append(char.ToLowerInvariant(ch));
+        }
+        return sb.ToString();
+    }
+
     private static void AppendParsedFile(
         ImportFatturePassiveBatch batch,
         List<ImportFatturaRiga> accumulator,
