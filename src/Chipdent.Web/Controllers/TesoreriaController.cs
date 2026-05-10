@@ -1593,9 +1593,26 @@ public class TesoreriaController : Controller
             UserId = userId
         });
 
-        // 4) Persisti nuovi fornitori (se ce ne sono)
+        // 4) Persisti nuovi fornitori (se ce ne sono) — assegna un codice F#### progressivo
+        //    proseguendo la sequenza dei fornitori già esistenti.
         if (output.FornitoriNuovi.Count > 0)
+        {
+            var maxCodiceF = 0;
+            foreach (var f in fornitoriCorrenti)
+            {
+                if (string.IsNullOrEmpty(f.Codice) || f.Codice[0] != 'F') continue;
+                if (int.TryParse(f.Codice.AsSpan(1), out var n) && n > maxCodiceF) maxCodiceF = n;
+            }
+            foreach (var f in output.FornitoriNuovi)
+            {
+                if (string.IsNullOrWhiteSpace(f.Codice))
+                {
+                    maxCodiceF++;
+                    f.Codice = $"F{maxCodiceF:D4}";
+                }
+            }
             await _mongo.Fornitori.InsertManyAsync(output.FornitoriNuovi);
+        }
 
         // 5) Persisti fatture e scadenze
         if (output.Fatture.Count > 0)

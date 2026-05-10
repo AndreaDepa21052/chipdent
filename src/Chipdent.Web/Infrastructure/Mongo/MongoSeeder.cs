@@ -308,6 +308,10 @@ public static class MongoSeeder
 
             // Crea/aggiorna fornitori-ombra per i dottori (collaborazione/libero professionista)
             var ombraCreati = await ombraService.SyncTenantAsync(tenant.Id, ct);
+
+            // Backfill difensivo: assegna un codice a qualunque fornitore esistente
+            // ne sia rimasto privo (regressioni storiche, ombra di dottori legacy, …).
+            await BackfillCodiceFornitoriSeeder.SeedAsync(ctx, tenant, logger, ct);
             if (ombraCreati > 0)
             {
                 logger.LogInformation("Sincronizzati {Count} fornitori-ombra dei dottori", ombraCreati);
