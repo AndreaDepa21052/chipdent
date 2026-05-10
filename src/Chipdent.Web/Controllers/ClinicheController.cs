@@ -13,13 +13,19 @@ namespace Chipdent.Web.Controllers;
 [Route("cliniche")]
 public class ClinicheController : Controller
 {
+    private const long MaxAllegatoBytes = 10 * 1024 * 1024;
+    private static readonly HashSet<string> AllegatoEstensioniAmmesse = new(StringComparer.OrdinalIgnoreCase)
+        { ".pdf", ".png", ".jpg", ".jpeg", ".doc", ".docx" };
+
     private readonly MongoContext _mongo;
     private readonly ITenantContext _tenant;
+    private readonly Chipdent.Web.Infrastructure.Storage.IFileStorage _storage;
 
-    public ClinicheController(MongoContext mongo, ITenantContext tenant)
+    public ClinicheController(MongoContext mongo, ITenantContext tenant, Chipdent.Web.Infrastructure.Storage.IFileStorage storage)
     {
         _mongo = mongo;
         _tenant = tenant;
+        _storage = storage;
     }
 
     [HttpGet("")]
@@ -141,6 +147,11 @@ public class ClinicheController : Controller
             allCliniche.ToDictionary(c => c.Id),
             now, soon, clinicaFilter: id);
 
+        var mysteryClient = await _mongo.MysteryClient
+            .Find(m => m.TenantId == _tenant.TenantId && m.ClinicaId == id)
+            .SortByDescending(m => m.DataVisita)
+            .ToListAsync();
+
         ViewData["Section"] = "cliniche";
         ViewData["Dottori"] = dottori;
         ViewData["Dipendenti"] = dipendenti;
@@ -151,7 +162,78 @@ public class ClinicheController : Controller
         ViewData["CorsiRls"] = corsiSede;
         ViewData["VisiteRls"] = visiteSede;
         ViewData["DvrRls"] = dvrSede;
+        ViewData["MysteryClient"] = mysteryClient;
         return View(clinica);
+    }
+
+    // ─────────────────────────────────────────────────────────────
+    //  MYSTERY CLIENT: storico visite con scheda di valutazione
+    // ─────────────────────────────────────────────────────────────
+    [HttpPost("{id}/mystery/nuova")]
+    [Authorize(Policy = Policies.RequireBackoffice)]
+    [ValidateAntiForgeryToken]
+    [RequestSizeLimit(MaxAllegatoBytes)]
+    public async Task<IActionResult> NuovaVisitaMystery(string id, DateTime dataVisita, CanaleMystery canale,
+        string? codiceMystery, double? punteggioComplessivo,
+        int? accoglienza, int? cortesia, int? competenza, int? ambiente, int? followUp,
+        string? puntiDiForza, string? areeDiMiglioramento, string? azioniCorrettive, string? note,
+        IFormFile? allegato)
+    {
+        var clinica = await Load(id);
+        if (clinica is null) return NotFound();
+
+        var visita = new VisitaMysteryClient
+        {
+            TenantId = _tenant.TenantId!,
+            ClinicaId = id,
+            DataVisita = DateTime.SpecifyKind(dataVisita.Date, DateTimeKind.Utc),
+            Canale = canale,
+            CodiceMystery = codiceMystery,
+            PunteggioComplessivo = punteggioComplessivo,
+            PunteggioAccoglienza = accoglienza,
+            PunteggioCortesia = cortesia,
+            PunteggioCompetenza = competenza,
+            PunteggioAmbiente = ambiente,
+            PunteggioFollowUp = followUp,
+            PuntiDiForza = puntiDiForza,
+            AreeDiMiglioramento = areeDiMiglioramento,
+            AzioniCorrettive = azioniCorrettive,
+            Note = note
+        };
+
+        if (allegato is { Length: > 0 })
+        {
+            if (allegato.Length > MaxAllegatoBytes)
+            {
+                TempData["flash"] = $"File troppo grande (max {MaxAllegatoBytes / (1024 * 1024)}MB).";
+                return RedirectToAction(nameof(Details), new { id, tab = "mystery" });
+            }
+            var ext = Path.GetExtension(allegato.FileName).ToLowerInvariant();
+            if (!AllegatoEstensioniAmmesse.Contains(ext))
+            {
+                TempData["flash"] = $"Estensione non consentita: {ext}";
+                return RedirectToAction(nameof(Details), new { id, tab = "mystery" });
+            }
+            await using var stream = allegato.OpenReadStream();
+            var stored = await _storage.SaveAsync(_tenant.TenantId!, "mystery-client", allegato.FileName, stream, allegato.ContentType);
+            visita.AllegatoNome = allegato.FileName;
+            visita.AllegatoPath = stored.RelativePath;
+            visita.AllegatoSize = stored.SizeBytes;
+        }
+
+        await _mongo.MysteryClient.InsertOneAsync(visita);
+        TempData["flash"] = "Visita Mystery Client registrata.";
+        return RedirectToAction(nameof(Details), new { id, tab = "mystery" });
+    }
+
+    [HttpPost("{id}/mystery/{visitaId}/elimina")]
+    [Authorize(Policy = Policies.RequireBackoffice)]
+    [ValidateAntiForgeryToken]
+    public async Task<IActionResult> EliminaVisitaMystery(string id, string visitaId)
+    {
+        await _mongo.MysteryClient.DeleteOneAsync(v => v.Id == visitaId && v.TenantId == _tenant.TenantId && v.ClinicaId == id);
+        TempData["flash"] = "Visita rimossa.";
+        return RedirectToAction(nameof(Details), new { id, tab = "mystery" });
     }
 
     // ─────────────────────────────────────────────────────────────

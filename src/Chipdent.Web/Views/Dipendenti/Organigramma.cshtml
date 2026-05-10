@@ -1,0 +1,83 @@
+@model IReadOnlyList<Chipdent.Web.Domain.Entities.Dipendente>
+@using Chipdent.Web.Domain.Entities
+@{
+    ViewData["Title"] = "Organigramma operativo";
+    var cliniche = (IReadOnlyList<Clinica>?)ViewData["Cliniche"] ?? Array.Empty<Clinica>();
+    var clinicaIdFilter = (string?)ViewData["ClinicaIdFilter"];
+    var clinicheLookup = cliniche.ToDictionary(c => c.Id, c => c.Nome);
+
+    // Costruzione albero gerarchico dal campo ManagerId
+    var byManager = Model
+        .GroupBy(d => string.IsNullOrEmpty(d.ManagerId) ? "" : d.ManagerId!)
+        .ToDictionary(g => g.Key, g => g.OrderBy(x => x.Cognome).ToList());
+
+    var idsPresenti = Model.Select(d => d.Id).ToHashSet();
+    var roots = Model
+        .Where(d => string.IsNullOrEmpty(d.ManagerId) || !idsPresenti.Contains(d.ManagerId!))
+        .OrderBy(d => d.Cognome)
+        .ToList();
+}
+
+<partial name="_Flash" />
+
+<div class="page-head">
+    <div>
+        <h2>Organigramma operativo</h2>
+        <p class="page-head__sub">@Model.Count membri attivi · gerarchia basata sul campo "Manager" del profilo dipendente</p>
+    </div>
+    <div class="page-head__actions">
+        <a class="btn btn--ghost" asp-action="Index">≡ Lista</a>
+        <a class="btn btn--primary" asp-action="Create">+ Nuovo dipendente</a>
+    </div>
+</div>
+
+<div class="card" style="padding: var(--s-3); margin-bottom: var(--s-4);">
+    <form method="get" asp-action="Organigramma" style="display:flex; gap:8px; align-items:center; flex-wrap:wrap;">
+        <label class="form-label" style="margin:0;">Filtro clinica</label>
+        <select class="form-control" name="clinicaId" onchange="this.form.submit()" style="max-width:280px;">
+            <option value="">Tutte le sedi</option>
+            @foreach (var c in cliniche)
+            {
+                <option value="@c.Id" selected="@(c.Id == clinicaIdFilter)">@c.Nome</option>
+            }
+        </select>
+        @if (!string.IsNullOrEmpty(clinicaIdFilter))
+        {
+            <a class="btn btn--ghost btn--sm" asp-action="Organigramma">Reset</a>
+        }
+    </form>
+</div>
+
+@if (Model.Count == 0)
+{
+    <div class="card">
+        <div class="empty">
+            <h3>Nessun dipendente</h3>
+            <p>Aggiungi il primo membro dello staff o cambia il filtro.</p>
+        </div>
+    </div>
+}
+else
+{
+    <style>
+        .org-tree { display: flex; flex-direction: column; gap: var(--s-3); }
+        .org-node { border: 1px solid rgba(59,30,12,.12); border-radius: 12px; background:#fff; padding: var(--s-3); display:flex; gap: var(--s-3); align-items:center; transition: box-shadow .15s, transform .15s; }
+        .org-node:hover { box-shadow: 0 6px 18px rgba(0,0,0,.08); transform: translateY(-1px); }
+        .org-node__avatar { width: 44px; height: 44px; border-radius: 50%; background: linear-gradient(135deg,#c47830,#3b1e0c); color:#fff; display:flex; align-items:center; justify-content:center; font-weight:700; flex-shrink:0; }
+        .org-node__main { flex: 1; min-width: 0; }
+        .org-node__name { font-weight: 600; }
+        .org-node__sub { color: var(--c-muted); font-size: .85rem; margin-top: 2px; }
+        .org-node__actions { display:flex; gap: 4px; flex-shrink:0; }
+        .org-children { margin-left: 28px; padding-left: var(--s-3); border-left: 2px dashed rgba(196,120,48,.35); display:flex; flex-direction: column; gap: var(--s-3); margin-top: var(--s-3); }
+        .org-children > .org-tree__item { position: relative; }
+        .org-children > .org-tree__item::before { content: ""; position: absolute; left: -16px; top: 22px; width: 14px; height: 2px; background: rgba(196,120,48,.35); }
+        .org-tree__item { display:flex; flex-direction: column; }
+    </style>
+
+    <div class="org-tree">
+        @foreach (var root in roots)
+        {
+            @await Html.PartialAsync("_OrgNode", new ViewDataDictionary(ViewData) { ["Dipendente"] = root, ["Children"] = byManager, ["Cliniche"] = clinicheLookup })
+        }
+    </div>
+}

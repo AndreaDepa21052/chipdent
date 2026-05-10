@@ -12,6 +12,7 @@
     var corsiRls = (IReadOnlyList<CorsiPerTipoGroup>?)ViewData["CorsiRls"] ?? Array.Empty<CorsiPerTipoGroup>();
     var visiteRls = (List<VisitaMedica>?)ViewData["VisiteRls"] ?? new();
     var dvrRls = (List<DVR>?)ViewData["DvrRls"] ?? new();
+    var mysteryClient = (List<VisitaMysteryClient>?)ViewData["MysteryClient"] ?? new();
     var oggi = DateTime.UtcNow.Date;
     var oggiUtc = DateTime.UtcNow;
     var sogliaRls = oggiUtc.AddMonths(3);
@@ -59,6 +60,7 @@
     <a class="tab @(activeTab == "compliance" ? "is-active" : "")"  href="#" data-tab="compliance">RENTRI &amp; protocolli</a>
     <a class="tab @(activeTab == "rls" ? "is-active" : "")"  href="#" data-tab="rls">🛡 RLS / Sicurezza @if (CorsiCriticIRls + VisiteCriticIRls > 0) { <span class="tab__count">@(CorsiCriticIRls + VisiteCriticIRls)</span> }</a>
     <a class="tab @(activeTab == "interventi" ? "is-active" : "")"  href="#" data-tab="interventi">🛠️ Calendario interventi <span class="tab__count">@interventi.Count(i => i.ProssimaScadenza != null && i.ProssimaScadenza.Value.Date >= oggi && i.ProssimaScadenza.Value.Date <= oggi.AddDays(60))</span></a>
+    <a class="tab @(activeTab == "mystery" ? "is-active" : "")"  href="#" data-tab="mystery">🕵️ Mystery Client <span class="tab__count">@mysteryClient.Count</span></a>
 </div>
 
 <section data-tab-pane="anagrafica" style="@(activeTab == "anagrafica" ? "" : "display:none;")">
@@ -590,6 +592,122 @@
             </details>
         }
     </div>
+</section>
+
+<section data-tab-pane="mystery" style="@(activeTab == "mystery" ? "" : "display:none;")">
+    <div class="card" style="padding: var(--s-4); margin-bottom: var(--s-4);">
+        <h3 class="card__title" style="margin-top: 0;">🕵️ Nuova visita Mystery Client</h3>
+        <p class="muted" style="font-size:.85rem;">Registra l'esito di una visita in incognito per monitorare la qualità del servizio.</p>
+        <form asp-controller="Cliniche" asp-action="NuovaVisitaMystery" asp-route-id="@Model.Id"
+              method="post" enctype="multipart/form-data" class="form-grid" style="margin-top: var(--s-3);">
+            @Html.AntiForgeryToken()
+            <div class="form-group">
+                <label class="form-label">Data visita *</label>
+                <input class="form-control" type="date" name="dataVisita" required value="@oggi.ToString("yyyy-MM-dd")" />
+            </div>
+            <div class="form-group">
+                <label class="form-label">Canale *</label>
+                <select class="form-control" name="canale" required>
+                    @foreach (var c in Enum.GetValues<CanaleMystery>())
+                    {
+                        <option value="@c">@c</option>
+                    }
+                </select>
+            </div>
+            <div class="form-group">
+                <label class="form-label">Codice / agenzia</label>
+                <input class="form-control" name="codiceMystery" placeholder="es. MC-2026-04" />
+            </div>
+            <div class="form-group">
+                <label class="form-label">Punteggio complessivo</label>
+                <input class="form-control" type="number" step="0.01" name="punteggioComplessivo" placeholder="es. 87,5 oppure 4,2" />
+            </div>
+
+            <div class="form-group"><label class="form-label">Accoglienza (1-5)</label><input class="form-control" type="number" min="1" max="5" name="accoglienza" /></div>
+            <div class="form-group"><label class="form-label">Cortesia (1-5)</label><input class="form-control" type="number" min="1" max="5" name="cortesia" /></div>
+            <div class="form-group"><label class="form-label">Competenza (1-5)</label><input class="form-control" type="number" min="1" max="5" name="competenza" /></div>
+            <div class="form-group"><label class="form-label">Ambiente (1-5)</label><input class="form-control" type="number" min="1" max="5" name="ambiente" /></div>
+            <div class="form-group"><label class="form-label">Follow-up (1-5)</label><input class="form-control" type="number" min="1" max="5" name="followUp" /></div>
+
+            <div class="form-group full">
+                <label class="form-label">Punti di forza</label>
+                <textarea class="form-control" name="puntiDiForza" rows="2"></textarea>
+            </div>
+            <div class="form-group full">
+                <label class="form-label">Aree di miglioramento</label>
+                <textarea class="form-control" name="areeDiMiglioramento" rows="2"></textarea>
+            </div>
+            <div class="form-group full">
+                <label class="form-label">Azioni correttive intraprese</label>
+                <textarea class="form-control" name="azioniCorrettive" rows="2"></textarea>
+            </div>
+            <div class="form-group full">
+                <label class="form-label">Note</label>
+                <textarea class="form-control" name="note" rows="2"></textarea>
+            </div>
+            <div class="form-group full">
+                <label class="form-label">Report (PDF/DOC, max 10MB)</label>
+                <input class="form-control" type="file" name="allegato" accept=".pdf,.png,.jpg,.jpeg,.doc,.docx" />
+            </div>
+            <div class="form-group full" style="text-align:right;">
+                <button type="submit" class="btn btn--primary">＋ Registra visita</button>
+            </div>
+        </form>
+    </div>
+
+    @if (mysteryClient.Count == 0)
+    {
+        <div class="card" style="padding: var(--s-4);">
+            <p class="muted">Nessuna visita Mystery Client registrata per questa sede.</p>
+        </div>
+    }
+    else
+    {
+        <div class="card" style="padding:0; overflow:auto;">
+            <table class="table">
+                <thead>
+                    <tr>
+                        <th>Data</th>
+                        <th>Canale</th>
+                        <th>Codice</th>
+                        <th>Punteggio</th>
+                        <th>Accogl.</th>
+                        <th>Cort.</th>
+                        <th>Comp.</th>
+                        <th>Amb.</th>
+                        <th>F.up</th>
+                        <th>Aree miglioramento</th>
+                        <th>Allegato</th>
+                        <th></th>
+                    </tr>
+                </thead>
+                <tbody>
+                    @foreach (var v in mysteryClient.OrderByDescending(x => x.DataVisita))
+                    {
+                        <tr>
+                            <td><strong>@v.DataVisita.ToString("dd/MM/yyyy")</strong></td>
+                            <td><span class="badge">@v.Canale</span></td>
+                            <td>@(v.CodiceMystery ?? "—")</td>
+                            <td>@(v.PunteggioComplessivo.HasValue ? v.PunteggioComplessivo.Value.ToString("0.0") : "—")</td>
+                            <td>@(v.PunteggioAccoglienza?.ToString() ?? "—")</td>
+                            <td>@(v.PunteggioCortesia?.ToString() ?? "—")</td>
+                            <td>@(v.PunteggioCompetenza?.ToString() ?? "—")</td>
+                            <td>@(v.PunteggioAmbiente?.ToString() ?? "—")</td>
+                            <td>@(v.PunteggioFollowUp?.ToString() ?? "—")</td>
+                            <td class="muted" style="font-size:.8rem;">@(v.AreeDiMiglioramento ?? "—")</td>
+                            <td>@(string.IsNullOrEmpty(v.AllegatoNome) ? "—" : "📎 " + v.AllegatoNome)</td>
+                            <td>
+                                <form asp-controller="Cliniche" asp-action="EliminaVisitaMystery" asp-route-id="@Model.Id" asp-route-visitaId="@v.Id" method="post" style="display:inline;" onsubmit="return confirm('Eliminare?');">
+                                    @Html.AntiForgeryToken()
+                                    <button type="submit" class="btn btn--ghost btn--sm">🗑</button>
+                                </form>
+                            </td>
+                        </tr>
+                    }
+                </tbody>
+            </table>
+        </div>
+    }
 </section>
 
 <dialog id="dlg-intervento-clinica" class="dlg-intervento-clinica">

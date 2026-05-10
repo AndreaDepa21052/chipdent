@@ -39,6 +39,10 @@ public class DipendenteProfileViewModel
     public IReadOnlyList<DistaccoDipendente> Distacchi { get; set; } = Array.Empty<DistaccoDipendente>();
     public IReadOnlyList<VisitaMedica> VisiteMediche { get; set; } = Array.Empty<VisitaMedica>();
     public IReadOnlyList<Corso> Corsi { get; set; } = Array.Empty<Corso>();
+    public IReadOnlyList<ProcedimentoDisciplinare> Disciplinari { get; set; } = Array.Empty<ProcedimentoDisciplinare>();
+    public IReadOnlyList<PremioDipendente> Premi { get; set; } = Array.Empty<PremioDipendente>();
+    public IReadOnlyList<SchedaValutazione> Valutazioni { get; set; } = Array.Empty<SchedaValutazione>();
+    public IReadOnlyList<DocumentoDipendente> Documenti { get; set; } = Array.Empty<DocumentoDipendente>();
 }
 
 /// <summary>

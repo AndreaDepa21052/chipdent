@@ -127,6 +127,18 @@
         <a class="tab @(tab == "compliance" ? "is-active" : "")" asp-action="Details" asp-route-id="@d.Id" asp-route-tab="compliance">
             Compliance &amp; checklist
         </a>
+        <a class="tab @(tab == "documenti" ? "is-active" : "")" asp-action="Details" asp-route-id="@d.Id" asp-route-tab="documenti">
+            Fascicolo documenti <span class="tab__count">@Model.Documenti.Count</span>
+        </a>
+        <a class="tab @(tab == "disciplinari" ? "is-active" : "")" asp-action="Details" asp-route-id="@d.Id" asp-route-tab="disciplinari">
+            Disciplinari <span class="tab__count">@Model.Disciplinari.Count</span>
+        </a>
+        <a class="tab @(tab == "premi" ? "is-active" : "")" asp-action="Details" asp-route-id="@d.Id" asp-route-tab="premi">
+            Premi &amp; welfare <span class="tab__count">@Model.Premi.Count</span>
+        </a>
+        <a class="tab @(tab == "valutazioni" ? "is-active" : "")" asp-action="Details" asp-route-id="@d.Id" asp-route-tab="valutazioni">
+            Valutazioni <span class="tab__count">@Model.Valutazioni.Count</span>
+        </a>
         <a class="tab @(tab == "distacchi" ? "is-active" : "")" asp-action="Details" asp-route-id="@d.Id" asp-route-tab="distacchi">
             Distacchi <span class="tab__count">@Model.Distacchi.Count</span>
         </a>
@@ -467,7 +479,6 @@
             </form>
         </dialog>
 
-        @section Scripts {
         <script>
             (function () {
                 var dlgV = document.getElementById('dlg-visita');
@@ -514,7 +525,6 @@
                 });
             })();
         </script>
-        }
     }
     else if (tab == "distacchi")
     {
@@ -602,6 +612,520 @@
                                 <form asp-action="EliminaDistacco" asp-route-id="@d.Id" asp-route-distaccoId="@dist.Id" method="post" style="display:inline;" onsubmit="return confirm('Eliminare il distacco?');">
                                     @Html.AntiForgeryToken()
                                     <button type="submit" class="btn btn--ghost btn--sm" title="Elimina">🗑</button>
+                                </form>
+                            </td>
+                        </tr>
+                    }
+                    </tbody>
+                </table>
+            </div>
+        }
+    }
+    else if (tab == "documenti")
+    {
+        var tipiDoc = new (TipoDocumentoDipendente Tipo, string Label, bool Frontespizio)[]
+        {
+            (TipoDocumentoDipendente.PropostaAssunzioneFirmata, "📄 Proposta di assunzione firmata", true),
+            (TipoDocumentoDipendente.ModuloRichiestaDati,        "📝 Modulo richiesta dati", true),
+            (TipoDocumentoDipendente.CartaIdentita,              "🪪 Carta d'identità", true),
+            (TipoDocumentoDipendente.CodiceFiscale,              "🔢 Codice fiscale", true),
+            (TipoDocumentoDipendente.PermessoSoggiorno,          "🛂 Permesso di soggiorno", true),
+            (TipoDocumentoDipendente.C2Storico,                  "📊 C2 storico", true),
+            (TipoDocumentoDipendente.LetteraAssunzioneFirmata,   "✍️ Lettera di assunzione firmata", true),
+            (TipoDocumentoDipendente.DestinazioneTfr,            "💼 Destinazione TFR", true),
+            (TipoDocumentoDipendente.DetrazioniImposta,          "💶 Detrazioni d'imposta", true),
+            (TipoDocumentoDipendente.Unilav,                     "📑 UNILAV", true),
+            (TipoDocumentoDipendente.LetteraDistaccoFirmata,     "↗ Lettera di distacco firmata", true),
+            (TipoDocumentoDipendente.UnilavDistacco,             "📑 UNILAV distacco", true),
+            (TipoDocumentoDipendente.DecretoTrasparenza,         "🔍 Decreto trasparenza", true),
+            (TipoDocumentoDipendente.CodiceEtico,                "📘 Codice etico", true),
+            (TipoDocumentoDipendente.Factorial,                  "👥 Factorial", true),
+            (TipoDocumentoDipendente.Autocertificazione,         "✅ Autocertificazione", true),
+        };
+
+        var documentiByTipo = Model.Documenti.GroupBy(x => x.Tipo).ToDictionary(g => g.Key, g => g.ToList());
+        int presenti = tipiDoc.Count(t => documentiByTipo.ContainsKey(t.Tipo));
+        int mancanti = tipiDoc.Length - presenti;
+
+        <div class="grid grid--stats" style="margin-bottom: var(--s-4);">
+            <div class="stat"><div class="stat__label">✅ Presenti</div><div class="stat__value" style="color:#1f6e3a;">@presenti</div></div>
+            <div class="stat"><div class="stat__label">⬜ Mancanti</div><div class="stat__value">@mancanti</div></div>
+            <div class="stat"><div class="stat__label">📁 Totale</div><div class="stat__value">@tipiDoc.Length</div></div>
+        </div>
+
+        <div class="card" style="padding: 0; max-width: 980px;">
+            <div class="card__header" style="padding: var(--s-3);">
+                <h3 class="card__title">Frontespizio fascicolo dipendente</h3>
+                <span class="muted" style="font-size:.85rem;">Checklist allineata al template Confident</span>
+            </div>
+            <ul class="list" style="margin: 0;">
+                @foreach (var t in tipiDoc)
+                {
+                    var doc = documentiByTipo.GetValueOrDefault(t.Tipo)?.FirstOrDefault();
+                    var bordo = doc is null ? "#aaa" : "#1f6e3a";
+                    <li class="list__item" style="padding: var(--s-3) var(--s-4); border-left: 3px solid @bordo; gap: var(--s-3); align-items:center;">
+                        <div style="font-size: 1.05rem; width: 28px;">@(doc is null ? "⬜" : "✅")</div>
+                        <div style="flex: 1; min-width: 0;">
+                            <div style="font-weight:600;">@t.Label</div>
+                            <div class="muted" style="font-size:.78rem; margin-top: 2px;">
+                                @if (doc is null)
+                                {
+                                    <text>Da acquisire</text>
+                                }
+                                else
+                                {
+                                    <text>Acquisito il @doc.DataAcquisizione?.ToString("dd/MM/yyyy")</text>
+                                    @if (doc.Scadenza.HasValue)
+                                    {
+                                        <text> · scade @doc.Scadenza.Value.ToString("dd/MM/yyyy")</text>
+                                    }
+                                    @if (!string.IsNullOrWhiteSpace(doc.AllegatoNome))
+                                    {
+                                        <text> · 📎 @doc.AllegatoNome</text>
+                                    }
+                                }
+                            </div>
+                        </div>
+                        <div style="display:flex; gap:4px;">
+                            <button type="button" class="btn btn--ghost btn--sm" data-doc-add data-tipo="@t.Tipo" data-label="@t.Label">
+                                @(doc is null ? "＋ Registra" : "＋ Aggiorna")
+                            </button>
+                            @if (doc is not null)
+                            {
+                                <form asp-action="EliminaDocumento" asp-route-id="@d.Id" asp-route-docId="@doc.Id" method="post" style="display:inline;" onsubmit="return confirm('Rimuovere il documento?');">
+                                    @Html.AntiForgeryToken()
+                                    <button type="submit" class="btn btn--ghost btn--sm" title="Rimuovi">🗑</button>
+                                </form>
+                            }
+                        </div>
+                    </li>
+                }
+            </ul>
+        </div>
+
+        <dialog id="dlg-doc" style="border:0; border-radius: 12px; padding: 0; max-width: 480px; box-shadow: 0 20px 60px rgba(0,0,0,0.18);">
+            <form asp-action="UpsertDocumento" asp-route-id="@d.Id" method="post" enctype="multipart/form-data" style="padding: var(--s-4);">
+                @Html.AntiForgeryToken()
+                <h3 style="margin: 0 0 var(--s-3);">📁 Documento fascicolo</h3>
+                <p class="muted" id="dlg-doc-label" style="margin-top:-8px; margin-bottom: var(--s-3); font-size:.85rem;"></p>
+                <input type="hidden" name="tipo" id="dlg-doc-tipo" />
+                <div class="form-grid">
+                    <div class="form-group">
+                        <label class="form-label">Data acquisizione</label>
+                        <input class="form-control" type="date" name="dataAcquisizione" value="@oggi.ToString("yyyy-MM-dd")" />
+                    </div>
+                    <div class="form-group">
+                        <label class="form-label">Scadenza (opzionale)</label>
+                        <input class="form-control" type="date" name="scadenza" />
+                    </div>
+                    <div class="form-group full">
+                        <label class="form-label">Allegato (PDF/DOC/JPG/PNG, max 10MB)</label>
+                        <input class="form-control" type="file" name="allegato" accept=".pdf,.png,.jpg,.jpeg,.doc,.docx" />
+                    </div>
+                    <div class="form-group full">
+                        <label class="form-label">Note</label>
+                        <textarea class="form-control" name="note" rows="2"></textarea>
+                    </div>
+                </div>
+                <div style="display:flex; gap:8px; justify-content:flex-end; margin-top: var(--s-3);">
+                    <button type="button" class="btn btn--ghost" data-close-dlg>Annulla</button>
+                    <button type="submit" class="btn btn--primary">Salva</button>
+                </div>
+            </form>
+        </dialog>
+
+        <script>
+            (function () {
+                var dlg = document.getElementById('dlg-doc');
+                var dlgTipo = document.getElementById('dlg-doc-tipo');
+                var dlgLabel = document.getElementById('dlg-doc-label');
+                document.querySelectorAll('[data-doc-add]').forEach(function (btn) {
+                    btn.addEventListener('click', function () {
+                        dlgTipo.value = btn.dataset.tipo;
+                        dlgLabel.textContent = btn.dataset.label;
+                        dlg.showModal();
+                    });
+                });
+                document.querySelectorAll('[data-close-dlg]').forEach(function (b) {
+                    b.addEventListener('click', function () { b.closest('dialog').close(); });
+                });
+            })();
+        </script>
+    }
+    else if (tab == "disciplinari")
+    {
+        <div class="card" style="padding: var(--s-4); margin-bottom: var(--s-4);">
+            <h3 class="card__title" style="margin-top: 0;">Apri nuovo procedimento</h3>
+            <form asp-action="NuovoDisciplinare" asp-route-id="@d.Id" method="post" class="form-grid" style="margin-top: var(--s-3);">
+                @Html.AntiForgeryToken()
+                <div class="form-group">
+                    <label class="form-label">Oggetto *</label>
+                    <input class="form-control" name="oggetto" required placeholder="Es. ritardo reiterato" />
+                </div>
+                <div class="form-group">
+                    <label class="form-label">Data apertura *</label>
+                    <input class="form-control" type="date" name="dataApertura" required value="@oggi.ToString("yyyy-MM-dd")" />
+                </div>
+                <div class="form-group full">
+                    <label class="form-label">Note</label>
+                    <textarea class="form-control" name="note" rows="2"></textarea>
+                </div>
+                <div class="form-group full" style="text-align:right;">
+                    <button type="submit" class="btn btn--primary">＋ Apri procedimento</button>
+                </div>
+            </form>
+        </div>
+
+        @if (Model.Disciplinari.Count == 0)
+        {
+            <div class="card" style="padding: var(--s-4);">
+                <p class="muted">Nessun procedimento disciplinare.</p>
+            </div>
+        }
+        else
+        {
+            foreach (var p in Model.Disciplinari)
+            {
+                var stepLabels = new[] { "1 · Lettera disciplinare", "2 · Lettera firmata", "3 · Risposta dipendente", "4 · Conclusione" };
+                var stepDate = new DateTime?[] { p.Step1LetteraData, p.Step2FirmataData, p.Step3RispostaData, p.Step4ConclusioneData };
+                var stepNote = new string?[] { p.Step1Note, p.Step2Note, p.Step3Note, p.Step4Note };
+                var stepAlleg = new string?[] { p.Step1AllegatoNome, p.Step2AllegatoNome, p.Step3AllegatoNome, p.Step4AllegatoNome };
+
+                <div class="card" style="padding: var(--s-4); margin-bottom: var(--s-4);">
+                    <div style="display:flex; justify-content:space-between; align-items:flex-start; gap: var(--s-3);">
+                        <div>
+                            <h3 class="card__title" style="margin-top: 0;">@p.Oggetto</h3>
+                            <div class="muted" style="font-size:.85rem;">
+                                Aperto il @p.DataApertura.ToString("dd/MM/yyyy")
+                                @if (p.Step4Esito.HasValue)
+                                {
+                                    <text> · Esito: <strong>@p.Step4Esito</strong></text>
+                                }
+                            </div>
+                            @if (!string.IsNullOrWhiteSpace(p.Note))
+                            {
+                                <div class="muted" style="font-size:.85rem; margin-top:4px;">@p.Note</div>
+                            }
+                        </div>
+                        <div>
+                            @switch (p.Stato)
+                            {
+                                case StatoProcedimento.Aperto:
+                                    <span class="badge badge--info"><span class="dot"></span>aperto</span>
+                                    break;
+                                case StatoProcedimento.InCorso:
+                                    <span class="badge badge--warning"><span class="dot"></span>in corso</span>
+                                    break;
+                                case StatoProcedimento.Concluso:
+                                    <span class="badge badge--success"><span class="dot"></span>concluso</span>
+                                    break;
+                                default:
+                                    <span class="badge"><span class="dot"></span>archiviato</span>
+                                    break;
+                            }
+                        </div>
+                    </div>
+
+                    <ol style="display:flex; flex-direction: column; gap: var(--s-2); margin: var(--s-3) 0 0; padding: 0; list-style: none;">
+                        @for (int i = 0; i < 4; i++)
+                        {
+                            var done = stepDate[i].HasValue;
+                            var icon = done ? "✅" : "⬜";
+                            var bordo = done ? "#1f6e3a" : "#aaa";
+                            var stepNum = i + 1;
+                            <li style="border-left: 3px solid @bordo; padding: var(--s-2) var(--s-3); display:flex; gap: var(--s-3); align-items:center;">
+                                <div style="font-size: 1.1rem;">@icon</div>
+                                <div style="flex:1;">
+                                    <strong>@stepLabels[i]</strong>
+                                    <div class="muted" style="font-size:.78rem;">
+                                        @if (done)
+                                        {
+                                            <text>@stepDate[i]!.Value.ToString("dd/MM/yyyy")</text>
+                                            @if (!string.IsNullOrWhiteSpace(stepNote[i]))
+                                            {
+                                                <text> · @stepNote[i]</text>
+                                            }
+                                            @if (!string.IsNullOrWhiteSpace(stepAlleg[i]))
+                                            {
+                                                <text> · 📎 @stepAlleg[i]</text>
+                                            }
+                                        }
+                                        else
+                                        {
+                                            <text>Non ancora completato</text>
+                                        }
+                                    </div>
+                                </div>
+                                <button type="button" class="btn btn--ghost btn--sm"
+                                        data-step-add data-procid="@p.Id" data-step="@stepNum" data-label="@stepLabels[i]">
+                                    @(done ? "＋ Aggiorna" : "＋ Registra")
+                                </button>
+                            </li>
+                        }
+                    </ol>
+
+                    <div style="margin-top: var(--s-3); text-align:right;">
+                        <form asp-action="EliminaDisciplinare" asp-route-id="@d.Id" asp-route-procId="@p.Id" method="post" style="display:inline;" onsubmit="return confirm('Eliminare il procedimento?');">
+                            @Html.AntiForgeryToken()
+                            <button type="submit" class="btn btn--ghost btn--sm">🗑 Elimina procedimento</button>
+                        </form>
+                    </div>
+                </div>
+            }
+
+            <dialog id="dlg-step" style="border:0; border-radius: 12px; padding: 0; max-width: 480px; box-shadow: 0 20px 60px rgba(0,0,0,0.18);">
+                <form id="frm-step" method="post" enctype="multipart/form-data" style="padding: var(--s-4);">
+                    @Html.AntiForgeryToken()
+                    <h3 style="margin: 0 0 var(--s-3);" id="dlg-step-title">Registra step</h3>
+                    <input type="hidden" name="step" id="dlg-step-num" />
+                    <div class="form-grid">
+                        <div class="form-group">
+                            <label class="form-label">Data *</label>
+                            <input class="form-control" type="date" name="data" required value="@oggi.ToString("yyyy-MM-dd")" />
+                        </div>
+                        <div class="form-group" id="dlg-step-esito-wrap" style="display:none;">
+                            <label class="form-label">Esito</label>
+                            <select class="form-control" name="esito">
+                                <option value="">— scegli —</option>
+                                @foreach (var e in Enum.GetValues<EsitoProcedimento>())
+                                {
+                                    <option value="@e">@e</option>
+                                }
+                            </select>
+                        </div>
+                        <div class="form-group full">
+                            <label class="form-label">Allegato (PDF/DOC/JPG/PNG, max 10MB)</label>
+                            <input class="form-control" type="file" name="allegato" accept=".pdf,.png,.jpg,.jpeg,.doc,.docx" />
+                        </div>
+                        <div class="form-group full">
+                            <label class="form-label">Note</label>
+                            <textarea class="form-control" name="note" rows="2"></textarea>
+                        </div>
+                    </div>
+                    <div style="display:flex; gap:8px; justify-content:flex-end; margin-top: var(--s-3);">
+                        <button type="button" class="btn btn--ghost" data-close-dlg>Annulla</button>
+                        <button type="submit" class="btn btn--primary">Salva step</button>
+                    </div>
+                </form>
+            </dialog>
+
+            <script>
+                (function () {
+                    var dlg = document.getElementById('dlg-step');
+                    var frm = document.getElementById('frm-step');
+                    var title = document.getElementById('dlg-step-title');
+                    var num = document.getElementById('dlg-step-num');
+                    var esitoWrap = document.getElementById('dlg-step-esito-wrap');
+                    var dipId = '@d.Id';
+                    document.querySelectorAll('[data-step-add]').forEach(function (btn) {
+                        btn.addEventListener('click', function () {
+                            num.value = btn.dataset.step;
+                            title.textContent = btn.dataset.label;
+                            frm.action = '/dipendenti/' + dipId + '/disciplinari/' + btn.dataset.procid + '/step';
+                            esitoWrap.style.display = (btn.dataset.step === '4') ? 'block' : 'none';
+                            dlg.showModal();
+                        });
+                    });
+                    document.querySelectorAll('[data-close-dlg]').forEach(function (b) {
+                        b.addEventListener('click', function () { b.closest('dialog').close(); });
+                    });
+                })();
+            </script>
+        }
+    }
+    else if (tab == "premi")
+    {
+        <div class="card" style="padding: var(--s-4); margin-bottom: var(--s-4);">
+            <h3 class="card__title" style="margin-top: 0;">Registra nuovo premio / bonus / welfare</h3>
+            <form asp-action="NuovoPremio" asp-route-id="@d.Id" method="post" enctype="multipart/form-data" class="form-grid" style="margin-top: var(--s-3);">
+                @Html.AntiForgeryToken()
+                <div class="form-group">
+                    <label class="form-label">Tipo *</label>
+                    <select class="form-control" name="tipo" required>
+                        @foreach (var t in Enum.GetValues<TipoPremio>())
+                        {
+                            <option value="@t">@t</option>
+                        }
+                    </select>
+                </div>
+                <div class="form-group">
+                    <label class="form-label">Data *</label>
+                    <input class="form-control" type="date" name="data" required value="@oggi.ToString("yyyy-MM-dd")" />
+                </div>
+                <div class="form-group full">
+                    <label class="form-label">Descrizione *</label>
+                    <input class="form-control" name="descrizione" required placeholder="Es. Bonus produttività Q4" />
+                </div>
+                <div class="form-group">
+                    <label class="form-label">Importo (€)</label>
+                    <input class="form-control" type="number" step="0.01" min="0" name="importo" placeholder="es. 500,00" />
+                </div>
+                <div class="form-group">
+                    <label class="form-label">Allegato</label>
+                    <input class="form-control" type="file" name="allegato" accept=".pdf,.png,.jpg,.jpeg,.doc,.docx" />
+                </div>
+                <div class="form-group full">
+                    <label class="form-label">Motivazione</label>
+                    <textarea class="form-control" name="motivazione" rows="2"></textarea>
+                </div>
+                <div class="form-group full">
+                    <label class="form-label">Note</label>
+                    <textarea class="form-control" name="note" rows="2"></textarea>
+                </div>
+                <div class="form-group full" style="text-align:right;">
+                    <button type="submit" class="btn btn--primary">＋ Registra premio</button>
+                </div>
+            </form>
+        </div>
+
+        @if (Model.Premi.Count == 0)
+        {
+            <div class="card" style="padding: var(--s-4);">
+                <p class="muted">Nessun premio o bonus registrato.</p>
+            </div>
+        }
+        else
+        {
+            <div class="card" style="padding:0; overflow:auto;">
+                <table class="table">
+                    <thead>
+                        <tr><th>Data</th><th>Tipo</th><th>Descrizione</th><th>Importo</th><th>Motivazione</th><th>Allegato</th><th></th></tr>
+                    </thead>
+                    <tbody>
+                    @foreach (var pr in Model.Premi)
+                    {
+                        <tr>
+                            <td>@pr.Data.ToString("dd/MM/yyyy")</td>
+                            <td><span class="badge">@pr.Tipo</span></td>
+                            <td><strong>@pr.Descrizione</strong></td>
+                            <td>@(pr.Importo.HasValue ? pr.Importo.Value.ToString("C2", System.Globalization.CultureInfo.GetCultureInfo("it-IT")) : "—")</td>
+                            <td class="muted">@(pr.Motivazione ?? "—")</td>
+                            <td>@(string.IsNullOrEmpty(pr.AllegatoNome) ? "—" : "📎 " + pr.AllegatoNome)</td>
+                            <td>
+                                <form asp-action="EliminaPremio" asp-route-id="@d.Id" asp-route-premioId="@pr.Id" method="post" style="display:inline;" onsubmit="return confirm('Eliminare?');">
+                                    @Html.AntiForgeryToken()
+                                    <button type="submit" class="btn btn--ghost btn--sm">🗑</button>
+                                </form>
+                            </td>
+                        </tr>
+                    }
+                    </tbody>
+                </table>
+            </div>
+        }
+    }
+    else if (tab == "valutazioni")
+    {
+        <div class="card" style="padding: var(--s-4); margin-bottom: var(--s-4);">
+            <h3 class="card__title" style="margin-top: 0;">Nuova scheda di valutazione</h3>
+            <form asp-action="NuovaValutazione" asp-route-id="@d.Id" method="post" enctype="multipart/form-data" class="form-grid" style="margin-top: var(--s-3);">
+                @Html.AntiForgeryToken()
+                <div class="form-group">
+                    <label class="form-label">Periodo *</label>
+                    <input class="form-control" name="periodo" required placeholder="es. 2026 H1" />
+                </div>
+                <div class="form-group">
+                    <label class="form-label">Data scheda *</label>
+                    <input class="form-control" type="date" name="data" required value="@oggi.ToString("yyyy-MM-dd")" />
+                </div>
+                <div class="form-group">
+                    <label class="form-label">Valutatore</label>
+                    <input class="form-control" name="valutatoreNome" placeholder="@(User.Identity?.Name ?? "")" />
+                </div>
+                <div class="form-group">
+                    <label class="form-label">Stato</label>
+                    <select class="form-control" name="stato">
+                        @foreach (var s in Enum.GetValues<StatoSchedaValutazione>())
+                        {
+                            <option value="@s">@s</option>
+                        }
+                    </select>
+                </div>
+
+                <div class="form-group"><label class="form-label">Competenze (1-5)</label><input class="form-control" type="number" min="1" max="5" name="competenze" /></div>
+                <div class="form-group"><label class="form-label">Comportamento (1-5)</label><input class="form-control" type="number" min="1" max="5" name="comportamento" /></div>
+                <div class="form-group"><label class="form-label">Teamwork (1-5)</label><input class="form-control" type="number" min="1" max="5" name="teamwork" /></div>
+                <div class="form-group"><label class="form-label">Puntualità (1-5)</label><input class="form-control" type="number" min="1" max="5" name="puntualita" /></div>
+                <div class="form-group"><label class="form-label">Obiettivi (1-5)</label><input class="form-control" type="number" min="1" max="5" name="obiettivi" /></div>
+                <div class="form-group"><label class="form-label">Voto finale (1-5)</label><input class="form-control" type="number" min="1" max="5" name="finale" /></div>
+
+                <div class="form-group">
+                    <label class="form-label">Data colloquio</label>
+                    <input class="form-control" type="date" name="dataColloquio" />
+                </div>
+                <div class="form-group">
+                    <label class="form-label">Firme</label>
+                    <div style="display:flex; gap: var(--s-3); align-items:center; padding: 8px 0;">
+                        <label><input type="checkbox" name="firmaDipendente" value="true" /> dipendente</label>
+                        <label><input type="checkbox" name="firmaValutatore" value="true" /> valutatore</label>
+                    </div>
+                </div>
+
+                <div class="form-group full">
+                    <label class="form-label">Obiettivi per il prossimo periodo</label>
+                    <textarea class="form-control" name="obiettiviTesto" rows="2"></textarea>
+                </div>
+                <div class="form-group full">
+                    <label class="form-label">Punti di forza</label>
+                    <textarea class="form-control" name="puntiForza" rows="2"></textarea>
+                </div>
+                <div class="form-group full">
+                    <label class="form-label">Aree di miglioramento</label>
+                    <textarea class="form-control" name="areeMiglioramento" rows="2"></textarea>
+                </div>
+                <div class="form-group full">
+                    <label class="form-label">Commenti</label>
+                    <textarea class="form-control" name="commenti" rows="2"></textarea>
+                </div>
+                <div class="form-group full">
+                    <label class="form-label">Allegato (scheda firmata, PDF/DOC, max 10MB)</label>
+                    <input class="form-control" type="file" name="allegato" accept=".pdf,.png,.jpg,.jpeg,.doc,.docx" />
+                </div>
+                <div class="form-group full" style="text-align:right;">
+                    <button type="submit" class="btn btn--primary">＋ Salva scheda</button>
+                </div>
+            </form>
+        </div>
+
+        @if (Model.Valutazioni.Count == 0)
+        {
+            <div class="card" style="padding: var(--s-4);">
+                <p class="muted">Nessuna scheda di valutazione registrata. È previsto almeno 2 schede l'anno.</p>
+            </div>
+        }
+        else
+        {
+            <div class="card" style="padding:0; overflow:auto;">
+                <table class="table">
+                    <thead>
+                        <tr><th>Periodo</th><th>Data</th><th>Valutatore</th><th>Voto finale</th><th>Media</th><th>Stato</th><th>Firme</th><th>Allegato</th><th></th></tr>
+                    </thead>
+                    <tbody>
+                    @foreach (var v in Model.Valutazioni)
+                    {
+                        <tr>
+                            <td><strong>@v.Periodo</strong></td>
+                            <td>@v.Data.ToString("dd/MM/yyyy")</td>
+                            <td>@(v.ValutatoreNome ?? "—")</td>
+                            <td>@(v.PunteggioFinale.HasValue ? v.PunteggioFinale + "/5" : "—")</td>
+                            <td>@(v.PunteggioMedio.HasValue ? v.PunteggioMedio.Value.ToString("0.0") : "—")</td>
+                            <td>
+                                @switch (v.Stato)
+                                {
+                                    case StatoSchedaValutazione.Bozza: <span class="badge"><span class="dot"></span>bozza</span> break;
+                                    case StatoSchedaValutazione.InCorso: <span class="badge badge--warning"><span class="dot"></span>in corso</span> break;
+                                    case StatoSchedaValutazione.Conclusa: <span class="badge badge--success"><span class="dot"></span>conclusa</span> break;
+                                    default: <span class="badge"><span class="dot"></span>archiviata</span> break;
+                                }
+                            </td>
+                            <td>
+                                @(v.FirmaDipendente ? "✓ dip." : "—") · @(v.FirmaValutatore ? "✓ val." : "—")
+                            </td>
+                            <td>@(string.IsNullOrEmpty(v.AllegatoNome) ? "—" : "📎 " + v.AllegatoNome)</td>
+                            <td>
+                                <form asp-action="EliminaValutazione" asp-route-id="@d.Id" asp-route-schedaId="@v.Id" method="post" style="display:inline;" onsubmit="return confirm('Eliminare?');">
+                                    @Html.AntiForgeryToken()
+                                    <button type="submit" class="btn btn--ghost btn--sm">🗑</button>
                                 </form>
                             </td>
                         </tr>
