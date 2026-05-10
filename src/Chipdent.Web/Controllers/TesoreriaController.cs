@@ -1446,4 +1446,175 @@ public class TesoreriaController : Controller
         });
         accumulator.AddRange(parsed.Righe);
     }
+
+    // ─────────────────────────────────────────────────────────────
+    //  GENERA SCADENZIARIO da fatture importate
+    //  Applica le regole del file "Regole scadenzario.xlsx":
+    //  - classificazione fornitore (medici / lab / Invisalign / CC / Compass / DB / generico)
+    //  - termini di pagamento differenziati (30 gg fm / 60 gg fm / 150 gg DF)
+    //  - snap dei bonifici al 10 o al 30/31 del mese
+    //  - gestione ritenute (netto bonifico + ritenuta al 16 mese successivo)
+    //  - note di credito (segno negativo, alert)
+    //  - duplicati & scostamenti importo (Cristal/Infinity/Locazioni vs altri)
+    //  - autocompletamento IBAN dalla fattura precedente dello stesso fornitore
+    //  La pagina è una preview (dry-run): la generazione effettiva avviene su POST con conferma.
+    // ─────────────────────────────────────────────────────────────
+
+    [HttpGet("genera-scadenziario")]
+    public async Task<IActionResult> GeneraScadenziario()
+    {
+        var vm = await BuildGeneraScadenziarioPreviewAsync(false);
+        ViewBag.Section = "tesoreria";
+        return View("GeneraScadenziario", vm);
+    }
+
+    [HttpPost("genera-scadenziario")]
+    [ValidateAntiForgeryToken]
+    public async Task<IActionResult> GeneraScadenziarioApply(bool confermaCancellazione = false)
+    {
+        if (!confermaCancellazione)
+        {
+            TempData["flash-err"] = "Conferma esplicita richiesta: spunta la casella di sicurezza prima di rigenerare.";
+            return RedirectToAction(nameof(GeneraScadenziario));
+        }
+
+        var tid = _tenant.TenantId!;
+        var userId = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
+
+        // 1) Wipe scadenziario corrente (scadenze + fatture). I batch di import restano,
+        //    sono lo storico di provenienza e non vengono toccati.
+        var oldScadCount = await _mongo.ScadenzePagamento.CountDocumentsAsync(s => s.TenantId == tid);
+        var oldFattCount = await _mongo.Fatture.CountDocumentsAsync(f => f.TenantId == tid);
+        await _mongo.ScadenzePagamento.DeleteManyAsync(s => s.TenantId == tid);
+        await _mongo.Fatture.DeleteManyAsync(f => f.TenantId == tid);
+
+        // 2) Carica fornitori e cliniche
+        var fornitoriCorrenti = await _mongo.Fornitori.Find(f => f.TenantId == tid).ToListAsync();
+        var cliniche = await _mongo.Cliniche.Find(c => c.TenantId == tid).ToListAsync();
+        var dottori = await _mongo.Dottori.Find(d => d.TenantId == tid).ToListAsync();
+
+        // 3) Carica TUTTE le righe importate (batch storici)
+        var righe = await _mongo.ImportFattureRighe.Find(r => r.TenantId == tid).ToListAsync();
+
+        var output = ScadenziarioGenerator.Genera(new ScadenziarioGenerator.Input
+        {
+            TenantId = tid,
+            Righe = righe,
+            Fornitori = fornitoriCorrenti,
+            Cliniche = cliniche,
+            Dottori = dottori,
+            UserId = userId
+        });
+
+        // 4) Persisti nuovi fornitori (se ce ne sono)
+        if (output.FornitoriNuovi.Count > 0)
+            await _mongo.Fornitori.InsertManyAsync(output.FornitoriNuovi);
+
+        // 5) Persisti fatture e scadenze
+        if (output.Fatture.Count > 0)
+            await _mongo.Fatture.InsertManyAsync(output.Fatture);
+        if (output.Scadenze.Count > 0)
+            await _mongo.ScadenzePagamento.InsertManyAsync(output.Scadenze);
+
+        // 6) Audit (per tracciare l'operazione distruttiva)
+        await _mongo.Audit.InsertOneAsync(new AuditEntry
+        {
+            TenantId = tid,
+            UserId = userId ?? "",
+            UserName = User.Identity?.Name ?? "",
+            Action = AuditAction.Updated,
+            EntityType = "Scadenziario",
+            EntityId = tid,
+            EntityLabel = "Rigenerazione scadenziario da fatture importate",
+            Note = $"Cancellate {oldScadCount} scadenze e {oldFattCount} fatture. " +
+                   $"Generate {output.Fatture.Count} fatture, {output.Scadenze.Count} scadenze, " +
+                   $"{output.FornitoriNuovi.Count} nuovi fornitori. " +
+                   $"Alert: {output.Alerts.Count}."
+        });
+
+        TempData["flash"] = $"✓ Scadenziario rigenerato: {output.Scadenze.Count} scadenze su {output.Fatture.Count} fatture. " +
+                            $"{output.Alerts.Count} alert da verificare.";
+        return RedirectToAction(nameof(Index));
+    }
+
+    private async Task<GeneraScadenziarioViewModel> BuildGeneraScadenziarioPreviewAsync(bool isApplied)
+    {
+        var tid = _tenant.TenantId!;
+        var oggi = DateTime.UtcNow.Date;
+
+        var fornitoriCorrenti = await _mongo.Fornitori.Find(f => f.TenantId == tid).ToListAsync();
+        var cliniche = await _mongo.Cliniche.Find(c => c.TenantId == tid).ToListAsync();
+        var dottori = await _mongo.Dottori.Find(d => d.TenantId == tid).ToListAsync();
+        var righe = await _mongo.ImportFattureRighe.Find(r => r.TenantId == tid).ToListAsync();
+        var scadenzeAttuali = await _mongo.ScadenzePagamento.CountDocumentsAsync(s => s.TenantId == tid);
+        var pagateAttuali = await _mongo.ScadenzePagamento.CountDocumentsAsync(s => s.TenantId == tid && s.Stato == StatoScadenza.Pagato);
+        var fattureAttuali = await _mongo.Fatture.CountDocumentsAsync(f => f.TenantId == tid);
+
+        var output = ScadenziarioGenerator.Genera(new ScadenziarioGenerator.Input
+        {
+            TenantId = tid,
+            Righe = righe,
+            Fornitori = fornitoriCorrenti,
+            Cliniche = cliniche,
+            Dottori = dottori,
+            UserId = null
+        });
+
+        var fornByIdAll = fornitoriCorrenti.Concat(output.FornitoriNuovi).ToDictionary(f => f.Id, f => f);
+        var clinByIdAll = cliniche.ToDictionary(c => c.Id, c => c);
+
+        var anteprima = output.Scadenze
+            .OrderBy(s => s.DataScadenza)
+            .Take(200)
+            .Select(s =>
+            {
+                var fatt = output.Fatture.FirstOrDefault(f => f.Id == s.FatturaId);
+                var forn = fornByIdAll.GetValueOrDefault(s.FornitoreId);
+                var cli  = !string.IsNullOrEmpty(s.ClinicaId) ? clinByIdAll.GetValueOrDefault(s.ClinicaId) : null;
+                return new AnteprimaScadenza
+                {
+                    Fornitore = forn?.RagioneSociale ?? "—",
+                    NumeroDoc = fatt?.Numero ?? "—",
+                    DataDoc = fatt?.DataEmissione ?? s.DataScadenza,
+                    DataScadenza = s.DataScadenza,
+                    Importo = s.Importo,
+                    Metodo = s.Metodo.ToString(),
+                    Stato = s.Stato.ToString(),
+                    Categoria = s.Categoria.ToString(),
+                    LOC = SiglaSede(cli),
+                    Iban = s.Iban,
+                    Note = s.Note
+                };
+            })
+            .ToList();
+
+        var alertRows = output.Alerts.Select(a => new AlertRow
+        {
+            Severita = a.Severita.ToString().ToLowerInvariant(),
+            Regola = a.Regola,
+            Messaggio = a.Messaggio,
+            Fornitore = a.FornitoreNome,
+            NumeroDoc = a.NumeroDoc,
+            Data = a.DataDocumento,
+            Riga = a.RigaSorgente
+        }).ToList();
+
+        return new GeneraScadenziarioViewModel
+        {
+            RigheImportateTotali = righe.Count,
+            RigheElaborate = output.RigheElaborate,
+            RigheSaltate = output.RigheSaltate,
+            FattureGenerate = output.Fatture.Count,
+            ScadenzeGenerate = output.Scadenze.Count,
+            FornitoriNuovi = output.FornitoriNuovi.Count,
+            ScadenzeAttuali = (int)scadenzeAttuali,
+            ScadenzePagateAttuali = (int)pagateAttuali,
+            FattureAttuali = (int)fattureAttuali,
+            Alerts = alertRows,
+            Anteprima = anteprima,
+            IsApplied = isApplied,
+            AlertsPerCategoria = alertRows.GroupBy(a => a.Regola).ToDictionary(g => g.Key, g => g.Count()),
+            AlertsPerSeverita = alertRows.GroupBy(a => a.Severita).ToDictionary(g => g.Key, g => g.Count())
+        };
+    }
 }
