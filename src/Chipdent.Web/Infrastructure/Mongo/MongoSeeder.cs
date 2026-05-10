@@ -182,19 +182,8 @@ public static class MongoSeeder
                 }
             }
 
-            if (!await ctx.Dottori.Find(d => d.TenantId == tenant.Id).AnyAsync(ct))
-            {
-                var milano = cliniche.FirstOrDefault(c => c.Nome == "MILANO7")?.Id;
-                var altraSede = cliniche.FirstOrDefault(c => c.Nome == "BUSTO A.")?.Id;
-                var dottori = new[]
-                {
-                    new Dottore { TenantId = tenant.Id, Nome = "Marco", Cognome = "Bianchi", Email = "m.bianchi@confident.it", Specializzazione = "Implantologia", NumeroAlbo = "MI-1234", ScadenzaAlbo = DateTime.UtcNow.AddMonths(8), TipoContratto = TipoContratto.Collaborazione, ClinicaPrincipaleId = milano },
-                    new Dottore { TenantId = tenant.Id, Nome = "Laura", Cognome = "Ferri", Email = "l.ferri@confident.it", Specializzazione = "Ortodonzia", NumeroAlbo = "MI-2210", ScadenzaAlbo = DateTime.UtcNow.AddMonths(2), TipoContratto = TipoContratto.LiberoProfessionista, ClinicaPrincipaleId = milano },
-                    new Dottore { TenantId = tenant.Id, Nome = "Paolo", Cognome = "Rizzo", Email = "p.rizzo@confident.it", Specializzazione = "Endodonzia", NumeroAlbo = "VA-887", ScadenzaAlbo = DateTime.UtcNow.AddYears(2), TipoContratto = TipoContratto.Collaborazione, ClinicaPrincipaleId = altraSede }
-                };
-                await ctx.Dottori.InsertManyAsync(dottori, cancellationToken: ct);
-                logger.LogInformation("Seeded {Count} dottori", dottori.Length);
-            }
+            // L'anagrafica Dottori è ora popolata interamente dal file Confident
+            // (vedi ConfidentImportSeeder più in basso). Niente più dottori demo.
 
             if (!await ctx.Dipendenti.Find(d => d.TenantId == tenant.Id).AnyAsync(ct))
             {
@@ -302,6 +291,12 @@ public static class MongoSeeder
             }
 
             await SeedHistoricalAiDataAsync(ctx, tenant, logger, ct);
+
+            // Importa l'anagrafica reale Confident (fornitori + dottori) PRIMA del
+            // seed Tesoreria, così le fatture/scadenze demo possono agganciarsi ai
+            // fornitori importati invece che ai 7 fornitori demo storici.
+            await ConfidentImportSeeder.SeedAsync(ctx, tenant, ombraService, logger, ct);
+
             await SeedTesoreriaAsync(ctx, hasher, tenant, cliniche, logger, ct);
             await SeedCashflowAsync(ctx, tenant, cliniche, logger, ct);
             await SeedChecklistDipendenteAsync(ctx, tenant, cliniche, logger, ct);
@@ -346,26 +341,22 @@ public static class MongoSeeder
             logger.LogInformation("Migrated: realigned DataScadenzaAttesa on {Count} legacy demo scadenze", daRiallineare.Count);
         }
 
-        if (await ctx.Fornitori.Find(f => f.TenantId == tenant.Id).AnyAsync(ct)) return;
         if (cliniche.Count == 0) return;
+        // Idempotenza: i fornitori sono ora seedati da ConfidentImportSeeder, qui ci limitiamo
+        // a generare le fatture/scadenze demo agganciandole ai primi N fornitori-azienda
+        // importati. Saltiamo se ci sono già scadenze (già generate in un avvio precedente).
+        if (await ctx.ScadenzePagamento.Find(s => s.TenantId == tenant.Id).AnyAsync(ct)) return;
 
-        var oggi = DateTime.UtcNow.Date;
+        // Prendiamo solo i fornitori-azienda (no fornitori-ombra dei dottori).
+        var fornitori = await ctx.Fornitori
+            .Find(f => f.TenantId == tenant.Id && f.DottoreId == null)
+            .ToListAsync(ct);
+        if (fornitori.Count == 0) return;
 
-        var fornitori = new[]
-        {
-            new Fornitore { TenantId = tenant.Id, RagioneSociale = "LERETI spa",                    PartitaIva = "01234567890", EmailContatto = "lereti@demo.it",  Iban = "IT42G0569610901000009101X54", CategoriaDefault = CategoriaSpesa.Acqua,            Stato = StatoFornitore.Attivo, TerminiPagamentoGiorni = 30, BasePagamento = BasePagamento.FineMeseFattura },
-            new Fornitore { TenantId = tenant.Id, RagioneSociale = "EniMoov S.p.A.",                PartitaIva = "09876543210", EmailContatto = "fatt@enimoov.it", Iban = "IT11A0123412345000000099999",  CategoriaDefault = CategoriaSpesa.Trasporti,        Stato = StatoFornitore.Attivo, TerminiPagamentoGiorni = 30, BasePagamento = BasePagamento.DataFattura },
-            new Fornitore { TenantId = tenant.Id, RagioneSociale = "Lyreco Italia srl",             PartitaIva = "11122233344", EmailContatto = "ufficio@lyreco.it",Iban = "IT88B0306904012000000123456",  CategoriaDefault = CategoriaSpesa.Cancelleria,      Stato = StatoFornitore.Attivo, TerminiPagamentoGiorni = 60, BasePagamento = BasePagamento.FineMeseSuccessivo },
-            new Fornitore { TenantId = tenant.Id, RagioneSociale = "Q-Print srl",                   PartitaIva = "44455566677", EmailContatto = "info@qprint.it",  Iban = "IT98Y0503450112000000001360",  CategoriaDefault = CategoriaSpesa.AltreSpeseFisse, Stato = StatoFornitore.Attivo, TerminiPagamentoGiorni = 30, BasePagamento = BasePagamento.DataFattura },
-            new Fornitore { TenantId = tenant.Id, RagioneSociale = "CVZ Antincendi S.A.S.",         PartitaIva = "55566677788", EmailContatto = "info@cvzantinc.it",Iban = "IT54S0306922800100000069338",  CategoriaDefault = CategoriaSpesa.Manutenzione,    Stato = StatoFornitore.Attivo, TerminiPagamentoGiorni = 30, BasePagamento = BasePagamento.FineMeseFattura },
-            new Fornitore { TenantId = tenant.Id, RagioneSociale = "Sapia Pratesi & Partners srl",  PartitaIva = "22233344455", EmailContatto = "studio@sapia.it", Iban = "IT22T0103412345000000088888",  CategoriaDefault = CategoriaSpesa.Consulenze,      Stato = StatoFornitore.Attivo, TerminiPagamentoGiorni = 30, BasePagamento = BasePagamento.FineMeseFattura },
-            new Fornitore { TenantId = tenant.Id, RagioneSociale = "Plastigomma s.r.l.",            PartitaIva = "33344455566", EmailContatto = "info@plastigomma.it", Iban = "IT44U0306904012000000099111", CategoriaDefault = CategoriaSpesa.MaterialiClinici, Stato = StatoFornitore.Attivo, TerminiPagamentoGiorni = 30, BasePagamento = BasePagamento.DataFattura }
-        };
-        await ctx.Fornitori.InsertManyAsync(fornitori, cancellationToken: ct);
-        logger.LogInformation("Seeded {Count} fornitori", fornitori.Length);
-
-        // Account portale per LERETI (demo del portale fornitore)
-        var lereti = fornitori[0];
+        // Per il demo del portale fornitore individuiamo (se presente) "LERETI spa"
+        // e ci agganciamo l'utente lereti@demo.it / chipdent.
+        var lereti = fornitori.FirstOrDefault(f => f.RagioneSociale.StartsWith("LERETI", StringComparison.OrdinalIgnoreCase))
+                     ?? fornitori[0];
         const string portaleEmail = "lereti@demo.it";
         if (!await ctx.Users.Find(u => u.Email == portaleEmail).AnyAsync(ct))
         {
@@ -383,6 +374,8 @@ public static class MongoSeeder
             logger.LogInformation("Seeded fornitore portal user {Email}", portaleEmail);
         }
 
+        var oggi = DateTime.UtcNow.Date;
+
         // Mix di fatture/scadenze: ~40 totali, distribuite tra passato/presente/futuro,
         // con metodi e stati vari, per dare la dashboard piena di dati al primo avvio.
         var rng = new Random(7);
@@ -393,7 +386,7 @@ public static class MongoSeeder
         var counter = 0;
         for (var i = 0; i < 40; i++)
         {
-            var f = fornitori[rng.Next(fornitori.Length)];
+            var f = fornitori[rng.Next(fornitori.Count)];
             var c = cliniche[rng.Next(cliniche.Count)];
             // Distribuzione: 60% nei 12 mesi passati, 40% prossimi 90gg
             var giornoOffset = rng.NextDouble() < 0.6 ? -rng.Next(0, 365) : rng.Next(1, 90);

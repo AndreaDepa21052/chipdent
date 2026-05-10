@@ -181,6 +181,10 @@ public class FornitoreFormViewModel
 {
     public string? Id { get; set; }
 
+    /// <summary>Codice anagrafico interno. Auto-generato (F####) per i nuovi inserimenti
+    /// se lasciato vuoto.</summary>
+    public string? Codice { get; set; }
+
     [Required(ErrorMessage = "Ragione sociale obbligatoria.")]
     public string RagioneSociale { get; set; } = string.Empty;
 

@@ -132,6 +132,10 @@ public class DottoriController : Controller
         }
         model.TenantId = _tenant.TenantId!;
         model.CreatedAt = DateTime.UtcNow;
+        if (string.IsNullOrWhiteSpace(model.Codice))
+        {
+            model.Codice = await GenerateCodiceDottoreAsync();
+        }
         await _mongo.Dottori.InsertOneAsync(model);
 
         await _audit.LogAsync("Dottore", model.Id, model.NomeCompleto, AuditAction.Created, actor: User);
@@ -377,4 +381,21 @@ public class DottoriController : Controller
 
     private async Task<Dictionary<string, string>> CliniceLookupAsync()
         => (await CliniceListAsync()).ToDictionary(c => c.Id, c => c.Nome);
+
+    /// <summary>Genera il prossimo codice dottore disponibile nel formato D####.</summary>
+    private async Task<string> GenerateCodiceDottoreAsync()
+    {
+        var tid = _tenant.TenantId!;
+        var esistenti = await _mongo.Dottori
+            .Find(d => d.TenantId == tid && d.Codice != null && d.Codice != "")
+            .Project(d => d.Codice)
+            .ToListAsync();
+        var maxNum = 0;
+        foreach (var c in esistenti)
+        {
+            if (string.IsNullOrEmpty(c) || c[0] != 'D') continue;
+            if (int.TryParse(c.AsSpan(1), out var n) && n > maxNum) maxNum = n;
+        }
+        return $"D{maxNum + 1:D4}";
+    }
 }
