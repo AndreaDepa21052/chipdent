@@ -1,0 +1,82 @@
+// AUTO-GENERATED from FileRaw/scadenziario.xlsx (foglio "prova")
+// Do NOT edit by hand — rigenerare con tools/import-scadenziario-fornitori.py
+
+namespace Chipdent.Web.Infrastructure.Mongo;
+
+internal static class ScadenziarioFornitoriData
+{
+    public sealed record Riga(string RagioneSociale, string? Iban);
+
+    /// <summary>Elenco fornitori dedotti dallo scadenziario Confident:
+    /// per ognuno, l'IBAN più ricorrente nei righi (se presente).</summary>
+    public static IReadOnlyList<Riga> Righe { get; } = new Riga[]
+    {
+        new("A2A Energia spa", null),
+        new("Alpeggiani Avvocati Associati", null),
+        new("Arrigo Martina", "IT57T0100550240000000006529"),
+        new("Belforte GmbH", "IT18J0585658590040571356441"),
+        new("Belluzzo International Partners Studio Legale Tributario", "IT61X0503411734000000012088"),
+        new("Biomec srl", null),
+        new("BNP PARIBAS LEASE GROUP SA", null),
+        new("Bors Iustina", "IT16L0623032620000015254758"),
+        new("BPER BANCA", null),
+        new("Capotosto Ilaria", "IT15O0100578630000000001006"),
+        new("CARMINATI ALLESTIMENTI SRL", "IT46C0894053620000000160720"),
+        new("CCH SRL", "IT28Z0200850240000106384965"),
+        new("Colace Serena", "IT52F0347501605CC0011247296"),
+        new("Compass Banca spa", null),
+        new("CRISTAL group srl", null),
+        new("CVZ ANTINCENDI S.A.S. DI M.P.", "IT54S0306922800100000069338"),
+        new("De Lage Landen International B.V. - Succursale di Milano", null),
+        new("DENTAL TREY S.R.L.", "IT53S0200813220000001310262"),
+        new("Deutsche Bank S.p.A.", null),
+        new("DIELLE di LEZZI DANIELE", null),
+        new("Edenred Italia S.r.l.", "IT28T0333201600000001112420"),
+        new("EDIL B.& C. SAS DI BARBIERI STEFANO E C.", "IT02Q0503450122000000072628"),
+        new("ELETTRICA MORANDI DEI F.LLI MORANDI SNC", "IT06O0503450321000000004650"),
+        new("Eni Plenitude spa", null),
+        new("EniMoov S.p.A.", null),
+        new("FARMACIA SANTA TERESA SAS DI ANNA MARIA BUZZI & C", "IT97W0843010900000000261483"),
+        new("Ferioli Paolo", "IT24K0306950320000005106171"),
+        new("Ferrario Arredamenti S.r.l.", "IT77J0306922800100000003577"),
+        new("IDEAL COMMUNICATION di R. Ruspantini", "IT26T0623020413000047508844"),
+        new("INDEPENDENT HOSPITALITY MALPENSA SRL", null),
+        new("Infinity srl", null),
+        new("Invisalign srl", "IT45X0338001600000014427029"),
+        new("IVA", null),
+        new("J Dental Care srl", "IT88G0200812910000040628086"),
+        new("LERETI spa", "IT42G0569610901000009101X54"),
+        new("Lico s.p.a.", "IT42E0569651470000002878X53"),
+        new("Lyreco Italia srl", null),
+        new("MB DENTAL LAB SRL", "IT65D0306951611100000016841"),
+        new("Meta Platforms Ireland Limited", null),
+        new("Microsoft Ireland Operations Ltd", null),
+        new("Miglietta Paolo", "IT77S0538750560000042389024"),
+        new("Miglietta Tina", "IT89Z0200813908000104625435"),
+        new("MONTI BEATRICE", "IT03P0301503200000005644659"),
+        new("MS ARREDO SAS di Milan Stefano & C.", "IT67F0200850110000003988169"),
+        new("Novelli Giuliana", "IT24G0569601630000003015X23"),
+        new("Nunziati Marco", "IT17W0306932430100000006959"),
+        new("ODONTOCAP S.R.L.", "IT33K0344033080000001495500"),
+        new("Plastigomma s.r.l.", null),
+        new("Provenzano Daniele", "IT15F0503411103000000000781"),
+        new("PROVENZANO PASQUALE", "IT60D0538711105000042556509"),
+        new("Q-Print srl", "IT98Y0503450112000000001360"),
+        new("RDR Dental s.a.s. di Babolin Danilo e Vanzulli Raffaele", "IT63T0311150240000000037749"),
+        new("REP spa", null),
+        new("RITENUTE NUNZIATI", null),
+        new("RITENUTE PAOLO MIGLIETTA", null),
+        new("RITENUTE TINA MIGLIETTA", null),
+        new("SAPIA PRATESI & PARTNERS S.R.L.", null),
+        new("SIAN snc", null),
+        new("Sian srl", "IT72C0637013900000010009732"),
+        new("SPH srl", "IT03P0306932623100000011316"),
+        new("Studio Cassano Pierluigi", "IT45J0844033100000000076483"),
+        new("Studio Marco Mapelli architetto", "IT44S0306909507615234787358"),
+        new("SWEDEN & MARTINA S.p.A.", "IT61Q0898262680030000500272"),
+        new("Trenord srl", null),
+        new("Unicredit", null),
+        new("Vodafone Italia S.p.A", null),
+        new("Wichita SRL", "IT96P0306910928100000006925"),
+    };
+}

@@ -297,6 +297,10 @@ public static class MongoSeeder
             // fornitori importati invece che ai 7 fornitori demo storici.
             await ConfidentImportSeeder.SeedAsync(ctx, tenant, ombraService, logger, ct);
 
+            // Allinea l'anagrafica con i fornitori dello scadenziario: aggiorna gli
+            // IBAN sui fornitori già censiti e crea quelli mancanti.
+            await ScadenziarioFornitoriSeeder.SeedAsync(ctx, tenant, logger, ct);
+
             await SeedTesoreriaAsync(ctx, hasher, tenant, cliniche, logger, ct);
             await SeedCashflowAsync(ctx, tenant, cliniche, logger, ct);
             await SeedChecklistDipendenteAsync(ctx, tenant, cliniche, logger, ct);
