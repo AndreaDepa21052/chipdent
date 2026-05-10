@@ -1,0 +1,226 @@
+@model Chipdent.Web.Models.GeneraScadenziarioViewModel
+@using System.Globalization
+@{
+    ViewData["Title"] = "Genera scadenziario da fatture";
+    ViewData["Crumb"] = "Tesoreria";
+    var it = new CultureInfo("it-IT");
+    var err = TempData["flash-err"] as string;
+}
+
+<partial name="_Flash" />
+@if (!string.IsNullOrEmpty(err))
+{
+    <div class="alert alert--danger" data-auto-dismiss="6000">@err</div>
+}
+
+<div class="page-head">
+    <div>
+        <h2>⚙️ Genera scadenziario dalle fatture importate</h2>
+        <p class="page-head__sub">
+            Trasforma le righe degli import Zucchetti (CCH + Ident) in scadenze pagamento applicando
+            le <a href="#" data-open-regole>regole di catalogazione</a> definite con il back-office.
+            <strong>Il vecchio scadenziario viene cancellato e rigenerato</strong>: i batch di import
+            originali restano intatti come storico.
+        </p>
+    </div>
+    <div class="page-head__actions">
+        <button type="button" class="btn btn--ghost" data-open-regole>📘 Regole</button>
+        <a class="btn btn--ghost" asp-action="Index">← Tesoreria</a>
+    </div>
+</div>
+
+<style>
+    .gs-grid { display:grid; grid-template-columns: repeat(4, minmax(0,1fr)); gap:12px; margin-bottom: var(--s-4); }
+    .gs-kpi { background:#fff; border:1px solid #e9dcc1; border-radius:10px; padding:14px 16px; }
+    .gs-kpi .lbl { font-size:.72rem; text-transform:uppercase; letter-spacing:.5px; color:#7a5c3a; }
+    .gs-kpi .val { font-size:1.6rem; font-weight:700; color:#3b1e0c; }
+    .gs-kpi.is-danger { background:#fff5f5; border-color:#f1c5c5; }
+    .gs-kpi.is-warn { background:#fff8e7; border-color:#ecd49a; }
+    .gs-kpi.is-ok { background:#f3faf2; border-color:#bde6c8; }
+
+    .gs-warn-banner {
+        background: linear-gradient(180deg, #fff5f0 0%, #ffe5d8 100%);
+        border: 1px solid #e9b89e;
+        border-left: 5px solid #c4452a;
+        border-radius: 10px;
+        padding: 16px 20px;
+        margin-bottom: 16px;
+    }
+    .gs-warn-banner h3 { margin: 0 0 6px; color:#8a2a14; }
+
+    .gs-section { background:#fff; border:1px solid #e9dcc1; border-radius:10px; padding:14px 18px; margin-bottom: var(--s-4); }
+    .gs-section h3 { margin-top:0; margin-bottom:10px; }
+
+    .pill { display:inline-block; padding:2px 9px; border-radius:99px; font-size:.72rem; font-weight:600; }
+    .pill--info { background:#e2eefc; color:#15457e; }
+    .pill--warn { background:#fbe5b8; color:#7a4a00; }
+    .pill--err  { background:#fcd9d9; color:#9a1c1c; }
+    .pill--ok   { background:#d6f5dc; color:#1a6b32; }
+
+    .table-alerts td { vertical-align: top; }
+    .table-alerts td:nth-child(3) { max-width: 460px; }
+
+    /* Overlay regole */
+    .regole-overlay {
+        position: fixed; inset: 0; background: rgba(45, 24, 8, 0.55);
+        display:none; align-items:flex-start; justify-content:center; z-index:9999;
+        padding: 4vh 2vw; overflow:auto;
+    }
+    .regole-overlay.is-open { display:flex; }
+    .regole-modal {
+        background:#fff; max-width: 880px; width:100%; border-radius:14px;
+        box-shadow: 0 20px 60px rgba(0,0,0,.35);
+        padding: 24px 28px; max-height: 92vh; overflow:auto;
+    }
+    .regole-modal h2 { margin:0 0 6px; color:#3b1e0c; }
+    .regole-modal h3 { margin:18px 0 6px; color:#7a3a0a; border-bottom: 1px solid #f0e2c4; padding-bottom:4px; }
+    .regole-modal table { width:100%; border-collapse: collapse; margin: 8px 0; }
+    .regole-modal td { padding:6px 8px; border-bottom: 1px dashed #f0e2c4; font-size:.92rem; }
+    .regole-modal td:first-child { width: 38%; font-weight:600; color:#3b1e0c; }
+    .regole-modal .close-x { float:right; background:none; border:0; font-size:1.5rem; cursor:pointer; color:#7a5c3a; }
+    .regole-modal .lead { color:#7a5c3a; }
+</style>
+
+<div class="gs-warn-banner">
+    <h3>⚠ Operazione distruttiva</h3>
+    <p style="margin:0;">
+        Premendo «Rigenera scadenziario» verranno <strong>cancellate
+        @Model.ScadenzeAttuali.ToString("N0", it) scadenze</strong> e
+        <strong>@Model.FattureAttuali.ToString("N0", it) fatture</strong>
+        attualmente registrate (di cui @Model.ScadenzePagateAttuali pagate).
+        I batch di import e gli allegati restano intatti. L'operazione viene registrata in audit log.
+    </p>
+</div>
+
+<div class="gs-grid">
+    <div class="gs-kpi"><div class="lbl">Righe da elaborare</div><div class="val">@Model.RigheElaborate.ToString("N0", it)</div></div>
+    <div class="gs-kpi is-ok"><div class="lbl">Scadenze previste</div><div class="val">@Model.ScadenzeGenerate.ToString("N0", it)</div></div>
+    <div class="gs-kpi is-ok"><div class="lbl">Fatture previste</div><div class="val">@Model.FattureGenerate.ToString("N0", it)</div></div>
+    <div class="gs-kpi is-warn"><div class="lbl">Alert da verificare</div><div class="val">@Model.Alerts.Count.ToString("N0", it)</div></div>
+</div>
+
+<div class="gs-grid">
+    <div class="gs-kpi"><div class="lbl">Righe importate (totali)</div><div class="val">@Model.RigheImportateTotali.ToString("N0", it)</div></div>
+    <div class="gs-kpi @(Model.RigheSaltate > 0 ? "is-warn" : "")"><div class="lbl">Saltate (errori parsing)</div><div class="val">@Model.RigheSaltate.ToString("N0", it)</div></div>
+    <div class="gs-kpi"><div class="lbl">Nuovi fornitori auto-creati</div><div class="val">@Model.FornitoriNuovi.ToString("N0", it)</div></div>
+    <div class="gs-kpi @(Model.AlertsPerSeverita.GetValueOrDefault("err") > 0 ? "is-danger" : "")">
+        <div class="lbl">Alert critici</div>
+        <div class="val">@(Model.AlertsPerSeverita.GetValueOrDefault("err"))</div>
+    </div>
+</div>
+
+<form asp-action="GeneraScadenziarioApply" method="post" class="gs-section"
+      onsubmit="return confirm('Confermi la cancellazione del vecchio scadenziario e la generazione di @Model.ScadenzeGenerate nuove scadenze?');">
+    @Html.AntiForgeryToken()
+    <h3>Rigenerazione</h3>
+    <p>
+        L'azione: <strong>(1)</strong> cancella scadenze e fatture correnti del tenant,
+        <strong>(2)</strong> rilegge tutti i batch di import (CCH + Ident),
+        <strong>(3)</strong> applica le <a href="#" data-open-regole>regole</a> di scadenza per tipologia,
+        <strong>(4)</strong> crea le scadenze (anche multiple per ritenute) e gli alert correlati.
+    </p>
+    <label style="display:block; margin: 10px 0;">
+        <input type="checkbox" name="confermaCancellazione" value="true" required>
+        Confermo di voler cancellare e rigenerare l'intero scadenziario.
+    </label>
+    <button type="submit" class="btn btn--primary">🚀 Rigenera scadenziario</button>
+</form>
+
+<div class="gs-section">
+    <h3>Riepilogo alert (@Model.Alerts.Count)</h3>
+    @if (Model.Alerts.Count == 0)
+    {
+        <p class="muted">Nessun alert: tutte le righe rispettano le regole o sono allineate alle fatture precedenti.</p>
+    }
+    else
+    {
+        <div style="display:flex; gap:8px; flex-wrap:wrap; margin-bottom:10px;">
+            @foreach (var kv in Model.AlertsPerCategoria.OrderByDescending(k => k.Value))
+            {
+                <span class="pill pill--info">@kv.Key · @kv.Value</span>
+            }
+        </div>
+        <table class="table table-alerts" style="width:100%;">
+            <thead>
+                <tr>
+                    <th style="width:80px;">Sev.</th>
+                    <th>Regola</th>
+                    <th>Messaggio</th>
+                    <th>Fornitore</th>
+                    <th>Doc.</th>
+                </tr>
+            </thead>
+            <tbody>
+                @foreach (var a in Model.Alerts.Take(500))
+                {
+                    var cls = a.Severita switch { "err" => "pill--err", "warn" => "pill--warn", _ => "pill--info" };
+                    var sev = a.Severita switch { "err" => "🔴 critico", "warn" => "🟠 warn", _ => "🔵 info" };
+                    <tr>
+                        <td><span class="pill @cls">@sev</span></td>
+                        <td><strong>@a.Regola</strong></td>
+                        <td>@a.Messaggio</td>
+                        <td>@(a.Fornitore ?? "—")</td>
+                        <td class="muted">@(a.NumeroDoc ?? "—")</td>
+                    </tr>
+                }
+            </tbody>
+        </table>
+        @if (Model.Alerts.Count > 500)
+        {
+            <p class="muted" style="margin-top:6px;">Mostrati primi 500 di @Model.Alerts.Count.</p>
+        }
+    }
+</div>
+
+<div class="gs-section">
+    <h3>Anteprima scadenze (prime @Model.Anteprima.Count)</h3>
+    <div style="overflow:auto;">
+        <table class="table">
+            <thead>
+                <tr>
+                    <th>Data scad.</th>
+                    <th>LOC</th>
+                    <th>Doc.</th>
+                    <th>Fornitore</th>
+                    <th style="text-align:right;">Importo</th>
+                    <th>Metodo</th>
+                    <th>Stato</th>
+                    <th>Categoria</th>
+                    <th>IBAN</th>
+                    <th>Note</th>
+                </tr>
+            </thead>
+            <tbody>
+                @foreach (var s in Model.Anteprima)
+                {
+                    <tr>
+                        <td>@s.DataScadenza.ToString("dd/MM/yyyy")</td>
+                        <td>@s.LOC</td>
+                        <td>@s.NumeroDoc</td>
+                        <td>@s.Fornitore</td>
+                        <td style="text-align:right;">@s.Importo.ToString("N2", it) €</td>
+                        <td>@s.Metodo</td>
+                        <td>@s.Stato</td>
+                        <td><span class="muted">@s.Categoria</span></td>
+                        <td class="muted" style="font-family:monospace;font-size:.78rem;">@(string.IsNullOrEmpty(s.Iban) ? "—" : s.Iban)</td>
+                        <td class="muted" style="max-width:200px;">@(s.Note ?? "")</td>
+                    </tr>
+                }
+            </tbody>
+        </table>
+    </div>
+</div>
+
+<partial name="_RegoleScadenziario" />
+
+<script>
+(function(){
+    const overlay = document.getElementById('regoleOverlay');
+    document.querySelectorAll('[data-open-regole]').forEach(b => {
+        b.addEventListener('click', e => { e.preventDefault(); overlay.classList.add('is-open'); });
+    });
+    overlay.addEventListener('click', e => { if (e.target === overlay) overlay.classList.remove('is-open'); });
+    document.getElementById('regoleClose').addEventListener('click', () => overlay.classList.remove('is-open'));
+    document.addEventListener('keydown', e => { if (e.key === 'Escape') overlay.classList.remove('is-open'); });
+})();
+</script>

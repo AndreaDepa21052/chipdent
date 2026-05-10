@@ -1,0 +1,76 @@
+@*
+    Overlay con le regole operative per la generazione dello scadenziario.
+    Trascritte dal file "Regole scadenzario.xlsx" condiviso dal back-office.
+    Si attiva con qualsiasi elemento avente attributo data-open-regole.
+*@
+<div id="regoleOverlay" class="regole-overlay" role="dialog" aria-modal="true" aria-labelledby="regoleTitle">
+    <div class="regole-modal">
+        <button id="regoleClose" class="close-x" type="button" aria-label="Chiudi">×</button>
+        <h2 id="regoleTitle">📘 Regole dello scadenziario</h2>
+        <p class="lead">
+            Sintesi delle regole condivise dal back-office Confident (file
+            <code>Regole scadenzario.xlsx</code>). Sono applicate automaticamente
+            dalla generazione e producono gli alert visibili in pagina.
+        </p>
+
+        <h3>Programmazione bonifici</h3>
+        <p>I bonifici sono <strong>programmati solo al 10 o al 30/31 del mese</strong>.
+        Le scadenze calcolate vengono allineate al giorno utile più vicino (o "per difetto" per Invisalign).</p>
+
+        <h3>Metodi di pagamento</h3>
+        <table>
+            <tr><td>Bonifico (generale)</td><td>Campo IBAN deve essere valorizzato, altrimenti viene generato un <em>alert</em>.</td></tr>
+            <tr><td>RID</td><td>Copiare la <em>data scadenza</em> dalla fattura.</td></tr>
+            <tr><td>RIBA</td><td>Verificare scadenze multiple, oppure inserire data scadenza; se mancante → <em>alert</em>.</td></tr>
+        </table>
+
+        <h3>Termini per tipologia fornitore</h3>
+        <table>
+            <tr><td>Fornitori generici (bonifico)</td><td>Pagamento a <strong>30 gg fine mese</strong> data fattura.</td></tr>
+            <tr><td>Medici / Direzione sanitaria</td><td>Pagamento a <strong>60 gg fine mese</strong> rispetto al mese presente nell'oggetto (causale) della fattura. Se manca il mese → <em>alert</em>.</td></tr>
+            <tr><td>Laboratori (escluso Invisalign)</td><td>Come Medici (60 gg fine mese sul mese in oggetto).</td></tr>
+            <tr><td>Invisalign</td><td>Pagamento a <strong>150 gg data fattura</strong>, da inserire solo al 10 o 30/31 del mese <em>per difetto</em>.</td></tr>
+            <tr><td>Carta di credito</td><td>Fattura inserita come <strong>«Pagato»</strong> alla data fattura.</td></tr>
+            <tr><td>Ritenute professionisti</td><td>Netto come bonifico (vedi sopra) + importo ritenuta al <strong>16 del mese successivo</strong> al pagamento del bonifico.</td></tr>
+        </table>
+
+        <h3>Controlli su importi e fornitori</h3>
+        <table>
+            <tr><td>Cristal / Infinity / Locazioni</td><td>Se arrivano fatture di <strong>importo diverso</strong> rispetto alle precedenti → <em>alert</em>.</td></tr>
+            <tr><td>Tutti gli altri fornitori</td><td>Se l'importo coincide con un'altra fattura <strong>recente</strong> (≤60 gg) dello stesso fornitore → <em>alert anti-doppione</em>.</td></tr>
+            <tr><td>Parcella</td><td>Se l'oggetto fa riferimento a una <em>parcella</em> → <em>alert</em> (rischio doppione con il compenso).</td></tr>
+            <tr><td>Catalogazione fornitore</td><td>Match tra nome fornitore e tipologia. Alcuni fornitori possono associarsi a tipi diversi (es. medici / direzione sanitaria) → <em>alert</em> di verifica.</td></tr>
+        </table>
+
+        <h3>IBAN</h3>
+        <p>
+            Se l'IBAN non è presente in fattura viene <strong>copiato dall'IBAN immediatamente
+            precedente dello stesso fornitore</strong>. Se ancora vuoto → <em>alert</em>.
+        </p>
+
+        <h3>Importi: Confident vs controllate</h3>
+        <table>
+            <tr><td>Fatture <strong>Confident</strong> (holding CCH)</td><td>Inserire <em>netto</em> + <em>iva</em> + <em>lordo</em> distinti.</td></tr>
+            <tr><td>Fatture <strong>controllate</strong> (Ident)</td><td>Inserire <strong>solo il totale lordo</strong> (IVA = 0).</td></tr>
+        </table>
+
+        <h3>Note di credito</h3>
+        <table>
+            <tr><td>Note di credito generiche</td><td>Importo <strong>negativo</strong>, metodo <em>bonifico</em>, data scadenza al <strong>30/31 del mese corrente</strong> della fattura → <em>alert</em>.</td></tr>
+            <tr><td>Note di credito Compass + Deutsche Bank</td><td>Importo <strong>negativo</strong>, metodo <strong>RID</strong>, data pagamento = data fattura.</td></tr>
+        </table>
+
+        <h3>Pagamenti senza fattura</h3>
+        <p>
+            Vanno <strong>inseriti manualmente</strong>: locazioni, assicurazioni, PagoPA,
+            F24, stipendi, ecc. La generazione automatica non li produce.
+        </p>
+
+        <h3>Da definire insieme</h3>
+        <p class="muted">
+            Le voci «Campo note + competenza» e «Catalogazione fornitore avanzata»
+            (match tra nome fornitore e tipo) sono in evoluzione: gli alert prodotti
+            servono a raccogliere casistica per affinarle.
+        </p>
+    </div>
+</div>

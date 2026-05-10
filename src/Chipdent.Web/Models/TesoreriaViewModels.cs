@@ -302,3 +302,52 @@ public class ImportFattureFileGroup
     public decimal TotaleNetto => Righe.Sum(r => r.NettoAPagare ?? 0);
     public decimal TotaleIva => Righe.Sum(r => r.Iva ?? 0);
 }
+
+// ── Genera scadenziario (dry-run + apply) ────────────────────────────
+public class GeneraScadenziarioViewModel
+{
+    public int RigheImportateTotali { get; set; }
+    public int RigheElaborate { get; set; }
+    public int RigheSaltate { get; set; }
+    public int FattureGenerate { get; set; }
+    public int ScadenzeGenerate { get; set; }
+    public int FornitoriNuovi { get; set; }
+
+    public int ScadenzeAttuali { get; set; }
+    public int FattureAttuali { get; set; }
+    public int ScadenzePagateAttuali { get; set; }
+
+    public List<AlertRow> Alerts { get; set; } = new();
+    public List<AnteprimaScadenza> Anteprima { get; set; } = new();
+
+    public bool IsApplied { get; set; }
+
+    public Dictionary<string, int> AlertsPerCategoria { get; set; } = new();
+    public Dictionary<string, int> AlertsPerSeverita { get; set; } = new();
+}
+
+public class AlertRow
+{
+    public string Severita { get; set; } = "info"; // info | warn | err
+    public string Regola { get; set; } = string.Empty;
+    public string Messaggio { get; set; } = string.Empty;
+    public string? Fornitore { get; set; }
+    public string? NumeroDoc { get; set; }
+    public DateTime? Data { get; set; }
+    public int Riga { get; set; }
+}
+
+public class AnteprimaScadenza
+{
+    public string Fornitore { get; set; } = string.Empty;
+    public string NumeroDoc { get; set; } = string.Empty;
+    public DateTime DataDoc { get; set; }
+    public DateTime DataScadenza { get; set; }
+    public decimal Importo { get; set; }
+    public string Metodo { get; set; } = string.Empty;
+    public string Stato { get; set; } = string.Empty;
+    public string Categoria { get; set; } = string.Empty;
+    public string LOC { get; set; } = "—";
+    public string? Iban { get; set; }
+    public string? Note { get; set; }
+}
