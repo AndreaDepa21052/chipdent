@@ -1,7 +1,6 @@
 using System.Globalization;
 using System.IO.Compression;
 using System.Text;
-using System.Xml;
 using Chipdent.Web.Models;
 
 namespace Chipdent.Web.Infrastructure.Export;
@@ -117,50 +116,41 @@ public static class SimpleXlsxWriter
 
     private static string BuildSheetXml(IReadOnlyList<IReadOnlyList<XlsxCell>> rows)
     {
-        using var sw = new StringWriter(CultureInfo.InvariantCulture);
-        var settings = new XmlWriterSettings { OmitXmlDeclaration = false, Encoding = new UTF8Encoding(false) };
-        using (var w = XmlWriter.Create(sw, settings))
+        // Costruiamo l'XML a mano per evitare problemi di encoding dell'XmlWriter
+        // (StringWriter → UTF-16 nella dichiarazione, file salvato in UTF-8 → Excel non apre).
+        var sb = new StringBuilder(rows.Count * 64);
+        sb.Append("<?xml version=\"1.0\" encoding=\"UTF-8\" standalone=\"yes\"?>");
+        sb.Append("<worksheet xmlns=\"http://schemas.openxmlformats.org/spreadsheetml/2006/main\">");
+        sb.Append("<sheetData>");
+
+        for (int rIdx = 0; rIdx < rows.Count; rIdx++)
         {
-            w.WriteStartDocument(true);
-            w.WriteStartElement("worksheet", "http://schemas.openxmlformats.org/spreadsheetml/2006/main");
-            w.WriteStartElement("sheetData");
+            var row = rows[rIdx];
+            sb.Append("<row r=\"").Append((rIdx + 1).ToString(CultureInfo.InvariantCulture)).Append("\">");
 
-            for (int rIdx = 0; rIdx < rows.Count; rIdx++)
+            for (int cIdx = 0; cIdx < row.Count; cIdx++)
             {
-                var row = rows[rIdx];
-                w.WriteStartElement("row");
-                w.WriteAttributeString("r", (rIdx + 1).ToString(CultureInfo.InvariantCulture));
+                var cell = row[cIdx];
+                var coord = $"{ColumnLetter(cIdx)}{rIdx + 1}";
 
-                for (int cIdx = 0; cIdx < row.Count; cIdx++)
+                if (cell.IsNumber)
                 {
-                    var cell = row[cIdx];
-                    w.WriteStartElement("c");
-                    w.WriteAttributeString("r", $"{ColumnLetter(cIdx)}{rIdx + 1}");
-
-                    if (cell.IsNumber)
-                    {
-                        w.WriteElementString("v", cell.NumberValue.ToString(CultureInfo.InvariantCulture));
-                    }
-                    else
-                    {
-                        w.WriteAttributeString("t", "inlineStr");
-                        w.WriteStartElement("is");
-                        w.WriteStartElement("t");
-                        w.WriteAttributeString("space", "http://www.w3.org/XML/1998/namespace", "preserve");
-                        w.WriteString(cell.TextValue ?? string.Empty);
-                        w.WriteEndElement(); // t
-                        w.WriteEndElement(); // is
-                    }
-                    w.WriteEndElement(); // c
+                    sb.Append("<c r=\"").Append(coord).Append("\"><v>")
+                      .Append(cell.NumberValue.ToString(CultureInfo.InvariantCulture))
+                      .Append("</v></c>");
                 }
-                w.WriteEndElement(); // row
+                else
+                {
+                    sb.Append("<c r=\"").Append(coord).Append("\" t=\"inlineStr\"><is><t xml:space=\"preserve\">")
+                      .Append(EscapeXml(cell.TextValue ?? string.Empty))
+                      .Append("</t></is></c>");
+                }
             }
-
-            w.WriteEndElement(); // sheetData
-            w.WriteEndElement(); // worksheet
-            w.WriteEndDocument();
+            sb.Append("</row>");
         }
-        return sw.ToString();
+
+        sb.Append("</sheetData></worksheet>");
+        return sb.ToString();
     }
 
     private static string ColumnLetter(int zeroBasedIndex)

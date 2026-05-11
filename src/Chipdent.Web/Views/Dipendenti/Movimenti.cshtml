@@ -42,18 +42,18 @@
     </form>
 </div>
 
-<div class="grid grid--stats" style="margin-bottom: var(--s-4);">
-    <div class="stat"><div class="stat__label">Assunzioni</div><div class="stat__value" style="color:#1f6e3a;">@Model.TotaleAssunzioni</div></div>
-    <div class="stat"><div class="stat__label">Cessazioni</div><div class="stat__value" style="color:#a83a3a;">@Model.TotaleCessazioni</div></div>
-    <div class="stat"><div class="stat__label">Proroghe</div><div class="stat__value">@Model.TotaleProroghe</div></div>
-    <div class="stat"><div class="stat__label">Distacchi</div><div class="stat__value">@Model.TotaleDistacchi</div></div>
-    <div class="stat"><div class="stat__label">Trasformazioni / aumenti</div><div class="stat__value" style="color:#a86010;">@Model.TotaleTrasformazioni</div></div>
-    <div class="stat"><div class="stat__label">Trasferimenti sede</div><div class="stat__value">@Model.TotaleTrasferimenti</div></div>
-    <div class="stat"><div class="stat__label">Cambi mansione</div><div class="stat__value">@Model.TotaleCambiMansione</div></div>
+<div class="movimenti-kpis">
+    <div class="kpi"><div class="kpi__label">Assunzioni</div><div class="kpi__value" style="color:#1f6e3a;">@Model.TotaleAssunzioni</div></div>
+    <div class="kpi"><div class="kpi__label">Cessazioni</div><div class="kpi__value" style="color:#a83a3a;">@Model.TotaleCessazioni</div></div>
+    <div class="kpi"><div class="kpi__label">Proroghe</div><div class="kpi__value">@Model.TotaleProroghe</div></div>
+    <div class="kpi"><div class="kpi__label">Distacchi</div><div class="kpi__value">@Model.TotaleDistacchi</div></div>
+    <div class="kpi"><div class="kpi__label">Trasf. / aumenti</div><div class="kpi__value" style="color:#a86010;">@Model.TotaleTrasformazioni</div></div>
+    <div class="kpi"><div class="kpi__label">Trasf. sede</div><div class="kpi__value">@Model.TotaleTrasferimenti</div></div>
+    <div class="kpi"><div class="kpi__label">Cambi mansione</div><div class="kpi__value">@Model.TotaleCambiMansione</div></div>
 </div>
 
-<div class="card" style="padding:0; overflow:auto;">
-    <table class="table">
+<div class="card movimenti-report" style="padding:0; overflow-x:auto;">
+    <table class="table movimenti-table">
         <thead>
             <tr>
                 <th>Mese/Anno</th>
@@ -102,3 +102,61 @@
     trasferimenti tra sedi, cambi livello/retribuzione e cambi mansione/reparto.
     Le operazioni si registrano dal profilo del singolo dipendente (tab «Carriera», «Distacchi», «Storico cliniche»).
 </p>
+
+<style>
+    .movimenti-kpis {
+        display: grid;
+        grid-template-columns: repeat(7, minmax(0, 1fr));
+        gap: var(--s-2);
+        margin-bottom: var(--s-4);
+    }
+    .kpi {
+        background: linear-gradient(180deg, var(--c-bg-panel) 0%, var(--c-bg-surface) 100%);
+        border: 1px solid var(--c-border);
+        border-radius: var(--r-md);
+        padding: var(--s-2) var(--s-3);
+        min-width: 0;
+    }
+    .kpi__label {
+        font-size: 0.62rem;
+        color: var(--c-ink-soft);
+        text-transform: uppercase;
+        letter-spacing: 0.08em;
+        margin-bottom: 2px;
+        white-space: nowrap;
+        overflow: hidden;
+        text-overflow: ellipsis;
+    }
+    .kpi__value {
+        font-family: var(--f-display);
+        font-size: 1.4rem;
+        color: var(--c-ink-strong);
+        line-height: 1.1;
+    }
+    @@media (max-width: 1100px) {
+        .movimenti-kpis { grid-template-columns: repeat(4, minmax(0, 1fr)); }
+    }
+    @@media (max-width: 640px) {
+        .movimenti-kpis { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+    }
+
+    .movimenti-table {
+        font-size: 0.78rem;
+        min-width: 100%;
+    }
+    .movimenti-table thead th {
+        font-size: 0.68rem;
+        padding: var(--s-2) var(--s-2);
+        white-space: normal;
+        line-height: 1.2;
+        vertical-align: bottom;
+    }
+    .movimenti-table tbody td {
+        padding: var(--s-2) var(--s-2);
+        white-space: nowrap;
+    }
+    .movimenti-table tbody td:last-child {
+        white-space: normal;
+        max-width: 240px;
+    }
+</style>
