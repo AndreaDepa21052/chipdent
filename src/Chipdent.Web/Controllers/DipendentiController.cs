@@ -107,6 +107,12 @@ public class DipendentiController : Controller
         var documenti = await _mongo.DocumentiDipendente
             .Find(p => p.TenantId == _tenant.TenantId && p.DipendenteId == id)
             .ToListAsync();
+        var cambiLivello = await _mongo.CambiLivello
+            .Find(c => c.TenantId == _tenant.TenantId && c.DipendenteId == id)
+            .SortByDescending(c => c.DataEffetto).ToListAsync();
+        var cambiMansione = await _mongo.CambiMansione
+            .Find(c => c.TenantId == _tenant.TenantId && c.DipendenteId == id)
+            .SortByDescending(c => c.DataEffetto).ToListAsync();
 
         ViewData["Section"] = "dipendenti";
         return View("Profile", new DipendenteProfileViewModel
@@ -124,7 +130,9 @@ public class DipendentiController : Controller
             Disciplinari = disciplinari,
             Premi = premi,
             Valutazioni = valutazioni,
-            Documenti = documenti
+            Documenti = documenti,
+            CambiLivello = cambiLivello,
+            CambiMansione = cambiMansione
         });
     }
 
@@ -170,7 +178,7 @@ public class DipendentiController : Controller
         var report = await BuildMovimentiAsync(anno, mese);
 
         var sb = new System.Text.StringBuilder();
-        sb.AppendLine("Mese/Anno;Società;N. assunzioni;N. annullamento assunzioni;N. cessazioni anticipate;N. contratti non rinnovati;N. contratti non rinnovati prossimo mese;N. proroghe;N. distacchi;N. rettifiche/annullamento distacchi;N. trasformazioni/aumento livello;Note");
+        sb.AppendLine("Mese/Anno;Società;N. assunzioni;N. annullamento assunzioni;N. cessazioni anticipate;N. contratti non rinnovati;N. contratti non rinnovati prossimo mese;N. proroghe;N. distacchi;N. rettifiche/annullamento distacchi;N. trasformazioni/aumento livello;N. trasferimenti sede;N. cambi mansione/reparto;Note");
         foreach (var r in report.Righe)
         {
             sb.Append(report.MeseAnnoLabel).Append(';');
@@ -184,6 +192,8 @@ public class DipendentiController : Controller
             sb.Append(r.NumeroDistacchi).Append(';');
             sb.Append(r.NumeroRettificheDistacchi).Append(';');
             sb.Append(r.NumeroTrasformazioniLivello).Append(';');
+            sb.Append(r.NumeroTrasferimentiSede).Append(';');
+            sb.Append(r.NumeroCambiMansione).Append(';');
             sb.Append(Csv(string.Join(" | ", r.Note))).AppendLine();
         }
 
@@ -192,6 +202,15 @@ public class DipendentiController : Controller
         return File(bytes, "text/csv", fileName);
 
         static string Csv(string? s) => s is null ? "" : (s.Contains(';') || s.Contains('"') || s.Contains('\n')) ? "\"" + s.Replace("\"", "\"\"") + "\"" : s;
+    }
+
+    [HttpGet("movimenti/xlsx")]
+    public async Task<IActionResult> MovimentiXlsx(int anno, int mese)
+    {
+        var report = await BuildMovimentiAsync(anno, mese);
+        var bytes = Chipdent.Web.Infrastructure.Export.SimpleXlsxWriter.BuildMovimentiMensili(report);
+        var fileName = $"movimenti-dipendenti-{anno:0000}-{mese:00}.xlsx";
+        return File(bytes, "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet", fileName);
     }
 
     private async Task<MovimentiMensiliReport> BuildMovimentiAsync(int anno, int mese)
@@ -207,6 +226,19 @@ public class DipendentiController : Controller
             .ToListAsync();
         var distacchi = await _mongo.Distacchi
             .Find(x => x.TenantId == _tenant.TenantId)
+            .ToListAsync();
+        var trasferimenti = await _mongo.Trasferimenti
+            .Find(t => t.TenantId == _tenant.TenantId
+                       && t.PersonaTipo == TipoPersona.Dipendente
+                       && t.DataEffetto >= inizio && t.DataEffetto < fine)
+            .ToListAsync();
+        var cambiLivelloMese = await _mongo.CambiLivello
+            .Find(c => c.TenantId == _tenant.TenantId
+                       && c.DataEffetto >= inizio && c.DataEffetto < fine)
+            .ToListAsync();
+        var cambiMansioneMese = await _mongo.CambiMansione
+            .Find(c => c.TenantId == _tenant.TenantId
+                       && c.DataEffetto >= inizio && c.DataEffetto < fine)
             .ToListAsync();
 
         var righe = new List<MovimentoMensileRiga>();
@@ -228,26 +260,56 @@ public class DipendentiController : Controller
                 && d.IsCessato);
             int proroghe = dipClin.Count(d => d.DataScadenzaProroga.HasValue
                 && d.DataScadenzaProroga.Value >= inizio && d.DataScadenzaProroga.Value < fine);
-            int trasformazioni = dipClin.Count(d => (d.DataTrasformazioneContratto.HasValue
-                    && d.DataTrasformazioneContratto.Value >= inizio && d.DataTrasformazioneContratto.Value < fine)
-                || (d.DataAumentoLivelli.HasValue
-                    && d.DataAumentoLivelli.Value >= inizio && d.DataAumentoLivelli.Value < fine));
+            int trasformazioniContratto = dipClin.Count(d => d.DataTrasformazioneContratto.HasValue
+                && d.DataTrasformazioneContratto.Value >= inizio && d.DataTrasformazioneContratto.Value < fine);
+            int aumentiLivelloEntita = cambiLivelloMese.Count(x => x.ClinicaId == c.Id);
+            int trasformazioniLivelloTotale = trasformazioniContratto + aumentiLivelloEntita;
 
             var nuoviDistacchi = distacchi.Count(x => x.ClinicaDistaccoId == c.Id
                 && x.DataInizio >= inizio && x.DataInizio < fine);
             var rettificheDistacchi = distacchi.Count(x => x.ClinicaDistaccoId == c.Id
                 && x.DataFine.HasValue && x.DataFine.Value >= inizio && x.DataFine.Value < fine);
 
-            // Annotazioni nominative per i casi che ne valgono la pena
-            foreach (var d in dipClin.Where(d => d.DataAumentoLivelli.HasValue
-                && d.DataAumentoLivelli.Value >= inizio && d.DataAumentoLivelli.Value < fine))
+            // Trasferimenti permanenti VERSO questa clinica (esclusa l'assegnazione iniziale che ha ClinicaDaId == null)
+            var trasferimentiSede = trasferimenti.Count(t => t.ClinicaAId == c.Id
+                && !string.IsNullOrEmpty(t.ClinicaDaId)
+                && t.ClinicaDaId != c.Id);
+            var cambiMansioneClinica = cambiMansioneMese.Count(x => x.ClinicaId == c.Id);
+
+            // Annotazioni nominative
+            foreach (var x in cambiLivelloMese.Where(x => x.ClinicaId == c.Id))
             {
-                note.Add($"{d.NomeCompleto}: aumento livello");
+                var label = x.Tipo switch
+                {
+                    TipoCambioLivello.AumentoLivello => "aumento livello",
+                    TipoCambioLivello.AumentoRetributivo => "aumento retributivo",
+                    TipoCambioLivello.AumentoLivelloERetributivo => "aumento livello + retributivo",
+                    _ => "cambio livello"
+                };
+                if (!string.IsNullOrEmpty(x.LivelloDa) && !string.IsNullOrEmpty(x.LivelloA))
+                    label += $" {x.LivelloDa}→{x.LivelloA}";
+                note.Add($"{x.DipendenteNome}: {label}");
             }
             foreach (var d in dipClin.Where(d => d.DataTrasformazioneContratto.HasValue
                 && d.DataTrasformazioneContratto.Value >= inizio && d.DataTrasformazioneContratto.Value < fine))
             {
                 note.Add($"{d.NomeCompleto}: trasformazione contratto");
+            }
+            foreach (var x in cambiMansioneMese.Where(x => x.ClinicaId == c.Id))
+            {
+                var parts = new List<string>();
+                if (x.RuoloDa != x.RuoloA) parts.Add($"ruolo {x.RuoloDa}→{x.RuoloA}");
+                if (!string.IsNullOrEmpty(x.MansioneSpecificaA) && x.MansioneSpecificaA != x.MansioneSpecificaDa)
+                    parts.Add($"mansione {(x.MansioneSpecificaDa ?? "—")}→{x.MansioneSpecificaA}");
+                if (!string.IsNullOrEmpty(x.RepartoA) && x.RepartoA != x.RepartoDa)
+                    parts.Add($"reparto {(x.RepartoDa ?? "—")}→{x.RepartoA}");
+                var detail = parts.Count > 0 ? string.Join(", ", parts) : "cambio mansione";
+                note.Add($"{x.DipendenteNome}: {detail}");
+            }
+            foreach (var t in trasferimenti.Where(t => t.ClinicaAId == c.Id
+                && !string.IsNullOrEmpty(t.ClinicaDaId) && t.ClinicaDaId != c.Id))
+            {
+                note.Add($"{t.PersonaNome}: trasferimento da {t.ClinicaDaNome}");
             }
 
             righe.Add(new MovimentoMensileRiga
@@ -262,7 +324,9 @@ public class DipendentiController : Controller
                 NumeroProroghe = proroghe,
                 NumeroDistacchi = nuoviDistacchi,
                 NumeroRettificheDistacchi = rettificheDistacchi,
-                NumeroTrasformazioniLivello = trasformazioni,
+                NumeroTrasformazioniLivello = trasformazioniLivelloTotale,
+                NumeroTrasferimentiSede = trasferimentiSede,
+                NumeroCambiMansione = cambiMansioneClinica,
                 Note = note
             });
         }
@@ -323,6 +387,140 @@ public class DipendentiController : Controller
         await _mongo.Distacchi.DeleteOneAsync(d => d.Id == distaccoId && d.TenantId == _tenant.TenantId && d.DipendenteId == id);
         TempData["flash"] = "Distacco rimosso.";
         return RedirectToAction(nameof(Details), new { id, tab = "distacchi" });
+    }
+
+    // ─────────────────────────────────────────────────────────────
+    //  CAMBI LIVELLO / RETRIBUZIONE — storicizzato per dipendente
+    // ─────────────────────────────────────────────────────────────
+    [HttpPost("{id}/cambio-livello/nuovo")]
+    [Authorize(Policy = Policies.RequireBackoffice)]
+    [ValidateAntiForgeryToken]
+    public async Task<IActionResult> NuovoCambioLivello(string id, DateTime dataEffetto, TipoCambioLivello tipo,
+        string? livelloA, decimal? retribuzioneA, string? motivo, string? note)
+    {
+        var dip = await Load(id);
+        if (dip is null) return NotFound();
+
+        if (string.IsNullOrWhiteSpace(livelloA) && !retribuzioneA.HasValue)
+        {
+            TempData["flash"] = "Indica almeno il nuovo livello o la nuova retribuzione.";
+            return RedirectToAction(nameof(Details), new { id, tab = "carriera" });
+        }
+
+        var cambio = new CambioLivelloRetribuzione
+        {
+            TenantId = _tenant.TenantId!,
+            DipendenteId = id,
+            DipendenteNome = dip.NomeCompleto,
+            ClinicaId = dip.ClinicaId,
+            DataEffetto = DateTime.SpecifyKind(dataEffetto.Date, DateTimeKind.Utc),
+            Tipo = tipo,
+            LivelloDa = dip.LivelloContratto,
+            LivelloA = string.IsNullOrWhiteSpace(livelloA) ? dip.LivelloContratto : livelloA.Trim(),
+            RetribuzioneA = retribuzioneA,
+            Motivo = motivo,
+            Note = note,
+            DecisoDaUserId = User.FindFirst(System.Security.Claims.ClaimTypes.NameIdentifier)?.Value ?? string.Empty,
+            DecisoDaNome = User.Identity?.Name ?? "system"
+        };
+        await _mongo.CambiLivello.InsertOneAsync(cambio);
+
+        // Aggiorna i campi corrispondenti sull'anagrafica per restare in sync con il report mensile
+        var update = Builders<Dipendente>.Update
+            .Set(d => d.UpdatedAt, DateTime.UtcNow)
+            .Set(d => d.DataAumentoLivelli, cambio.DataEffetto);
+        if (!string.IsNullOrWhiteSpace(livelloA))
+            update = update.Set(d => d.LivelloContratto, livelloA.Trim());
+        await _mongo.Dipendenti.UpdateOneAsync(
+            d => d.Id == id && d.TenantId == _tenant.TenantId, update);
+
+        await _audit.LogAsync("Dipendente", id, dip.NomeCompleto, AuditAction.Updated,
+            new[] { new FieldChange { Field = "LivelloContratto",
+                                       OldValue = cambio.LivelloDa ?? "—",
+                                       NewValue = cambio.LivelloA ?? "—" } },
+            note: motivo, actor: User);
+        TempData["flash"] = "Cambio livello/retribuzione registrato.";
+        return RedirectToAction(nameof(Details), new { id, tab = "carriera" });
+    }
+
+    [HttpPost("{id}/cambio-livello/{cambioId}/elimina")]
+    [Authorize(Policy = Policies.RequireManagement)]
+    [ValidateAntiForgeryToken]
+    public async Task<IActionResult> EliminaCambioLivello(string id, string cambioId)
+    {
+        await _mongo.CambiLivello.DeleteOneAsync(x => x.Id == cambioId && x.TenantId == _tenant.TenantId && x.DipendenteId == id);
+        TempData["flash"] = "Cambio livello rimosso.";
+        return RedirectToAction(nameof(Details), new { id, tab = "carriera" });
+    }
+
+    // ─────────────────────────────────────────────────────────────
+    //  CAMBI MANSIONE / REPARTO — storicizzato per dipendente
+    // ─────────────────────────────────────────────────────────────
+    [HttpPost("{id}/cambio-mansione/nuovo")]
+    [Authorize(Policy = Policies.RequireBackoffice)]
+    [ValidateAntiForgeryToken]
+    public async Task<IActionResult> NuovoCambioMansione(string id, DateTime dataEffetto,
+        RuoloDipendente ruoloA, string? mansioneSpecificaA, string? repartoA, string? motivo, string? note)
+    {
+        var dip = await Load(id);
+        if (dip is null) return NotFound();
+
+        var cambio = new CambioMansioneReparto
+        {
+            TenantId = _tenant.TenantId!,
+            DipendenteId = id,
+            DipendenteNome = dip.NomeCompleto,
+            ClinicaId = dip.ClinicaId,
+            DataEffetto = DateTime.SpecifyKind(dataEffetto.Date, DateTimeKind.Utc),
+            RuoloDa = dip.Ruolo,
+            RuoloA = ruoloA,
+            MansioneSpecificaDa = dip.MansioneSpecifica,
+            MansioneSpecificaA = string.IsNullOrWhiteSpace(mansioneSpecificaA) ? dip.MansioneSpecifica : mansioneSpecificaA.Trim(),
+            RepartoDa = dip.Reparto,
+            RepartoA = string.IsNullOrWhiteSpace(repartoA) ? dip.Reparto : repartoA.Trim(),
+            Motivo = motivo,
+            Note = note,
+            DecisoDaUserId = User.FindFirst(System.Security.Claims.ClaimTypes.NameIdentifier)?.Value ?? string.Empty,
+            DecisoDaNome = User.Identity?.Name ?? "system"
+        };
+
+        if (cambio.RuoloDa == cambio.RuoloA
+            && cambio.MansioneSpecificaDa == cambio.MansioneSpecificaA
+            && cambio.RepartoDa == cambio.RepartoA)
+        {
+            TempData["flash"] = "Nessun cambiamento rispetto ai dati attuali.";
+            return RedirectToAction(nameof(Details), new { id, tab = "carriera" });
+        }
+
+        await _mongo.CambiMansione.InsertOneAsync(cambio);
+
+        var update = Builders<Dipendente>.Update
+            .Set(d => d.UpdatedAt, DateTime.UtcNow)
+            .Set(d => d.Ruolo, ruoloA);
+        if (!string.IsNullOrWhiteSpace(mansioneSpecificaA))
+            update = update.Set(d => d.MansioneSpecifica, mansioneSpecificaA.Trim());
+        if (!string.IsNullOrWhiteSpace(repartoA))
+            update = update.Set(d => d.Reparto, repartoA.Trim());
+        await _mongo.Dipendenti.UpdateOneAsync(
+            d => d.Id == id && d.TenantId == _tenant.TenantId, update);
+
+        await _audit.LogAsync("Dipendente", id, dip.NomeCompleto, AuditAction.Updated,
+            new[] { new FieldChange { Field = "Ruolo",
+                                       OldValue = cambio.RuoloDa?.ToString() ?? "—",
+                                       NewValue = cambio.RuoloA?.ToString() ?? "—" } },
+            note: motivo, actor: User);
+        TempData["flash"] = "Cambio mansione/reparto registrato.";
+        return RedirectToAction(nameof(Details), new { id, tab = "carriera" });
+    }
+
+    [HttpPost("{id}/cambio-mansione/{cambioId}/elimina")]
+    [Authorize(Policy = Policies.RequireManagement)]
+    [ValidateAntiForgeryToken]
+    public async Task<IActionResult> EliminaCambioMansione(string id, string cambioId)
+    {
+        await _mongo.CambiMansione.DeleteOneAsync(x => x.Id == cambioId && x.TenantId == _tenant.TenantId && x.DipendenteId == id);
+        TempData["flash"] = "Cambio mansione rimosso.";
+        return RedirectToAction(nameof(Details), new { id, tab = "carriera" });
     }
 
     // ─────────────────────────────────────────────────────────────

@@ -82,4 +82,6 @@ public class MongoContext
     public IMongoCollection<SchedaValutazione> Valutazioni => Database.GetCollection<SchedaValutazione>("valutazioniDipendenti");
     public IMongoCollection<VisitaMysteryClient> MysteryClient => Database.GetCollection<VisitaMysteryClient>("mysteryClient");
     public IMongoCollection<DocumentoDipendente> DocumentiDipendente => Database.GetCollection<DocumentoDipendente>("documentiDipendente");
+    public IMongoCollection<CambioLivelloRetribuzione> CambiLivello => Database.GetCollection<CambioLivelloRetribuzione>("cambiLivelloDipendenti");
+    public IMongoCollection<CambioMansioneReparto> CambiMansione => Database.GetCollection<CambioMansioneReparto>("cambiMansioneDipendenti");
 }

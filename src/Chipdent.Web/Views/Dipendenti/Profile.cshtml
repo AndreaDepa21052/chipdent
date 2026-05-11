@@ -142,6 +142,9 @@
         <a class="tab @(tab == "distacchi" ? "is-active" : "")" asp-action="Details" asp-route-id="@d.Id" asp-route-tab="distacchi">
             Distacchi <span class="tab__count">@Model.Distacchi.Count</span>
         </a>
+        <a class="tab @(tab == "carriera" ? "is-active" : "")" asp-action="Details" asp-route-id="@d.Id" asp-route-tab="carriera">
+            Carriera <span class="tab__count">@(Model.CambiLivello.Count + Model.CambiMansione.Count)</span>
+        </a>
         <a class="tab @(tab == "storico" ? "is-active" : "")" asp-action="Details" asp-route-id="@d.Id" asp-route-tab="storico">
             Storico cliniche <span class="tab__count">@Model.Storico.Count</span>
         </a>
@@ -610,6 +613,176 @@
                                     </form>
                                 }
                                 <form asp-action="EliminaDistacco" asp-route-id="@d.Id" asp-route-distaccoId="@dist.Id" method="post" style="display:inline;" onsubmit="return confirm('Eliminare il distacco?');">
+                                    @Html.AntiForgeryToken()
+                                    <button type="submit" class="btn btn--ghost btn--sm" title="Elimina">🗑</button>
+                                </form>
+                            </td>
+                        </tr>
+                    }
+                    </tbody>
+                </table>
+            </div>
+        }
+    }
+    else if (tab == "carriera")
+    {
+        <div class="card" style="padding: var(--s-4); margin-bottom: var(--s-4);">
+            <h3 class="card__title" style="margin-top: 0;">Cambio livello / retribuzione</h3>
+            <p class="muted" style="margin-top: 0;">Livello attuale: <strong>@(string.IsNullOrEmpty(d.LivelloContratto) ? "—" : d.LivelloContratto)</strong></p>
+            <form asp-action="NuovoCambioLivello" asp-route-id="@d.Id" method="post" class="form-grid" style="margin-top: var(--s-3);">
+                @Html.AntiForgeryToken()
+                <div class="form-group">
+                    <label class="form-label">Data effetto *</label>
+                    <input class="form-control" type="date" name="dataEffetto" required value="@oggi.ToString("yyyy-MM-dd")" />
+                </div>
+                <div class="form-group">
+                    <label class="form-label">Tipo *</label>
+                    <select class="form-control" name="tipo" required>
+                        <option value="AumentoLivello">Aumento livello</option>
+                        <option value="AumentoRetributivo">Aumento retributivo</option>
+                        <option value="AumentoLivelloERetributivo">Livello + retributivo</option>
+                        <option value="Altro">Altro</option>
+                    </select>
+                </div>
+                <div class="form-group">
+                    <label class="form-label">Nuovo livello</label>
+                    <input class="form-control" name="livelloA" placeholder="es. 2S" />
+                </div>
+                <div class="form-group">
+                    <label class="form-label">Nuova retribuzione (€)</label>
+                    <input class="form-control" type="number" step="0.01" min="0" name="retribuzioneA" placeholder="opzionale" />
+                </div>
+                <div class="form-group full">
+                    <label class="form-label">Motivo</label>
+                    <input class="form-control" name="motivo" placeholder="Es. avanzamento di carriera, scatto biennale" />
+                </div>
+                <div class="form-group full">
+                    <label class="form-label">Note</label>
+                    <textarea class="form-control" name="note" rows="2"></textarea>
+                </div>
+                <div class="form-group full" style="text-align:right;">
+                    <button type="submit" class="btn btn--primary">＋ Registra cambio livello</button>
+                </div>
+            </form>
+        </div>
+
+        @if (Model.CambiLivello.Count == 0)
+        {
+            <div class="card" style="padding: var(--s-4); margin-bottom: var(--s-4);">
+                <p class="muted">Nessun cambio livello/retribuzione registrato.</p>
+            </div>
+        }
+        else
+        {
+            <div class="card" style="padding:0; overflow:auto; margin-bottom: var(--s-4);">
+                <table class="table">
+                    <thead>
+                        <tr>
+                            <th>Data</th>
+                            <th>Tipo</th>
+                            <th>Livello da → a</th>
+                            <th>Retribuzione</th>
+                            <th>Motivo</th>
+                            <th>Decisa da</th>
+                            <th></th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                    @foreach (var cl in Model.CambiLivello)
+                    {
+                        <tr>
+                            <td>@cl.DataEffetto.ToString("dd/MM/yyyy")</td>
+                            <td>@cl.Tipo</td>
+                            <td>@(cl.LivelloDa ?? "—") → <strong>@(cl.LivelloA ?? "—")</strong></td>
+                            <td>@(cl.RetribuzioneA.HasValue ? cl.RetribuzioneA.Value.ToString("C", System.Globalization.CultureInfo.GetCultureInfo("it-IT")) : "—")</td>
+                            <td class="muted">@(cl.Motivo ?? "—")</td>
+                            <td class="muted" style="font-size:.85rem;">@cl.DecisoDaNome</td>
+                            <td style="white-space:nowrap;">
+                                <form asp-action="EliminaCambioLivello" asp-route-id="@d.Id" asp-route-cambioId="@cl.Id" method="post" style="display:inline;" onsubmit="return confirm('Eliminare il cambio livello?');">
+                                    @Html.AntiForgeryToken()
+                                    <button type="submit" class="btn btn--ghost btn--sm" title="Elimina">🗑</button>
+                                </form>
+                            </td>
+                        </tr>
+                    }
+                    </tbody>
+                </table>
+            </div>
+        }
+
+        <div class="card" style="padding: var(--s-4); margin-bottom: var(--s-4);">
+            <h3 class="card__title" style="margin-top: 0;">Cambio mansione / reparto</h3>
+            <p class="muted" style="margin-top: 0;">Ruolo attuale: <strong>@d.Ruolo</strong> · Mansione: <strong>@(string.IsNullOrEmpty(d.MansioneSpecifica) ? "—" : d.MansioneSpecifica)</strong> · Reparto: <strong>@(string.IsNullOrEmpty(d.Reparto) ? "—" : d.Reparto)</strong></p>
+            <form asp-action="NuovoCambioMansione" asp-route-id="@d.Id" method="post" class="form-grid" style="margin-top: var(--s-3);">
+                @Html.AntiForgeryToken()
+                <div class="form-group">
+                    <label class="form-label">Data effetto *</label>
+                    <input class="form-control" type="date" name="dataEffetto" required value="@oggi.ToString("yyyy-MM-dd")" />
+                </div>
+                <div class="form-group">
+                    <label class="form-label">Nuovo ruolo *</label>
+                    <select class="form-control" name="ruoloA" required>
+                        @foreach (var r in Enum.GetValues<RuoloDipendente>())
+                        {
+                            <option value="@r" selected="@(r == d.Ruolo)">@r</option>
+                        }
+                    </select>
+                </div>
+                <div class="form-group">
+                    <label class="form-label">Nuova mansione specifica</label>
+                    <input class="form-control" name="mansioneSpecificaA" value="@d.MansioneSpecifica" />
+                </div>
+                <div class="form-group">
+                    <label class="form-label">Nuovo reparto</label>
+                    <input class="form-control" name="repartoA" value="@d.Reparto" />
+                </div>
+                <div class="form-group full">
+                    <label class="form-label">Motivo</label>
+                    <input class="form-control" name="motivo" placeholder="Es. promozione, riassegnazione" />
+                </div>
+                <div class="form-group full">
+                    <label class="form-label">Note</label>
+                    <textarea class="form-control" name="note" rows="2"></textarea>
+                </div>
+                <div class="form-group full" style="text-align:right;">
+                    <button type="submit" class="btn btn--primary">＋ Registra cambio mansione</button>
+                </div>
+            </form>
+        </div>
+
+        @if (Model.CambiMansione.Count == 0)
+        {
+            <div class="card" style="padding: var(--s-4);">
+                <p class="muted">Nessun cambio mansione/reparto registrato.</p>
+            </div>
+        }
+        else
+        {
+            <div class="card" style="padding:0; overflow:auto;">
+                <table class="table">
+                    <thead>
+                        <tr>
+                            <th>Data</th>
+                            <th>Ruolo da → a</th>
+                            <th>Mansione da → a</th>
+                            <th>Reparto da → a</th>
+                            <th>Motivo</th>
+                            <th>Decisa da</th>
+                            <th></th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                    @foreach (var cm in Model.CambiMansione)
+                    {
+                        <tr>
+                            <td>@cm.DataEffetto.ToString("dd/MM/yyyy")</td>
+                            <td>@(cm.RuoloDa?.ToString() ?? "—") → <strong>@(cm.RuoloA?.ToString() ?? "—")</strong></td>
+                            <td>@(cm.MansioneSpecificaDa ?? "—") → <strong>@(cm.MansioneSpecificaA ?? "—")</strong></td>
+                            <td>@(cm.RepartoDa ?? "—") → <strong>@(cm.RepartoA ?? "—")</strong></td>
+                            <td class="muted">@(cm.Motivo ?? "—")</td>
+                            <td class="muted" style="font-size:.85rem;">@cm.DecisoDaNome</td>
+                            <td style="white-space:nowrap;">
+                                <form asp-action="EliminaCambioMansione" asp-route-id="@d.Id" asp-route-cambioId="@cm.Id" method="post" style="display:inline;" onsubmit="return confirm('Eliminare il cambio mansione?');">
                                     @Html.AntiForgeryToken()
                                     <button type="submit" class="btn btn--ghost btn--sm" title="Elimina">🗑</button>
                                 </form>
