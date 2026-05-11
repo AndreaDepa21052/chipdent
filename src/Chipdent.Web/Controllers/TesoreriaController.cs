@@ -726,7 +726,8 @@ public class TesoreriaController : Controller
             Stato = vm.Stato,
             Note = vm.Note,
             TerminiPagamentoGiorni = vm.TerminiPagamentoGiorni,
-            BasePagamento = vm.BasePagamento
+            BasePagamento = vm.BasePagamento,
+            EmissioneFattura = vm.EmissioneFattura
         };
         await _mongo.Fornitori.InsertOneAsync(f);
 
@@ -765,6 +766,7 @@ public class TesoreriaController : Controller
             Note = f.Note,
             TerminiPagamentoGiorni = f.TerminiPagamentoGiorni,
             BasePagamento = f.BasePagamento,
+            EmissioneFattura = f.EmissioneFattura,
             HaUtentePortale = hasUser,
             IsDottoreOmbra = !string.IsNullOrEmpty(f.DottoreId)
         });
@@ -800,6 +802,7 @@ public class TesoreriaController : Controller
                 .Set(x => x.Note, vm.Note)
                 .Set(x => x.TerminiPagamentoGiorni, vm.TerminiPagamentoGiorni)
                 .Set(x => x.BasePagamento, vm.BasePagamento)
+                .Set(x => x.EmissioneFattura, vm.EmissioneFattura)
                 .Set(x => x.UpdatedAt, DateTime.UtcNow));
 
         if (vm.AbilitaPortale && !string.IsNullOrWhiteSpace(vm.EmailContatto) && !string.IsNullOrWhiteSpace(vm.PortalePassword))

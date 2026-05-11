@@ -36,6 +36,9 @@ public class Fornitore : TenantEntity
     /// <summary>Schema di calcolo della scadenza attesa.</summary>
     public BasePagamento BasePagamento { get; set; } = BasePagamento.DataFattura;
 
+    /// <summary>Momento di emissione della fattura rispetto al pagamento.</summary>
+    public EmissioneFattura EmissioneFattura { get; set; } = EmissioneFattura.Nd;
+
     // Link al Dottore (un Dottore è anche un Fornitore quando è collaboratore/libero
     // professionista — riusa il modulo Tesoreria per gestire i suoi pagamenti).
     /// <summary>Id del Dottore se questo Fornitore è la "controparte fattura" di un dottore.</summary>
@@ -60,6 +63,19 @@ public enum StatoFornitore
     Attivo,
     Sospeso,
     Cessato
+}
+
+/// <summary>
+/// Momento in cui il fornitore emette la fattura rispetto al pagamento.
+/// </summary>
+public enum EmissioneFattura
+{
+    /// <summary>Fattura emessa prima del pagamento.</summary>
+    PrimaDelPagamento,
+    /// <summary>Fattura emessa dopo il pagamento.</summary>
+    DopoIlPagamento,
+    /// <summary>Non disponibile / non specificato.</summary>
+    Nd
 }
 
 /// <summary>

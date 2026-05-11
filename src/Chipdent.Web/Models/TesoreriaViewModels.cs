@@ -208,6 +208,9 @@ public class FornitoreFormViewModel
     public int TerminiPagamentoGiorni { get; set; } = 30;
     public BasePagamento BasePagamento { get; set; } = BasePagamento.DataFattura;
 
+    /// <summary>Momento di emissione della fattura rispetto al pagamento.</summary>
+    public EmissioneFattura EmissioneFattura { get; set; } = EmissioneFattura.Nd;
+
     /// <summary>Se true crea anche un User di portale per questo fornitore.</summary>
     public bool AbilitaPortale { get; set; }
     public string? PortalePassword { get; set; }
