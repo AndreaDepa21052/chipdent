@@ -17,7 +17,8 @@
     </div>
     <div class="page-head__actions">
         <a class="btn btn--ghost" asp-action="Index">← Lista</a>
-        <a class="btn btn--primary" asp-action="MovimentiCsv" asp-route-anno="@anno" asp-route-mese="@mese">⬇ Export CSV</a>
+        <a class="btn btn--ghost" asp-action="MovimentiCsv" asp-route-anno="@anno" asp-route-mese="@mese">⬇ Export CSV</a>
+        <a class="btn btn--primary" asp-action="MovimentiXlsx" asp-route-anno="@anno" asp-route-mese="@mese">⬇ Export Excel</a>
     </div>
 </div>
 
@@ -46,7 +47,9 @@
     <div class="stat"><div class="stat__label">Cessazioni</div><div class="stat__value" style="color:#a83a3a;">@Model.TotaleCessazioni</div></div>
     <div class="stat"><div class="stat__label">Proroghe</div><div class="stat__value">@Model.TotaleProroghe</div></div>
     <div class="stat"><div class="stat__label">Distacchi</div><div class="stat__value">@Model.TotaleDistacchi</div></div>
-    <div class="stat"><div class="stat__label">Trasformazioni</div><div class="stat__value" style="color:#a86010;">@Model.TotaleTrasformazioni</div></div>
+    <div class="stat"><div class="stat__label">Trasformazioni / aumenti</div><div class="stat__value" style="color:#a86010;">@Model.TotaleTrasformazioni</div></div>
+    <div class="stat"><div class="stat__label">Trasferimenti sede</div><div class="stat__value">@Model.TotaleTrasferimenti</div></div>
+    <div class="stat"><div class="stat__label">Cambi mansione</div><div class="stat__value">@Model.TotaleCambiMansione</div></div>
 </div>
 
 <div class="card" style="padding:0; overflow:auto;">
@@ -64,6 +67,8 @@
                 <th>Distacchi</th>
                 <th>Rettifiche distacchi</th>
                 <th>Trasformazioni / livello</th>
+                <th>Trasferimenti sede</th>
+                <th>Cambi mansione</th>
                 <th>Note</th>
             </tr>
         </thead>
@@ -82,6 +87,8 @@
                     <td>@(r.NumeroDistacchi == 0 ? "" : r.NumeroDistacchi.ToString())</td>
                     <td>@(r.NumeroRettificheDistacchi == 0 ? "" : r.NumeroRettificheDistacchi.ToString())</td>
                     <td>@(r.NumeroTrasformazioniLivello == 0 ? "" : r.NumeroTrasformazioniLivello.ToString())</td>
+                    <td>@(r.NumeroTrasferimentiSede == 0 ? "" : r.NumeroTrasferimentiSede.ToString())</td>
+                    <td>@(r.NumeroCambiMansione == 0 ? "" : r.NumeroCambiMansione.ToString())</td>
                     <td class="muted" style="font-size:.8rem;">@string.Join(" · ", r.Note)</td>
                 </tr>
             }
@@ -90,6 +97,8 @@
 </div>
 
 <p class="muted" style="margin-top: var(--s-3); font-size:.85rem;">
-    Il riepilogo è calcolato in tempo reale dalle anagrafiche dipendenti e dai distacchi registrati.
-    Le colonne corrispondono al modello "Elenco assunzioni / cessazioni / proroghe / distacchi" usato in precedenza in Excel.
+    Il riepilogo è calcolato in tempo reale aggregando le operazioni registrate in piattaforma:
+    anagrafica dipendenti (assunzioni, cessazioni, proroghe, trasformazioni), distacchi,
+    trasferimenti tra sedi, cambi livello/retribuzione e cambi mansione/reparto.
+    Le operazioni si registrano dal profilo del singolo dipendente (tab «Carriera», «Distacchi», «Storico cliniche»).
 </p>

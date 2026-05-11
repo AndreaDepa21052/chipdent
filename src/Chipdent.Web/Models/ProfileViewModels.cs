@@ -43,6 +43,8 @@ public class DipendenteProfileViewModel
     public IReadOnlyList<PremioDipendente> Premi { get; set; } = Array.Empty<PremioDipendente>();
     public IReadOnlyList<SchedaValutazione> Valutazioni { get; set; } = Array.Empty<SchedaValutazione>();
     public IReadOnlyList<DocumentoDipendente> Documenti { get; set; } = Array.Empty<DocumentoDipendente>();
+    public IReadOnlyList<CambioLivelloRetribuzione> CambiLivello { get; set; } = Array.Empty<CambioLivelloRetribuzione>();
+    public IReadOnlyList<CambioMansioneReparto> CambiMansione { get; set; } = Array.Empty<CambioMansioneReparto>();
 }
 
 /// <summary>

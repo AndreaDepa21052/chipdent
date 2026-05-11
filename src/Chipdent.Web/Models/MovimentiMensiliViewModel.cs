@@ -6,6 +6,9 @@ namespace Chipdent.Web.Models;
 /// Riepilogo mensile dei movimenti del personale per ogni clinica.
 /// Sostituisce la compilazione manuale del file
 /// "Elenco assunzioni_cessazioni_proroghe_distacchi.xlsx".
+/// Le righe sono calcolate aggregando le operazioni registrate in piattaforma
+/// (anagrafica dipendente, distacchi, trasferimenti, cambi livello/retribuzione,
+/// cambi mansione/reparto).
 /// </summary>
 public class MovimentiMensiliReport
 {
@@ -28,6 +31,8 @@ public class MovimentiMensiliReport
     public int TotaleProroghe => Righe.Sum(r => r.NumeroProroghe);
     public int TotaleDistacchi => Righe.Sum(r => r.NumeroDistacchi);
     public int TotaleTrasformazioni => Righe.Sum(r => r.NumeroTrasformazioniLivello);
+    public int TotaleTrasferimenti => Righe.Sum(r => r.NumeroTrasferimentiSede);
+    public int TotaleCambiMansione => Righe.Sum(r => r.NumeroCambiMansione);
 }
 
 public class MovimentoMensileRiga
@@ -44,6 +49,12 @@ public class MovimentoMensileRiga
     public int NumeroDistacchi { get; set; }
     public int NumeroRettificheDistacchi { get; set; }
     public int NumeroTrasformazioniLivello { get; set; }
+
+    /// <summary>Trasferimenti permanenti DA un'altra sede VERSO questa clinica nel mese (esclusa l'assegnazione iniziale).</summary>
+    public int NumeroTrasferimentiSede { get; set; }
+
+    /// <summary>Cambi di mansione/ruolo/reparto registrati nel mese per dipendenti di questa clinica.</summary>
+    public int NumeroCambiMansione { get; set; }
 
     public IReadOnlyList<string> Note { get; set; } = Array.Empty<string>();
 }
