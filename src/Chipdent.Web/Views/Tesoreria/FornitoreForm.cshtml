@@ -125,6 +125,16 @@
                 </select>
             </div>
         </div>
+        <div class="grid" style="grid-template-columns: 1fr; gap: var(--s-3); margin-top: var(--s-3);">
+            <div class="form-group" style="margin: 0;">
+                <label class="form-label" asp-for="EmissioneFattura">Emissione fattura</label>
+                <select class="form-control" asp-for="EmissioneFattura">
+                    <option value="@EmissioneFattura.PrimaDelPagamento" selected="@(Model.EmissioneFattura == EmissioneFattura.PrimaDelPagamento)">Prima del pagamento</option>
+                    <option value="@EmissioneFattura.DopoIlPagamento" selected="@(Model.EmissioneFattura == EmissioneFattura.DopoIlPagamento)">Dopo il pagamento</option>
+                    <option value="@EmissioneFattura.Nd" selected="@(Model.EmissioneFattura == EmissioneFattura.Nd)">ND (non disponibile)</option>
+                </select>
+            </div>
+        </div>
     </div>
 
     <div class="form-group">
