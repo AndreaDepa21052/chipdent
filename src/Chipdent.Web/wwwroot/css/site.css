@@ -1351,10 +1351,9 @@ input[type="datetime-local"].form-control { color-scheme: light; }
    ========================================================================== */
 
 .tabs {
-    display: flex; gap: var(--s-1);
+    display: flex; flex-wrap: wrap; gap: var(--s-1);
     border-bottom: 1px solid var(--c-divider);
     margin-bottom: var(--s-6);
-    overflow-x: auto;
 }
 .tab {
     padding: var(--s-3) var(--s-5);
