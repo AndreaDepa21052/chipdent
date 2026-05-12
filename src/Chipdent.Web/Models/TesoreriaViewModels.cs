@@ -198,6 +198,9 @@ public class FornitoreFormViewModel
 
     public string? Telefono { get; set; }
     public string? Indirizzo { get; set; }
+    public string? Localita { get; set; }
+    public string? Provincia { get; set; }
+    public string? CodicePostale { get; set; }
     public string? Iban { get; set; }
     public CategoriaSpesa CategoriaDefault { get; set; } = CategoriaSpesa.AltreSpeseFisse;
     public StatoFornitore Stato { get; set; } = StatoFornitore.Attivo;
