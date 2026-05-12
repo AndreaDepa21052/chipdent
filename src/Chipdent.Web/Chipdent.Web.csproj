@@ -9,6 +9,7 @@
   <ItemGroup>
     <PackageReference Include="BCrypt.Net-Next" Version="4.0.3" />
     <PackageReference Include="MongoDB.Driver" Version="2.28.0" />
+    <PackageReference Include="PdfPig" Version="0.1.10" />
   </ItemGroup>
 
   <!-- Mantiene wwwroot/docs/chipdent-features.html sincronizzato con docs/chipdent-features.html -->

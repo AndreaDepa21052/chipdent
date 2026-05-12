@@ -180,7 +180,7 @@ public static class ScadenziarioGenerator
                 ClinicaId = clinicaId ?? string.Empty,
                 Numero = string.IsNullOrWhiteSpace(riga.Numero) ? $"AUTO-{riga.NumeroRiga}" : riga.Numero.Trim(),
                 DataEmissione = dataDoc,
-                MeseCompetenza = MeseCompetenza(dataDoc, riga.Causale),
+                MeseCompetenza = MeseCompetenza(dataDoc, riga.Causale, riga),
                 Categoria = MappaCategoriaDefault(tipo),
                 Imponibile = imponibile,
                 Iva = ivaAmount,
@@ -196,8 +196,12 @@ public static class ScadenziarioGenerator
             };
             output.Fatture.Add(fattura);
 
-            // ── Calcolo scadenze (può produrne 1 o 2: netto + ritenuta) ─
-            var iban = fornitore.Iban;
+            // ── IBAN: priorità a quello letto dal PDF della singola fattura
+            //    (più affidabile e specifico), poi anagrafica fornitore, poi
+            //    cache della fattura precedente dello stesso fornitore.
+            var iban = !string.IsNullOrWhiteSpace(riga.IbanFornitore)
+                ? riga.IbanFornitore
+                : fornitore.Iban;
             if (string.IsNullOrWhiteSpace(iban) && ibanCacheByForn.TryGetValue(key, out var prevIban))
                 iban = prevIban;
             if (!string.IsNullOrWhiteSpace(iban)) ibanCacheByForn[key] = iban;
@@ -381,25 +385,23 @@ public static class ScadenziarioGenerator
             scadenza = snapped;
         }
 
-        // RIBA: verifica scadenze multiple e disponibilità data scadenza.
-        // Il file di import non porta la data scadenza riga-per-riga né eventuali rate:
-        // segnaliamo perché il backoffice deve confermarle manualmente.
-        if (metodo == MetodoPagamento.Riba)
+        // RID / RIBA: "copiare data scadenza" dal documento.
+        // Se la fattura è arricchita dal PDF e contiene DataScadenzaPdf, la
+        // copiamo letteralmente (regola Excel D7/D8). Altrimenti rimaniamo
+        // sulla scadenza calcolata dai termini e generiamo un alert informativo.
+        if ((metodo == MetodoPagamento.Rid || metodo == MetodoPagamento.Riba) && !isNotaCredito)
         {
-            alerts.Add(new AlertScadenziario(AlertSeverita.Warn, "RIBA da verificare",
-                $"Pagamento RIBA per «{fornitore.RagioneSociale}»: verifica eventuali scadenze multiple e conferma la data scadenza (non presente nel file di import).",
-                fornitore.RagioneSociale, riga.Numero, dataDoc, riga.NumeroRiga));
-        }
-
-        // RID: "copiare data scadenza" dal documento.
-        // Il file di import non porta la data scadenza riga-per-riga, quindi
-        // applichiamo i termini contrattuali del fornitore e segnaliamo l'override
-        // manuale alla data della disposizione bancaria.
-        if (metodo == MetodoPagamento.Rid && !isNotaCredito)
-        {
-            alerts.Add(new AlertScadenziario(AlertSeverita.Info, "RID da verificare",
-                $"Pagamento RID per «{fornitore.RagioneSociale}»: data scadenza calcolata dai termini contrattuali (il file import non porta la data scadenza del documento — copiarla manualmente se diversa).",
-                fornitore.RagioneSociale, riga.Numero, dataDoc, riga.NumeroRiga));
+            if (riga.DataScadenzaPdf.HasValue)
+            {
+                scadenza = DateTime.SpecifyKind(riga.DataScadenzaPdf.Value.Date, DateTimeKind.Utc);
+            }
+            else
+            {
+                alerts.Add(new AlertScadenziario(AlertSeverita.Info,
+                    metodo == MetodoPagamento.Rid ? "RID da verificare" : "RIBA da verificare",
+                    $"Pagamento {metodo} per «{fornitore.RagioneSociale}»: data scadenza calcolata dai termini contrattuali (il PDF non era disponibile o non l'ha esposta — copiarla manualmente se diversa).",
+                    fornitore.RagioneSociale, riga.Numero, dataDoc, riga.NumeroRiga));
+            }
         }
 
         if (string.IsNullOrWhiteSpace(iban) && metodo == MetodoPagamento.Bonifico)
@@ -453,14 +455,26 @@ public static class ScadenziarioGenerator
             case TipoFornitoreOp.DirezioneSanitaria:
             case TipoFornitoreOp.Laboratorio:
                 {
-                    // 60 gg fine-mese, ma "rispetto al mese presente nell'oggetto fattura".
-                    var meseOggetto = MeseDaCausale(riga.Causale);
+                    // 60 gg fine-mese rispetto al mese di competenza.
+                    // Priorità: 1) competenza estratta dal PDF (più affidabile),
+                    //          2) parsing della causale CSV,
+                    //          3) fallback alla data fattura (con alert).
+                    DateTime? meseOggetto = null;
+
+                    if (riga.MeseCompetenza is int m && riga.AnnoCompetenza is int a)
+                    {
+                        meseOggetto = new DateTime(a, m, 1);
+                    }
+                    if (meseOggetto == null)
+                    {
+                        meseOggetto = MeseDaCausale(riga.Causale);
+                    }
                     if (meseOggetto.HasValue)
                     {
                         return UltimoGiorno(meseOggetto.Value).AddDays(60);
                     }
-                    alerts.Add(new AlertScadenziario(AlertSeverita.Warn, "Mese non in oggetto",
-                        "Mese di competenza non trovato nella causale: scadenza calcolata sul mese fattura. Verifica manualmente.",
+                    alerts.Add(new AlertScadenziario(AlertSeverita.Warn, "Mese di competenza assente",
+                        "Mese di competenza non disponibile né dal PDF né dalla causale: scadenza calcolata sul mese fattura. Verifica manualmente.",
                         f.RagioneSociale, riga.Numero, dataDoc, riga.NumeroRiga));
                     return UltimoGiorno(dataDoc).AddDays(60);
                 }
@@ -572,9 +586,11 @@ public static class ScadenziarioGenerator
         ("CMS", "COMASINA")
     };
 
-    private static DateTime MeseCompetenza(DateTime dataDoc, string? causale)
+    private static DateTime MeseCompetenza(DateTime dataDoc, string? causale, ImportFatturaRiga? riga = null)
     {
-        // Privilegia il mese letto dalla causale (oggetto fattura) — base della regola medici/lab
+        // Priorità: 1) competenza estratta dal PDF, 2) parsing causale, 3) data fattura
+        if (riga?.MeseCompetenza is int m && riga.AnnoCompetenza is int a)
+            return new DateTime(a, m, 1);
         var fromCausale = MeseDaCausale(causale);
         if (fromCausale.HasValue) return new DateTime(fromCausale.Value.Year, fromCausale.Value.Month, 1);
         return new DateTime(dataDoc.Year, dataDoc.Month, 1);

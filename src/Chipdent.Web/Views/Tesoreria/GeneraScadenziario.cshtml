@@ -60,25 +60,7 @@
     .table-alerts td { vertical-align: top; }
     .table-alerts td:nth-child(3) { max-width: 460px; }
 
-    /* Overlay regole */
-    .regole-overlay {
-        position: fixed; inset: 0; background: rgba(45, 24, 8, 0.55);
-        display:none; align-items:flex-start; justify-content:center; z-index:9999;
-        padding: 4vh 2vw; overflow:auto;
-    }
-    .regole-overlay.is-open { display:flex; }
-    .regole-modal {
-        background:#fff; max-width: 880px; width:100%; border-radius:14px;
-        box-shadow: 0 20px 60px rgba(0,0,0,.35);
-        padding: 24px 28px; max-height: 92vh; overflow:auto;
-    }
-    .regole-modal h2 { margin:0 0 6px; color:#3b1e0c; }
-    .regole-modal h3 { margin:18px 0 6px; color:#7a3a0a; border-bottom: 1px solid #f0e2c4; padding-bottom:4px; }
-    .regole-modal table { width:100%; border-collapse: collapse; margin: 8px 0; }
-    .regole-modal td { padding:6px 8px; border-bottom: 1px dashed #f0e2c4; font-size:.92rem; }
-    .regole-modal td:first-child { width: 38%; font-weight:600; color:#3b1e0c; }
-    .regole-modal .close-x { float:right; background:none; border:0; font-size:1.5rem; cursor:pointer; color:#7a5c3a; }
-    .regole-modal .lead { color:#7a5c3a; }
+    /* (overlay regole: stili inclusi nel partial _RegoleScadenziario.cshtml) */
 </style>
 
 <div class="gs-warn-banner">
@@ -212,15 +194,3 @@
 </div>
 
 <partial name="_RegoleScadenziario" />
-
-<script>
-(function(){
-    const overlay = document.getElementById('regoleOverlay');
-    document.querySelectorAll('[data-open-regole]').forEach(b => {
-        b.addEventListener('click', e => { e.preventDefault(); overlay.classList.add('is-open'); });
-    });
-    overlay.addEventListener('click', e => { if (e.target === overlay) overlay.classList.remove('is-open'); });
-    document.getElementById('regoleClose').addEventListener('click', () => overlay.classList.remove('is-open'));
-    document.addEventListener('keydown', e => { if (e.key === 'Escape') overlay.classList.remove('is-open'); });
-})();
-</script>

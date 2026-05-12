@@ -1355,7 +1355,13 @@ public class TesoreriaController : Controller
         return View("ImportFattureDettaglio", vm);
     }
 
-    /// <summary>POST upload: accetta 1 .xlsx oppure 1-2 .csv. Append-only.</summary>
+    /// <summary>
+    /// POST upload: accetta 1 .xlsx, oppure 1-2 .csv, oppure una coppia CSV+PDF
+    /// (la fattura passiva renderizzata FatturaPA/AssoSoftware). Il PDF arricchisce
+    /// le righe CSV con anagrafica fornitore (P.IVA, CF, IBAN, indirizzo, recapiti),
+    /// data scadenza, modalità di pagamento, mese e anno di competenza.
+    /// Tutti i file originali vengono conservati nello storage e linkati al batch.
+    /// </summary>
     [HttpPost("import-fatture")]
     [ValidateAntiForgeryToken]
     [RequestSizeLimit(MaxUploadBytes)]
@@ -1386,54 +1392,111 @@ public class TesoreriaController : Controller
         };
 
         var righeBatch = new List<ImportFatturaRiga>();
+        var fatturePdf = new List<FattureImportPdfParser.PdfFattura>();
+        // Buffer (fileName, bytes, contentType) per salvare tutti i file dopo
+        // l'assegnazione del batch.Id (per organizzare lo storage).
+        var bufferFiles = new List<(string Name, byte[] Bytes, string? ContentType, string TipoFile)>();
 
         try
         {
-            // Caso 1 — un singolo XLSX (anche se l'utente lo carica in un controllo multi-file).
-            var xlsx = files.FirstOrDefault(f =>
-                f.FileName.EndsWith(".xlsx", StringComparison.OrdinalIgnoreCase));
+            var xlsx = files.FirstOrDefault(f => f.FileName.EndsWith(".xlsx", StringComparison.OrdinalIgnoreCase));
+            var csvs = files.Where(f => f.FileName.EndsWith(".csv",  StringComparison.OrdinalIgnoreCase)).ToList();
+            var pdfs = files.Where(f => f.FileName.EndsWith(".pdf",  StringComparison.OrdinalIgnoreCase)).ToList();
 
+            if (xlsx != null && (csvs.Count > 0 || pdfs.Count > 0))
+            {
+                TempData["flash-err"] = "Carica .xlsx da solo, oppure CSV (+ PDF facoltativo).";
+                return RedirectToAction(nameof(ImportFatture));
+            }
+            if (xlsx == null && csvs.Count == 0 && pdfs.Count == 0)
+            {
+                TempData["flash-err"] = "Formati supportati: .xlsx, .csv (uno o due) o .pdf (uno).";
+                return RedirectToAction(nameof(ImportFatture));
+            }
+            if (pdfs.Count > 1)
+            {
+                TempData["flash-err"] = "Carica un solo PDF alla volta.";
+                return RedirectToAction(nameof(ImportFatture));
+            }
+
+            // ── XLSX ───────────────────────────────────────────────────
             if (xlsx != null)
             {
                 batch.Tipo = TipoImportFatture.Xlsx;
                 using var ms = new MemoryStream();
                 await xlsx.CopyToAsync(ms);
                 var bytes = ms.ToArray();
+                bufferFiles.Add((xlsx.FileName, bytes, xlsx.ContentType, "xlsx"));
                 var parsed = FattureImportParser.ParseXlsx(xlsx.FileName, bytes);
                 if (parsed.Count == 0)
                 {
                     TempData["flash-err"] = "Il file XLSX non contiene fogli leggibili.";
                     return RedirectToAction(nameof(ImportFatture));
                 }
-                foreach (var p in parsed)
-                {
-                    AppendParsedFile(batch, righeBatch, p);
-                }
+                foreach (var p in parsed) AppendParsedFile(batch, righeBatch, p);
             }
+            // ── CSV (+ PDF facoltativo) ────────────────────────────────
             else
             {
-                // Caso 2 — uno o più CSV.
-                var csvs = files
-                    .Where(f => f.FileName.EndsWith(".csv", StringComparison.OrdinalIgnoreCase))
-                    .ToList();
-                if (csvs.Count == 0)
-                {
-                    TempData["flash-err"] = "Formati supportati: .xlsx (1 file) oppure .csv (uno o due file).";
-                    return RedirectToAction(nameof(ImportFatture));
-                }
-                batch.Tipo = TipoImportFatture.Csv;
+                batch.Tipo = pdfs.Count > 0
+                    ? (csvs.Count > 0 ? TipoImportFatture.CsvPdf : TipoImportFatture.Pdf)
+                    : TipoImportFatture.Csv;
+
                 foreach (var f in csvs)
                 {
                     using var ms = new MemoryStream();
                     await f.CopyToAsync(ms);
                     var bytes = ms.ToArray();
+                    bufferFiles.Add((f.FileName, bytes, f.ContentType, "csv"));
                     var parsed = FattureImportParser.ParseCsv(f.FileName, bytes);
                     AppendParsedFile(batch, righeBatch, parsed);
+                }
+
+                if (pdfs.Count == 1)
+                {
+                    var pdfFile = pdfs[0];
+                    using var ms = new MemoryStream();
+                    await pdfFile.CopyToAsync(ms);
+                    var pdfBytes = ms.ToArray();
+                    bufferFiles.Add((pdfFile.FileName, pdfBytes, pdfFile.ContentType ?? "application/pdf", "pdf"));
+
+                    var parsedPdf = FattureImportPdfParser.Parse(pdfFile.FileName, pdfBytes);
+                    fatturePdf.AddRange(parsedPdf.Fatture);
+
+                    var hdr = new ImportFatturaFile
+                    {
+                        NomeFile = parsedPdf.NomeFile,
+                        Sezione = "PDF",
+                        DimensioneByte = parsedPdf.DimensioneByte,
+                        ChecksumSha256 = parsedPdf.ChecksumSha256,
+                        TipoFile = "pdf",
+                        FattureEstrattePdf = parsedPdf.Fatture.Count,
+                        RigheTotali = parsedPdf.Fatture.Count,
+                        RigheValide = parsedPdf.Fatture.Count,
+                        RigheConErrore = 0
+                    };
+                    batch.Files.Add(hdr);
+
+                    // ── Match PDF ↔ CSV per (numero, data, fornitore) ────
+                    // Quando la riga non ha CSV (solo PDF), creiamo una riga
+                    // sintetica con i dati estratti dal PDF.
+                    if (righeBatch.Count > 0)
+                    {
+                        ArricchisciRigheConPdf(righeBatch, fatturePdf);
+                    }
+                    else
+                    {
+                        foreach (var fp in fatturePdf)
+                        {
+                            righeBatch.Add(RigaDaPdf(fp, parsedPdf.NomeFile));
+                        }
+                    }
                 }
             }
         }
         catch (Exception ex)
         {
+            _logger.LogError(ex, "Errore parsing import fatture");
             TempData["flash-err"] = "Errore nel parsing del file: " + ex.Message;
             return RedirectToAction(nameof(ImportFatture));
         }
@@ -1442,6 +1505,32 @@ public class TesoreriaController : Controller
         {
             TempData["flash-err"] = "Nessuna riga importata: verifica intestazioni e contenuto del file.";
             return RedirectToAction(nameof(ImportFatture));
+        }
+
+        // ── Persistenza file originali nello storage (per audit/scarica) ──
+        // L'XLSX produce N entry in batch.Files (una per sheet, nome "file.xlsx#Sheet"):
+        // assegniamo lo stesso StoragePath a tutte le entry il cui nome inizia con il file fisico.
+        var folder = $"tesoreria/import-fatture/{batch.Id}";
+        foreach (var (name, bytes, ct, tipo) in bufferFiles)
+        {
+            try
+            {
+                using var ms = new MemoryStream(bytes);
+                var stored = await _storage.SaveAsync(tid, folder, name, ms, ct);
+                var prefix = name; // es. "Scadenziario.xlsx" → match "Scadenziario.xlsx#Foglio1"
+                var matched = batch.Files.Where(f =>
+                    f.NomeFile.Equals(name, StringComparison.OrdinalIgnoreCase) ||
+                    f.NomeFile.StartsWith(prefix + "#", StringComparison.OrdinalIgnoreCase));
+                foreach (var fileHdr in matched)
+                {
+                    fileHdr.StoragePath = stored.RelativePath;
+                    if (string.IsNullOrEmpty(fileHdr.TipoFile)) fileHdr.TipoFile = tipo;
+                }
+            }
+            catch (Exception ex)
+            {
+                _logger.LogWarning(ex, "Impossibile salvare il file originale {Name}", name);
+            }
         }
 
         batch.TotaleRighe = righeBatch.Count;
@@ -1456,9 +1545,342 @@ public class TesoreriaController : Controller
         }
         await _mongo.ImportFattureRighe.InsertManyAsync(righeBatch);
 
+        // ── Proposte di aggiornamento anagrafica fornitori ────────────
+        int proposteCreate = 0;
+        if (fatturePdf.Count > 0)
+        {
+            proposteCreate = await GeneraProposteAnagraficaAsync(tid, batch.Id, fatturePdf);
+        }
+
+        var pdfSummary = fatturePdf.Count > 0
+            ? $" · {fatturePdf.Count} fatture estratte dal PDF · {proposteCreate} proposte anagrafica da rivedere"
+            : "";
         TempData["flash"] =
-            $"Importate {batch.TotaleRighe} righe (valide {batch.RigheValide}, con errori {batch.RigheConErrore}).";
+            $"Importate {batch.TotaleRighe} righe (valide {batch.RigheValide}, con errori {batch.RigheConErrore}){pdfSummary}.";
         return RedirectToAction(nameof(ImportFattureDettaglio), new { id = batch.Id });
+    }
+
+    // ─────────────────────────────────────────────────────────────────
+    //  Match PDF ↔ CSV + arricchimento riga
+    // ─────────────────────────────────────────────────────────────────
+
+    /// <summary>
+    /// Per ogni riga CSV cerca la fattura PDF corrispondente per
+    /// (NumeroDoc normalizzato, DataDoc, Fornitore normalizzato) e ne copia
+    /// anagrafica, IBAN, modalità di pagamento, scadenza e competenza.
+    /// </summary>
+    private static void ArricchisciRigheConPdf(
+        List<ImportFatturaRiga> righe,
+        List<FattureImportPdfParser.PdfFattura> pdfFatture)
+    {
+        if (pdfFatture.Count == 0) return;
+
+        // Indice per match veloce
+        var byKey = new Dictionary<string, FattureImportPdfParser.PdfFattura>(StringComparer.OrdinalIgnoreCase);
+        foreach (var f in pdfFatture)
+        {
+            var k = KeyFattura(f.NumeroDoc, f.DataDoc, f.RagioneSociale);
+            if (!string.IsNullOrEmpty(k) && !byKey.ContainsKey(k)) byKey[k] = f;
+        }
+
+        foreach (var r in righe)
+        {
+            var k = KeyFattura(r.Numero, r.DataDocumento, r.Fornitore);
+            if (string.IsNullOrEmpty(k) || !byKey.TryGetValue(k, out var fp))
+            {
+                // tentativo di fallback per solo (Numero, Fornitore) — meno preciso
+                var k2 = KeyFattura(r.Numero, null, r.Fornitore);
+                fp = pdfFatture.FirstOrDefault(x =>
+                    KeyFattura(x.NumeroDoc, null, x.RagioneSociale) == k2);
+                if (fp == null) continue;
+            }
+
+            r.ArricchitaDaPdf = true;
+            r.MeseCompetenza = fp.MeseCompetenza;
+            r.AnnoCompetenza = fp.AnnoCompetenza;
+            r.DataScadenzaPdf = fp.DataScadenza;
+            r.ModalitaPagamentoPdf = string.IsNullOrEmpty(fp.CodiceModalitaPagamento)
+                ? fp.DescrModalitaPagamento
+                : $"{fp.CodiceModalitaPagamento} {fp.DescrModalitaPagamento}".Trim();
+
+            r.PartitaIvaFornitore   = fp.PartitaIva;
+            r.CodiceFiscaleFornitore = fp.CodiceFiscale;
+            r.IbanFornitore         = fp.Iban;
+            r.IndirizzoFornitore    = fp.Indirizzo;
+            r.CapFornitore          = fp.Cap;
+            r.LocalitaFornitore     = fp.Localita;
+            r.ProvinciaFornitore    = fp.Provincia;
+            r.PaeseFornitore        = fp.Paese;
+            r.CodiceSdiFornitore    = fp.CodiceDestinatario;
+            r.PecFornitore          = fp.Pec;
+            r.EmailFornitore        = fp.Email;
+            r.TelefonoFornitore     = fp.Telefono;
+            r.PaginaPdf             = fp.PaginaStart;
+        }
+    }
+
+    private static string KeyFattura(string? numero, DateTime? data, string? fornitore)
+    {
+        var n = (numero ?? "").Trim().ToUpperInvariant();
+        var f = NormalizzaRagioneSociale(fornitore ?? "");
+        var d = data?.ToString("yyyyMMdd") ?? "";
+        if (string.IsNullOrEmpty(n) || string.IsNullOrEmpty(f)) return "";
+        return $"{n}|{d}|{f}";
+    }
+
+    /// <summary>Costruisce una riga import a partire da una fattura letta SOLO da PDF (senza CSV).</summary>
+    private static ImportFatturaRiga RigaDaPdf(FattureImportPdfParser.PdfFattura fp, string nomeFile)
+    {
+        return new ImportFatturaRiga
+        {
+            NomeFile = nomeFile,
+            Sezione = "PDF",
+            NumeroRiga = fp.PaginaStart,
+            Numero = fp.NumeroDoc,
+            DataDocumento = fp.DataDoc,
+            DataRegistrazione = fp.DataDoc,
+            DataRicezione = fp.DataDoc,
+            Fornitore = fp.RagioneSociale,
+            TipoDocumento = fp.DescrTipo ?? fp.TipoDoc,
+            Causale = fp.PeriodoRiferimentoRaw,
+            Valuta = "EUR",
+            ArricchitaDaPdf = true,
+            MeseCompetenza = fp.MeseCompetenza,
+            AnnoCompetenza = fp.AnnoCompetenza,
+            DataScadenzaPdf = fp.DataScadenza,
+            ModalitaPagamentoPdf = string.IsNullOrEmpty(fp.CodiceModalitaPagamento)
+                ? fp.DescrModalitaPagamento
+                : $"{fp.CodiceModalitaPagamento} {fp.DescrModalitaPagamento}".Trim(),
+            PartitaIvaFornitore = fp.PartitaIva,
+            CodiceFiscaleFornitore = fp.CodiceFiscale,
+            IbanFornitore = fp.Iban,
+            IndirizzoFornitore = fp.Indirizzo,
+            CapFornitore = fp.Cap,
+            LocalitaFornitore = fp.Localita,
+            ProvinciaFornitore = fp.Provincia,
+            PaeseFornitore = fp.Paese,
+            CodiceSdiFornitore = fp.CodiceDestinatario,
+            PecFornitore = fp.Pec,
+            EmailFornitore = fp.Email,
+            TelefonoFornitore = fp.Telefono,
+            PaginaPdf = fp.PaginaStart
+        };
+    }
+
+    // ─────────────────────────────────────────────────────────────────
+    //  Proposte anagrafica fornitore (coda di revisione)
+    // ─────────────────────────────────────────────────────────────────
+
+    /// <summary>
+    /// Per ogni fattura PDF, confronta i dati anagrafici letti con il fornitore
+    /// corrispondente in anagrafica (match per nome normalizzato) e crea una
+    /// <see cref="PropostaAnagraficaFornitore"/> per ogni campo che diverge o
+    /// risulta non popolato. Le proposte sono in stato InAttesa: il Backoffice
+    /// le approva o le scarta dalla coda di revisione.
+    /// Dedup: lo stesso (Fornitore, Campo, ValoreProposto) genera una sola proposta per batch.
+    /// </summary>
+    private async Task<int> GeneraProposteAnagraficaAsync(
+        string tid, string batchId,
+        List<FattureImportPdfParser.PdfFattura> pdfFatture)
+    {
+        var fornitori = await _mongo.Fornitori.Find(f => f.TenantId == tid).ToListAsync();
+        var fornitoriByKey = new Dictionary<string, Fornitore>(StringComparer.Ordinal);
+        foreach (var f in fornitori)
+        {
+            var k = NormalizzaRagioneSociale(f.RagioneSociale);
+            if (!string.IsNullOrEmpty(k) && !fornitoriByKey.ContainsKey(k))
+                fornitoriByKey[k] = f;
+        }
+
+        var proposte = new List<PropostaAnagraficaFornitore>();
+        // Dedup per (RagSocKey + Campo + ValoreProposto)
+        var seen = new HashSet<string>(StringComparer.Ordinal);
+
+        foreach (var fp in pdfFatture)
+        {
+            var key = NormalizzaRagioneSociale(fp.RagioneSociale ?? "");
+            if (string.IsNullOrEmpty(key)) continue;
+            fornitoriByKey.TryGetValue(key, out var esistente);
+
+            void Aggiungi(string campo, string? valoreAttuale, string? valorePdf)
+            {
+                if (string.IsNullOrWhiteSpace(valorePdf)) return;
+                var attuale = (valoreAttuale ?? "").Trim();
+                var nuovo = valorePdf.Trim();
+                if (string.Equals(attuale, nuovo, StringComparison.OrdinalIgnoreCase)) return;
+                var sig = $"{key}|{campo}|{nuovo.ToUpperInvariant()}";
+                if (!seen.Add(sig)) return;
+                proposte.Add(new PropostaAnagraficaFornitore
+                {
+                    TenantId = tid,
+                    BatchId = batchId,
+                    PaginaPdf = fp.PaginaStart,
+                    FornitoreId = esistente?.Id,
+                    RagioneSocialePdf = fp.RagioneSociale ?? "",
+                    Campo = campo,
+                    ValoreAttuale = string.IsNullOrEmpty(attuale) ? null : attuale,
+                    ValoreProposto = nuovo,
+                    FatturaRiferimento = fp.NumeroDoc,
+                    Stato = StatoPropostaAnagrafica.InAttesa
+                });
+            }
+
+            Aggiungi("PartitaIva",     esistente?.PartitaIva,     fp.PartitaIva);
+            Aggiungi("CodiceFiscale",  esistente?.CodiceFiscale,  fp.CodiceFiscale);
+            Aggiungi("Iban",           esistente?.Iban,           fp.Iban);
+            Aggiungi("Indirizzo",      esistente?.Indirizzo,      fp.Indirizzo);
+            Aggiungi("CodicePostale",  esistente?.CodicePostale,  fp.Cap);
+            Aggiungi("Localita",       esistente?.Localita,       fp.Localita);
+            Aggiungi("Provincia",      esistente?.Provincia,      fp.Provincia);
+            Aggiungi("CodiceSdi",      esistente?.CodiceSdi,      fp.CodiceDestinatario);
+            Aggiungi("Pec",            esistente?.Pec,            fp.Pec);
+            Aggiungi("EmailContatto",  esistente?.EmailContatto,  fp.Email);
+            Aggiungi("Telefono",       esistente?.Telefono,       fp.Telefono);
+        }
+
+        if (proposte.Count > 0)
+            await _mongo.ProposteAnagraficaFornitori.InsertManyAsync(proposte);
+        return proposte.Count;
+    }
+
+    // ─────────────────────────────────────────────────────────────────
+    //  Coda di revisione: proposte anagrafica fornitori
+    // ─────────────────────────────────────────────────────────────────
+
+    [HttpGet("import-fatture/proposte")]
+    public async Task<IActionResult> ProposteAnagrafica(string stato = "InAttesa")
+    {
+        var tid = _tenant.TenantId!;
+        var parsedStato = Enum.TryParse<StatoPropostaAnagrafica>(stato, true, out var st)
+            ? st : StatoPropostaAnagrafica.InAttesa;
+
+        var proposte = await _mongo.ProposteAnagraficaFornitori
+            .Find(p => p.TenantId == tid && p.Stato == parsedStato)
+            .SortByDescending(p => p.CreatedAt)
+            .ToListAsync();
+
+        var conteggi = new Dictionary<string, long>();
+        foreach (StatoPropostaAnagrafica s in Enum.GetValues(typeof(StatoPropostaAnagrafica)))
+        {
+            conteggi[s.ToString()] = await _mongo.ProposteAnagraficaFornitori
+                .CountDocumentsAsync(p => p.TenantId == tid && p.Stato == s);
+        }
+
+        ViewBag.Section = "tesoreria-import-fatture";
+        ViewBag.Conteggi = conteggi;
+        ViewBag.StatoCorrente = parsedStato.ToString();
+        return View("ProposteAnagrafica", proposte);
+    }
+
+    [HttpPost("import-fatture/proposte/{id}/decidi")]
+    [ValidateAntiForgeryToken]
+    public async Task<IActionResult> DecidiPropostaAnagrafica(string id, string azione, string? nota = null)
+    {
+        var tid = _tenant.TenantId!;
+        var p = await _mongo.ProposteAnagraficaFornitori
+            .Find(x => x.Id == id && x.TenantId == tid)
+            .FirstOrDefaultAsync();
+        if (p == null) return NotFound();
+
+        if (p.Stato != StatoPropostaAnagrafica.InAttesa)
+        {
+            TempData["flash-err"] = "Proposta già decisa in precedenza.";
+            return RedirectToAction(nameof(ProposteAnagrafica));
+        }
+
+        var userId = User.FindFirstValue(ClaimTypes.NameIdentifier) ?? "";
+        var userName = User.Identity?.Name ?? "—";
+
+        if (string.Equals(azione, "approva", StringComparison.OrdinalIgnoreCase))
+        {
+            // Applica il valore al fornitore (se esiste). Se il fornitore non
+            // esiste ancora in anagrafica, lo creiamo on-the-fly.
+            Fornitore? forn = null;
+            if (!string.IsNullOrEmpty(p.FornitoreId))
+                forn = await _mongo.Fornitori.Find(f => f.Id == p.FornitoreId && f.TenantId == tid).FirstOrDefaultAsync();
+            if (forn == null && !string.IsNullOrWhiteSpace(p.RagioneSocialePdf))
+            {
+                // crea il fornitore con codice progressivo
+                var fornitoriEsistenti = await _mongo.Fornitori.Find(f => f.TenantId == tid).Project(f => f.Codice).ToListAsync();
+                var maxCod = 0;
+                foreach (var c in fornitoriEsistenti)
+                {
+                    if (string.IsNullOrEmpty(c) || c[0] != 'F') continue;
+                    if (int.TryParse(c.AsSpan(1), out var n) && n > maxCod) maxCod = n;
+                }
+                forn = new Fornitore
+                {
+                    TenantId = tid,
+                    Codice = $"F{(maxCod + 1):D4}",
+                    RagioneSociale = p.RagioneSocialePdf.Trim(),
+                    Stato = StatoFornitore.Attivo
+                };
+                await _mongo.Fornitori.InsertOneAsync(forn);
+                p.FornitoreId = forn.Id;
+            }
+
+            if (forn != null)
+            {
+                ApplicaPropostaSuFornitore(forn, p.Campo, p.ValoreProposto);
+                forn.UpdatedAt = DateTime.UtcNow;
+                await _mongo.Fornitori.ReplaceOneAsync(f => f.Id == forn.Id, forn);
+            }
+            p.Stato = StatoPropostaAnagrafica.Approvata;
+        }
+        else
+        {
+            p.Stato = StatoPropostaAnagrafica.Rifiutata;
+        }
+
+        p.DecisaIl = DateTime.UtcNow;
+        p.DecisaDaUserId = userId;
+        p.DecisaDaNome = userName;
+        p.NotaDecisione = string.IsNullOrWhiteSpace(nota) ? null : nota.Trim();
+        await _mongo.ProposteAnagraficaFornitori.ReplaceOneAsync(x => x.Id == p.Id, p);
+
+        TempData["flash"] = p.Stato == StatoPropostaAnagrafica.Approvata
+            ? $"✓ {p.Campo} di «{p.RagioneSocialePdf}» aggiornato."
+            : $"Proposta su {p.Campo} rifiutata.";
+        return RedirectToAction(nameof(ProposteAnagrafica));
+    }
+
+    /// <summary>Applica un singolo campo della proposta al fornitore.</summary>
+    private static void ApplicaPropostaSuFornitore(Fornitore f, string campo, string? valore)
+    {
+        switch (campo)
+        {
+            case "PartitaIva":     f.PartitaIva     = valore; break;
+            case "CodiceFiscale":  f.CodiceFiscale  = valore; break;
+            case "Iban":           f.Iban           = valore; break;
+            case "Indirizzo":      f.Indirizzo      = valore; break;
+            case "CodicePostale":  f.CodicePostale  = valore; break;
+            case "Localita":       f.Localita       = valore; break;
+            case "Provincia":      f.Provincia      = valore; break;
+            case "CodiceSdi":      f.CodiceSdi      = valore; break;
+            case "Pec":            f.Pec            = valore; break;
+            case "EmailContatto":  f.EmailContatto  = valore; break;
+            case "Telefono":       f.Telefono       = valore; break;
+        }
+    }
+
+    /// <summary>Scarica un file originale di un batch di import (CSV/XLSX/PDF).</summary>
+    [HttpGet("import-fatture/{batchId}/file")]
+    public async Task<IActionResult> ScaricaFileBatch(string batchId, string nome)
+    {
+        var tid = _tenant.TenantId!;
+        var batch = await _mongo.ImportFattureBatches
+            .Find(b => b.Id == batchId && b.TenantId == tid)
+            .FirstOrDefaultAsync();
+        if (batch == null) return NotFound();
+
+        var file = batch.Files.FirstOrDefault(f =>
+            f.NomeFile.Equals(nome, StringComparison.OrdinalIgnoreCase));
+        if (file == null || string.IsNullOrEmpty(file.StoragePath)) return NotFound();
+
+        // Lo storage espone i file via static files (wwwroot/uploads/...).
+        // Per scaricarli con il nome originale ed evitare cache, redirigiamo
+        // semplicemente all'URL pubblico — l'utente farà "salva con nome".
+        return Redirect(_storage.GetPublicUrl(file.StoragePath));
     }
 
     /// <summary>Scansiona tutti i fornitori citati nelle righe importate da
@@ -1608,17 +2030,19 @@ public class TesoreriaController : Controller
         var tid = _tenant.TenantId!;
         var userId = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
 
-        var nScad     = await _mongo.ScadenzePagamento.CountDocumentsAsync(s => s.TenantId == tid);
-        var nFatt     = await _mongo.Fatture.CountDocumentsAsync(f => f.TenantId == tid);
-        var nDistinte = await _mongo.DistinteSepa.CountDocumentsAsync(d => d.TenantId == tid);
-        var nBatch    = await _mongo.ImportFattureBatches.CountDocumentsAsync(b => b.TenantId == tid);
-        var nRighe    = await _mongo.ImportFattureRighe.CountDocumentsAsync(r => r.TenantId == tid);
+        var nScad      = await _mongo.ScadenzePagamento.CountDocumentsAsync(s => s.TenantId == tid);
+        var nFatt      = await _mongo.Fatture.CountDocumentsAsync(f => f.TenantId == tid);
+        var nDistinte  = await _mongo.DistinteSepa.CountDocumentsAsync(d => d.TenantId == tid);
+        var nBatch     = await _mongo.ImportFattureBatches.CountDocumentsAsync(b => b.TenantId == tid);
+        var nRighe     = await _mongo.ImportFattureRighe.CountDocumentsAsync(r => r.TenantId == tid);
+        var nProposte  = await _mongo.ProposteAnagraficaFornitori.CountDocumentsAsync(p => p.TenantId == tid);
 
         await _mongo.ScadenzePagamento.DeleteManyAsync(s => s.TenantId == tid);
         await _mongo.Fatture.DeleteManyAsync(f => f.TenantId == tid);
         await _mongo.DistinteSepa.DeleteManyAsync(d => d.TenantId == tid);
         await _mongo.ImportFattureRighe.DeleteManyAsync(r => r.TenantId == tid);
         await _mongo.ImportFattureBatches.DeleteManyAsync(b => b.TenantId == tid);
+        await _mongo.ProposteAnagraficaFornitori.DeleteManyAsync(p => p.TenantId == tid);
 
         await _mongo.Audit.InsertOneAsync(new AuditEntry
         {
@@ -1630,16 +2054,16 @@ public class TesoreriaController : Controller
             EntityId = tid,
             EntityLabel = "Reset completo tesoreria",
             Note = $"Cancellate {nScad} scadenze, {nFatt} fatture, {nDistinte} distinte SEPA, " +
-                   $"{nBatch} batch e {nRighe} righe di import." +
+                   $"{nBatch} batch, {nRighe} righe di import, {nProposte} proposte anagrafica." +
                    (string.IsNullOrWhiteSpace(note) ? "" : $" Motivo: {note}")
         });
 
-        _logger.LogWarning("Reset completo tesoreria · tenant {Tid} · scad={N1} fatt={N2} distinte={N3} batch={N4} righe={N5}",
-            tid, nScad, nFatt, nDistinte, nBatch, nRighe);
+        _logger.LogWarning("Reset completo tesoreria · tenant {Tid} · scad={N1} fatt={N2} distinte={N3} batch={N4} righe={N5} proposte={N6}",
+            tid, nScad, nFatt, nDistinte, nBatch, nRighe, nProposte);
 
         TempData["flash"] = $"✓ Scadenziario azzerato: cancellate {nScad} scadenze, {nFatt} fatture, " +
-                            $"{nDistinte} distinte SEPA, {nBatch} batch e {nRighe} righe di import. " +
-                            $"Anagrafica fornitori mantenuta.";
+                            $"{nDistinte} distinte SEPA, {nBatch} batch, {nRighe} righe di import e " +
+                            $"{nProposte} proposte anagrafica. Anagrafica fornitori mantenuta.";
         return RedirectToAction(nameof(ImportFatture));
     }
 

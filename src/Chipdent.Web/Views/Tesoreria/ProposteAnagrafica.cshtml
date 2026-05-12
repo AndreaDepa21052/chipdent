@@ -1,0 +1,127 @@
+@model List<Chipdent.Web.Domain.Entities.PropostaAnagraficaFornitore>
+@using Chipdent.Web.Domain.Entities
+@{
+    ViewData["Title"] = "Proposte anagrafica fornitori";
+    ViewData["Crumb"] = "Tesoreria";
+    var conteggi = ViewBag.Conteggi as Dictionary<string, long> ?? new();
+    var statoCorrente = (string)(ViewBag.StatoCorrente ?? "InAttesa");
+    string LabelCampo(string c) => c switch
+    {
+        "PartitaIva"     => "P. IVA",
+        "CodiceFiscale"  => "Codice fiscale",
+        "Iban"           => "IBAN",
+        "Indirizzo"      => "Indirizzo",
+        "CodicePostale"  => "CAP",
+        "Localita"       => "Località",
+        "Provincia"      => "Provincia",
+        "CodiceSdi"      => "Codice SDI",
+        "Pec"            => "PEC",
+        "EmailContatto"  => "Email",
+        "Telefono"       => "Telefono",
+        _ => c
+    };
+}
+
+<partial name="_Flash" />
+
+<div class="page-head">
+    <div>
+        <h2>📋 Proposte di aggiornamento anagrafica fornitori</h2>
+        <p class="page-head__sub">
+            Dati anagrafici letti dal PDF delle fatture passive e proposti per aggiornare
+            l'anagrafica fornitori. Nessuna modifica è applicata finché tu non la approvi.
+        </p>
+    </div>
+    <div class="page-head__actions">
+        <a class="btn btn--ghost" asp-action="ImportFatture">← Importa fatture</a>
+    </div>
+</div>
+
+<div style="display:flex; gap:8px; margin-bottom:14px;">
+    @foreach (var s in new[] { "InAttesa", "Approvata", "Rifiutata" })
+    {
+        var n = conteggi.GetValueOrDefault(s, 0);
+        var active = string.Equals(s, statoCorrente, StringComparison.OrdinalIgnoreCase);
+        var cls = s == "InAttesa" ? "pill--warn" : s == "Approvata" ? "pill--ok" : "pill--err";
+        <a asp-action="ProposteAnagrafica" asp-route-stato="@s"
+           class="btn @(active ? "btn--primary" : "btn--ghost")">
+            @s <span class="pill @cls" style="margin-left:6px;">@n</span>
+        </a>
+    }
+</div>
+
+@if (Model.Count == 0)
+{
+    <div class="card">
+        <p class="muted">Nessuna proposta in stato «@statoCorrente».</p>
+    </div>
+}
+else
+{
+    <div class="card" style="padding:0; overflow:auto;">
+        <table class="table">
+            <thead>
+                <tr>
+                    <th>Fornitore (PDF)</th>
+                    <th>Campo</th>
+                    <th>Valore attuale</th>
+                    <th>Valore proposto</th>
+                    <th>Fattura rif.</th>
+                    <th>Pg.</th>
+                    <th>Stato</th>
+                    @if (statoCorrente == "InAttesa") { <th></th> }
+                    else { <th>Decisa da</th> }
+                </tr>
+            </thead>
+            <tbody>
+            @foreach (var p in Model)
+            {
+                var pillCls = p.Stato == StatoPropostaAnagrafica.Approvata ? "pill--ok"
+                            : p.Stato == StatoPropostaAnagrafica.Rifiutata ? "pill--err" : "pill--warn";
+                <tr>
+                    <td>
+                        <strong>@p.RagioneSocialePdf</strong>
+                        @if (string.IsNullOrEmpty(p.FornitoreId))
+                        {
+                            <div class="muted" style="font-size:.75rem;">⚠ nuovo fornitore (verrà creato all'approvazione)</div>
+                        }
+                    </td>
+                    <td><strong>@LabelCampo(p.Campo)</strong></td>
+                    <td style="font-family:monospace; font-size:.82rem; color:#9a1c1c;">
+                        @(string.IsNullOrEmpty(p.ValoreAttuale) ? "— (vuoto)" : p.ValoreAttuale)
+                    </td>
+                    <td style="font-family:monospace; font-size:.82rem; color:#1a6b32;">
+                        @p.ValoreProposto
+                    </td>
+                    <td>@(p.FatturaRiferimento ?? "—")</td>
+                    <td class="muted">@(p.PaginaPdf?.ToString() ?? "—")</td>
+                    <td><span class="pill @pillCls">@p.Stato</span></td>
+                    @if (p.Stato == StatoPropostaAnagrafica.InAttesa)
+                    {
+                        <td>
+                            <form asp-action="DecidiPropostaAnagrafica" asp-route-id="@p.Id" method="post" style="display:inline;">
+                                @Html.AntiForgeryToken()
+                                <input type="hidden" name="azione" value="approva">
+                                <button class="btn btn--primary btn--sm" type="submit"
+                                        onclick="return confirm('Applicare la proposta al fornitore?');">✓ Approva</button>
+                            </form>
+                            <form asp-action="DecidiPropostaAnagrafica" asp-route-id="@p.Id" method="post" style="display:inline;">
+                                @Html.AntiForgeryToken()
+                                <input type="hidden" name="azione" value="rifiuta">
+                                <button class="btn btn--ghost btn--sm" type="submit">✕ Rifiuta</button>
+                            </form>
+                        </td>
+                    }
+                    else
+                    {
+                        <td class="muted" style="font-size:.82rem;">
+                            @(p.DecisaDaNome ?? "—")
+                            @if (p.DecisaIl.HasValue) { <div>@p.DecisaIl.Value.ToLocalTime().ToString("dd/MM/yyyy HH:mm")</div> }
+                        </td>
+                    }
+                </tr>
+            }
+            </tbody>
+        </table>
+    </div>
+}
