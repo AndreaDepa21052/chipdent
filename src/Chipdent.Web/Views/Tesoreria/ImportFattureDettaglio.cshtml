@@ -10,6 +10,10 @@
     // tramite il fragment #page=N (supportato dai PDF viewer dei browser).
     var pdfFile = b.Files.FirstOrDefault(f => f.TipoFile == "pdf" && !string.IsNullOrEmpty(f.StoragePath));
     var pdfPublicPath = pdfFile != null ? "/" + pdfFile.StoragePath!.Replace("\\", "/") : null;
+    // Conteggio righe arricchite dal PDF (per la KPI in alto)
+    var totRighe = Model.Files.Where(g => g.Header.TipoFile != "pdf").Sum(g => g.Righe.Count);
+    var totArricchite = Model.Files.Where(g => g.Header.TipoFile != "pdf").Sum(g => g.Righe.Count(r => r.ArricchitaDaPdf));
+    var fattureNelPdf = pdfFile?.FattureEstrattePdf ?? 0;
 }
 
 <partial name="_Flash" />
@@ -29,7 +33,7 @@
 </div>
 
 <style>
-    .imp-stats { display:grid; grid-template-columns: repeat(4, minmax(0,1fr)); gap:10px; margin-bottom:18px; }
+    .imp-stats { display:grid; grid-template-columns: repeat(auto-fit, minmax(160px, 1fr)); gap:10px; margin-bottom:18px; }
     .imp-kpi { background:#fff; border:1px solid #e9dcc1; border-radius:10px; padding:12px 14px; }
     .imp-kpi .lbl { font-size:.72rem; text-transform:uppercase; letter-spacing:.5px; color:#7a5c3a; }
     .imp-kpi .val { font-size:1.5rem; font-weight:700; color:#3b1e0c; }
@@ -199,12 +203,26 @@
         font-size: .9rem; opacity: .55; transition: opacity .15s, transform .15s;
     }
     .row-pdf-link:hover { opacity: 1; transform: scale(1.15); }
+    .row-pdf-missing {
+        display: inline-block; margin-left: 6px;
+        font-size: .82rem; color:#bba17a; cursor: help;
+    }
 </style>
 
 <div class="imp-stats">
     <div class="imp-kpi"><div class="lbl">File</div><div class="val">@b.Files.Count</div></div>
     <div class="imp-kpi"><div class="lbl">Righe totali</div><div class="val">@b.TotaleRighe.ToString("N0", it)</div></div>
     <div class="imp-kpi"><div class="lbl">Righe valide</div><div class="val" style="color:#1a6b32;">@b.RigheValide.ToString("N0", it)</div></div>
+    @if (pdfFile != null)
+    {
+        var pct = totRighe > 0 ? (int)Math.Round(100.0 * totArricchite / totRighe) : 0;
+        var color = pct >= 90 ? "#1a6b32" : pct >= 50 ? "#7a4a00" : "#9a1c1c";
+        <div class="imp-kpi" title="Righe CSV abbinate a una fattura del PDF (per numero + data + fornitore). Le righe non abbinate non avranno l'icona 📄 sul numero.">
+            <div class="lbl">Match PDF ↔ CSV</div>
+            <div class="val" style="color:@color;">@totArricchite / @totRighe <span style="font-size:.8rem; font-weight:400;">(@pct%)</span></div>
+            <div class="muted" style="font-size:.72rem;">@fattureNelPdf fatture nel PDF</div>
+        </div>
+    }
     <div class="imp-kpi"><div class="lbl">Righe con errori</div><div class="val" style="color:@(b.RigheConErrore > 0 ? "#9a1c1c" : "#3b1e0c");">@b.RigheConErrore.ToString("N0", it)</div></div>
 </div>
 
@@ -303,6 +321,11 @@
                                    target="_blank" rel="noopener"
                                    title="Apri questa fattura nel PDF (pagina @r.PaginaPdf)"
                                    class="row-pdf-link">📄</a>
+                            }
+                            else if (pdfPublicPath != null)
+                            {
+                                <span class="row-pdf-missing"
+                                      title="Riga CSV non abbinata a nessuna fattura del PDF (numero / data / fornitore non corrispondono). L'icona 📄 compare solo sulle righe abbinate.">⊘</span>
                             }
                         </td>
                         <td>@(r.DataDocumento?.ToString("dd/MM/yyyy") ?? "—")</td>

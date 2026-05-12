@@ -1631,7 +1631,13 @@ public class TesoreriaController : Controller
 
     private static string KeyFattura(string? numero, DateTime? data, string? fornitore)
     {
-        var n = (numero ?? "").Trim().ToUpperInvariant();
+        // Numero: rimuovo whitespace e uppercase. Lascio punteggiatura ("12/26"
+        // resta distinto da "1226"). Questo neutralizza differenze tipo
+        // "FPR 12/26" (CSV) vs "FPR12/26" (PDF) o spazi di troppo.
+        var rawN = (numero ?? "").ToUpperInvariant();
+        var sbN = new System.Text.StringBuilder(rawN.Length);
+        foreach (var c in rawN) if (!char.IsWhiteSpace(c)) sbN.Append(c);
+        var n = sbN.ToString();
         var f = NormalizzaRagioneSociale(fornitore ?? "");
         var d = data?.ToString("yyyyMMdd") ?? "";
         if (string.IsNullOrEmpty(n) || string.IsNullOrEmpty(f)) return "";
