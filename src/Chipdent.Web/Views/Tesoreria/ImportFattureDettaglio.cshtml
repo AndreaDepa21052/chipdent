@@ -205,11 +205,24 @@
             <span class="pill @sezCls">@g.Header.Sezione</span>
             <h3>@g.Header.NomeFile</h3>
             <span class="meta">
-                @g.Header.RigheTotali righe ·
-                @g.Header.RigheValide valide ·
-                @g.Header.RigheConErrore con errori ·
-                @((g.Header.DimensioneByte / 1024.0).ToString("N1", it)) KB
+                @if (g.Header.TipoFile == "pdf")
+                {
+                    <span><strong>@g.Header.FattureEstrattePdf</strong> fatture estratte</span>
+                }
+                else
+                {
+                    <span>@g.Header.RigheTotali righe · @g.Header.RigheValide valide · @g.Header.RigheConErrore con errori</span>
+                }
+                · @((g.Header.DimensioneByte / 1024.0).ToString("N1", it)) KB
             </span>
+            @if (!string.IsNullOrEmpty(g.Header.StoragePath))
+            {
+                <a class="btn btn--ghost btn--sm"
+                   asp-action="ScaricaFileBatch"
+                   asp-route-batchId="@b.Id"
+                   asp-route-nome="@g.Header.NomeFile"
+                   title="Scarica il file originale di questo caricamento">⬇ Scarica originale</a>
+            }
             <span class="imp-match-badge"><span data-match-count>0</span> match</span>
             <button type="button" class="col-reset-btn" data-reset-cols title="Ripristina larghezze colonne">↺ reset</button>
         </div>
@@ -238,6 +251,11 @@
                         @if (g.Header.Sezione == "CCH") { <th class="num">IVA</th> }
                         <th class="num">Netto</th>
                         <th class="num">Ritenuta</th>
+                        <th>Competenza</th>
+                        <th>Scadenza (PDF)</th>
+                        <th>Mod. pag.</th>
+                        <th>IBAN</th>
+                        <th>P.IVA</th>
                         <th>Causale</th>
                         <th>Allegati</th>
                         <th>Stato</th>
@@ -258,6 +276,11 @@
                         @if (g.Header.Sezione == "CCH") { <td class="num">@(r.Iva?.ToString("N2", it) ?? "—")</td> }
                         <td class="num">@(r.NettoAPagare?.ToString("N2", it) ?? "—")</td>
                         <td class="num">@(r.Ritenuta?.ToString("N2", it) ?? "—")</td>
+                        <td>@(r.MeseCompetenza.HasValue ? $"{r.MeseCompetenza:00}/{r.AnnoCompetenza ?? r.DataDocumento?.Year ?? 0}" : "—")</td>
+                        <td>@(r.DataScadenzaPdf?.ToString("dd/MM/yyyy") ?? "—")</td>
+                        <td>@(r.ModalitaPagamentoPdf ?? "—")</td>
+                        <td style="font-family:monospace; font-size:.78rem;">@(r.IbanFornitore ?? "—")</td>
+                        <td style="font-family:monospace; font-size:.78rem;">@(r.PartitaIvaFornitore ?? "—")</td>
                         <td>@r.Causale</td>
                         <td>@r.Allegati</td>
                         <td>

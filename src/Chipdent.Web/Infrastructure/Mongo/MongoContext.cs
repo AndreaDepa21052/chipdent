@@ -77,6 +77,7 @@ public class MongoContext
     public IMongoCollection<MenuVisibility> MenuVisibilities => Database.GetCollection<MenuVisibility>("menuVisibilities");
     public IMongoCollection<ImportFatturePassiveBatch> ImportFattureBatches => Database.GetCollection<ImportFatturePassiveBatch>("importFattureBatches");
     public IMongoCollection<ImportFatturaRiga> ImportFattureRighe => Database.GetCollection<ImportFatturaRiga>("importFattureRighe");
+    public IMongoCollection<PropostaAnagraficaFornitore> ProposteAnagraficaFornitori => Database.GetCollection<PropostaAnagraficaFornitore>("proposteAnagraficaFornitori");
     public IMongoCollection<ProcedimentoDisciplinare> Disciplinari => Database.GetCollection<ProcedimentoDisciplinare>("disciplinari");
     public IMongoCollection<PremioDipendente> Premi => Database.GetCollection<PremioDipendente>("premiDipendenti");
     public IMongoCollection<SchedaValutazione> Valutazioni => Database.GetCollection<SchedaValutazione>("valutazioniDipendenti");

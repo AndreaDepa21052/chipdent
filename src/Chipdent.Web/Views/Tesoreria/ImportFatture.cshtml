@@ -31,6 +31,7 @@
                 ⇆ Allinea anagrafica fornitori
             </button>
         </form>
+        <a class="btn btn--ghost" asp-action="ProposteAnagrafica">📋 Proposte anagrafica</a>
         <button type="button" class="btn btn--ghost" style="color:#9a1c1c; border-color:#fcd9d9;"
                 onclick="document.getElementById('resetModal').style.display='flex';"
                 title="Cancella TUTTI i dati di tesoreria: scadenze, fatture, distinte SEPA, batch e righe di import. I fornitori vengono mantenuti.">
@@ -142,10 +143,11 @@
                 <div class="imp-drop__icon">📄</div>
                 <div><strong>Trascina qui i file</strong> o clicca per selezionare</div>
                 <div class="imp-drop__hint">
-                    Accetta <code>.xlsx</code> (1 file) oppure <code>.csv</code> (uno o due file).<br>
+                    Accetta <code>.xlsx</code> (1 file) <em>oppure</em> <code>.csv</code> (uno o due) <em>± <code>.pdf</code></em> (uno).<br>
+                    Il PDF arricchisce le righe CSV con anagrafica fornitore, IBAN e competenza.<br>
                     Max 25 MB totali.
                 </div>
-                <input id="impFiles" name="files" type="file" multiple accept=".xlsx,.csv">
+                <input id="impFiles" name="files" type="file" multiple accept=".xlsx,.csv,.pdf">
             </label>
 
             <div id="impFiles__list" class="imp-files"></div>
@@ -256,6 +258,7 @@ else
 
     function detectSez(name) {
         const u = name.toUpperCase();
+        if (u.endsWith('.PDF')) return ['PDF fatture', 'pill--type'];
         if (u.indexOf('CCH') >= 0) return ['CCH', 'pill--ok'];
         if (u.indexOf('IDENT') >= 0) return ['Ident', 'pill--warn'];
         if (u.endsWith('.XLSX')) return ['XLSX (multi-sheet)', 'pill--type'];
@@ -271,12 +274,13 @@ else
         }
         const arr = Array.from(files);
         let total = 0;
-        let xlsxCount = 0, csvCount = 0, otherCount = 0;
+        let xlsxCount = 0, csvCount = 0, pdfCount = 0, otherCount = 0;
         arr.forEach(f => {
             total += f.size;
             const ext = f.name.split('.').pop().toLowerCase();
             if (ext === 'xlsx') xlsxCount++;
             else if (ext === 'csv') csvCount++;
+            else if (ext === 'pdf') pdfCount++;
             else otherCount++;
             const [sez, cls] = detectSez(f.name);
             const row = document.createElement('div');
@@ -286,10 +290,11 @@ else
         });
 
         let problem = null;
-        if (otherCount > 0) problem = 'Sono ammessi solo .xlsx o .csv.';
+        if (otherCount > 0) problem = 'Sono ammessi solo .xlsx, .csv o .pdf.';
         else if (xlsxCount > 1) problem = 'Carica un solo file .xlsx alla volta.';
-        else if (xlsxCount === 1 && csvCount > 0) problem = 'Carica .xlsx oppure .csv, non entrambi.';
+        else if (xlsxCount === 1 && (csvCount > 0 || pdfCount > 0)) problem = 'L\'XLSX va caricato da solo.';
         else if (csvCount > 2) problem = 'Massimo due file .csv (CCH + Ident).';
+        else if (pdfCount > 1) problem = 'Carica un solo PDF alla volta.';
         else if (total > 25 * 1024 * 1024) problem = 'Dimensione totale oltre 25 MB.';
 
         if (problem) {
