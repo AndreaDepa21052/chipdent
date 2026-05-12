@@ -33,13 +33,15 @@ public class TesoreriaController : Controller
     private readonly ITenantContext _tenant;
     private readonly IFileStorage _storage;
     private readonly IPasswordHasher _hasher;
+    private readonly ILogger<TesoreriaController> _logger;
 
-    public TesoreriaController(MongoContext mongo, ITenantContext tenant, IFileStorage storage, IPasswordHasher hasher)
+    public TesoreriaController(MongoContext mongo, ITenantContext tenant, IFileStorage storage, IPasswordHasher hasher, ILogger<TesoreriaController> logger)
     {
         _mongo = mongo;
         _tenant = tenant;
         _storage = storage;
         _hasher = hasher;
+        _logger = logger;
     }
 
     // ─────────────────────────────────────────────────────────────
@@ -513,19 +515,35 @@ public class TesoreriaController : Controller
     [HttpGet("scadenza/{id}/dettaglio")]
     public async Task<IActionResult> DettaglioScadenza(string id)
     {
-        var tid = _tenant.TenantId!;
-        var s = await _mongo.ScadenzePagamento.Find(x => x.Id == id && x.TenantId == tid).FirstOrDefaultAsync();
-        if (s is null) return NotFound();
-        var fa = await _mongo.Fatture.Find(x => x.Id == s.FatturaId && x.TenantId == tid).FirstOrDefaultAsync();
-        var f = await _mongo.Fornitori.Find(x => x.Id == s.FornitoreId && x.TenantId == tid).FirstOrDefaultAsync();
-        var c = await _mongo.Cliniche.Find(x => x.Id == s.ClinicaId && x.TenantId == tid).FirstOrDefaultAsync();
-        var allClinics = await _mongo.Cliniche.Find(x => x.TenantId == tid).SortBy(x => x.Nome).ToListAsync();
+        try
+        {
+            var tid = _tenant.TenantId!;
+            var s = await _mongo.ScadenzePagamento.Find(x => x.Id == id && x.TenantId == tid).FirstOrDefaultAsync();
+            if (s is null) return NotFound();
 
-        ViewData["Fattura"]  = fa;
-        ViewData["Fornitore"] = f;
-        ViewData["Clinica"]  = c;
-        ViewData["Cliniche"] = allClinics;
-        return PartialView("_DettaglioScadenza", s);
+            var fa = string.IsNullOrEmpty(s.FatturaId)
+                ? null
+                : await _mongo.Fatture.Find(x => x.Id == s.FatturaId && x.TenantId == tid).FirstOrDefaultAsync();
+            var f = string.IsNullOrEmpty(s.FornitoreId)
+                ? null
+                : await _mongo.Fornitori.Find(x => x.Id == s.FornitoreId && x.TenantId == tid).FirstOrDefaultAsync();
+            var c = string.IsNullOrEmpty(s.ClinicaId)
+                ? null
+                : await _mongo.Cliniche.Find(x => x.Id == s.ClinicaId && x.TenantId == tid).FirstOrDefaultAsync();
+            var allClinics = await _mongo.Cliniche.Find(x => x.TenantId == tid).SortBy(x => x.Nome).ToListAsync();
+
+            ViewData["Fattura"]  = fa;
+            ViewData["Fornitore"] = f;
+            ViewData["Clinica"]  = c;
+            ViewData["Cliniche"] = allClinics;
+            return PartialView("_DettaglioScadenza", s);
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Errore caricamento dettaglio scadenza {ScadenzaId} (tenant {TenantId})", id, _tenant.TenantId);
+            Response.StatusCode = StatusCodes.Status500InternalServerError;
+            return Content($"<div style=\"padding:24px; color:#b8442e;\"><strong>Errore caricamento dettaglio</strong><br/><small>{System.Net.WebUtility.HtmlEncode(ex.Message)}</small></div>", "text/html");
+        }
     }
 
     /// <summary>
