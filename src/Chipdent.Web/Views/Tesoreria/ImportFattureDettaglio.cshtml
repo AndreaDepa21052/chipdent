@@ -5,6 +5,11 @@
     ViewData["Crumb"] = "Tesoreria";
     var it = new CultureInfo("it-IT");
     var b = Model.Batch;
+    // Path pubblico del PDF del batch (al massimo 1 per batch): usato per
+    // costruire i deep-link "apri questa fattura nel PDF" su ogni riga
+    // tramite il fragment #page=N (supportato dai PDF viewer dei browser).
+    var pdfFile = b.Files.FirstOrDefault(f => f.TipoFile == "pdf" && !string.IsNullOrEmpty(f.StoragePath));
+    var pdfPublicPath = pdfFile != null ? "/" + pdfFile.StoragePath!.Replace("\\", "/") : null;
 }
 
 <partial name="_Flash" />
@@ -188,6 +193,12 @@
     }
     .file-block:hover .col-reset-btn { opacity: 1; }
     .col-reset-btn:hover { color: #fff; background: rgba(0,0,0,.35); }
+
+    .row-pdf-link {
+        display: inline-block; margin-left: 6px; text-decoration: none;
+        font-size: .9rem; opacity: .55; transition: opacity .15s, transform .15s;
+    }
+    .row-pdf-link:hover { opacity: 1; transform: scale(1.15); }
 </style>
 
 <div class="imp-stats">
@@ -223,9 +234,25 @@
                    asp-route-nome="@g.Header.NomeFile"
                    title="Scarica il file originale di questo caricamento">⬇ Scarica originale</a>
             }
-            <span class="imp-match-badge"><span data-match-count>0</span> match</span>
-            <button type="button" class="col-reset-btn" data-reset-cols title="Ripristina larghezze colonne">↺ reset</button>
+            @if (g.Header.TipoFile != "pdf")
+            {
+                <span class="imp-match-badge"><span data-match-count>0</span> match</span>
+                <button type="button" class="col-reset-btn" data-reset-cols title="Ripristina larghezze colonne">↺ reset</button>
+            }
         </div>
+        @if (g.Header.TipoFile == "pdf")
+        {
+            <div class="file-block__totals">
+                <span class="muted">
+                    Sorgente di arricchimento: anagrafica fornitore, IBAN, competenza, data scadenza e modalità di pagamento
+                    sono linkati alle righe CSV qui sotto. Clicca l'icona <strong>📄</strong> sul numero di una riga per aprire
+                    la fattura corrispondente nel PDF.
+                </span>
+                <span class="muted" style="margin-left:auto;">SHA-256: <code style="font-size:.72rem;">@(g.Header.ChecksumSha256?.Substring(0, Math.Min(16, g.Header.ChecksumSha256.Length)) ?? "—")…</code></span>
+            </div>
+        }
+        else
+        {
         <div class="file-block__totals">
             <span>Tot. documenti: <strong>@g.TotaleDocumenti.ToString("N2", it) €</strong></span>
             <span>Netto a pagare: <strong>@g.TotaleNetto.ToString("N2", it) €</strong></span>
@@ -268,7 +295,16 @@
                         <td>@r.NumeroRiga</td>
                         <td>@r.Protocollo</td>
                         <td>@(r.DataRegistrazione?.ToString("dd/MM/yyyy") ?? "—")</td>
-                        <td>@r.Numero</td>
+                        <td>
+                            @r.Numero
+                            @if (pdfPublicPath != null && r.PaginaPdf.HasValue && r.PaginaPdf.Value > 0)
+                            {
+                                <a href="@(pdfPublicPath)#page=@r.PaginaPdf"
+                                   target="_blank" rel="noopener"
+                                   title="Apri questa fattura nel PDF (pagina @r.PaginaPdf)"
+                                   class="row-pdf-link">📄</a>
+                            }
+                        </td>
                         <td>@(r.DataDocumento?.ToString("dd/MM/yyyy") ?? "—")</td>
                         <td>@r.Fornitore</td>
                         <td>@r.TipoDocumento</td>
@@ -299,6 +335,7 @@
                 </tbody>
             </table>
         </div>
+        }
     </div>
 }
 
