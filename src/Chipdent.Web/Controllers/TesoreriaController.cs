@@ -1,6 +1,7 @@
 using System.Globalization;
 using System.Security.Claims;
 using System.Text;
+using Chipdent.Web.Domain.Common;
 using Chipdent.Web.Domain.Entities;
 using Chipdent.Web.Infrastructure.Identity;
 using Chipdent.Web.Infrastructure.Mongo;
@@ -108,6 +109,14 @@ public class TesoreriaController : Controller
                 var f = fornitoriById.GetValueOrDefault(s.FornitoreId);
                 var fa = fatturePerId.GetValueOrDefault(s.FatturaId);
                 var c = clinicheById.GetValueOrDefault(s.ClinicaId);
+
+                // IBAN da usare per la distinta: prima la snapshot sulla scadenza, poi l'anagrafica.
+                var ibanEffettivo = !string.IsNullOrWhiteSpace(s.Iban) ? s.Iban : f?.Iban;
+                var richiedeBonifico = s.Metodo == MetodoPagamento.Bonifico || s.Metodo == MetodoPagamento.Altro;
+                var ibanMancante = richiedeBonifico
+                    && (string.IsNullOrWhiteSpace(ibanEffettivo)
+                        || !FornitoreCompletezza.IsValidIban(FornitoreCompletezza.NormalizeIban(ibanEffettivo)));
+
                 return new RigaTesoreria
                 {
                     ScadenzaId = s.Id,
@@ -142,7 +151,12 @@ public class TesoreriaController : Controller
                     DataProgrammata = s.DataProgrammata,
                     DataPagamento = s.DataPagamento,
                     DistintaSepaId = s.DistintaSepaId,
-                    HasAllegato = !string.IsNullOrEmpty(fa?.AllegatoPath)
+                    HasAllegato = !string.IsNullOrEmpty(fa?.AllegatoPath),
+                    FornitoreSconosciuto = f is null,
+                    MancaIbanFornitore = ibanMancante,
+                    MancaIdFiscale = f is not null
+                        && string.IsNullOrWhiteSpace(f.PartitaIva)
+                        && string.IsNullOrWhiteSpace(f.CodiceFiscale)
                 };
             }).ToList();
 
@@ -699,7 +713,8 @@ public class TesoreriaController : Controller
             Fornitore = f,
             HaUtentePortale = userByForn.ContainsKey(f.Id),
             EspostoCorrente = aperte.Where(s => s.FornitoreId == f.Id).Sum(s => s.Importo),
-            FatturePeriodoCorrente = fattureAnno.Count(x => x.FornitoreId == f.Id)
+            FatturePeriodoCorrente = fattureAnno.Count(x => x.FornitoreId == f.Id),
+            Completezza = FornitoreCompletezza.Valuta(f)
         }).ToList();
 
         ViewData["Section"] = "fornitori";
@@ -1204,8 +1219,7 @@ public class TesoreriaController : Controller
         });
     }
 
-    private static string NormalizeIban(string iban) =>
-        new string((iban ?? "").Where(char.IsLetterOrDigit).ToArray()).ToUpperInvariant();
+    private static string NormalizeIban(string iban) => FornitoreCompletezza.NormalizeIban(iban);
 
     /// <summary>Normalizza la sigla provincia a 2 lettere maiuscole (es. "mi  " → "MI"). Vuoto → null.</summary>
     private static string? NormalizeProvincia(string? provincia)
@@ -1215,31 +1229,7 @@ public class TesoreriaController : Controller
         return letters.Length == 0 ? null : letters[..Math.Min(2, letters.Length)];
     }
 
-    /// <summary>Validazione IBAN: lunghezza per paese + check digit MOD 97 (ISO 13616).</summary>
-    private static bool IsValidIban(string iban)
-    {
-        if (string.IsNullOrEmpty(iban) || iban.Length < 15 || iban.Length > 34) return false;
-        if (!iban.All(char.IsLetterOrDigit)) return false;
-
-        // IT richiede 27 caratteri totali (convenzione italiana standard)
-        if (iban.StartsWith("IT") && iban.Length != 27) return false;
-
-        // Sposta i primi 4 caratteri in fondo, sostituisci lettere con numeri (A=10, B=11, ...)
-        var rearranged = iban[4..] + iban[..4];
-        var numeric = new StringBuilder();
-        foreach (var ch in rearranged)
-        {
-            numeric.Append(char.IsDigit(ch) ? ch.ToString() : (ch - 'A' + 10).ToString());
-        }
-        // Mod 97 a chunk per evitare overflow
-        var s = numeric.ToString();
-        var remainder = 0;
-        foreach (var ch in s)
-        {
-            remainder = (remainder * 10 + (ch - '0')) % 97;
-        }
-        return remainder == 1;
-    }
+    private static bool IsValidIban(string iban) => FornitoreCompletezza.IsValidIban(iban);
 
     private static StatoScadenza DerivedStato(ScadenzaPagamento s, DateTime oggi)
     {

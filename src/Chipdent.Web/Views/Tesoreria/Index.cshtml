@@ -216,6 +216,22 @@
 
 <section data-tab-pane="scadenze" style="@(activeTab == "scadenze" ? "" : "display:none;")">
 
+@{
+    var righeConProblemi = Model.Righe.Count(r => r.HaProblemi);
+    var righeSenzaIban = Model.Righe.Count(r => r.MancaIbanFornitore);
+}
+@if (righeConProblemi > 0)
+{
+    <div class="card" style="background:#fff7e6; border-left: 4px solid #c47830; margin-bottom: var(--s-3); padding: var(--s-3);">
+        <strong style="color:#a86010;">⚠️ @righeConProblemi scadenz@(righeConProblemi == 1 ? "a" : "e") con dati incompleti.</strong>
+        @if (righeSenzaIban > 0)
+        {
+            <span class="muted"> — @righeSenzaIban senza IBAN beneficiario valido (non incassabili via SEPA).</span>
+        }
+        <span class="muted"> Apri la riga per vedere il dettaglio o completa l'anagrafica fornitore.</span>
+    </div>
+}
+
 <style>
     .scadenze-split { display: grid; grid-template-columns: 320px minmax(0, 1fr); gap: var(--s-4); align-items: start; }
     @@media (max-width: 1100px) { .scadenze-split { grid-template-columns: 1fr; } }
@@ -649,16 +665,19 @@
                 {
                     var isFiglia = !string.IsNullOrEmpty(r.ScadenzaPadreId);
                     var isPadre  = idPadri.Contains(r.ScadenzaId);
-                    var rowStyle = r.ScadenzaFuoriTermini
-                        ? "background: rgba(255,165,0,0.05); border-left: 3px solid #c47830;"
-                        : r.Stato == StatoScadenza.Insoluto
-                            ? "background: rgba(168,58,58,0.06);"
-                            : r.Stato == StatoScadenza.MaiPagato
-                                ? "background: rgba(120,120,120,0.06); opacity:.7;"
-                                : "";
+                    var rowStyle = r.MancaIbanFornitore || r.FornitoreSconosciuto
+                        ? "background: rgba(168,58,58,0.06); border-left: 3px solid #a83a3a;"
+                        : r.ScadenzaFuoriTermini
+                            ? "background: rgba(255,165,0,0.05); border-left: 3px solid #c47830;"
+                            : r.Stato == StatoScadenza.Insoluto
+                                ? "background: rgba(168,58,58,0.06);"
+                                : r.Stato == StatoScadenza.MaiPagato
+                                    ? "background: rgba(120,120,120,0.06); opacity:.7;"
+                                    : "";
                     var bonificabile = r.Stato == StatoScadenza.DaPagare
                         && !r.InDistintaSepa // già inclusa in una distinta: niente doppia inclusione
                         && !r.BonificoMultiploCbi // BM va in distinta CBI multipla, non SEPA singola
+                        && !r.MancaIbanFornitore // senza IBAN valido la distinta SEPA verrebbe scartata
                         && (r.Metodo == MetodoPagamento.Bonifico || r.Metodo == MetodoPagamento.Altro);
                     var totaleTooltip = $"Imponibile {EurDec(r.Imponibile)} · IVA {EurDec(r.Iva)} · Categoria {r.Categoria.Label()}";
                     var insertaTooltip = $"Caricata il {r.CaricataIl.ToLocalTime():dd/MM/yyyy HH:mm}";
@@ -698,7 +717,24 @@
                         </td>
                         <td>
                             <strong>@r.FornitoreNome</strong>
+                            @if (r.HaProblemi)
+                            {
+                                var problemiTxt = string.Join(" · ", r.Problemi);
+                                <span title="@problemiTxt" style="color:#a83a3a; font-weight:600; cursor:help; margin-left:4px;">⚠️</span>
+                            }
                             <div class="muted" style="font-size: .7rem; line-height: 1.1;">@r.Categoria.Label()</div>
+                            @if (r.MancaIbanFornitore)
+                            {
+                                <div style="font-size:.68rem; color:#a83a3a; line-height:1.2; margin-top:2px;" title="Senza IBAN valido la scadenza non può essere inclusa in una distinta SEPA.">
+                                    🏦 IBAN mancante
+                                </div>
+                            }
+                            else if (r.FornitoreSconosciuto)
+                            {
+                                <div style="font-size:.68rem; color:#a83a3a; line-height:1.2; margin-top:2px;">
+                                    fornitore non in anagrafica
+                                </div>
+                            }
                             <div class="muted" style="font-size: .68rem; line-height: 1.2; margin-top: 2px;" title="@insertaTooltip">
                                 @origineLabel · @r.CaricataDaNome · @r.CaricataIl.ToLocalTime().ToString("dd/MM/yy")
                             </div>
