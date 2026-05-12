@@ -1865,6 +1865,155 @@ public class TesoreriaController : Controller
         return RedirectToAction(nameof(ProposteAnagrafica));
     }
 
+    /// <summary>
+    /// Decisione massiva: approva o rifiuta in un colpo solo tutte le proposte
+    /// in stato InAttesa per il tenant. Approvazione: aggrega le proposte per
+    /// fornitore, applica tutte le modifiche in-memory, salva con un singolo
+    /// ReplaceOne per fornitore + BulkWrite per le proposte. Crea fornitori
+    /// nuovi al volo con codice F#### progressivo.
+    /// </summary>
+    [HttpPost("import-fatture/proposte/decidi-tutto")]
+    [ValidateAntiForgeryToken]
+    public async Task<IActionResult> DecidiTutteLeProposte(string azione)
+    {
+        var tid = _tenant.TenantId!;
+        var proposte = await _mongo.ProposteAnagraficaFornitori
+            .Find(p => p.TenantId == tid && p.Stato == StatoPropostaAnagrafica.InAttesa)
+            .ToListAsync();
+
+        if (proposte.Count == 0)
+        {
+            TempData["flash"] = "Nessuna proposta in attesa.";
+            return RedirectToAction(nameof(ProposteAnagrafica));
+        }
+
+        var userId = User.FindFirstValue(ClaimTypes.NameIdentifier) ?? "";
+        var userName = User.Identity?.Name ?? "—";
+        var now = DateTime.UtcNow;
+        var isApprova = string.Equals(azione, "approva", StringComparison.OrdinalIgnoreCase);
+        var statoFinale = isApprova ? StatoPropostaAnagrafica.Approvata : StatoPropostaAnagrafica.Rifiutata;
+
+        var nuoviFornitori = new List<Fornitore>();
+        var fornitoriDaAggiornare = new Dictionary<string, Fornitore>(StringComparer.Ordinal);
+        int campiApplicati = 0;
+
+        if (isApprova)
+        {
+            // Carica anagrafica fornitori una sola volta + indicizza per nome.
+            var fornitori = await _mongo.Fornitori.Find(f => f.TenantId == tid).ToListAsync();
+            var fornitoriById = fornitori.ToDictionary(f => f.Id, f => f, StringComparer.Ordinal);
+            var fornitoriByName = new Dictionary<string, Fornitore>(StringComparer.Ordinal);
+            foreach (var f in fornitori)
+            {
+                var k = NormalizzaRagioneSociale(f.RagioneSociale);
+                if (!string.IsNullOrEmpty(k) && !fornitoriByName.ContainsKey(k))
+                    fornitoriByName[k] = f;
+            }
+
+            int maxCod = 0;
+            foreach (var f in fornitori)
+            {
+                if (string.IsNullOrEmpty(f.Codice) || f.Codice[0] != 'F') continue;
+                if (int.TryParse(f.Codice.AsSpan(1), out var n) && n > maxCod) maxCod = n;
+            }
+
+            foreach (var p in proposte)
+            {
+                Fornitore? forn = null;
+                if (!string.IsNullOrEmpty(p.FornitoreId))
+                    fornitoriById.TryGetValue(p.FornitoreId, out forn);
+                if (forn == null)
+                {
+                    var k = NormalizzaRagioneSociale(p.RagioneSocialePdf);
+                    if (!string.IsNullOrEmpty(k))
+                        fornitoriByName.TryGetValue(k, out forn);
+                }
+                if (forn == null && !string.IsNullOrWhiteSpace(p.RagioneSocialePdf))
+                {
+                    maxCod++;
+                    forn = new Fornitore
+                    {
+                        TenantId = tid,
+                        Codice = $"F{maxCod:D4}",
+                        RagioneSociale = p.RagioneSocialePdf.Trim(),
+                        Stato = StatoFornitore.Attivo
+                    };
+                    nuoviFornitori.Add(forn);
+                    fornitoriById[forn.Id] = forn;
+                    var k2 = NormalizzaRagioneSociale(forn.RagioneSociale);
+                    if (!string.IsNullOrEmpty(k2)) fornitoriByName[k2] = forn;
+                }
+
+                if (forn != null)
+                {
+                    ApplicaPropostaSuFornitore(forn, p.Campo, p.ValoreProposto);
+                    forn.UpdatedAt = now;
+                    p.FornitoreId = forn.Id;
+                    if (!nuoviFornitori.Contains(forn))
+                        fornitoriDaAggiornare[forn.Id] = forn;
+                    campiApplicati++;
+                }
+
+                p.Stato = statoFinale;
+                p.DecisaIl = now;
+                p.DecisaDaUserId = userId;
+                p.DecisaDaNome = userName;
+                p.NotaDecisione = "Approvazione massiva";
+            }
+        }
+        else
+        {
+            foreach (var p in proposte)
+            {
+                p.Stato = statoFinale;
+                p.DecisaIl = now;
+                p.DecisaDaUserId = userId;
+                p.DecisaDaNome = userName;
+                p.NotaDecisione = "Rifiuto massivo";
+            }
+        }
+
+        // Persistenza in bulk
+        if (nuoviFornitori.Count > 0)
+            await _mongo.Fornitori.InsertManyAsync(nuoviFornitori);
+        foreach (var f in fornitoriDaAggiornare.Values)
+            await _mongo.Fornitori.ReplaceOneAsync(x => x.Id == f.Id, f);
+
+        var bulk = proposte.Select(p => (WriteModel<PropostaAnagraficaFornitore>)
+            new ReplaceOneModel<PropostaAnagraficaFornitore>(
+                Builders<PropostaAnagraficaFornitore>.Filter.Eq(x => x.Id, p.Id), p)).ToList();
+        if (bulk.Count > 0)
+            await _mongo.ProposteAnagraficaFornitori.BulkWriteAsync(bulk);
+
+        // Audit (operazione massiva, vale la pena tracciarla)
+        await _mongo.Audit.InsertOneAsync(new AuditEntry
+        {
+            TenantId = tid,
+            UserId = userId,
+            UserName = userName,
+            Action = isApprova ? AuditAction.Updated : AuditAction.Dismissed,
+            EntityType = "ProposteAnagraficaFornitore",
+            EntityId = tid,
+            EntityLabel = isApprova ? "Approvazione massiva proposte anagrafica" : "Rifiuto massivo proposte anagrafica",
+            Note = isApprova
+                ? $"{proposte.Count} proposte approvate · {campiApplicati} campi applicati · " +
+                  $"{fornitoriDaAggiornare.Count} fornitori aggiornati · {nuoviFornitori.Count} fornitori creati"
+                : $"{proposte.Count} proposte rifiutate"
+        });
+
+        _logger.LogInformation("Decisione massiva proposte anagrafica · tenant {Tid} · {Azione} · " +
+            "proposte={N1} campi={N2} updated={N3} nuovi={N4}",
+            tid, isApprova ? "APPROVA" : "RIFIUTA",
+            proposte.Count, campiApplicati, fornitoriDaAggiornare.Count, nuoviFornitori.Count);
+
+        TempData["flash"] = isApprova
+            ? $"✓ Approvate {proposte.Count} proposte: {campiApplicati} campi applicati su " +
+              $"{fornitoriDaAggiornare.Count} fornitori" +
+              (nuoviFornitori.Count > 0 ? $", {nuoviFornitori.Count} nuovi fornitori creati" : "") + "."
+            : $"Rifiutate {proposte.Count} proposte.";
+        return RedirectToAction(nameof(ProposteAnagrafica));
+    }
+
     /// <summary>Applica un singolo campo della proposta al fornitore.</summary>
     private static void ApplicaPropostaSuFornitore(Fornitore f, string campo, string? valore)
     {

@@ -37,7 +37,7 @@
     </div>
 </div>
 
-<div style="display:flex; gap:8px; margin-bottom:14px;">
+<div style="display:flex; gap:8px; margin-bottom:14px; align-items:center; flex-wrap:wrap;">
     @foreach (var s in new[] { "InAttesa", "Approvata", "Rifiutata" })
     {
         var n = conteggi.GetValueOrDefault(s, 0);
@@ -47,6 +47,32 @@
            class="btn @(active ? "btn--primary" : "btn--ghost")">
             @s <span class="pill @cls" style="margin-left:6px;">@n</span>
         </a>
+    }
+    @{
+        var nInAttesa = conteggi.GetValueOrDefault("InAttesa", 0);
+    }
+    @if (statoCorrente == "InAttesa" && nInAttesa > 0)
+    {
+        <div style="margin-left:auto; display:flex; gap:8px;">
+            <form asp-action="DecidiTutteLeProposte" method="post" style="display:inline;">
+                @Html.AntiForgeryToken()
+                <input type="hidden" name="azione" value="approva">
+                <button type="submit" class="btn btn--primary"
+                        style="background:#1a6b32; border-color:#0f5024;"
+                        onclick="return confirm('Approvare TUTTE le @nInAttesa proposte in attesa?\n\nQuesta azione:\n  • applicherà tutti i valori PDF all'anagrafica fornitori\n  • creerà al volo i fornitori non ancora censiti\n  • verrà tracciata in audit log\n\nProcedere?');">
+                    ✓ Approva tutto (@nInAttesa)
+                </button>
+            </form>
+            <form asp-action="DecidiTutteLeProposte" method="post" style="display:inline;">
+                @Html.AntiForgeryToken()
+                <input type="hidden" name="azione" value="rifiuta">
+                <button type="submit" class="btn btn--ghost"
+                        style="color:#9a1c1c; border-color:#fcd9d9;"
+                        onclick="return confirm('Rifiutare TUTTE le @nInAttesa proposte in attesa? L'anagrafica fornitori NON viene toccata.');">
+                    ✕ Rifiuta tutto
+                </button>
+            </form>
+        </div>
     }
 </div>
 
