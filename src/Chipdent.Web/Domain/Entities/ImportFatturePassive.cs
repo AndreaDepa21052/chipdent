@@ -31,11 +31,15 @@ public class ImportFatturePassiveBatch : TenantEntity
 public enum TipoImportFatture
 {
     Xlsx = 0,
-    Csv = 1
+    Csv = 1,
+    /// <summary>Coppia CSV + PDF — il CSV resta la verità sui totali, il PDF arricchisce i dati anagrafici e la competenza.</summary>
+    CsvPdf = 2,
+    /// <summary>Solo PDF (multi-fattura) — i dati provengono interamente dall'estrazione del PDF.</summary>
+    Pdf = 3
 }
 
 /// <summary>
-/// Singolo file logico contenuto in un batch (sheet di XLSX o file CSV).
+/// Singolo file logico contenuto in un batch (sheet di XLSX, file CSV, oppure PDF).
 /// </summary>
 public class ImportFatturaFile
 {
@@ -50,6 +54,19 @@ public class ImportFatturaFile
     public int RigheTotali { get; set; }
     public int RigheValide { get; set; }
     public int RigheConErrore { get; set; }
+
+    /// <summary>
+    /// Path relativo del file originale salvato nello storage (sotto
+    /// <c>{tenant}/tesoreria/import-fatture/{batchId}/{nome}</c>). Permette di
+    /// scaricare in qualunque momento il file originale del caricamento.
+    /// </summary>
+    public string? StoragePath { get; set; }
+
+    /// <summary>Tipo del file: "csv", "xlsx", "pdf".</summary>
+    public string TipoFile { get; set; } = string.Empty;
+
+    /// <summary>Numero di fatture estratte (PDF multi-fattura). 0 per CSV/XLSX.</summary>
+    public int FattureEstrattePdf { get; set; }
 }
 
 /// <summary>
@@ -87,6 +104,43 @@ public class ImportFatturaRiga : TenantEntity
     public string? Valuta { get; set; }
     public string? Causale { get; set; }
     public string? Allegati { get; set; }
+
+    // ─────────────────────────────────────────────────────────────
+    //  Campi arricchiti dal parsing PDF (fattura elettronica)
+    //  Compilati quando il batch include il PDF: vengono usati per
+    //  competenza, proposte anagrafica fornitore e calcolo scadenza.
+    // ─────────────────────────────────────────────────────────────
+
+    /// <summary>True quando questa riga è stata arricchita dal PDF associato.</summary>
+    public bool ArricchitaDaPdf { get; set; }
+
+    /// <summary>Mese di competenza (1-12) letto dalla fattura PDF (sezione "Periodo di riferimento" o causale).</summary>
+    public int? MeseCompetenza { get; set; }
+    /// <summary>Anno di competenza letto dalla fattura PDF.</summary>
+    public int? AnnoCompetenza { get; set; }
+
+    /// <summary>Data scadenza dichiarata in fattura (se presente nel PDF).</summary>
+    public DateTime? DataScadenzaPdf { get; set; }
+
+    /// <summary>Modalità di pagamento dichiarata in fattura (MP01..MP23 o testo libero).</summary>
+    public string? ModalitaPagamentoPdf { get; set; }
+
+    // ── Anagrafica fornitore (Cedente/Prestatore) letta dal PDF ──
+    public string? PartitaIvaFornitore { get; set; }
+    public string? CodiceFiscaleFornitore { get; set; }
+    public string? IbanFornitore { get; set; }
+    public string? IndirizzoFornitore { get; set; }
+    public string? CapFornitore { get; set; }
+    public string? LocalitaFornitore { get; set; }
+    public string? ProvinciaFornitore { get; set; }
+    public string? PaeseFornitore { get; set; }
+    public string? CodiceSdiFornitore { get; set; }
+    public string? PecFornitore { get; set; }
+    public string? EmailFornitore { get; set; }
+    public string? TelefonoFornitore { get; set; }
+
+    /// <summary>Pagina del PDF originale dove inizia questa fattura (1-based). Null se non da PDF.</summary>
+    public int? PaginaPdf { get; set; }
 
     public List<string> Errori { get; set; } = new();
     public bool HaErrori => Errori.Count > 0;
