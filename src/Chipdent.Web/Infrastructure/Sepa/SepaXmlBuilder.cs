@@ -25,7 +25,13 @@ public static class SepaXmlBuilder
         string BeneficiarioNome,
         string BeneficiarioIban,
         string? BeneficiarioBic,
-        string Causale);
+        string Causale,
+        string? BeneficiarioCodiceFiscale = null,
+        string? BeneficiarioIndirizzo = null,
+        string? BeneficiarioCodicePostale = null,
+        string? BeneficiarioLocalita = null,
+        string? BeneficiarioProvincia = null,
+        string BeneficiarioPaese = "IT");
 
     /// <summary>Gruppo di transazioni che condividono lo stesso ordinante (IBAN/BIC/Nome).</summary>
     public record SepaGruppoOrdinante(
@@ -114,8 +120,7 @@ public static class SepaXmlBuilder
                         new XElement(Ns + "CdtrAgt",
                             new XElement(Ns + "FinInstnId",
                                 new XElement(Ns + "BIC", bic.Trim().ToUpperInvariant())))),
-                    new XElement(Ns + "Cdtr",
-                        new XElement(Ns + "Nm", Truncate(SanitizeText(t.BeneficiarioNome), 70))),
+                    BuildCdtr(t),
                     new XElement(Ns + "CdtrAcct",
                         new XElement(Ns + "Id",
                             new XElement(Ns + "IBAN", NormalizeIban(t.BeneficiarioIban)))),
@@ -143,6 +148,72 @@ public static class SepaXmlBuilder
 
     private static XElement? IfNotEmpty(string? value, Func<string, XElement> factory) =>
         string.IsNullOrWhiteSpace(value) ? null : factory(value);
+
+    /// <summary>
+    /// Costruisce il blocco &lt;Cdtr&gt; con Nm + (opzionale) PstlAdr + (opzionale) Id.
+    /// L'indirizzo postale e il codice fiscale del beneficiario non sono obbligatori in pain.001,
+    /// ma molte banche italiane (CBI) li riportano sull'estratto conto e nella ricevuta SEPA
+    /// quando presenti. PstCd/TwnNm/Ctry sono i campi standard ISO 20022; CtrySubDvsn ospita
+    /// la sigla di provincia. Il Codice Fiscale italiano va in PrvtId per le persone fisiche
+    /// (16 caratteri alfanumerici) e in OrgId per le organizzazioni (11 cifre = anche P.IVA).
+    /// </summary>
+    private static XElement BuildCdtr(SepaTransazione t)
+    {
+        var cdtr = new XElement(Ns + "Cdtr",
+            new XElement(Ns + "Nm", Truncate(SanitizeText(t.BeneficiarioNome), 70)));
+
+        var pstlAdr = BuildPstlAdr(t);
+        if (pstlAdr is not null) cdtr.Add(pstlAdr);
+
+        var id = BuildPartyId(t.BeneficiarioCodiceFiscale);
+        if (id is not null) cdtr.Add(id);
+
+        return cdtr;
+    }
+
+    private static XElement? BuildPstlAdr(SepaTransazione t)
+    {
+        var indirizzo = string.IsNullOrWhiteSpace(t.BeneficiarioIndirizzo) ? null : t.BeneficiarioIndirizzo!.Trim();
+        var cap = string.IsNullOrWhiteSpace(t.BeneficiarioCodicePostale) ? null : t.BeneficiarioCodicePostale!.Trim();
+        var localita = string.IsNullOrWhiteSpace(t.BeneficiarioLocalita) ? null : t.BeneficiarioLocalita!.Trim();
+        var provincia = string.IsNullOrWhiteSpace(t.BeneficiarioProvincia) ? null : t.BeneficiarioProvincia!.Trim();
+        var paese = string.IsNullOrWhiteSpace(t.BeneficiarioPaese) ? "IT" : t.BeneficiarioPaese.Trim().ToUpperInvariant();
+
+        if (indirizzo is null && cap is null && localita is null && provincia is null) return null;
+
+        var pstlAdr = new XElement(Ns + "PstlAdr");
+        if (indirizzo is not null)
+            pstlAdr.Add(new XElement(Ns + "StrtNm", Truncate(SanitizeText(indirizzo), 70)));
+        if (cap is not null)
+            pstlAdr.Add(new XElement(Ns + "PstCd", Truncate(SanitizeText(cap), 16)));
+        if (localita is not null)
+            pstlAdr.Add(new XElement(Ns + "TwnNm", Truncate(SanitizeText(localita), 35)));
+        if (provincia is not null)
+            pstlAdr.Add(new XElement(Ns + "CtrySubDvsn", Truncate(SanitizeText(provincia), 35)));
+        pstlAdr.Add(new XElement(Ns + "Ctry", paese.Length == 2 ? paese : "IT"));
+        return pstlAdr;
+    }
+
+    /// <summary>
+    /// Mappa il Codice Fiscale italiano in &lt;Id&gt;: 16 caratteri = persona fisica (PrvtId),
+    /// 11 cifre = persona giuridica (OrgId). Schema "CF" come SchmeNm proprietario.
+    /// </summary>
+    private static XElement? BuildPartyId(string? codiceFiscale)
+    {
+        if (string.IsNullOrWhiteSpace(codiceFiscale)) return null;
+        var cf = new string(codiceFiscale.Where(char.IsLetterOrDigit).ToArray()).ToUpperInvariant();
+        if (cf.Length == 0) return null;
+
+        var isPersonaFisica = cf.Length == 16;
+        var partyType = isPersonaFisica ? "PrvtId" : "OrgId";
+
+        return new XElement(Ns + "Id",
+            new XElement(Ns + partyType,
+                new XElement(Ns + "Othr",
+                    new XElement(Ns + "Id", cf),
+                    new XElement(Ns + "SchmeNm",
+                        new XElement(Ns + "Prtry", "CF")))));
+    }
 
     private static string Truncate(string s, int max) => s.Length <= max ? s : s[..max];
 

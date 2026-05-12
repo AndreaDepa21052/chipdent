@@ -739,6 +739,9 @@ public class TesoreriaController : Controller
             EmailContatto = vm.EmailContatto,
             Telefono = vm.Telefono,
             Indirizzo = vm.Indirizzo,
+            Localita = vm.Localita,
+            Provincia = NormalizeProvincia(vm.Provincia),
+            CodicePostale = vm.CodicePostale?.Trim(),
             Iban = vm.Iban,
             CategoriaDefault = vm.CategoriaDefault,
             Stato = vm.Stato,
@@ -778,6 +781,9 @@ public class TesoreriaController : Controller
             EmailContatto = f.EmailContatto,
             Telefono = f.Telefono,
             Indirizzo = f.Indirizzo,
+            Localita = f.Localita,
+            Provincia = f.Provincia,
+            CodicePostale = f.CodicePostale,
             Iban = f.Iban,
             CategoriaDefault = f.CategoriaDefault,
             Stato = f.Stato,
@@ -814,6 +820,9 @@ public class TesoreriaController : Controller
                 .Set(x => x.EmailContatto, vm.EmailContatto)
                 .Set(x => x.Telefono, vm.Telefono)
                 .Set(x => x.Indirizzo, vm.Indirizzo)
+                .Set(x => x.Localita, vm.Localita)
+                .Set(x => x.Provincia, NormalizeProvincia(vm.Provincia))
+                .Set(x => x.CodicePostale, vm.CodicePostale?.Trim())
                 .Set(x => x.Iban, vm.Iban)
                 .Set(x => x.CategoriaDefault, vm.CategoriaDefault)
                 .Set(x => x.Stato, vm.Stato)
@@ -996,7 +1005,12 @@ public class TesoreriaController : Controller
                         BeneficiarioNome: f?.RagioneSociale ?? "Fornitore",
                         BeneficiarioIban: ibanBenef,
                         BeneficiarioBic: null,
-                        Causale: causale);
+                        Causale: causale,
+                        BeneficiarioCodiceFiscale: f?.CodiceFiscale,
+                        BeneficiarioIndirizzo: f?.Indirizzo,
+                        BeneficiarioCodicePostale: f?.CodicePostale,
+                        BeneficiarioLocalita: f?.Localita,
+                        BeneficiarioProvincia: f?.Provincia);
                 }).ToList();
 
                 return new SepaXmlBuilder.SepaGruppoOrdinante(
@@ -1192,6 +1206,14 @@ public class TesoreriaController : Controller
 
     private static string NormalizeIban(string iban) =>
         new string((iban ?? "").Where(char.IsLetterOrDigit).ToArray()).ToUpperInvariant();
+
+    /// <summary>Normalizza la sigla provincia a 2 lettere maiuscole (es. "mi  " → "MI"). Vuoto → null.</summary>
+    private static string? NormalizeProvincia(string? provincia)
+    {
+        if (string.IsNullOrWhiteSpace(provincia)) return null;
+        var letters = new string(provincia.Where(char.IsLetter).ToArray()).ToUpperInvariant();
+        return letters.Length == 0 ? null : letters[..Math.Min(2, letters.Length)];
+    }
 
     /// <summary>Validazione IBAN: lunghezza per paese + check digit MOD 97 (ISO 13616).</summary>
     private static bool IsValidIban(string iban)

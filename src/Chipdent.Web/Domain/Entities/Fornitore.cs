@@ -21,6 +21,16 @@ public class Fornitore : TenantEntity
     public string? EmailContatto { get; set; }
     public string? Telefono { get; set; }
     public string? Indirizzo { get; set; }
+
+    /// <summary>Località / comune della sede legale del beneficiario.</summary>
+    public string? Localita { get; set; }
+
+    /// <summary>Sigla provincia (es. "MI") della sede legale del beneficiario.</summary>
+    public string? Provincia { get; set; }
+
+    /// <summary>CAP della sede legale del beneficiario.</summary>
+    public string? CodicePostale { get; set; }
+
     public string? Iban { get; set; }
 
     /// <summary>Categoria di spesa di default usata come hint quando il fornitore carica fatture.</summary>
