@@ -1,4 +1,5 @@
 using System.ComponentModel.DataAnnotations;
+using Chipdent.Web.Domain.Common;
 using Chipdent.Web.Domain.Entities;
 using Microsoft.AspNetCore.Http;
 
@@ -98,6 +99,37 @@ public class RigaTesoreria
         DataScadenzaAttesa.HasValue
             ? (int)(DataScadenza.Date - DataScadenzaAttesa.Value.Date).TotalDays
             : null;
+
+    /// <summary>True se al fornitore manca un IBAN valido e il metodo richiede il bonifico
+    /// (la scadenza non può finire in distinta SEPA finché non si completa l'anagrafica).</summary>
+    public bool MancaIbanFornitore { get; set; }
+
+    /// <summary>True se manca P.IVA / Codice Fiscale sull'anagrafica fornitore (problema fiscale).</summary>
+    public bool MancaIdFiscale { get; set; }
+
+    /// <summary>True se il fornitore è stato eliminato / non risolvibile a partire dall'id.</summary>
+    public bool FornitoreSconosciuto { get; set; }
+
+    /// <summary>Lista compatta dei problemi riscontrati su questa riga (tooltip).</summary>
+    public IReadOnlyList<string> Problemi
+    {
+        get
+        {
+            var lst = new List<string>();
+            if (FornitoreSconosciuto) lst.Add("Fornitore non trovato in anagrafica");
+            if (MancaIbanFornitore) lst.Add("IBAN beneficiario mancante o non valido");
+            if (MancaIdFiscale) lst.Add("P.IVA / Codice Fiscale fornitore mancanti");
+            if (ScadenzaFuoriTermini)
+            {
+                var delta = GiorniDelta!.Value;
+                var deltaTxt = delta > 0 ? $"+{delta} gg" : $"{delta} gg";
+                lst.Add($"Scadenza dichiarata diverge dai termini contratto ({deltaTxt})");
+            }
+            return lst;
+        }
+    }
+
+    public bool HaProblemi => Problemi.Count > 0;
 }
 
 public class TopFornitoreRow
@@ -234,6 +266,10 @@ public class FornitoreRow
     public bool HaUtentePortale { get; set; }
     public decimal EspostoCorrente { get; set; }
     public int FatturePeriodoCorrente { get; set; }
+
+    /// <summary>Esito dei controlli di completezza anagrafica + dati SEPA.</summary>
+    public FornitoreCompletezza.Esito Completezza { get; set; } =
+        new(0, false, Array.Empty<string>(), Array.Empty<string>());
 }
 
 // ── Azione: programma/segna pagato ──────────────────────────────

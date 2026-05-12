@@ -5,6 +5,7 @@
     ViewData["Title"] = "Fornitori";
     ViewData["Crumb"] = "Tesoreria";
     var it = new CultureInfo("it-IT");
+    var senzaSepa = Model.Fornitori.Count(r => r.Fornitore.Stato == StatoFornitore.Attivo && !r.Completezza.SepaPronto);
 }
 
 <partial name="_Flash" />
@@ -19,6 +20,14 @@
         <a class="btn btn--primary" asp-action="NuovoFornitore">＋ Nuovo fornitore</a>
     </div>
 </div>
+
+@if (senzaSepa > 0)
+{
+    <div class="card" style="background:#fff7e6; border-left: 4px solid #c47830; margin-bottom: var(--s-3);">
+        <strong style="color:#a86010;">⚠️ @senzaSepa fornitor@(senzaSepa == 1 ? "e" : "i") attiv@(senzaSepa == 1 ? "o" : "i") con dati SEPA incompleti.</strong>
+        <span class="muted">Senza IBAN valido (e dati anagrafici minimi) non è possibile generare la distinta di incasso/pagamento SEPA.</span>
+    </div>
+}
 
 @if (Model.Fornitori.Count == 0)
 {
@@ -40,6 +49,8 @@ else
                     <th>P.IVA</th>
                     <th>Categoria</th>
                     <th>Stato</th>
+                    <th title="Percentuale di completezza dell'anagrafica + dati SEPA. I campi richiesti per la distinta SEPA pesano il doppio.">Completezza</th>
+                    <th>SEPA</th>
                     <th>Portale</th>
                     <th style="text-align:right;">Esposto</th>
                     <th style="text-align:right;">Fatture YTD</th>
@@ -49,6 +60,11 @@ else
             <tbody>
             @foreach (var r in Model.Fornitori)
             {
+                var perc = r.Completezza.Percentuale;
+                var barColor = perc >= 90 ? "#3aa15b" : perc >= 60 ? "#c47830" : "#a83a3a";
+                var tooltipMancanti = r.Completezza.TuttiCampiMancanti.Count == 0
+                    ? "Tutti i dati anagrafici sono completi."
+                    : "Campi mancanti: " + string.Join(", ", r.Completezza.TuttiCampiMancanti);
                 <tr>
                     <td class="muted" style="white-space:nowrap;">@(string.IsNullOrEmpty(r.Fornitore.Codice) ? "—" : r.Fornitore.Codice)</td>
                     <td><strong>@r.Fornitore.RagioneSociale</strong></td>
@@ -66,6 +82,25 @@ else
                         else
                         {
                             <span class="badge" style="background:#eee; color:#666;">cessato</span>
+                        }
+                    </td>
+                    <td title="@tooltipMancanti" style="min-width: 130px;">
+                        <div style="display:flex; align-items:center; gap:6px;">
+                            <div style="flex:1; height:6px; background:#eee; border-radius:3px; overflow:hidden;">
+                                <div style="width:@(perc)%; height:100%; background:@barColor;"></div>
+                            </div>
+                            <span style="font-size:.78rem; font-weight:600; color:@barColor; min-width:34px; text-align:right;">@perc%</span>
+                        </div>
+                    </td>
+                    <td>
+                        @if (r.Completezza.SepaPronto)
+                        {
+                            <span class="badge" style="background:#dff5e6; color:#1f6e3a;" title="IBAN valido e dati anagrafici minimi presenti.">🏦 ok</span>
+                        }
+                        else
+                        {
+                            var motivo = "Dati SEPA mancanti: " + string.Join(", ", r.Completezza.CampiMancantiSepa);
+                            <span class="badge" style="background:#fde2e2; color:#a83a3a;" title="@motivo">⚠️ manca</span>
                         }
                     </td>
                     <td>
