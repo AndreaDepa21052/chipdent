@@ -391,6 +391,17 @@ public static class ScadenziarioGenerator
                 fornitore.RagioneSociale, riga.Numero, dataDoc, riga.NumeroRiga));
         }
 
+        // RID: "copiare data scadenza" dal documento.
+        // Il file di import non porta la data scadenza riga-per-riga, quindi
+        // applichiamo i termini contrattuali del fornitore e segnaliamo l'override
+        // manuale alla data della disposizione bancaria.
+        if (metodo == MetodoPagamento.Rid && !isNotaCredito)
+        {
+            alerts.Add(new AlertScadenziario(AlertSeverita.Info, "RID da verificare",
+                $"Pagamento RID per «{fornitore.RagioneSociale}»: data scadenza calcolata dai termini contrattuali (il file import non porta la data scadenza del documento — copiarla manualmente se diversa).",
+                fornitore.RagioneSociale, riga.Numero, dataDoc, riga.NumeroRiga));
+        }
+
         if (string.IsNullOrWhiteSpace(iban) && metodo == MetodoPagamento.Bonifico)
         {
             alerts.Add(new AlertScadenziario(AlertSeverita.Err, "IBAN mancante",
