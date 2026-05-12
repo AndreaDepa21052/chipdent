@@ -1598,6 +1598,61 @@ public class TesoreriaController : Controller
         return View("GeneraScadenziario", vm);
     }
 
+    /// <summary>
+    /// Reset distruttivo: cancella TUTTI i dati di tesoreria del tenant —
+    /// scadenze, fatture, distinte SEPA, batch e righe di import fatture.
+    /// I fornitori sono mantenuti (anagrafica). Riservato a Owner+Management;
+    /// richiede conferma esplicita.
+    /// </summary>
+    [HttpPost("reset-completo")]
+    [Authorize(Policy = Policies.RequireManagement)]
+    [ValidateAntiForgeryToken]
+    public async Task<IActionResult> ResetScadenziarioCompleto(bool confermaReset = false, string? note = null)
+    {
+        if (!confermaReset)
+        {
+            TempData["flash-err"] = "Conferma esplicita richiesta: spunta la casella di sicurezza per azzerare lo scadenziario.";
+            return RedirectToAction(nameof(ImportFatture));
+        }
+
+        var tid = _tenant.TenantId!;
+        var userId = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
+
+        var nScad     = await _mongo.ScadenzePagamento.CountDocumentsAsync(s => s.TenantId == tid);
+        var nFatt     = await _mongo.Fatture.CountDocumentsAsync(f => f.TenantId == tid);
+        var nDistinte = await _mongo.DistinteSepa.CountDocumentsAsync(d => d.TenantId == tid);
+        var nBatch    = await _mongo.ImportFattureBatches.CountDocumentsAsync(b => b.TenantId == tid);
+        var nRighe    = await _mongo.ImportFattureRighe.CountDocumentsAsync(r => r.TenantId == tid);
+
+        await _mongo.ScadenzePagamento.DeleteManyAsync(s => s.TenantId == tid);
+        await _mongo.Fatture.DeleteManyAsync(f => f.TenantId == tid);
+        await _mongo.DistinteSepa.DeleteManyAsync(d => d.TenantId == tid);
+        await _mongo.ImportFattureRighe.DeleteManyAsync(r => r.TenantId == tid);
+        await _mongo.ImportFattureBatches.DeleteManyAsync(b => b.TenantId == tid);
+
+        await _mongo.Audit.InsertOneAsync(new AuditEntry
+        {
+            TenantId = tid,
+            UserId = userId ?? "",
+            UserName = User.Identity?.Name ?? "",
+            Action = AuditAction.Deleted,
+            EntityType = "Scadenziario",
+            EntityId = tid,
+            EntityLabel = "Reset completo tesoreria",
+            Note = $"Cancellate {nScad} scadenze, {nFatt} fatture, {nDistinte} distinte SEPA, " +
+                   $"{nBatch} batch e {nRighe} righe di import." +
+                   (string.IsNullOrWhiteSpace(note) ? "" : $" Motivo: {note}")
+        });
+
+        _logger.LogWarning("Reset completo tesoreria · tenant {Tid} · scad={N1} fatt={N2} distinte={N3} batch={N4} righe={N5}",
+            tid, nScad, nFatt, nDistinte, nBatch, nRighe);
+
+        TempData["flash"] = $"✓ Scadenziario azzerato: cancellate {nScad} scadenze, {nFatt} fatture, " +
+                            $"{nDistinte} distinte SEPA, {nBatch} batch e {nRighe} righe di import. " +
+                            $"Anagrafica fornitori mantenuta.";
+        return RedirectToAction(nameof(ImportFatture));
+    }
+
     [HttpPost("genera-scadenziario")]
     [ValidateAntiForgeryToken]
     public async Task<IActionResult> GeneraScadenziarioApply(bool confermaCancellazione = false)

@@ -49,7 +49,8 @@ public static class ScadenziarioGenerator
         Compass,
         DeutscheBank,
         ImportoFisso,    // Cristal, Infinity, Locazioni — alert su scostamento importo
-        Locazione
+        Locazione,
+        Riba             // pagamento con RIBA: regola "verifica scadenze multiple"
     }
 
     public sealed record AlertScadenziario(
@@ -101,7 +102,13 @@ public static class ScadenziarioGenerator
             dataDoc = DateTime.SpecifyKind(dataDoc.Date, DateTimeKind.Utc);
 
             // ── Classificazione fornitore ────────────────────────────────
-            var tipo = Classifica(nomeForn, medici);
+            var (tipo, ambiguita) = ClassificaConAmbiguita(nomeForn, medici, riga.Causale);
+            if (ambiguita is not null)
+            {
+                output.Alerts.Add(new AlertScadenziario(AlertSeverita.Warn, "Catalogazione ambigua",
+                    $"Fornitore «{nomeForn}» riconducibile a più tipi ({ambiguita}); applicato «{tipo}». Verificare manualmente.",
+                    nomeForn, riga.Numero, dataDoc, riga.NumeroRiga));
+            }
 
             // ── Match / autocreazione fornitore ──────────────────────────
             if (!fornitoriByKey.TryGetValue(key, out var fornitore))
@@ -218,25 +225,36 @@ public static class ScadenziarioGenerator
     //  Classificazione & mappature
     // ─────────────────────────────────────────────────────────────────
 
-    private static TipoFornitoreOp Classifica(string nome, HashSet<string> medici)
+    /// <summary>
+    /// Classifica il fornitore raccogliendo TUTTI i match e segnalando ambiguità.
+    /// Ordine di priorità (più specifico prima): Invisalign → Compass → DeutscheBank →
+    /// CartaCredito → RIBA → ImportoFisso → Locazione → DirezioneSanitaria → Laboratorio → Medico → Generico.
+    /// </summary>
+    private static (TipoFornitoreOp Tipo, string? Ambiguita) ClassificaConAmbiguita(
+        string nome, HashSet<string> medici, string? causale)
     {
         var n = nome.ToLowerInvariant();
-        if (n.Contains("invisalign") || n.Contains("align technology")) return TipoFornitoreOp.Invisalign;
-        if (n.Contains("compass")) return TipoFornitoreOp.Compass;
-        if (n.Contains("deutsche bank")) return TipoFornitoreOp.DeutscheBank;
-        if (n.Contains("amex") || n.Contains("american express") || n.Contains("carta") && n.Contains("credito"))
-            return TipoFornitoreOp.CartaCredito;
-        if (n.Contains("cristal") || n.Contains("infinity")) return TipoFornitoreOp.ImportoFisso;
+        var c = (causale ?? "").ToLowerInvariant();
+        var hits = new List<TipoFornitoreOp>();
+
+        if (n.Contains("invisalign") || n.Contains("align technology")) hits.Add(TipoFornitoreOp.Invisalign);
+        if (n.Contains("compass")) hits.Add(TipoFornitoreOp.Compass);
+        if (n.Contains("deutsche bank")) hits.Add(TipoFornitoreOp.DeutscheBank);
+        if (n.Contains("amex") || n.Contains("american express") || (n.Contains("carta") && n.Contains("credito")))
+            hits.Add(TipoFornitoreOp.CartaCredito);
+        if (n.Contains("riba") || c.Contains("riba")) hits.Add(TipoFornitoreOp.Riba);
+        if (n.Contains("cristal") || n.Contains("infinity")) hits.Add(TipoFornitoreOp.ImportoFisso);
         if (n.Contains("locazione") || n.Contains("immobiliare") || n.Contains("affitto"))
-            return TipoFornitoreOp.Locazione;
+            hits.Add(TipoFornitoreOp.Locazione);
         if (n.Contains("direzione sanitaria") || n.Contains("dir. sanitaria") || n.Contains("dir san"))
-            return TipoFornitoreOp.DirezioneSanitaria;
+            hits.Add(TipoFornitoreOp.DirezioneSanitaria);
         if (n.Contains("laboratorio") || n.Contains("odontotecnic") || n.Contains("lab.") || n.Contains("lab ortodont"))
-            return TipoFornitoreOp.Laboratorio;
+            hits.Add(TipoFornitoreOp.Laboratorio);
+
         // Medici: match per cognome+nome (dottori a libera professione fatturano a nome proprio)
-        if (medici.Contains(NormalizeNome(nome))) return TipoFornitoreOp.Medico;
-        // Anche pattern "Cognome Nome" senza S.r.l./SpA/SRL nel testo
-        if (!nome.Contains("S.r.l", StringComparison.OrdinalIgnoreCase)
+        var isMedico = medici.Contains(NormalizeNome(nome));
+        if (!isMedico
+            && !nome.Contains("S.r.l", StringComparison.OrdinalIgnoreCase)
             && !nome.Contains("SRL", StringComparison.OrdinalIgnoreCase)
             && !nome.Contains("SPA", StringComparison.OrdinalIgnoreCase)
             && !nome.Contains("S.p.A", StringComparison.OrdinalIgnoreCase)
@@ -246,9 +264,15 @@ public static class ScadenziarioGenerator
             && nome.Split(' ', StringSplitOptions.RemoveEmptyEntries).Length is >= 2 and <= 4
             && medici.Any(m => m.Split(' ')[0].Equals(NormalizeNome(nome).Split(' ')[0], StringComparison.OrdinalIgnoreCase)))
         {
-            return TipoFornitoreOp.Medico;
+            isMedico = true;
         }
-        return TipoFornitoreOp.Generico;
+        if (isMedico) hits.Add(TipoFornitoreOp.Medico);
+
+        if (hits.Count == 0) return (TipoFornitoreOp.Generico, null);
+        if (hits.Count == 1) return (hits[0], null);
+
+        // Ambiguità: applichiamo la prima (priorità lista) ma riportiamo tutte le candidate.
+        return (hits[0], string.Join(" / ", hits));
     }
 
     private static CategoriaSpesa MappaCategoriaDefault(TipoFornitoreOp t) => t switch
@@ -262,6 +286,7 @@ public static class ScadenziarioGenerator
         TipoFornitoreOp.DeutscheBank => CategoriaSpesa.FinanziamentiPassivi,
         TipoFornitoreOp.Locazione => CategoriaSpesa.Locazione,
         TipoFornitoreOp.ImportoFisso => CategoriaSpesa.AltreSpeseFisse,
+        TipoFornitoreOp.Riba => CategoriaSpesa.AltreSpeseFisse,
         _ => CategoriaSpesa.AltreSpeseFisse
     };
 
@@ -342,7 +367,8 @@ public static class ScadenziarioGenerator
 
         var scadenza = CalcolaScadenzaPrincipale(tipo, dataDoc, riga, fornitore, alerts);
 
-        // Snap dei bonifici al 10 o 30/31 del mese
+        // Snap dei bonifici al 10 o 30/31 del mese.
+        // Per RID e RIBA si "copia la data scadenza" (regola Excel) — niente snap.
         if (metodo == MetodoPagamento.Bonifico)
         {
             var snapped = SnapBonifico(scadenza, anticipa: tipo == TipoFornitoreOp.Invisalign);
@@ -353,6 +379,16 @@ public static class ScadenziarioGenerator
                     fornitore.RagioneSociale, riga.Numero, dataDoc, riga.NumeroRiga));
             }
             scadenza = snapped;
+        }
+
+        // RIBA: verifica scadenze multiple e disponibilità data scadenza.
+        // Il file di import non porta la data scadenza riga-per-riga né eventuali rate:
+        // segnaliamo perché il backoffice deve confermarle manualmente.
+        if (metodo == MetodoPagamento.Riba)
+        {
+            alerts.Add(new AlertScadenziario(AlertSeverita.Warn, "RIBA da verificare",
+                $"Pagamento RIBA per «{fornitore.RagioneSociale}»: verifica eventuali scadenze multiple e conferma la data scadenza (non presente nel file di import).",
+                fornitore.RagioneSociale, riga.Numero, dataDoc, riga.NumeroRiga));
         }
 
         if (string.IsNullOrWhiteSpace(iban) && metodo == MetodoPagamento.Bonifico)
@@ -388,6 +424,7 @@ public static class ScadenziarioGenerator
         {
             TipoFornitoreOp.Compass => MetodoPagamento.Rid,
             TipoFornitoreOp.DeutscheBank => MetodoPagamento.Rid,
+            TipoFornitoreOp.Riba => MetodoPagamento.Riba,
             _ => MetodoPagamento.Bonifico
         };
     }
