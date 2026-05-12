@@ -1288,6 +1288,10 @@ public class TesoreriaController : Controller
             .SortByDescending(b => b.DataCaricamento)
             .ToListAsync();
 
+        // Conteggio proposte anagrafica in attesa (badge sul pulsante "Proposte anagrafica")
+        var proposteInAttesa = await _mongo.ProposteAnagraficaFornitori
+            .CountDocumentsAsync(p => p.TenantId == tid && p.Stato == StatoPropostaAnagrafica.InAttesa);
+
         var vm = new ImportFattureIndexViewModel
         {
             Batches = batches.Select(b => new ImportFattureBatchRow
@@ -1305,7 +1309,8 @@ public class TesoreriaController : Controller
             TotaleBatch = batches.Count,
             TotaleRighe = batches.Sum(b => b.TotaleRighe),
             TotaleRigheConErrore = batches.Sum(b => b.RigheConErrore),
-            UltimoCaricamento = batches.Count > 0 ? batches[0].DataCaricamento : null
+            UltimoCaricamento = batches.Count > 0 ? batches[0].DataCaricamento : null,
+            ProposteAnagraficaInAttesa = (int)proposteInAttesa
         };
 
         ViewBag.Section = "tesoreria-import-fatture";
@@ -1621,7 +1626,13 @@ public class TesoreriaController : Controller
 
     private static string KeyFattura(string? numero, DateTime? data, string? fornitore)
     {
-        var n = (numero ?? "").Trim().ToUpperInvariant();
+        // Numero: rimuovo whitespace e uppercase. Lascio punteggiatura ("12/26"
+        // resta distinto da "1226"). Questo neutralizza differenze tipo
+        // "FPR 12/26" (CSV) vs "FPR12/26" (PDF) o spazi di troppo.
+        var rawN = (numero ?? "").ToUpperInvariant();
+        var sbN = new System.Text.StringBuilder(rawN.Length);
+        foreach (var c in rawN) if (!char.IsWhiteSpace(c)) sbN.Append(c);
+        var n = sbN.ToString();
         var f = NormalizzaRagioneSociale(fornitore ?? "");
         var d = data?.ToString("yyyyMMdd") ?? "";
         if (string.IsNullOrEmpty(n) || string.IsNullOrEmpty(f)) return "";

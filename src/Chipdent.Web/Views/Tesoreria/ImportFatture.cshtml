@@ -35,7 +35,15 @@
                 ⇆ Allinea anagrafica fornitori
             </button>
         </form>
-        <a class="btn btn--ghost" asp-action="ProposteAnagrafica">📋 Proposte anagrafica</a>
+        <a class="btn @(Model.ProposteAnagraficaInAttesa > 0 ? "btn--accent has-badge" : "btn--ghost")"
+           asp-action="ProposteAnagrafica"
+           title="Proposte di aggiornamento dell'anagrafica fornitori estratte dal PDF, da rivedere ed approvare">
+            📋 Proposte anagrafica
+            @if (Model.ProposteAnagraficaInAttesa > 0)
+            {
+                <span class="btn-badge">@Model.ProposteAnagraficaInAttesa</span>
+            }
+        </a>
         <button type="button" class="btn btn--ghost" style="color:#9a1c1c; border-color:#fcd9d9;"
                 onclick="document.getElementById('resetModal').style.display='flex';"
                 title="Cancella TUTTI i dati di tesoreria: scadenze, fatture, distinte SEPA, batch e righe di import. I fornitori vengono mantenuti.">
@@ -122,7 +130,61 @@
     .pill--warn { background:#fbe5b8; color:#7a4a00; }
     .pill--err { background:#fcd9d9; color:#9a1c1c; }
     .pill--type { background:#e7e0f5; color:#473780; }
+
+    /* Pulsante "Proposte anagrafica" quando ci sono proposte in attesa */
+    .btn--accent {
+        background: #c47830; color: #fff; border-color: #a35e1f;
+        font-weight: 600; position: relative;
+    }
+    .btn--accent:hover { background: #a35e1f; color: #fff; }
+    .btn-badge {
+        display: inline-block; min-width: 20px; padding: 1px 7px;
+        margin-left: 6px; border-radius: 99px;
+        background: #9a1c1c; color: #fff;
+        font-size: .72rem; font-weight: 700; line-height: 1.4;
+        vertical-align: middle;
+    }
+    .has-badge { animation: pulseBadge 2.2s ease-in-out infinite; }
+    @@keyframes pulseBadge {
+        0%, 100% { box-shadow: 0 0 0 0 rgba(196, 120, 48, .55); }
+        50%      { box-shadow: 0 0 0 6px rgba(196, 120, 48, 0); }
+    }
+
+    /* Banner promemoria proposte in attesa */
+    .proposte-banner {
+        display: flex; align-items: center; gap: 14px;
+        background: linear-gradient(180deg, #fff7e8 0%, #fde9c8 100%);
+        border: 1px solid #e9c98a; border-left: 6px solid #c47830;
+        border-radius: 10px; padding: 12px 16px; margin-bottom: 14px;
+        color: #3b1e0c;
+    }
+    .proposte-banner__count {
+        background: #9a1c1c; color: #fff; font-weight: 800;
+        font-size: 1.05rem; padding: 4px 12px; border-radius: 99px;
+    }
+    .proposte-banner__text strong { display: block; font-size: 1rem; }
+    .proposte-banner__text span { font-size: .85rem; color: #7a5c3a; }
+    .proposte-banner a.btn { margin-left: auto; }
 </style>
+
+@if (Model.ProposteAnagraficaInAttesa > 0)
+{
+    <div class="proposte-banner">
+        <span class="proposte-banner__count">@Model.ProposteAnagraficaInAttesa</span>
+        <div class="proposte-banner__text">
+            <strong>
+                @(Model.ProposteAnagraficaInAttesa == 1
+                    ? "1 proposta di aggiornamento anagrafica in attesa"
+                    : $"{Model.ProposteAnagraficaInAttesa} proposte di aggiornamento anagrafica in attesa")
+            </strong>
+            <span>
+                Dati anagrafici letti dal PDF (P.IVA, IBAN, indirizzo, codice SDI, PEC…) che divergono
+                o mancano nell'anagrafica fornitori. Nessuna modifica è applicata finché non le approvi.
+            </span>
+        </div>
+        <a class="btn btn--primary" asp-action="ProposteAnagrafica">Rivedi ora →</a>
+    </div>
+}
 
 <div class="imp-stats">
     <div class="imp-kpi"><div class="lbl">Caricamenti</div><div class="val">@Model.TotaleBatch</div></div>
