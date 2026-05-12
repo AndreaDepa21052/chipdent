@@ -1298,6 +1298,10 @@ public class TesoreriaController : Controller
             .SortByDescending(b => b.DataCaricamento)
             .ToListAsync();
 
+        // Conteggio proposte anagrafica in attesa (badge sul pulsante "Proposte anagrafica")
+        var proposteInAttesa = await _mongo.ProposteAnagraficaFornitori
+            .CountDocumentsAsync(p => p.TenantId == tid && p.Stato == StatoPropostaAnagrafica.InAttesa);
+
         var vm = new ImportFattureIndexViewModel
         {
             Batches = batches.Select(b => new ImportFattureBatchRow
@@ -1315,7 +1319,8 @@ public class TesoreriaController : Controller
             TotaleBatch = batches.Count,
             TotaleRighe = batches.Sum(b => b.TotaleRighe),
             TotaleRigheConErrore = batches.Sum(b => b.RigheConErrore),
-            UltimoCaricamento = batches.Count > 0 ? batches[0].DataCaricamento : null
+            UltimoCaricamento = batches.Count > 0 ? batches[0].DataCaricamento : null,
+            ProposteAnagraficaInAttesa = (int)proposteInAttesa
         };
 
         ViewBag.Section = "tesoreria-import-fatture";

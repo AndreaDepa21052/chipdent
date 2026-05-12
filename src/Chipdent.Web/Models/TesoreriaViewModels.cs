@@ -277,6 +277,8 @@ public class ImportFattureIndexViewModel
     public int TotaleRighe { get; set; }
     public int TotaleRigheConErrore { get; set; }
     public DateTime? UltimoCaricamento { get; set; }
+    /// <summary>Numero di proposte anagrafica in attesa di decisione (badge).</summary>
+    public int ProposteAnagraficaInAttesa { get; set; }
 }
 
 public class ImportFattureBatchRow
