@@ -23,6 +23,10 @@
         </p>
     </div>
     <div class="page-head__actions" style="display:flex; gap:8px; flex-wrap:wrap;">
+        <button type="button" class="btn btn--ghost" data-open-regole
+                title="Mostra le regole applicate alla generazione dello scadenziario (sorgenti CSV/PDF, competenza, IBAN, snap bonifici, ritenute, NC...)">
+            📘 Regole
+        </button>
         <form asp-action="SyncFornitoriDaImport" method="post" style="display:inline;">
             @Html.AntiForgeryToken()
             <button type="submit" class="btn btn--ghost"
@@ -324,3 +328,5 @@ else
     });
 })();
 </script>
+
+<partial name="_RegoleScadenziario" />

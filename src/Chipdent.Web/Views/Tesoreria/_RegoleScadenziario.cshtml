@@ -2,7 +2,37 @@
     Overlay con le regole operative per la generazione dello scadenziario.
     Trascritte dal file "Regole scadenzario.xlsx" condiviso dal back-office.
     Si attiva con qualsiasi elemento avente attributo data-open-regole.
+    CSS + JS sono incapsulati nel partial: si può includere da qualunque view.
 *@
+<style>
+    .regole-overlay {
+        position: fixed; inset: 0; background: rgba(45, 24, 8, 0.55);
+        display:none; align-items:flex-start; justify-content:center; z-index:9999;
+        padding: 4vh 2vw; overflow:auto;
+    }
+    .regole-overlay.is-open { display:flex; }
+    .regole-modal {
+        background:#fff; max-width: 920px; width:100%; border-radius:14px;
+        box-shadow: 0 20px 60px rgba(0,0,0,.35);
+        padding: 24px 28px; max-height: 92vh; overflow:auto;
+    }
+    .regole-modal h2 { margin:0 0 6px; color:#3b1e0c; }
+    .regole-modal h3 { margin:18px 0 6px; color:#7a3a0a; border-bottom: 1px solid #f0e2c4; padding-bottom:4px; }
+    .regole-modal table { width:100%; border-collapse: collapse; margin: 8px 0; }
+    .regole-modal td { padding:6px 8px; border-bottom: 1px dashed #f0e2c4; font-size:.92rem; vertical-align: top; }
+    .regole-modal td:first-child { width: 38%; font-weight:600; color:#3b1e0c; }
+    .regole-modal .close-x { float:right; background:none; border:0; font-size:1.5rem; cursor:pointer; color:#7a5c3a; }
+    .regole-modal .lead { color:#7a5c3a; }
+    .regole-modal .badge-pdf {
+        display:inline-block; background:#fbe5b8; color:#7a4a00; padding:1px 7px;
+        border-radius:999px; font-size:.7rem; font-weight:600; margin-right:6px;
+    }
+    .regole-modal .badge-csv {
+        display:inline-block; background:#e2eefc; color:#15457e; padding:1px 7px;
+        border-radius:999px; font-size:.7rem; font-weight:600; margin-right:6px;
+    }
+</style>
+
 <div id="regoleOverlay" class="regole-overlay" role="dialog" aria-modal="true" aria-labelledby="regoleTitle">
     <div class="regole-modal">
         <button id="regoleClose" class="close-x" type="button" aria-label="Chiudi">×</button>
@@ -13,6 +43,46 @@
             dalla generazione e producono gli alert visibili in pagina.
         </p>
 
+        <h3>📥 Sorgenti dati e arricchimento PDF</h3>
+        <table>
+            <tr>
+                <td>CSV mensile (CCH / Ident)</td>
+                <td>
+                    <span class="badge-csv">CSV</span>
+                    Verità sui <strong>totali</strong> (totale documento, IVA, netto, ritenuta).
+                    Identifica fornitore, numero, data documento, causale.
+                </td>
+            </tr>
+            <tr>
+                <td>PDF fatture (AssoSoftware/SDI)</td>
+                <td>
+                    <span class="badge-pdf">PDF</span>
+                    <strong>Arricchisce</strong> ogni riga CSV con:
+                    anagrafica fornitore completa (P.IVA, CF, indirizzo, codice SDI, PEC),
+                    <strong>IBAN della singola fattura</strong>,
+                    <strong>data scadenza</strong> dichiarata in fattura,
+                    <strong>modalità di pagamento</strong> (MP01..MP23),
+                    <strong>mese e anno di competenza</strong> (da "mese di …" o "Periodo da-a").
+                </td>
+            </tr>
+            <tr>
+                <td>Match PDF ↔ CSV</td>
+                <td>
+                    Per <em>(numero documento, data documento, fornitore normalizzato)</em>,
+                    fallback <em>(numero, fornitore)</em>. Le righe CSV senza match
+                    PDF restano valide ma non arricchite.
+                </td>
+            </tr>
+            <tr>
+                <td>Anagrafica fornitore</td>
+                <td>
+                    Mai aggiornata automaticamente. Le divergenze tra PDF e anagrafica
+                    finiscono nella <strong>coda di revisione</strong>
+                    (Tesoreria → Importa fatture → 📋 Proposte anagrafica).
+                </td>
+            </tr>
+        </table>
+
         <h3>Programmazione bonifici</h3>
         <p>I bonifici sono <strong>programmati solo al 10 o al 30/31 del mese</strong>.
         Le scadenze calcolate vengono allineate al giorno utile più vicino (o "per difetto" per Invisalign).</p>
@@ -20,15 +90,40 @@
         <h3>Metodi di pagamento</h3>
         <table>
             <tr><td>Bonifico (generale)</td><td>Campo IBAN deve essere valorizzato, altrimenti viene generato un <em>alert</em>.</td></tr>
-            <tr><td>RID</td><td>Copiare la <em>data scadenza</em> dalla fattura.</td></tr>
-            <tr><td>RIBA</td><td>Verificare scadenze multiple, oppure inserire data scadenza; se mancante → <em>alert</em>.</td></tr>
+            <tr>
+                <td>RID</td>
+                <td>
+                    <span class="badge-pdf">PDF</span>
+                    Se il PDF è presente, copio direttamente la <em>data scadenza</em> dichiarata in fattura.
+                    Se manca, calcolo dai termini contrattuali e genero un <em>alert informativo</em>.
+                </td>
+            </tr>
+            <tr>
+                <td>RIBA</td>
+                <td>
+                    <span class="badge-pdf">PDF</span>
+                    Stessa regola del RID. Se il PDF non è disponibile, verifica scadenze multiple
+                    manualmente e segnalo con <em>alert</em>.
+                </td>
+            </tr>
         </table>
 
         <h3>Termini per tipologia fornitore</h3>
         <table>
             <tr><td>Fornitori generici (bonifico)</td><td>Pagamento a <strong>30 gg fine mese</strong> data fattura.</td></tr>
-            <tr><td>Medici / Direzione sanitaria</td><td>Pagamento a <strong>60 gg fine mese</strong> rispetto al mese presente nell'oggetto (causale) della fattura. Se manca il mese → <em>alert</em>.</td></tr>
-            <tr><td>Laboratori (escluso Invisalign)</td><td>Come Medici (60 gg fine mese sul mese in oggetto).</td></tr>
+            <tr>
+                <td>Medici / Direzione sanitaria</td>
+                <td>
+                    Pagamento a <strong>60 gg fine mese</strong> rispetto al <strong>mese di competenza</strong>.
+                    Priorità:
+                    <ol style="margin:4px 0 0 18px;">
+                        <li><span class="badge-pdf">PDF</span> competenza estratta dal PDF (più affidabile)</li>
+                        <li><span class="badge-csv">CSV</span> mese parsato dalla causale</li>
+                        <li>fallback al mese fattura + <em>alert</em></li>
+                    </ol>
+                </td>
+            </tr>
+            <tr><td>Laboratori (escluso Invisalign)</td><td>Come Medici (60 gg fine mese sul mese di competenza).</td></tr>
             <tr><td>Invisalign</td><td>Pagamento a <strong>150 gg data fattura</strong>, da inserire solo al 10 o 30/31 del mese <em>per difetto</em>.</td></tr>
             <tr><td>Carta di credito</td><td>Fattura inserita come <strong>«Pagato»</strong> alla data fattura.</td></tr>
             <tr><td>Ritenute professionisti</td><td>Netto come bonifico (vedi sopra) + importo ritenuta al <strong>16 del mese successivo</strong> al pagamento del bonifico.</td></tr>
@@ -44,14 +139,15 @@
 
         <h3>IBAN</h3>
         <p>
-            Se l'IBAN non è presente in fattura viene <strong>copiato dall'IBAN immediatamente
-            precedente dello stesso fornitore</strong>. Se ancora vuoto → <em>alert</em>.
+            Priorità: <span class="badge-pdf">PDF</span> IBAN della singola fattura →
+            anagrafica fornitore → IBAN della fattura precedente dello stesso fornitore.
+            Se ancora vuoto e il pagamento è un bonifico → <em>alert critico</em>.
         </p>
 
         <h3>Importi: Confident vs controllate</h3>
         <table>
             <tr><td>Fatture <strong>Confident</strong> (holding CCH)</td><td>Inserire <em>netto</em> + <em>iva</em> + <em>lordo</em> distinti.</td></tr>
-            <tr><td>Fatture <strong>controllate</strong> (Ident)</td><td>Inserire <strong>solo il totale lordo</strong> (IVA = 0).</td></tr>
+            <tr><td>Fatture <strong>controllate</strong> (Ident / sedi)</td><td>Inserire <strong>solo il totale lordo</strong> (IVA = 0).</td></tr>
         </table>
 
         <h3>Note di credito</h3>
@@ -66,11 +162,30 @@
             F24, stipendi, ecc. La generazione automatica non li produce.
         </p>
 
-        <h3>Da definire insieme</h3>
-        <p class="muted">
-            Le voci «Campo note + competenza» e «Catalogazione fornitore avanzata»
-            (match tra nome fornitore e tipo) sono in evoluzione: gli alert prodotti
-            servono a raccogliere casistica per affinarle.
+        <h3>File originali e tracciabilità</h3>
+        <p>
+            Tutti i file caricati (CSV, XLSX, PDF) vengono <strong>conservati nello storage</strong>
+            sotto <code>uploads/{tenant}/tesoreria/import-fatture/{batch}/</code> e sono
+            ri-scaricabili dal dettaglio del batch (⬇ Scarica originale). Lo storico dei
+            batch è <strong>append-only</strong>: una nuova importazione non sovrascrive
+            mai le precedenti. Il reset completo è l'unico modo per ripartire da zero ed è
+            tracciato in audit log.
         </p>
     </div>
 </div>
+
+<script>
+(function(){
+    if (window.__regoleOverlayInit) return;
+    window.__regoleOverlayInit = true;
+    const overlay = document.getElementById('regoleOverlay');
+    if (!overlay) return;
+    document.querySelectorAll('[data-open-regole]').forEach(b => {
+        b.addEventListener('click', e => { e.preventDefault(); overlay.classList.add('is-open'); });
+    });
+    overlay.addEventListener('click', e => { if (e.target === overlay) overlay.classList.remove('is-open'); });
+    const closeBtn = document.getElementById('regoleClose');
+    if (closeBtn) closeBtn.addEventListener('click', () => overlay.classList.remove('is-open'));
+    document.addEventListener('keydown', e => { if (e.key === 'Escape') overlay.classList.remove('is-open'); });
+})();
+</script>
