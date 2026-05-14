@@ -14,6 +14,66 @@ public class DottoreProfileViewModel
 
     /// <summary>Riepilogo Tesoreria del fornitore-ombra collegato al dottore. Null se non presente.</summary>
     public DottoreTesoreriaSnapshot? Tesoreria { get; set; }
+
+    public IReadOnlyList<CollaborazioneClinica> Collaborazioni { get; set; } = Array.Empty<CollaborazioneClinica>();
+    public IReadOnlyList<DocumentoDottore> Documenti { get; set; } = Array.Empty<DocumentoDottore>();
+    public IReadOnlyList<AttestatoEcm> AttestatiEcm { get; set; } = Array.Empty<AttestatoEcm>();
+    public IReadOnlyList<DottoreAlert> Alerts { get; set; } = Array.Empty<DottoreAlert>();
+}
+
+/// <summary>
+/// Alert derivato calcolato in tempo reale dai dati del dottore.
+/// Es. RC professionale in scadenza, documento scaduto, ECM sotto soglia.
+/// </summary>
+public record DottoreAlert(
+    string Titolo,
+    string Descrizione,
+    AlertLivello Livello,
+    DateTime? Scadenza,
+    string? DocumentoId = null,
+    string? Categoria = null)
+{
+    public string Icona => Livello switch
+    {
+        AlertLivello.Critico => "🔴",
+        AlertLivello.Avviso  => "🟡",
+        _ => "🟢"
+    };
+    public string Badge => Livello switch
+    {
+        AlertLivello.Critico => "badge--danger",
+        AlertLivello.Avviso  => "badge--warning",
+        _ => "badge--success"
+    };
+}
+
+public enum AlertLivello
+{
+    Ok,
+    Avviso,
+    Critico
+}
+
+/// <summary>Riga della lista dottori con collaborazioni e alert pre-calcolati.</summary>
+public class DottoreListItem
+{
+    public Dottore Dottore { get; set; } = new();
+    public IReadOnlyList<CollaborazioneClinica> Collaborazioni { get; set; } = Array.Empty<CollaborazioneClinica>();
+    public int AlertCritici { get; set; }
+    public int AlertAvvisi { get; set; }
+
+    public DateTime DataInizioCollaborazione =>
+        Collaborazioni.Count == 0 ? Dottore.DataAssunzione : Collaborazioni.Min(c => c.DataInizio);
+
+    public DateTime? DataFineCollaborazione
+    {
+        get
+        {
+            if (Collaborazioni.Count == 0) return Dottore.DataDimissioni;
+            if (Collaborazioni.Any(c => c.DataFine is null)) return null;
+            return Collaborazioni.Max(c => c.DataFine);
+        }
+    }
 }
 
 public class DottoreTesoreriaSnapshot
