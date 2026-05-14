@@ -48,7 +48,7 @@ else
     <div data-table-search>
         <partial name="_TableSearch" model='new Microsoft.AspNetCore.Mvc.ViewFeatures.ViewDataDictionary(ViewData) { ["Placeholder"] = "Cerca fornitore per ragione sociale, P.IVA, categoria…", ["Singular"] = "fornitore", ["Plural"] = "fornitori" }' />
         <div class="table-search__empty">Nessun fornitore corrisponde alla ricerca.</div>
-    <div class="card forn-grid-card" style="padding:0; overflow:auto;">
+    <div class="card forn-grid-card" style="padding:0;">
         <table class="table forn-grid" id="fornitori-grid">
             <thead>
                 <tr>
@@ -172,16 +172,46 @@ else
             </tbody>
         </table>
     </div>
+
+    <div class="forn-pager" data-forn-pager>
+        <div class="forn-pager__size">
+            <label for="forn-page-size">Righe per pagina</label>
+            <select id="forn-page-size" data-forn-page-size>
+                <option value="25">25</option>
+                <option value="50" selected>50</option>
+                <option value="100">100</option>
+                <option value="200">200</option>
+                <option value="all">tutte</option>
+            </select>
+        </div>
+        <div class="forn-pager__info">
+            <span data-forn-pager-info>—</span>
+        </div>
+        <div class="forn-pager__nav">
+            <button type="button" class="btn btn--ghost btn--sm" data-forn-page="first" aria-label="Prima pagina" title="Prima pagina">«</button>
+            <button type="button" class="btn btn--ghost btn--sm" data-forn-page="prev" aria-label="Pagina precedente" title="Pagina precedente">‹</button>
+            <span class="forn-pager__pages" data-forn-pager-pages></span>
+            <button type="button" class="btn btn--ghost btn--sm" data-forn-page="next" aria-label="Pagina successiva" title="Pagina successiva">›</button>
+            <button type="button" class="btn btn--ghost btn--sm" data-forn-page="last" aria-label="Ultima pagina" title="Ultima pagina">»</button>
+        </div>
+    </div>
     </div>
 }
 
 <style>
     /* ── Griglia fornitori: compatta + interattiva ─────────────── */
+    .forn-grid-card {
+        max-height: calc(100vh - 240px);
+        overflow: auto;
+        position: relative;
+    }
     .forn-grid {
         font-size: .78rem;
         table-layout: fixed;
         width: max-content;
         min-width: 100%;
+        border-collapse: separate;
+        border-spacing: 0;
     }
     .forn-grid th,
     .forn-grid td {
@@ -192,7 +222,9 @@ else
         white-space: nowrap;
     }
     .forn-grid th {
-        position: relative;
+        position: sticky;
+        top: 0;
+        z-index: 5;
         user-select: none;
         cursor: pointer;
         background: var(--c-bg-soft, #faf6f0);
@@ -201,6 +233,7 @@ else
         text-transform: uppercase;
         letter-spacing: .3px;
         color: var(--c-ink-soft, #6b4d2a);
+        box-shadow: inset 0 -1px 0 var(--c-border, #e9e1d3);
     }
     .forn-grid th[data-sort-key]:hover { background: #f3e6cf; }
     .forn-grid th .th-label { display: inline-block; padding-right: 14px; }
@@ -251,6 +284,51 @@ else
     .inline-input--error { background: #fde2e2 !important; border-color: #a83a3a !important; }
     [data-forn-row].is-removing { opacity: .4; pointer-events: none; transition: opacity .2s; }
     [data-stato-cell] option[value="Dismesso"] { color: #777; }
+    [data-forn-row].is-page-hidden { display: none !important; }
+
+    /* ── Pager ────────────────────────────────────────────────── */
+    .forn-pager {
+        display: flex;
+        align-items: center;
+        gap: var(--s-3);
+        padding: 6px 10px;
+        margin-top: 6px;
+        font-size: .8rem;
+        flex-wrap: wrap;
+    }
+    .forn-pager__size { display: flex; align-items: center; gap: 6px; }
+    .forn-pager__size select {
+        padding: 2px 6px;
+        border: 1px solid var(--c-border, #e9e1d3);
+        border-radius: 4px;
+        background: #fff;
+        font: inherit;
+    }
+    .forn-pager__info { color: var(--c-ink-soft, #7a5c3a); }
+    .forn-pager__nav { margin-left: auto; display: flex; align-items: center; gap: 4px; }
+    .forn-pager__nav .btn { min-width: 28px; padding: 2px 8px; }
+    .forn-pager__pages {
+        display: inline-flex;
+        gap: 2px;
+        margin: 0 6px;
+    }
+    .forn-pager__pages button {
+        min-width: 26px;
+        padding: 2px 6px;
+        border: 1px solid var(--c-border, #e9e1d3);
+        border-radius: 4px;
+        background: #fff;
+        cursor: pointer;
+        font: inherit;
+    }
+    .forn-pager__pages button:hover { background: var(--c-bg-soft, #faf6f0); }
+    .forn-pager__pages button.is-active {
+        background: var(--c-accent, #c47830);
+        color: #fff;
+        border-color: var(--c-accent, #c47830);
+    }
+    .forn-pager__pages span.dots { padding: 2px 4px; color: var(--c-ink-soft, #7a5c3a); }
+    .forn-pager .btn[disabled] { opacity: .35; pointer-events: none; }
 </style>
 
 @section Scripts {
@@ -457,6 +535,151 @@ else
                 document.addEventListener('mouseup', onUp);
             });
         });
+
+        // ── Paginazione client-side ──────────────────────────────
+        // Lavora sulle righe non-filtrate da _TableSearch (display !== "none").
+        // Si re-applica dopo ogni sort, dopo ogni input di ricerca e dopo delete.
+        var PAGE_SIZE_KEY = 'chipdent.fornitori.pageSize';
+        var pager = document.querySelector('[data-forn-pager]');
+        var pageSizeSel = document.querySelector('[data-forn-page-size]');
+        var pageInfo = document.querySelector('[data-forn-pager-info]');
+        var pagesEl = document.querySelector('[data-forn-pager-pages]');
+        var btnFirst = document.querySelector('[data-forn-page="first"]');
+        var btnPrev = document.querySelector('[data-forn-page="prev"]');
+        var btnNext = document.querySelector('[data-forn-page="next"]');
+        var btnLast = document.querySelector('[data-forn-page="last"]');
+        var tbodyEl = grid.tBodies[0];
+        var currentPage = 1;
+        var pageSize = 50;
+
+        try {
+            var savedPS = localStorage.getItem(PAGE_SIZE_KEY);
+            if (savedPS) {
+                pageSize = savedPS === 'all' ? Infinity : (parseInt(savedPS, 10) || 50);
+                if (pageSizeSel) pageSizeSel.value = savedPS;
+            }
+        } catch (e) {}
+
+        function searchVisibleRows() {
+            return Array.prototype.slice.call(tbodyEl.rows)
+                .filter(function (r) { return r.style.display !== 'none'; });
+        }
+
+        function buildPageNumbers(total, current) {
+            if (!pagesEl) return;
+            pagesEl.innerHTML = '';
+            if (total <= 1) return;
+            var pages = [];
+            var around = 1; // pagine attorno alla corrente
+            function add(p) { if (pages.indexOf(p) === -1) pages.push(p); }
+            add(1); add(total);
+            for (var i = current - around; i <= current + around; i++) {
+                if (i > 1 && i < total) add(i);
+            }
+            pages.sort(function (a, b) { return a - b; });
+            var prev = 0;
+            pages.forEach(function (p) {
+                if (p - prev > 1) {
+                    var dots = document.createElement('span');
+                    dots.className = 'dots';
+                    dots.textContent = '…';
+                    pagesEl.appendChild(dots);
+                }
+                var btn = document.createElement('button');
+                btn.type = 'button';
+                btn.textContent = p;
+                if (p === current) btn.className = 'is-active';
+                btn.addEventListener('click', function () { goTo(p); });
+                pagesEl.appendChild(btn);
+                prev = p;
+            });
+        }
+
+        function applyPagination() {
+            var visible = searchVisibleRows();
+            var total = visible.length;
+            var size = pageSize === Infinity ? total : pageSize;
+            var pageCount = size > 0 ? Math.max(1, Math.ceil(total / size)) : 1;
+            if (currentPage > pageCount) currentPage = pageCount;
+            if (currentPage < 1) currentPage = 1;
+
+            var start = (currentPage - 1) * size;
+            var end = pageSize === Infinity ? total : start + size;
+
+            visible.forEach(function (r, idx) {
+                if (idx >= start && idx < end) r.classList.remove('is-page-hidden');
+                else r.classList.add('is-page-hidden');
+            });
+            // Le righe filtrate dalla ricerca non hanno bisogno del marker pagina.
+            tbodyEl.querySelectorAll('[data-forn-row]').forEach(function (r) {
+                if (r.style.display === 'none') r.classList.remove('is-page-hidden');
+            });
+
+            if (pageInfo) {
+                if (total === 0) {
+                    pageInfo.textContent = 'Nessun risultato';
+                } else if (pageSize === Infinity) {
+                    pageInfo.textContent = total + ' fornitor' + (total === 1 ? 'e' : 'i');
+                } else {
+                    pageInfo.textContent = (start + 1) + '–' + Math.min(end, total) + ' di ' + total;
+                }
+            }
+            if (btnFirst) btnFirst.disabled = currentPage <= 1;
+            if (btnPrev)  btnPrev.disabled  = currentPage <= 1;
+            if (btnNext)  btnNext.disabled  = currentPage >= pageCount;
+            if (btnLast)  btnLast.disabled  = currentPage >= pageCount;
+            buildPageNumbers(pageCount, currentPage);
+
+            // Riporta lo scroll della card in alto al cambio pagina.
+            var card = grid.closest('.forn-grid-card');
+            if (card && pageSize !== Infinity) card.scrollTop = 0;
+        }
+
+        function goTo(p) { currentPage = p; applyPagination(); }
+        if (btnFirst) btnFirst.addEventListener('click', function () { goTo(1); });
+        if (btnPrev)  btnPrev.addEventListener('click',  function () { goTo(currentPage - 1); });
+        if (btnNext)  btnNext.addEventListener('click',  function () { goTo(currentPage + 1); });
+        if (btnLast)  btnLast.addEventListener('click',  function () {
+            var size = pageSize === Infinity ? searchVisibleRows().length : pageSize;
+            var total = searchVisibleRows().length;
+            goTo(size > 0 ? Math.max(1, Math.ceil(total / size)) : 1);
+        });
+        if (pageSizeSel) {
+            pageSizeSel.addEventListener('change', function () {
+                var v = pageSizeSel.value;
+                pageSize = v === 'all' ? Infinity : (parseInt(v, 10) || 50);
+                currentPage = 1;
+                try { localStorage.setItem(PAGE_SIZE_KEY, v); } catch (e) {}
+                applyPagination();
+            });
+        }
+
+        // Re-applica la paginazione dopo che _TableSearch ha aggiornato display.
+        var searchInput = document.querySelector('[data-table-search] .table-search__input');
+        if (searchInput) {
+            searchInput.addEventListener('input', function () {
+                currentPage = 1;
+                setTimeout(applyPagination, 0);
+            });
+            var clearBtn = document.querySelector('[data-table-search] .table-search__clear');
+            if (clearBtn) clearBtn.addEventListener('click', function () { setTimeout(applyPagination, 0); });
+        }
+
+        // Hook sort → re-applica la pagina dopo il riordino. I click handler già
+        // installati sulle <th> chiamano sortBy via closure, quindi la riassegnazione
+        // qui sotto è visibile anche a loro.
+        var _origSortBy = sortBy;
+        sortBy = function (th) { _origSortBy(th); applyPagination(); };
+
+        // Dopo una cancellazione la riga sparisce — re-applica il pager.
+        grid.addEventListener('click', function (e) {
+            if (e.target.closest('[data-forn-delete]')) {
+                // attesa per rimozione DOM
+                setTimeout(applyPagination, 200);
+            }
+        });
+
+        applyPagination();
     })();
 </script>
 }
