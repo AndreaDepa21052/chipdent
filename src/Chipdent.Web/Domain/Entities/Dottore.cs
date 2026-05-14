@@ -21,6 +21,7 @@ public class Dottore : TenantEntity
     public string? EmailPersonale { get; set; }
     public string? Telefono { get; set; }
     public string? Cellulare { get; set; }
+    public string? Pec { get; set; }
     public string? IndirizzoResidenza { get; set; }
 
     // Documenti

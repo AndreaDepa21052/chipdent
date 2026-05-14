@@ -85,4 +85,7 @@ public class MongoContext
     public IMongoCollection<DocumentoDipendente> DocumentiDipendente => Database.GetCollection<DocumentoDipendente>("documentiDipendente");
     public IMongoCollection<CambioLivelloRetribuzione> CambiLivello => Database.GetCollection<CambioLivelloRetribuzione>("cambiLivelloDipendenti");
     public IMongoCollection<CambioMansioneReparto> CambiMansione => Database.GetCollection<CambioMansioneReparto>("cambiMansioneDipendenti");
+    public IMongoCollection<CollaborazioneClinica> CollaborazioniDottori => Database.GetCollection<CollaborazioneClinica>("collaborazioniDottori");
+    public IMongoCollection<DocumentoDottore> DocumentiDottore => Database.GetCollection<DocumentoDottore>("documentiDottore");
+    public IMongoCollection<AttestatoEcm> AttestatiEcm => Database.GetCollection<AttestatoEcm>("attestatiEcm");
 }

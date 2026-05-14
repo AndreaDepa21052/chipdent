@@ -1,10 +1,15 @@
 @model Chipdent.Web.Models.DottoreProfileViewModel
+@using Chipdent.Web.Domain.Entities
+@using Chipdent.Web.Models
 @{
     ViewData["Title"] = Model.Dottore.NomeCompleto;
     ViewData["Crumb"] = "Dottori";
     var d = Model.Dottore;
     var tab = Model.Tab;
     var alboInScad = d.ScadenzaAlbo is not null && d.ScadenzaAlbo < DateTime.UtcNow.AddMonths(3);
+    var oggi = DateTime.UtcNow.Date;
+    var alertCritici = Model.Alerts.Count(a => a.Livello == AlertLivello.Critico);
+    var alertAvvisi = Model.Alerts.Count(a => a.Livello == AlertLivello.Avviso);
 }
 
 <partial name="_Flash" />
@@ -45,6 +50,14 @@
                 {
                     <span class="badge badge--warning"><span class="dot"></span>albo in scadenza</span>
                 }
+                @if (alertCritici > 0)
+                {
+                    <span class="badge badge--danger"><span class="dot"></span>🔴 @alertCritici alert</span>
+                }
+                else if (alertAvvisi > 0)
+                {
+                    <span class="badge badge--warning"><span class="dot"></span>🟡 @alertAvvisi avvisi</span>
+                }
                 @if (Model.Tesoreria is not null)
                 {
                     <a class="badge" href="/tesoreria/fornitori/@Model.Tesoreria.FornitoreId" title="Apri scheda fornitore in Tesoreria"
@@ -74,6 +87,24 @@
 
     <div class="tabs">
         <a class="tab @(tab == "anagrafica" ? "is-active" : "")" asp-action="Details" asp-route-id="@d.Id" asp-route-tab="anagrafica">Anagrafica</a>
+        <a class="tab @(tab == "cliniche" ? "is-active" : "")" asp-action="Details" asp-route-id="@d.Id" asp-route-tab="cliniche">
+            Cliniche <span class="tab__count">@Model.Collaborazioni.Count</span>
+        </a>
+        <a class="tab @(tab == "documenti" ? "is-active" : "")" asp-action="Details" asp-route-id="@d.Id" asp-route-tab="documenti">
+            Documenti &amp; alert
+            <span class="tab__count">@Model.Documenti.Count</span>
+            @if (alertCritici > 0)
+            {
+                <span class="badge badge--danger" style="margin-left:6px;">@alertCritici</span>
+            }
+            else if (alertAvvisi > 0)
+            {
+                <span class="badge badge--warning" style="margin-left:6px;">@alertAvvisi</span>
+            }
+        </a>
+        <a class="tab @(tab == "ecm" ? "is-active" : "")" asp-action="Details" asp-route-id="@d.Id" asp-route-tab="ecm">
+            ECM <span class="tab__count">@Model.AttestatiEcm.Count</span>
+        </a>
         <a class="tab @(tab == "storico" ? "is-active" : "")" asp-action="Details" asp-route-id="@d.Id" asp-route-tab="storico">
             Storico cliniche <span class="tab__count">@Model.Storico.Count</span>
         </a>
@@ -138,6 +169,7 @@
                 <dl class="kv">
                     <dt>Email lavoro</dt><dd>@d.Email</dd>
                     <dt>Email personale</dt><dd>@(d.EmailPersonale ?? "—")</dd>
+                    <dt>PEC</dt><dd>@(d.Pec ?? "—")</dd>
                     <dt>Telefono</dt><dd>@(d.Telefono ?? "—")</dd>
                     <dt>Cellulare</dt><dd>@(d.Cellulare ?? "—")</dd>
                     <dt>Residenza</dt><dd>@(d.IndirizzoResidenza ?? "—")</dd>
@@ -189,6 +221,500 @@
                 </div>
             }
         </div>
+    }
+    else if (tab == "cliniche")
+    {
+        <div class="card" style="margin-bottom: var(--s-4);">
+            <div class="card__header" style="display:flex; justify-content:space-between; align-items:center;">
+                <h3 class="card__title">Collaborazioni con cliniche</h3>
+                <button type="button" class="btn btn--primary btn--sm" data-collab-add>＋ Aggiungi collaborazione</button>
+            </div>
+            @if (Model.Collaborazioni.Count == 0)
+            {
+                <p class="muted" style="margin: var(--s-3) 0 0;">Nessuna collaborazione registrata. Aggiungi le sedi con cui il dottore collabora indicando la data di inizio e di eventuale fine rapporto.</p>
+            }
+            else
+            {
+                <div class="table-wrap" style="margin-top: var(--s-3);">
+                    <table class="table">
+                        <thead>
+                            <tr>
+                                <th>Clinica</th>
+                                <th>Ruolo / mansione</th>
+                                <th>Data inizio</th>
+                                <th>Data fine</th>
+                                <th>Stato</th>
+                                <th></th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                        @foreach (var c in Model.Collaborazioni)
+                        {
+                            <tr>
+                                <td class="strong">@c.ClinicaNome</td>
+                                <td>@(string.IsNullOrWhiteSpace(c.Ruolo) ? "—" : c.Ruolo)</td>
+                                <td>@c.DataInizio.ToString("dd/MM/yyyy")</td>
+                                <td>@(c.DataFine?.ToString("dd/MM/yyyy") ?? "—")</td>
+                                <td>
+                                    @if (c.IsAttiva)
+                                    {
+                                        <span class="badge badge--success"><span class="dot"></span>attiva</span>
+                                    }
+                                    else
+                                    {
+                                        <span class="badge"><span class="dot"></span>terminata</span>
+                                    }
+                                </td>
+                                <td style="display:flex; gap:4px;">
+                                    <button type="button" class="btn btn--ghost btn--sm" data-collab-edit
+                                            data-id="@c.Id"
+                                            data-clinica="@c.ClinicaId"
+                                            data-inizio="@c.DataInizio.ToString("yyyy-MM-dd")"
+                                            data-fine="@(c.DataFine?.ToString("yyyy-MM-dd"))"
+                                            data-ruolo="@c.Ruolo"
+                                            data-note="@c.Note">Modifica</button>
+                                    <form asp-action="EliminaCollaborazione" asp-route-id="@d.Id" asp-route-collabId="@c.Id" method="post" style="display:inline;" onsubmit="return confirm('Rimuovere questa collaborazione?');">
+                                        @Html.AntiForgeryToken()
+                                        <button type="submit" class="btn btn--ghost btn--sm">🗑</button>
+                                    </form>
+                                </td>
+                            </tr>
+                        }
+                        </tbody>
+                    </table>
+                </div>
+            }
+        </div>
+
+        <dialog id="dlg-collab" style="border:0; border-radius:12px; padding:0; max-width:520px; box-shadow:0 20px 60px rgba(0,0,0,0.18);">
+            <form id="form-collab" asp-action="UpsertCollaborazione" asp-route-id="@d.Id" method="post" style="padding: var(--s-4);">
+                @Html.AntiForgeryToken()
+                <h3 style="margin: 0 0 var(--s-3);">🏥 Collaborazione con clinica</h3>
+                <input type="hidden" name="collabId" id="collab-id" />
+                <div class="form-grid">
+                    <div class="form-group full">
+                        <label class="form-label">Clinica</label>
+                        <select class="form-control" name="clinicaId" id="collab-clinica" required>
+                            <option value="">— seleziona —</option>
+                            @foreach (var c in Model.Cliniche)
+                            {
+                                <option value="@c.Id">@c.Nome (@c.Citta)</option>
+                            }
+                        </select>
+                    </div>
+                    <div class="form-group">
+                        <label class="form-label">Data inizio</label>
+                        <input class="form-control" type="date" name="dataInizio" id="collab-inizio" required />
+                    </div>
+                    <div class="form-group">
+                        <label class="form-label">Data fine (opzionale)</label>
+                        <input class="form-control" type="date" name="dataFine" id="collab-fine" />
+                    </div>
+                    <div class="form-group full">
+                        <label class="form-label">Ruolo / mansione (opzionale)</label>
+                        <input class="form-control" name="ruolo" id="collab-ruolo" placeholder="Es. Implantologo" />
+                    </div>
+                    <div class="form-group full">
+                        <label class="form-label">Note</label>
+                        <textarea class="form-control" name="note" id="collab-note" rows="2"></textarea>
+                    </div>
+                </div>
+                <div style="display:flex; gap:8px; justify-content:flex-end; margin-top: var(--s-3);">
+                    <button type="button" class="btn btn--ghost" data-close-collab>Annulla</button>
+                    <button type="submit" class="btn btn--primary">Salva</button>
+                </div>
+            </form>
+        </dialog>
+
+        <script>
+            (function () {
+                const dlg = document.getElementById('dlg-collab');
+                const setVal = (id, v) => { document.getElementById(id).value = v ?? ''; };
+                function open(data) {
+                    setVal('collab-id', data.id);
+                    setVal('collab-clinica', data.clinica);
+                    setVal('collab-inizio', data.inizio || '@oggi.ToString("yyyy-MM-dd")');
+                    setVal('collab-fine', data.fine);
+                    setVal('collab-ruolo', data.ruolo);
+                    setVal('collab-note', data.note);
+                    if (typeof dlg.showModal === 'function') dlg.showModal(); else dlg.setAttribute('open','');
+                }
+                document.querySelectorAll('[data-collab-add]').forEach(b => b.addEventListener('click', () => open({})));
+                document.querySelectorAll('[data-collab-edit]').forEach(b => b.addEventListener('click', () => open({
+                    id: b.dataset.id, clinica: b.dataset.clinica, inizio: b.dataset.inizio,
+                    fine: b.dataset.fine, ruolo: b.dataset.ruolo, note: b.dataset.note
+                })));
+                document.querySelectorAll('[data-close-collab]').forEach(b => b.addEventListener('click', () => dlg.close()));
+            })();
+        </script>
+    }
+    else if (tab == "documenti")
+    {
+        var tipiDoc = new (TipoDocumentoDottore Tipo, string Label, string Icon)[]
+        {
+            (TipoDocumentoDottore.RcProfessionale, "RC professionale",      "🛡️"),
+            (TipoDocumentoDottore.IscrizioneAlbo,  "Iscrizione albo",       "📜"),
+            (TipoDocumentoDottore.CartaIdentita,   "Carta d'identità",     "🪪"),
+            (TipoDocumentoDottore.CodiceFiscale,   "Codice fiscale",        "🔢"),
+            (TipoDocumentoDottore.PartitaIVA,      "Partita IVA",           "🧾"),
+            (TipoDocumentoDottore.Diploma,         "Diploma di laurea",     "🎓"),
+            (TipoDocumentoDottore.Specializzazione,"Specializzazione",      "🩺"),
+            (TipoDocumentoDottore.Curriculum,      "Curriculum vitae",      "📄"),
+            (TipoDocumentoDottore.Altro,           "Altro documento",       "📁"),
+        };
+        var labelByTipo = tipiDoc.ToDictionary(t => t.Tipo, t => t.Label);
+
+        <div class="card" style="margin-bottom: var(--s-4);">
+            <div class="card__header"><h3 class="card__title">🔔 Alert di compliance</h3></div>
+            @if (Model.Alerts.Count == 0)
+            {
+                <p class="muted" style="margin: var(--s-3) 0 0;">✅ Nessun alert. Tutti i documenti sono in regola e l'ECM è in linea con la soglia.</p>
+            }
+            else
+            {
+                <ul class="list" style="margin: var(--s-3) 0 0;">
+                    @foreach (var a in Model.Alerts)
+                    {
+                        <li class="list__item" style="padding: var(--s-3); border-left: 3px solid @(a.Livello == AlertLivello.Critico ? "#a83a3a" : "#a86010");">
+                            <div style="font-size:1.1rem; width:28px;">@a.Icona</div>
+                            <div style="flex:1;">
+                                <div class="strong">@a.Titolo</div>
+                                <div class="muted" style="font-size:.85rem;">@a.Descrizione</div>
+                            </div>
+                            <span class="badge @a.Badge">@a.Livello</span>
+                        </li>
+                    }
+                </ul>
+            }
+        </div>
+
+        <div class="card">
+            <div class="card__header" style="display:flex; justify-content:space-between; align-items:center;">
+                <h3 class="card__title">Fascicolo documenti</h3>
+                <button type="button" class="btn btn--primary btn--sm" data-doc-add>＋ Carica documento</button>
+            </div>
+            @if (Model.Documenti.Count == 0)
+            {
+                <p class="muted" style="margin: var(--s-3) 0 0;">Nessun documento caricato. Inizia da RC professionale o iscrizione albo.</p>
+            }
+            else
+            {
+                <div class="table-wrap" style="margin-top: var(--s-3);">
+                    <table class="table">
+                        <thead>
+                            <tr>
+                                <th>Tipo</th>
+                                <th>Identificativo</th>
+                                <th>Emissione</th>
+                                <th>Scadenza</th>
+                                <th>Allegato</th>
+                                <th></th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                        @foreach (var doc in Model.Documenti)
+                        {
+                            var label = !string.IsNullOrWhiteSpace(doc.EtichettaLibera)
+                                ? doc.EtichettaLibera
+                                : labelByTipo.GetValueOrDefault(doc.Tipo, doc.Tipo.ToString());
+                            var scaduto = doc.Scadenza is not null && doc.Scadenza.Value.Date < oggi;
+                            var inScad = doc.Scadenza is not null && !scaduto && (doc.Scadenza.Value.Date - oggi).TotalDays <= 60;
+                            <tr>
+                                <td>
+                                    <div class="strong">@label</div>
+                                    @if (doc.Tipo == TipoDocumentoDottore.RcProfessionale && !string.IsNullOrWhiteSpace(doc.Compagnia))
+                                    {
+                                        <div class="muted">Compagnia: @doc.Compagnia</div>
+                                    }
+                                </td>
+                                <td>@(string.IsNullOrWhiteSpace(doc.NumeroDocumento) ? "—" : doc.NumeroDocumento)</td>
+                                <td>@(doc.DataEmissione?.ToString("dd/MM/yyyy") ?? "—")</td>
+                                <td>
+                                    @(doc.Scadenza?.ToString("dd/MM/yyyy") ?? "—")
+                                    @if (scaduto)
+                                    {
+                                        <span class="badge badge--danger" style="margin-left:6px;">scaduto</span>
+                                    }
+                                    else if (inScad)
+                                    {
+                                        <span class="badge badge--warning" style="margin-left:6px;">in scadenza</span>
+                                    }
+                                </td>
+                                <td>
+                                    @if (!string.IsNullOrEmpty(doc.AllegatoPath))
+                                    {
+                                        <a href="/@doc.AllegatoPath" target="_blank" rel="noopener">📎 @doc.AllegatoNome</a>
+                                    }
+                                    else
+                                    {
+                                        <span class="muted">—</span>
+                                    }
+                                </td>
+                                <td style="display:flex; gap:4px;">
+                                    <button type="button" class="btn btn--ghost btn--sm" data-doc-edit
+                                            data-id="@doc.Id"
+                                            data-tipo="@doc.Tipo"
+                                            data-etichetta="@doc.EtichettaLibera"
+                                            data-numero="@doc.NumeroDocumento"
+                                            data-compagnia="@doc.Compagnia"
+                                            data-emissione="@(doc.DataEmissione?.ToString("yyyy-MM-dd"))"
+                                            data-scadenza="@(doc.Scadenza?.ToString("yyyy-MM-dd"))"
+                                            data-note="@doc.Note">Modifica</button>
+                                    <form asp-action="EliminaDocumento" asp-route-id="@d.Id" asp-route-docId="@doc.Id" method="post" style="display:inline;" onsubmit="return confirm('Rimuovere il documento?');">
+                                        @Html.AntiForgeryToken()
+                                        <button type="submit" class="btn btn--ghost btn--sm">🗑</button>
+                                    </form>
+                                </td>
+                            </tr>
+                        }
+                        </tbody>
+                    </table>
+                </div>
+            }
+        </div>
+
+        <dialog id="dlg-doc" style="border:0; border-radius:12px; padding:0; max-width:560px; box-shadow:0 20px 60px rgba(0,0,0,0.18);">
+            <form asp-action="UpsertDocumento" asp-route-id="@d.Id" method="post" enctype="multipart/form-data" style="padding: var(--s-4);">
+                @Html.AntiForgeryToken()
+                <h3 style="margin: 0 0 var(--s-3);">📁 Documento fascicolo dottore</h3>
+                <input type="hidden" name="docId" id="doc-id" />
+                <div class="form-grid">
+                    <div class="form-group full">
+                        <label class="form-label">Tipo documento</label>
+                        <select class="form-control" name="tipo" id="doc-tipo" required>
+                            @foreach (var t in tipiDoc)
+                            {
+                                <option value="@t.Tipo">@t.Icon @t.Label</option>
+                            }
+                        </select>
+                    </div>
+                    <div class="form-group">
+                        <label class="form-label">Numero / identificativo</label>
+                        <input class="form-control" name="numeroDocumento" id="doc-numero" />
+                    </div>
+                    <div class="form-group">
+                        <label class="form-label">Compagnia (per RC)</label>
+                        <input class="form-control" name="compagnia" id="doc-compagnia" placeholder="Es. Generali, AIG…" />
+                    </div>
+                    <div class="form-group">
+                        <label class="form-label">Data emissione</label>
+                        <input class="form-control" type="date" name="dataEmissione" id="doc-emissione" />
+                    </div>
+                    <div class="form-group">
+                        <label class="form-label">Scadenza</label>
+                        <input class="form-control" type="date" name="scadenza" id="doc-scadenza" />
+                    </div>
+                    <div class="form-group full">
+                        <label class="form-label">Etichetta libera (opzionale)</label>
+                        <input class="form-control" name="etichettaLibera" id="doc-etichetta" placeholder="Distingui più documenti dello stesso tipo (es. RC 2024-2025)" />
+                    </div>
+                    <div class="form-group full">
+                        <label class="form-label">Allegato (PDF/DOC/JPG/PNG, max 10MB)</label>
+                        <input class="form-control" type="file" name="allegato" accept=".pdf,.png,.jpg,.jpeg,.doc,.docx" />
+                    </div>
+                    <div class="form-group full">
+                        <label class="form-label">Note</label>
+                        <textarea class="form-control" name="note" id="doc-note" rows="2"></textarea>
+                    </div>
+                </div>
+                <div style="display:flex; gap:8px; justify-content:flex-end; margin-top: var(--s-3);">
+                    <button type="button" class="btn btn--ghost" data-close-doc>Annulla</button>
+                    <button type="submit" class="btn btn--primary">Salva</button>
+                </div>
+            </form>
+        </dialog>
+
+        <script>
+            (function () {
+                const dlg = document.getElementById('dlg-doc');
+                const setVal = (id, v) => { document.getElementById(id).value = v ?? ''; };
+                function open(data) {
+                    setVal('doc-id', data.id);
+                    setVal('doc-tipo', data.tipo || 'RcProfessionale');
+                    setVal('doc-numero', data.numero);
+                    setVal('doc-compagnia', data.compagnia);
+                    setVal('doc-emissione', data.emissione);
+                    setVal('doc-scadenza', data.scadenza);
+                    setVal('doc-etichetta', data.etichetta);
+                    setVal('doc-note', data.note);
+                    if (typeof dlg.showModal === 'function') dlg.showModal(); else dlg.setAttribute('open','');
+                }
+                document.querySelectorAll('[data-doc-add]').forEach(b => b.addEventListener('click', () => open({})));
+                document.querySelectorAll('[data-doc-edit]').forEach(b => b.addEventListener('click', () => open({
+                    id: b.dataset.id, tipo: b.dataset.tipo, etichetta: b.dataset.etichetta,
+                    numero: b.dataset.numero, compagnia: b.dataset.compagnia,
+                    emissione: b.dataset.emissione, scadenza: b.dataset.scadenza, note: b.dataset.note
+                })));
+                document.querySelectorAll('[data-close-doc]').forEach(b => b.addEventListener('click', () => dlg.close()));
+            })();
+        </script>
+    }
+    else if (tab == "ecm")
+    {
+        var annoFine = d.AnnoFineTriennioEcm ?? DateTime.UtcNow.Year;
+        var annoInizio = annoFine - 2;
+        var crediti = Model.AttestatiEcm
+            .Where(a => a.AnnoRiferimento >= annoInizio && a.AnnoRiferimento <= annoFine)
+            .Sum(a => a.CreditiEcm);
+        var richiesti = d.CreditiEcmRichiestiTriennio;
+        var percentuale = richiesti > 0 ? Math.Min(100, (double)crediti / richiesti * 100) : 0;
+        var barColor = crediti >= richiesti ? "#1f6e3a" : (percentuale >= 60 ? "#a86010" : "#a83a3a");
+
+        <div class="card" style="margin-bottom: var(--s-4);">
+            <div class="card__header"><h3 class="card__title">🎓 Crediti triennio @annoInizio-@annoFine</h3></div>
+            <div style="padding: var(--s-3) 0; display:flex; gap: var(--s-4); align-items:center;">
+                <div style="flex:1;">
+                    <div class="muted" style="font-size:.8rem;">Acquisiti / richiesti</div>
+                    <div style="font-size:1.8rem; font-weight:600;">@crediti.ToString("0.#") / @richiesti</div>
+                    <div style="background: var(--c-border, #ece0cc); border-radius: 8px; height: 8px; margin-top: 8px; overflow:hidden;">
+                        <div style="width: @($"{percentuale:0.#}%"); height:100%; background: @barColor;"></div>
+                    </div>
+                </div>
+                <div>
+                    <div class="muted" style="font-size:.8rem;">Attestati registrati</div>
+                    <div style="font-size:1.8rem; font-weight:600;">@Model.AttestatiEcm.Count</div>
+                </div>
+            </div>
+        </div>
+
+        <div class="card">
+            <div class="card__header" style="display:flex; justify-content:space-between; align-items:center;">
+                <h3 class="card__title">Attestati ECM</h3>
+                <button type="button" class="btn btn--primary btn--sm" data-ecm-add>＋ Carica attestato</button>
+            </div>
+            @if (Model.AttestatiEcm.Count == 0)
+            {
+                <p class="muted" style="margin: var(--s-3) 0 0;">Nessun attestato ECM caricato. Carica il primo attestato per iniziare a tracciare i crediti del triennio.</p>
+            }
+            else
+            {
+                <div class="table-wrap" style="margin-top: var(--s-3);">
+                    <table class="table">
+                        <thead>
+                            <tr>
+                                <th>Evento</th>
+                                <th>Provider</th>
+                                <th>Data</th>
+                                <th>Anno</th>
+                                <th>Crediti</th>
+                                <th>Modalità</th>
+                                <th>Attestato</th>
+                                <th></th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                        @foreach (var a in Model.AttestatiEcm)
+                        {
+                            <tr>
+                                <td class="strong">@a.TitoloEvento</td>
+                                <td>@(a.Provider ?? "—")</td>
+                                <td>@a.DataConseguimento.ToString("dd/MM/yyyy")</td>
+                                <td>@a.AnnoRiferimento</td>
+                                <td>@a.CreditiEcm.ToString("0.#")</td>
+                                <td>@a.Modalita</td>
+                                <td>
+                                    @if (!string.IsNullOrEmpty(a.AllegatoPath))
+                                    {
+                                        <a href="/@a.AllegatoPath" target="_blank" rel="noopener">📎 @a.AllegatoNome</a>
+                                    }
+                                    else
+                                    {
+                                        <span class="muted">—</span>
+                                    }
+                                </td>
+                                <td style="display:flex; gap:4px;">
+                                    <button type="button" class="btn btn--ghost btn--sm" data-ecm-edit
+                                            data-id="@a.Id"
+                                            data-titolo="@a.TitoloEvento"
+                                            data-provider="@a.Provider"
+                                            data-data="@a.DataConseguimento.ToString("yyyy-MM-dd")"
+                                            data-crediti="@a.CreditiEcm.ToString(System.Globalization.CultureInfo.InvariantCulture)"
+                                            data-anno="@a.AnnoRiferimento"
+                                            data-modalita="@a.Modalita"
+                                            data-note="@a.Note">Modifica</button>
+                                    <form asp-action="EliminaEcm" asp-route-id="@d.Id" asp-route-ecmId="@a.Id" method="post" style="display:inline;" onsubmit="return confirm('Rimuovere questo attestato ECM?');">
+                                        @Html.AntiForgeryToken()
+                                        <button type="submit" class="btn btn--ghost btn--sm">🗑</button>
+                                    </form>
+                                </td>
+                            </tr>
+                        }
+                        </tbody>
+                    </table>
+                </div>
+            }
+        </div>
+
+        <dialog id="dlg-ecm" style="border:0; border-radius:12px; padding:0; max-width:560px; box-shadow:0 20px 60px rgba(0,0,0,0.18);">
+            <form asp-action="UpsertEcm" asp-route-id="@d.Id" method="post" enctype="multipart/form-data" style="padding: var(--s-4);">
+                @Html.AntiForgeryToken()
+                <h3 style="margin: 0 0 var(--s-3);">🎓 Attestato ECM</h3>
+                <input type="hidden" name="ecmId" id="ecm-id" />
+                <div class="form-grid">
+                    <div class="form-group full">
+                        <label class="form-label">Titolo evento</label>
+                        <input class="form-control" name="titoloEvento" id="ecm-titolo" required />
+                    </div>
+                    <div class="form-group">
+                        <label class="form-label">Provider</label>
+                        <input class="form-control" name="provider" id="ecm-provider" placeholder="Ente erogatore" />
+                    </div>
+                    <div class="form-group">
+                        <label class="form-label">Data conseguimento</label>
+                        <input class="form-control" type="date" name="dataConseguimento" id="ecm-data" required value="@oggi.ToString("yyyy-MM-dd")" />
+                    </div>
+                    <div class="form-group">
+                        <label class="form-label">Crediti ECM</label>
+                        <input class="form-control" type="number" step="0.1" min="0" name="creditiEcm" id="ecm-crediti" required />
+                    </div>
+                    <div class="form-group">
+                        <label class="form-label">Anno riferimento</label>
+                        <input class="form-control" type="number" min="2000" max="2100" name="annoRiferimento" id="ecm-anno" required value="@DateTime.UtcNow.Year" />
+                    </div>
+                    <div class="form-group full">
+                        <label class="form-label">Modalità</label>
+                        <select class="form-control" name="modalita" id="ecm-modalita" asp-items="Html.GetEnumSelectList<ModalitaEcm>()"></select>
+                    </div>
+                    <div class="form-group full">
+                        <label class="form-label">Attestato (PDF/JPG/PNG, max 10MB)</label>
+                        <input class="form-control" type="file" name="allegato" accept=".pdf,.png,.jpg,.jpeg,.doc,.docx" />
+                    </div>
+                    <div class="form-group full">
+                        <label class="form-label">Note</label>
+                        <textarea class="form-control" name="note" id="ecm-note" rows="2"></textarea>
+                    </div>
+                </div>
+                <div style="display:flex; gap:8px; justify-content:flex-end; margin-top: var(--s-3);">
+                    <button type="button" class="btn btn--ghost" data-close-ecm>Annulla</button>
+                    <button type="submit" class="btn btn--primary">Salva</button>
+                </div>
+            </form>
+        </dialog>
+
+        <script>
+            (function () {
+                const dlg = document.getElementById('dlg-ecm');
+                const setVal = (id, v) => { document.getElementById(id).value = v ?? ''; };
+                function open(data) {
+                    setVal('ecm-id', data.id);
+                    setVal('ecm-titolo', data.titolo);
+                    setVal('ecm-provider', data.provider);
+                    setVal('ecm-data', data.data || '@oggi.ToString("yyyy-MM-dd")');
+                    setVal('ecm-crediti', data.crediti);
+                    setVal('ecm-anno', data.anno || '@DateTime.UtcNow.Year');
+                    setVal('ecm-modalita', data.modalita || 'Fad');
+                    setVal('ecm-note', data.note);
+                    if (typeof dlg.showModal === 'function') dlg.showModal(); else dlg.setAttribute('open','');
+                }
+                document.querySelectorAll('[data-ecm-add]').forEach(b => b.addEventListener('click', () => open({})));
+                document.querySelectorAll('[data-ecm-edit]').forEach(b => b.addEventListener('click', () => open({
+                    id: b.dataset.id, titolo: b.dataset.titolo, provider: b.dataset.provider,
+                    data: b.dataset.data, crediti: b.dataset.crediti, anno: b.dataset.anno,
+                    modalita: b.dataset.modalita, note: b.dataset.note
+                })));
+                document.querySelectorAll('[data-close-ecm]').forEach(b => b.addEventListener('click', () => dlg.close()));
+            })();
+        </script>
     }
     else if (tab == "storico")
     {

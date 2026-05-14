@@ -1,7 +1,9 @@
-@model IReadOnlyList<Chipdent.Web.Domain.Entities.Dottore>
+@model IReadOnlyList<Chipdent.Web.Models.DottoreListItem>
 @{
     ViewData["Title"] = "Dottori";
-    var cliniche = (Dictionary<string, string>?)ViewData["Cliniche"] ?? new();
+    var totale = Model.Count;
+    var attivi = Model.Count(i => i.Dottore.Attivo);
+    var conAlert = Model.Count(i => i.AlertCritici + i.AlertAvvisi > 0);
 }
 
 <partial name="_Flash" />
@@ -9,7 +11,7 @@
 <div class="page-head">
     <div>
         <h2>Dottori</h2>
-        <p class="page-head__sub">@Model.Count professionisti · @Model.Count(d => d.Attivo) attivi</p>
+        <p class="page-head__sub">@totale professionisti · @attivi attivi · @conAlert con alert aperti</p>
     </div>
     <div class="page-head__actions">
         <a class="btn btn--primary" asp-action="Create">+ Nuovo dottore</a>
@@ -31,47 +33,75 @@
 else
 {
     <div data-table-search>
-        <partial name="_TableSearch" model='new Microsoft.AspNetCore.Mvc.ViewFeatures.ViewDataDictionary(ViewData) { ["Placeholder"] = "Cerca dottore per nome, specializzazione, albo, sede…", ["Singular"] = "dottore", ["Plural"] = "dottori" }' />
+        <partial name="_TableSearch" model='new Microsoft.AspNetCore.Mvc.ViewFeatures.ViewDataDictionary(ViewData) { ["Placeholder"] = "Cerca dottore per nome, clinica…", ["Singular"] = "dottore", ["Plural"] = "dottori" }' />
         <div class="table-search__empty">Nessun dottore corrisponde alla ricerca.</div>
-    <div class="table-wrap">
-        <table class="table">
-            <thead>
-                <tr>
-                    <th style="white-space:nowrap;">Codice</th>
-                    <th>Nome</th>
-                    <th>Specializzazione</th>
-                    <th>Albo</th>
-                    <th>Contratto</th>
-                    <th>Sede principale</th>
-                    <th></th>
-                </tr>
-            </thead>
-            <tbody>
-                @foreach (var d in Model)
-                {
-                    var alboInScadenza = d.ScadenzaAlbo is not null && d.ScadenzaAlbo < DateTime.UtcNow.AddMonths(3);
+        <div class="table-wrap">
+            <table class="table">
+                <thead>
                     <tr>
-                        <td class="muted" style="white-space:nowrap;">@(string.IsNullOrEmpty(d.Codice) ? "—" : d.Codice)</td>
+                        <th>Nome e cognome</th>
+                        <th>Cliniche</th>
+                        <th>Inizio collaborazione</th>
+                        <th>Fine collaborazione</th>
+                        <th>Alert</th>
+                        <th></th>
+                    </tr>
+                </thead>
+                <tbody>
+                @foreach (var item in Model)
+                {
+                    var d = item.Dottore;
+                    var clinicheAttive = item.Collaborazioni.Where(c => c.IsAttiva).ToList();
+                    var clinicheTutte = item.Collaborazioni.ToList();
+                    <tr>
                         <td>
                             <div class="strong">@d.NomeCompleto</div>
-                            <div class="muted">@d.Email</div>
+                            <div class="muted">@d.Specializzazione</div>
                         </td>
-                        <td>@d.Specializzazione</td>
                         <td>
-                            @d.NumeroAlbo
-                            @if (d.ScadenzaAlbo is not null)
+                            @if (clinicheTutte.Count == 0)
                             {
-                                <div class="muted">
-                                    scade @d.ScadenzaAlbo.Value.ToString("MM/yyyy")
-                                    @if (alboInScadenza)
+                                <span class="muted">—</span>
+                            }
+                            else
+                            {
+                                <div style="display:flex; flex-wrap:wrap; gap:4px;">
+                                    @foreach (var c in clinicheTutte.OrderByDescending(x => x.IsAttiva).ThenBy(x => x.ClinicaNome))
                                     {
-                                        <span class="badge badge--warning" style="margin-left:6px;"><span class="dot"></span>in scadenza</span>
+                                        var cls = c.IsAttiva ? "badge badge--success" : "badge";
+                                        <span class="@cls" title="@(c.DataFine is null ? "Attiva" : $"Terminata il {c.DataFine:dd/MM/yyyy}")">@c.ClinicaNome</span>
                                     }
                                 </div>
                             }
                         </td>
-                        <td>@d.TipoContratto</td>
-                        <td>@(d.ClinicaPrincipaleId is not null && cliniche.TryGetValue(d.ClinicaPrincipaleId, out var n) ? n : "—")</td>
+                        <td>@item.DataInizioCollaborazione.ToString("dd/MM/yyyy")</td>
+                        <td>
+                            @if (item.DataFineCollaborazione is null)
+                            {
+                                <span class="muted">in corso</span>
+                            }
+                            else
+                            {
+                                @item.DataFineCollaborazione.Value.ToString("dd/MM/yyyy")
+                            }
+                        </td>
+                        <td>
+                            @if (item.AlertCritici == 0 && item.AlertAvvisi == 0)
+                            {
+                                <span class="badge badge--success"><span class="dot"></span>ok</span>
+                            }
+                            else
+                            {
+                                @if (item.AlertCritici > 0)
+                                {
+                                    <span class="badge badge--danger" style="margin-right:4px;">🔴 @item.AlertCritici</span>
+                                }
+                                @if (item.AlertAvvisi > 0)
+                                {
+                                    <span class="badge badge--warning">🟡 @item.AlertAvvisi</span>
+                                }
+                            }
+                        </td>
                         <td>
                             <div class="actions">
                                 <a class="ibtn" asp-action="Details" asp-route-id="@d.Id" title="Dettagli">
@@ -84,8 +114,8 @@ else
                         </td>
                     </tr>
                 }
-            </tbody>
-        </table>
-    </div>
+                </tbody>
+            </table>
+        </div>
     </div>
 }
