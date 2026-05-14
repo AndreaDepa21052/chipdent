@@ -3,6 +3,7 @@ using System.Security.Claims;
 using System.Text;
 using Chipdent.Web.Domain.Common;
 using Chipdent.Web.Domain.Entities;
+using Chipdent.Web.Infrastructure.Audit;
 using Chipdent.Web.Infrastructure.Identity;
 using Chipdent.Web.Infrastructure.Mongo;
 using Chipdent.Web.Infrastructure.Sepa;
@@ -34,14 +35,16 @@ public class TesoreriaController : Controller
     private readonly ITenantContext _tenant;
     private readonly IFileStorage _storage;
     private readonly IPasswordHasher _hasher;
+    private readonly IAuditService _audit;
     private readonly ILogger<TesoreriaController> _logger;
 
-    public TesoreriaController(MongoContext mongo, ITenantContext tenant, IFileStorage storage, IPasswordHasher hasher, ILogger<TesoreriaController> logger)
+    public TesoreriaController(MongoContext mongo, ITenantContext tenant, IFileStorage storage, IPasswordHasher hasher, IAuditService audit, ILogger<TesoreriaController> logger)
     {
         _mongo = mongo;
         _tenant = tenant;
         _storage = storage;
         _hasher = hasher;
+        _audit = audit;
         _logger = logger;
     }
 
@@ -696,7 +699,7 @@ public class TesoreriaController : Controller
     public async Task<IActionResult> Fornitori()
     {
         var tid = _tenant.TenantId!;
-        var fornitori = await _mongo.Fornitori.Find(f => f.TenantId == tid).SortBy(f => f.RagioneSociale).ToListAsync();
+        var fornitori = await _mongo.Fornitori.Find(f => f.TenantId == tid && !f.IsDeleted).SortBy(f => f.RagioneSociale).ToListAsync();
         var users = await _mongo.Users.Find(u => u.TenantId == tid && u.Role == UserRole.Fornitore).ToListAsync();
         var userByForn = users
             .Where(u => u.LinkedPersonType == LinkedPersonType.Fornitore && !string.IsNullOrEmpty(u.LinkedPersonId))
@@ -742,11 +745,17 @@ public class TesoreriaController : Controller
             ? await GenerateCodiceFornitoreAsync()
             : vm.Codice!.Trim();
 
+        var ragioneSociale = vm.RagioneSociale.Trim();
+        var ragioneSocialePagamento = string.IsNullOrWhiteSpace(vm.RagioneSocialePagamento)
+            ? ragioneSociale
+            : vm.RagioneSocialePagamento!.Trim();
+
         var f = new Fornitore
         {
             TenantId = _tenant.TenantId!,
             Codice = codice,
-            RagioneSociale = vm.RagioneSociale.Trim(),
+            RagioneSociale = ragioneSociale,
+            RagioneSocialePagamento = ragioneSocialePagamento,
             PartitaIva = vm.PartitaIva,
             CodiceFiscale = vm.CodiceFiscale,
             CodiceSdi = vm.CodiceSdi,
@@ -759,6 +768,7 @@ public class TesoreriaController : Controller
             CodicePostale = vm.CodicePostale?.Trim(),
             Iban = vm.Iban,
             CategoriaDefault = vm.CategoriaDefault,
+            CategoriaSecondaria = vm.CategoriaSecondaria,
             Stato = vm.Stato,
             Note = vm.Note,
             TerminiPagamentoGiorni = vm.TerminiPagamentoGiorni,
@@ -766,6 +776,7 @@ public class TesoreriaController : Controller
             EmissioneFattura = vm.EmissioneFattura
         };
         await _mongo.Fornitori.InsertOneAsync(f);
+        await _audit.LogAsync("Fornitore", f.Id, f.RagioneSociale, AuditAction.Created, actor: User);
 
         if (vm.AbilitaPortale && !string.IsNullOrWhiteSpace(vm.EmailContatto) && !string.IsNullOrWhiteSpace(vm.PortalePassword))
         {
@@ -789,6 +800,7 @@ public class TesoreriaController : Controller
             Id = f.Id,
             Codice = f.Codice,
             RagioneSociale = f.RagioneSociale,
+            RagioneSocialePagamento = string.IsNullOrWhiteSpace(f.RagioneSocialePagamento) ? f.RagioneSociale : f.RagioneSocialePagamento,
             PartitaIva = f.PartitaIva,
             CodiceFiscale = f.CodiceFiscale,
             CodiceSdi = f.CodiceSdi,
@@ -801,6 +813,7 @@ public class TesoreriaController : Controller
             CodicePostale = f.CodicePostale,
             Iban = f.Iban,
             CategoriaDefault = f.CategoriaDefault,
+            CategoriaSecondaria = f.CategoriaSecondaria,
             Stato = f.Stato,
             Note = f.Note,
             TerminiPagamentoGiorni = f.TerminiPagamentoGiorni,
@@ -824,10 +837,16 @@ public class TesoreriaController : Controller
         }
 
         var codiceAggiornato = string.IsNullOrWhiteSpace(vm.Codice) ? f.Codice : vm.Codice!.Trim();
+        var ragioneSociale = vm.RagioneSociale.Trim();
+        var ragioneSocialePagamento = string.IsNullOrWhiteSpace(vm.RagioneSocialePagamento)
+            ? ragioneSociale
+            : vm.RagioneSocialePagamento!.Trim();
+        var snapshot = CloneForAudit(f);
         await _mongo.Fornitori.UpdateOneAsync(x => x.Id == id,
             Builders<Fornitore>.Update
                 .Set(x => x.Codice, codiceAggiornato)
-                .Set(x => x.RagioneSociale, vm.RagioneSociale.Trim())
+                .Set(x => x.RagioneSociale, ragioneSociale)
+                .Set(x => x.RagioneSocialePagamento, ragioneSocialePagamento)
                 .Set(x => x.PartitaIva, vm.PartitaIva)
                 .Set(x => x.CodiceFiscale, vm.CodiceFiscale)
                 .Set(x => x.CodiceSdi, vm.CodiceSdi)
@@ -840,12 +859,17 @@ public class TesoreriaController : Controller
                 .Set(x => x.CodicePostale, vm.CodicePostale?.Trim())
                 .Set(x => x.Iban, vm.Iban)
                 .Set(x => x.CategoriaDefault, vm.CategoriaDefault)
+                .Set(x => x.CategoriaSecondaria, vm.CategoriaSecondaria)
                 .Set(x => x.Stato, vm.Stato)
                 .Set(x => x.Note, vm.Note)
                 .Set(x => x.TerminiPagamentoGiorni, vm.TerminiPagamentoGiorni)
                 .Set(x => x.BasePagamento, vm.BasePagamento)
                 .Set(x => x.EmissioneFattura, vm.EmissioneFattura)
                 .Set(x => x.UpdatedAt, DateTime.UtcNow));
+
+        var updated = await _mongo.Fornitori.Find(x => x.Id == id).FirstOrDefaultAsync();
+        if (updated is not null)
+            await _audit.LogDiffAsync(snapshot, updated, "Fornitore", updated.RagioneSociale, AuditAction.Updated, actor: User);
 
         if (vm.AbilitaPortale && !string.IsNullOrWhiteSpace(vm.EmailContatto) && !string.IsNullOrWhiteSpace(vm.PortalePassword))
         {
@@ -867,6 +891,147 @@ public class TesoreriaController : Controller
         TempData["flash"] = "Fornitore aggiornato.";
         return RedirectToAction(nameof(Fornitori));
     }
+
+    // ─────────────────────────────────────────────────────────────
+    //  FORNITORI — INLINE EDIT / SOFT DELETE (griglia)
+    // ─────────────────────────────────────────────────────────────
+
+    /// <summary>Aggiorna un singolo campo del fornitore dalla griglia (AJAX). Restituisce
+    /// JSON con il valore formattato per la cella e il log audit della modifica.</summary>
+    [HttpPost("fornitori/{id}/inline")]
+    [ValidateAntiForgeryToken]
+    public async Task<IActionResult> UpdateFornitoreInline(string id, [FromForm] string field, [FromForm] string? value)
+    {
+        var tid = _tenant.TenantId!;
+        var f = await _mongo.Fornitori.Find(x => x.Id == id && x.TenantId == tid).FirstOrDefaultAsync();
+        if (f is null) return NotFound();
+
+        var trimmed = value?.Trim();
+        UpdateDefinition<Fornitore>? update = null;
+        string oldValue = "";
+        string newValueDisplay = "";
+        string fieldLabel = field;
+
+        switch (field)
+        {
+            case "RagioneSociale":
+                if (string.IsNullOrWhiteSpace(trimmed))
+                    return BadRequest(new { ok = false, error = "La ragione sociale è obbligatoria." });
+                oldValue = f.RagioneSociale;
+                newValueDisplay = trimmed;
+                update = Builders<Fornitore>.Update.Set(x => x.RagioneSociale, trimmed);
+                fieldLabel = "Ragione sociale";
+                break;
+
+            case "RagioneSocialePagamento":
+                var rsp = string.IsNullOrWhiteSpace(trimmed) ? f.RagioneSociale : trimmed!;
+                oldValue = f.RagioneSocialePagamento;
+                newValueDisplay = rsp;
+                update = Builders<Fornitore>.Update.Set(x => x.RagioneSocialePagamento, rsp);
+                fieldLabel = "Ragione sociale pagamento";
+                break;
+
+            case "CategoriaDefault":
+                if (!Enum.TryParse<CategoriaSpesa>(trimmed, out var catPrimaria))
+                    return BadRequest(new { ok = false, error = "Categoria non valida." });
+                oldValue = f.CategoriaDefault.ToString();
+                newValueDisplay = catPrimaria.ToString();
+                update = Builders<Fornitore>.Update.Set(x => x.CategoriaDefault, catPrimaria);
+                fieldLabel = "Categoria primaria";
+                break;
+
+            case "CategoriaSecondaria":
+                CategoriaSpesa? catSec = null;
+                if (!string.IsNullOrWhiteSpace(trimmed))
+                {
+                    if (!Enum.TryParse<CategoriaSpesa>(trimmed, out var parsedSec))
+                        return BadRequest(new { ok = false, error = "Categoria non valida." });
+                    catSec = parsedSec;
+                }
+                oldValue = f.CategoriaSecondaria?.ToString() ?? "—";
+                newValueDisplay = catSec?.ToString() ?? "—";
+                update = Builders<Fornitore>.Update.Set(x => x.CategoriaSecondaria, catSec);
+                fieldLabel = "Categoria secondaria";
+                break;
+
+            case "Stato":
+                if (!Enum.TryParse<StatoFornitore>(trimmed, out var stato))
+                    return BadRequest(new { ok = false, error = "Stato non valido." });
+                oldValue = f.Stato.ToString();
+                newValueDisplay = stato.ToString();
+                update = Builders<Fornitore>.Update.Set(x => x.Stato, stato);
+                fieldLabel = "Stato";
+                break;
+
+            default:
+                return BadRequest(new { ok = false, error = "Campo non modificabile inline." });
+        }
+
+        if (oldValue == newValueDisplay)
+            return Json(new { ok = true, display = newValueDisplay, unchanged = true });
+
+        await _mongo.Fornitori.UpdateOneAsync(x => x.Id == id,
+            update!.Set(x => x.UpdatedAt, DateTime.UtcNow));
+
+        await _audit.LogAsync("Fornitore", id, f.RagioneSociale, AuditAction.Updated,
+            changes: new[] { new FieldChange { Field = fieldLabel, OldValue = oldValue, NewValue = newValueDisplay } },
+            actor: User);
+
+        return Json(new { ok = true, display = newValueDisplay });
+    }
+
+    /// <summary>Soft-delete del fornitore dalla griglia (AJAX). Marca IsDeleted=true e
+    /// registra l'azione nell'audit log. Risponde JSON per evitare il full refresh.</summary>
+    [HttpPost("fornitori/{id}/elimina")]
+    [ValidateAntiForgeryToken]
+    public async Task<IActionResult> EliminaFornitore(string id)
+    {
+        var tid = _tenant.TenantId!;
+        var f = await _mongo.Fornitori.Find(x => x.Id == id && x.TenantId == tid).FirstOrDefaultAsync();
+        if (f is null) return NotFound(new { ok = false, error = "Fornitore non trovato." });
+
+        await _mongo.Fornitori.UpdateOneAsync(x => x.Id == id,
+            Builders<Fornitore>.Update
+                .Set(x => x.IsDeleted, true)
+                .Set(x => x.Stato, StatoFornitore.Dismesso)
+                .Set(x => x.UpdatedAt, DateTime.UtcNow));
+
+        await _audit.LogAsync("Fornitore", id, f.RagioneSociale, AuditAction.Deleted,
+            note: $"Eliminato dalla griglia (codice {f.Codice ?? "—"}).", actor: User);
+
+        return Json(new { ok = true });
+    }
+
+    private static Fornitore CloneForAudit(Fornitore src) => new()
+    {
+        Id = src.Id,
+        TenantId = src.TenantId,
+        CreatedAt = src.CreatedAt,
+        UpdatedAt = src.UpdatedAt,
+        Codice = src.Codice,
+        RagioneSociale = src.RagioneSociale,
+        RagioneSocialePagamento = src.RagioneSocialePagamento,
+        PartitaIva = src.PartitaIva,
+        CodiceFiscale = src.CodiceFiscale,
+        CodiceSdi = src.CodiceSdi,
+        Pec = src.Pec,
+        EmailContatto = src.EmailContatto,
+        Telefono = src.Telefono,
+        Indirizzo = src.Indirizzo,
+        Localita = src.Localita,
+        Provincia = src.Provincia,
+        CodicePostale = src.CodicePostale,
+        Iban = src.Iban,
+        CategoriaDefault = src.CategoriaDefault,
+        CategoriaSecondaria = src.CategoriaSecondaria,
+        Stato = src.Stato,
+        Note = src.Note,
+        TerminiPagamentoGiorni = src.TerminiPagamentoGiorni,
+        BasePagamento = src.BasePagamento,
+        EmissioneFattura = src.EmissioneFattura,
+        DottoreId = src.DottoreId,
+        IsDeleted = src.IsDeleted
+    };
 
     // ─────────────────────────────────────────────────────────────
     //  DATI BANCARI ORDINANTE (Tenant settings)

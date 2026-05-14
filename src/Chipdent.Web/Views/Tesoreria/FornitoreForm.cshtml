@@ -40,20 +40,38 @@
 
         <div class="form-group">
             <label class="form-label" asp-for="RagioneSociale">Ragione sociale *</label>
-            <input class="form-control" asp-for="RagioneSociale" required />
+            <input id="rs-fiscale" class="form-control" asp-for="RagioneSociale" required />
             <span class="text-danger" asp-validation-for="RagioneSociale"></span>
         </div>
 
         <div class="form-group">
             <label class="form-label" asp-for="Stato">Stato</label>
             <select class="form-control" asp-for="Stato">
-                @foreach (var v in Enum.GetValues<StatoFornitore>())
+                <option value="@StatoFornitore.Attivo" selected="@(Model.Stato == StatoFornitore.Attivo)">Attivo</option>
+                <option value="@StatoFornitore.Dismesso" selected="@(Model.Stato != StatoFornitore.Attivo)">Dismesso</option>
+            </select>
+        </div>
+    </div>
+
+    <div class="grid" style="grid-template-columns: 1fr 1fr; gap: var(--s-3);">
+        <div class="form-group">
+            <label class="form-label" asp-for="RagioneSocialePagamento">Ragione sociale pagamento</label>
+            <input id="rs-pagamento" class="form-control" asp-for="RagioneSocialePagamento"
+                   placeholder="(uguale alla ragione sociale)" />
+            <span class="hint">Beneficiario reale del bonifico. Default = ragione sociale.</span>
+        </div>
+        <div class="form-group">
+            <label class="form-label" asp-for="CategoriaSecondaria">Categoria secondaria</label>
+            <select class="form-control" asp-for="CategoriaSecondaria">
+                <option value="">— nessuna —</option>
+                @foreach (var v in Enum.GetValues<CategoriaSpesa>())
                 {
-                    <option value="@v" selected="@(Model.Stato == v)">@v</option>
+                    <option value="@v" selected="@(Model.CategoriaSecondaria == v)">@v</option>
                 }
             </select>
         </div>
     </div>
+
 
     <div class="grid" style="grid-template-columns: 1fr 1fr 1fr; gap: var(--s-3);">
         <div class="form-group">
@@ -183,3 +201,18 @@
         <button type="submit" class="btn btn--primary">@(isNew ? "Crea fornitore" : "Salva modifiche")</button>
     </div>
 </form>
+
+@section Scripts {
+<script>
+    (function () {
+        var fiscale = document.getElementById('rs-fiscale');
+        var pagamento = document.getElementById('rs-pagamento');
+        if (!fiscale || !pagamento) return;
+        var pagamentoToccato = pagamento.value.trim().length > 0;
+        pagamento.addEventListener('input', function () { pagamentoToccato = true; });
+        fiscale.addEventListener('input', function () {
+            if (!pagamentoToccato) pagamento.value = fiscale.value;
+        });
+    })();
+</script>
+}

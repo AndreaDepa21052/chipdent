@@ -6,6 +6,7 @@
     ViewData["Crumb"] = "Tesoreria";
     var it = new CultureInfo("it-IT");
     var senzaSepa = Model.Fornitori.Count(r => r.Fornitore.Stato == StatoFornitore.Attivo && !r.Completezza.SepaPronto);
+    var categorie = Enum.GetValues<CategoriaSpesa>();
 }
 
 <partial name="_Flash" />
@@ -13,13 +14,17 @@
 <div class="page-head">
     <div>
         <h2>👥 Fornitori</h2>
-        <p class="page-head__sub">Anagrafica passiva. Ogni fornitore può essere abilitato al portale per caricare le proprie fatture e consultare lo stato dei pagamenti.</p>
+        <p class="page-head__sub">Anagrafica passiva. Modifica i campi base direttamente in linea; usa "Apri" per la scheda completa.</p>
     </div>
     <div class="page-head__actions">
         <a class="btn btn--ghost" asp-action="Index">← Tesoreria</a>
         <a class="btn btn--primary" asp-action="NuovoFornitore">＋ Nuovo fornitore</a>
     </div>
 </div>
+
+<form id="forn-antiforgery-host" style="display:none;">
+    @Html.AntiForgeryToken()
+</form>
 
 @if (senzaSepa > 0)
 {
@@ -41,13 +46,15 @@ else
         <partial name="_TableSearch" model='new Microsoft.AspNetCore.Mvc.ViewFeatures.ViewDataDictionary(ViewData) { ["Placeholder"] = "Cerca fornitore per ragione sociale, P.IVA, categoria…", ["Singular"] = "fornitore", ["Plural"] = "fornitori" }' />
         <div class="table-search__empty">Nessun fornitore corrisponde alla ricerca.</div>
     <div class="card" style="padding:0; overflow:auto;">
-        <table class="table">
+        <table class="table table--inline" id="fornitori-grid">
             <thead>
                 <tr>
                     <th style="white-space:nowrap;">Codice</th>
                     <th>Ragione sociale</th>
+                    <th>Ragione sociale pagamento</th>
                     <th>P.IVA</th>
-                    <th>Categoria</th>
+                    <th>Categoria primaria</th>
+                    <th>Categoria secondaria</th>
                     <th>Stato</th>
                     <th title="Percentuale di completezza dell'anagrafica + dati SEPA. I campi richiesti per la distinta SEPA pesano il doppio.">Completezza</th>
                     <th>SEPA</th>
@@ -65,24 +72,45 @@ else
                 var tooltipMancanti = r.Completezza.TuttiCampiMancanti.Count == 0
                     ? "Tutti i dati anagrafici sono completi."
                     : "Campi mancanti: " + string.Join(", ", r.Completezza.TuttiCampiMancanti);
-                <tr>
-                    <td class="muted" style="white-space:nowrap;">@(string.IsNullOrEmpty(r.Fornitore.Codice) ? "—" : r.Fornitore.Codice)</td>
-                    <td><strong>@r.Fornitore.RagioneSociale</strong></td>
-                    <td class="muted">@(r.Fornitore.PartitaIva ?? "—")</td>
-                    <td>@r.Fornitore.CategoriaDefault</td>
+                var rsPagamento = string.IsNullOrWhiteSpace(r.Fornitore.RagioneSocialePagamento)
+                    ? r.Fornitore.RagioneSociale
+                    : r.Fornitore.RagioneSocialePagamento;
+                var statoUi = r.Fornitore.Stato == StatoFornitore.Attivo ? StatoFornitore.Attivo : StatoFornitore.Dismesso;
+                <tr data-forn-row data-id="@r.Fornitore.Id" data-label="@r.Fornitore.RagioneSociale">
+                    <td class="muted" style="white-space:nowrap;">
+                        @(string.IsNullOrEmpty(r.Fornitore.Codice) ? "—" : r.Fornitore.Codice)
+                        @* Testo aggiuntivo nascosto: _TableSearch indicizza textContent, gli <input value> non vengono visti. *@
+                        <span style="display:none;" data-search-blob>@r.Fornitore.RagioneSociale @rsPagamento @(r.Fornitore.PartitaIva ?? "") @r.Fornitore.CategoriaDefault @(r.Fornitore.CategoriaSecondaria?.ToString() ?? "")</span>
+                    </td>
                     <td>
-                        @if (r.Fornitore.Stato == StatoFornitore.Attivo)
-                        {
-                            <span class="badge" style="background:#dff5e6; color:#1f6e3a;">attivo</span>
-                        }
-                        else if (r.Fornitore.Stato == StatoFornitore.Sospeso)
-                        {
-                            <span class="badge" style="background:#fff2dd; color:#a86010;">sospeso</span>
-                        }
-                        else
-                        {
-                            <span class="badge" style="background:#eee; color:#666;">cessato</span>
-                        }
+                        <input class="inline-input" data-field="RagioneSociale" value="@r.Fornitore.RagioneSociale" />
+                    </td>
+                    <td>
+                        <input class="inline-input" data-field="RagioneSocialePagamento" value="@rsPagamento" placeholder="(uguale alla ragione sociale)" />
+                    </td>
+                    <td class="muted">@(r.Fornitore.PartitaIva ?? "—")</td>
+                    <td>
+                        <select class="inline-input" data-field="CategoriaDefault">
+                            @foreach (var c in categorie)
+                            {
+                                <option value="@c" selected="@(r.Fornitore.CategoriaDefault == c)">@c</option>
+                            }
+                        </select>
+                    </td>
+                    <td>
+                        <select class="inline-input" data-field="CategoriaSecondaria">
+                            <option value="" selected="@(r.Fornitore.CategoriaSecondaria == null)">— nessuna —</option>
+                            @foreach (var c in categorie)
+                            {
+                                <option value="@c" selected="@(r.Fornitore.CategoriaSecondaria == c)">@c</option>
+                            }
+                        </select>
+                    </td>
+                    <td>
+                        <select class="inline-input" data-field="Stato" data-stato-cell>
+                            <option value="@StatoFornitore.Attivo" selected="@(statoUi == StatoFornitore.Attivo)">attivo</option>
+                            <option value="@StatoFornitore.Dismesso" selected="@(statoUi == StatoFornitore.Dismesso)">dismesso</option>
+                        </select>
                     </td>
                     <td title="@tooltipMancanti" style="min-width: 130px;">
                         <div style="display:flex; align-items:center; gap:6px;">
@@ -115,11 +143,139 @@ else
                     </td>
                     <td style="text-align:right;"><strong>@r.EspostoCorrente.ToString("N0", it) €</strong></td>
                     <td style="text-align:right;">@r.FatturePeriodoCorrente</td>
-                    <td><a class="btn btn--ghost btn--sm" asp-action="EditFornitore" asp-route-id="@r.Fornitore.Id">Apri</a></td>
+                    <td style="white-space:nowrap;">
+                        <a class="btn btn--ghost btn--sm" asp-action="EditFornitore" asp-route-id="@r.Fornitore.Id">Apri</a>
+                        <button type="button" class="btn btn--ghost btn--sm" data-forn-delete title="Elimina fornitore" style="color:#a83a3a;">🗑 Elimina</button>
+                    </td>
                 </tr>
             }
             </tbody>
         </table>
     </div>
     </div>
+}
+
+<style>
+    .inline-input {
+        width: 100%;
+        padding: 4px 6px;
+        border: 1px solid transparent;
+        background: transparent;
+        font: inherit;
+        color: inherit;
+        border-radius: 4px;
+        transition: border-color .1s, background-color .1s;
+    }
+    .inline-input:hover { border-color: #ddd; }
+    .inline-input:focus {
+        outline: none;
+        border-color: #c47830;
+        background: #fffbf3;
+    }
+    .inline-input--saved { background: #e7f5ec !important; transition: background-color .8s; }
+    .inline-input--error { background: #fde2e2 !important; border-color: #a83a3a !important; }
+    [data-forn-row].is-removing { opacity: .4; pointer-events: none; transition: opacity .2s; }
+    [data-stato-cell] option[value="Dismesso"] { color: #777; }
+</style>
+
+@section Scripts {
+<script>
+    (function () {
+        var grid = document.getElementById('fornitori-grid');
+        if (!grid) return;
+
+        function tokenValue() {
+            var host = document.getElementById('forn-antiforgery-host');
+            return host ? (host.querySelector('input[name="__RequestVerificationToken"]')?.value || '') : '';
+        }
+
+        function flashCell(el, cls) {
+            el.classList.add(cls);
+            setTimeout(function () { el.classList.remove(cls); }, 1200);
+        }
+
+        async function save(row, control) {
+            var id = row.getAttribute('data-id');
+            var field = control.getAttribute('data-field');
+            var value = control.value;
+            var original = control.getAttribute('data-original') ?? '';
+            if (value === original) return;
+
+            var fd = new FormData();
+            fd.append('__RequestVerificationToken', tokenValue());
+            fd.append('field', field);
+            fd.append('value', value);
+
+            try {
+                var resp = await fetch('/tesoreria/fornitori/' + encodeURIComponent(id) + '/inline', {
+                    method: 'POST', body: fd, credentials: 'same-origin'
+                });
+                if (!resp.ok) {
+                    var err = await resp.json().catch(function () { return null; });
+                    flashCell(control, 'inline-input--error');
+                    control.value = original;
+                    if (err && err.error) alert(err.error);
+                    return;
+                }
+                var data = await resp.json();
+                control.setAttribute('data-original', value);
+                if (field === 'RagioneSociale') {
+                    row.setAttribute('data-label', value);
+                    var rsp = row.querySelector('[data-field="RagioneSocialePagamento"]');
+                    if (rsp && (rsp.value === '' || rsp.value === original)) {
+                        rsp.value = value;
+                        rsp.setAttribute('data-original', value);
+                    }
+                }
+                flashCell(control, 'inline-input--saved');
+            } catch (e) {
+                flashCell(control, 'inline-input--error');
+                control.value = original;
+            }
+        }
+
+        // Inizializza data-original e listener
+        grid.querySelectorAll('[data-forn-row]').forEach(function (row) {
+            row.querySelectorAll('.inline-input').forEach(function (el) {
+                el.setAttribute('data-original', el.value);
+                if (el.tagName === 'SELECT') {
+                    el.addEventListener('change', function () { save(row, el); });
+                } else {
+                    el.addEventListener('blur', function () { save(row, el); });
+                    el.addEventListener('keydown', function (e) {
+                        if (e.key === 'Enter') { e.preventDefault(); el.blur(); }
+                        if (e.key === 'Escape') { el.value = el.getAttribute('data-original') || ''; el.blur(); }
+                    });
+                }
+            });
+
+            var delBtn = row.querySelector('[data-forn-delete]');
+            if (delBtn) {
+                delBtn.addEventListener('click', async function () {
+                    var label = row.getAttribute('data-label') || 'questo fornitore';
+                    if (!confirm('Eliminare definitivamente "' + label + '" dall\'anagrafica?\n\nLe fatture e scadenze storiche resteranno consultabili. L\'azione viene registrata nell\'audit log.')) return;
+                    var id = row.getAttribute('data-id');
+                    row.classList.add('is-removing');
+                    var fd = new FormData();
+                    fd.append('__RequestVerificationToken', tokenValue());
+                    try {
+                        var resp = await fetch('/tesoreria/fornitori/' + encodeURIComponent(id) + '/elimina', {
+                            method: 'POST', body: fd, credentials: 'same-origin'
+                        });
+                        if (resp.ok) {
+                            row.parentNode.removeChild(row);
+                        } else {
+                            row.classList.remove('is-removing');
+                            var err = await resp.json().catch(function () { return null; });
+                            alert((err && err.error) || 'Errore durante la cancellazione.');
+                        }
+                    } catch (e) {
+                        row.classList.remove('is-removing');
+                        alert('Errore di rete durante la cancellazione.');
+                    }
+                });
+            }
+        });
+    })();
+</script>
 }
