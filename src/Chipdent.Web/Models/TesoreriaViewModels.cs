@@ -220,6 +220,9 @@ public class FornitoreFormViewModel
     [Required(ErrorMessage = "Ragione sociale obbligatoria.")]
     public string RagioneSociale { get; set; } = string.Empty;
 
+    /// <summary>Ragione sociale usata sulla distinta/bonifico. Se vuota viene copiata da RagioneSociale.</summary>
+    public string? RagioneSocialePagamento { get; set; }
+
     public string? PartitaIva { get; set; }
     public string? CodiceFiscale { get; set; }
     public string? CodiceSdi { get; set; }
@@ -235,6 +238,10 @@ public class FornitoreFormViewModel
     public string? CodicePostale { get; set; }
     public string? Iban { get; set; }
     public CategoriaSpesa CategoriaDefault { get; set; } = CategoriaSpesa.AltreSpeseFisse;
+
+    /// <summary>Categoria di spesa secondaria (opzionale).</summary>
+    public CategoriaSpesa? CategoriaSecondaria { get; set; }
+
     public StatoFornitore Stato { get; set; } = StatoFornitore.Attivo;
     public string? Note { get; set; }
 

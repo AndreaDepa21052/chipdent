@@ -14,6 +14,12 @@ public class Fornitore : TenantEntity
     public string? Codice { get; set; }
 
     public string RagioneSociale { get; set; } = string.Empty;
+
+    /// <summary>Ragione sociale alternativa usata in distinta/bonifico (beneficiario reale).
+    /// Default = RagioneSociale alla creazione; può divergere quando il pagatore è una società
+    /// diversa dal soggetto che emette fattura (es. mandato di pagamento, gruppo, holding).</summary>
+    public string RagioneSocialePagamento { get; set; } = string.Empty;
+
     public string? PartitaIva { get; set; }
     public string? CodiceFiscale { get; set; }
     public string? CodiceSdi { get; set; }
@@ -33,8 +39,12 @@ public class Fornitore : TenantEntity
 
     public string? Iban { get; set; }
 
-    /// <summary>Categoria di spesa di default usata come hint quando il fornitore carica fatture.</summary>
+    /// <summary>Categoria di spesa primaria — usata come hint quando il fornitore carica fatture.</summary>
     public CategoriaSpesa CategoriaDefault { get; set; } = CategoriaSpesa.AltreSpeseFisse;
+
+    /// <summary>Categoria di spesa secondaria opzionale (fornitori che operano su più voci di spesa,
+    /// es. service che fattura sia manutenzione sia materiali). Null se non applicabile.</summary>
+    public CategoriaSpesa? CategoriaSecondaria { get; set; }
 
     public StatoFornitore Stato { get; set; } = StatoFornitore.Attivo;
     public string? Note { get; set; }
@@ -53,6 +63,10 @@ public class Fornitore : TenantEntity
     // professionista — riusa il modulo Tesoreria per gestire i suoi pagamenti).
     /// <summary>Id del Dottore se questo Fornitore è la "controparte fattura" di un dottore.</summary>
     public string? DottoreId { get; set; }
+
+    /// <summary>Soft-delete: il record resta su DB (fatture/scadenze storiche puntano qui) ma
+    /// non viene mostrato nella griglia anagrafica. Settato dalla cancellazione utente.</summary>
+    public bool IsDeleted { get; set; }
 }
 
 /// <summary>
@@ -72,7 +86,10 @@ public enum StatoFornitore
 {
     Attivo,
     Sospeso,
-    Cessato
+    Cessato,
+    /// <summary>Stato canonico "non più operativo". I valori legacy Sospeso/Cessato vengono trattati
+    /// come dismessi in UI per i tenant che usano il modello binario Attivo/Dismesso.</summary>
+    Dismesso
 }
 
 /// <summary>
