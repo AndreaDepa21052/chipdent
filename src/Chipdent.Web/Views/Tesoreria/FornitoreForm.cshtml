@@ -4,6 +4,10 @@
     var isNew = string.IsNullOrEmpty(Model.Id);
     ViewData["Title"] = isNew ? "Nuovo fornitore" : Model.RagioneSociale;
     ViewData["Crumb"] = "Tesoreria";
+    // Categorie sempre ordinate alfabeticamente nei dropdown.
+    var categorieOrdinate = Enum.GetValues<CategoriaSpesa>()
+        .OrderBy(c => c.ToString(), StringComparer.OrdinalIgnoreCase)
+        .ToList();
 }
 
 <partial name="_Flash" />
@@ -64,7 +68,7 @@
             <label class="form-label" asp-for="CategoriaSecondaria">Categoria secondaria</label>
             <select class="form-control" asp-for="CategoriaSecondaria">
                 <option value="">— nessuna —</option>
-                @foreach (var v in Enum.GetValues<CategoriaSpesa>())
+                @foreach (var v in categorieOrdinate)
                 {
                     <option value="@v" selected="@(Model.CategoriaSecondaria == v)">@v</option>
                 }
@@ -133,7 +137,7 @@
         <div class="form-group">
             <label class="form-label" asp-for="CategoriaDefault">Categoria di default</label>
             <select class="form-control" asp-for="CategoriaDefault">
-                @foreach (var v in Enum.GetValues<CategoriaSpesa>())
+                @foreach (var v in categorieOrdinate)
                 {
                     <option value="@v" selected="@(Model.CategoriaDefault == v)">@v</option>
                 }

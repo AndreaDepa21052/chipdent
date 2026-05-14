@@ -6,7 +6,10 @@
     ViewData["Crumb"] = "Tesoreria";
     var it = new CultureInfo("it-IT");
     var senzaSepa = Model.Fornitori.Count(r => r.Fornitore.Stato == StatoFornitore.Attivo && !r.Completezza.SepaPronto);
-    var categorie = Enum.GetValues<CategoriaSpesa>();
+    // Categorie sempre ordinate alfabeticamente per uso nelle select.
+    var categorie = Enum.GetValues<CategoriaSpesa>()
+        .OrderBy(c => c.ToString(), StringComparer.OrdinalIgnoreCase)
+        .ToList();
 }
 
 <partial name="_Flash" />
@@ -14,7 +17,7 @@
 <div class="page-head">
     <div>
         <h2>👥 Fornitori</h2>
-        <p class="page-head__sub">Anagrafica passiva. Modifica i campi base direttamente in linea; usa "Apri" per la scheda completa.</p>
+        <p class="page-head__sub">Anagrafica passiva. Click sulle intestazioni per ordinare, trascina il bordo destro per ridimensionare le colonne.</p>
     </div>
     <div class="page-head__actions">
         <a class="btn btn--ghost" asp-action="Index">← Tesoreria</a>
@@ -45,23 +48,46 @@ else
     <div data-table-search>
         <partial name="_TableSearch" model='new Microsoft.AspNetCore.Mvc.ViewFeatures.ViewDataDictionary(ViewData) { ["Placeholder"] = "Cerca fornitore per ragione sociale, P.IVA, categoria…", ["Singular"] = "fornitore", ["Plural"] = "fornitori" }' />
         <div class="table-search__empty">Nessun fornitore corrisponde alla ricerca.</div>
-    <div class="card" style="padding:0; overflow:auto;">
-        <table class="table table--inline" id="fornitori-grid">
+    <div class="card forn-grid-card" style="padding:0; overflow:auto;">
+        <table class="table forn-grid" id="fornitori-grid">
             <thead>
                 <tr>
-                    <th style="white-space:nowrap;">Codice</th>
-                    <th>Ragione sociale</th>
-                    <th>Ragione sociale pagamento</th>
-                    <th>P.IVA</th>
-                    <th>Categoria primaria</th>
-                    <th>Categoria secondaria</th>
-                    <th>Stato</th>
-                    <th title="Percentuale di completezza dell'anagrafica + dati SEPA. I campi richiesti per la distinta SEPA pesano il doppio.">Completezza</th>
-                    <th>SEPA</th>
-                    <th>Portale</th>
-                    <th style="text-align:right;">Esposto</th>
-                    <th style="text-align:right;">Fatture YTD</th>
-                    <th></th>
+                    <th data-sort-key="codice" data-col="codice" style="width:80px;">
+                        <span class="th-label">Codice</span><span class="th-sort"></span><span class="th-resizer"></span>
+                    </th>
+                    <th data-sort-key="ragsoc" data-col="ragsoc" style="width:200px;">
+                        <span class="th-label">Ragione sociale</span><span class="th-sort"></span><span class="th-resizer"></span>
+                    </th>
+                    <th data-sort-key="ragsocpag" data-col="ragsocpag" style="width:200px;">
+                        <span class="th-label">Rag. soc. pagamento</span><span class="th-sort"></span><span class="th-resizer"></span>
+                    </th>
+                    <th data-sort-key="piva" data-col="piva" style="width:120px;">
+                        <span class="th-label">P.IVA</span><span class="th-sort"></span><span class="th-resizer"></span>
+                    </th>
+                    <th data-sort-key="cat1" data-col="cat1" style="width:150px;">
+                        <span class="th-label">Cat. primaria</span><span class="th-sort"></span><span class="th-resizer"></span>
+                    </th>
+                    <th data-sort-key="cat2" data-col="cat2" style="width:150px;">
+                        <span class="th-label">Cat. secondaria</span><span class="th-sort"></span><span class="th-resizer"></span>
+                    </th>
+                    <th data-sort-key="stato" data-col="stato" style="width:100px;">
+                        <span class="th-label">Stato</span><span class="th-sort"></span><span class="th-resizer"></span>
+                    </th>
+                    <th data-sort-key="completezza" data-col="completezza" title="Percentuale di completezza dell'anagrafica + dati SEPA. I campi SEPA pesano il doppio." style="width:120px;">
+                        <span class="th-label">Completezza</span><span class="th-sort"></span><span class="th-resizer"></span>
+                    </th>
+                    <th data-sort-key="sepa" data-col="sepa" style="width:80px;">
+                        <span class="th-label">SEPA</span><span class="th-sort"></span><span class="th-resizer"></span>
+                    </th>
+                    <th data-sort-key="esposto" data-col="esposto" data-sort-type="number" style="width:100px; text-align:right;">
+                        <span class="th-label">Esposto</span><span class="th-sort"></span><span class="th-resizer"></span>
+                    </th>
+                    <th data-sort-key="ytd" data-col="ytd" data-sort-type="number" style="width:80px; text-align:right;">
+                        <span class="th-label">Fatt. YTD</span><span class="th-sort"></span><span class="th-resizer"></span>
+                    </th>
+                    <th data-col="azioni" style="width:140px;">
+                        <span class="th-label"></span><span class="th-resizer"></span>
+                    </th>
                 </tr>
             </thead>
             <tbody>
@@ -76,20 +102,22 @@ else
                     ? r.Fornitore.RagioneSociale
                     : r.Fornitore.RagioneSocialePagamento;
                 var statoUi = r.Fornitore.Stato == StatoFornitore.Attivo ? StatoFornitore.Attivo : StatoFornitore.Dismesso;
+                var statoSortRank = statoUi == StatoFornitore.Attivo ? 0 : 1;
+                var sepaSortRank = r.Completezza.SepaPronto ? 0 : 1;
                 <tr data-forn-row data-id="@r.Fornitore.Id" data-label="@r.Fornitore.RagioneSociale">
-                    <td class="muted" style="white-space:nowrap;">
+                    <td class="muted" data-col="codice" data-sort-value="@(r.Fornitore.Codice ?? "")">
                         @(string.IsNullOrEmpty(r.Fornitore.Codice) ? "—" : r.Fornitore.Codice)
-                        @* Testo aggiuntivo nascosto: _TableSearch indicizza textContent, gli <input value> non vengono visti. *@
+                        @* _TableSearch indicizza textContent; rendiamo cercabili anche i valori degli <input>. *@
                         <span style="display:none;" data-search-blob>@r.Fornitore.RagioneSociale @rsPagamento @(r.Fornitore.PartitaIva ?? "") @r.Fornitore.CategoriaDefault @(r.Fornitore.CategoriaSecondaria?.ToString() ?? "")</span>
                     </td>
-                    <td>
+                    <td data-col="ragsoc" data-sort-value="@r.Fornitore.RagioneSociale">
                         <input class="inline-input" data-field="RagioneSociale" value="@r.Fornitore.RagioneSociale" />
                     </td>
-                    <td>
+                    <td data-col="ragsocpag" data-sort-value="@rsPagamento">
                         <input class="inline-input" data-field="RagioneSocialePagamento" value="@rsPagamento" placeholder="(uguale alla ragione sociale)" />
                     </td>
-                    <td class="muted">@(r.Fornitore.PartitaIva ?? "—")</td>
-                    <td>
+                    <td class="muted" data-col="piva" data-sort-value="@(r.Fornitore.PartitaIva ?? "")">@(r.Fornitore.PartitaIva ?? "—")</td>
+                    <td data-col="cat1" data-sort-value="@r.Fornitore.CategoriaDefault">
                         <select class="inline-input" data-field="CategoriaDefault">
                             @foreach (var c in categorie)
                             {
@@ -97,7 +125,7 @@ else
                             }
                         </select>
                     </td>
-                    <td>
+                    <td data-col="cat2" data-sort-value="@(r.Fornitore.CategoriaSecondaria?.ToString() ?? "")">
                         <select class="inline-input" data-field="CategoriaSecondaria">
                             <option value="" selected="@(r.Fornitore.CategoriaSecondaria == null)">— nessuna —</option>
                             @foreach (var c in categorie)
@@ -106,21 +134,21 @@ else
                             }
                         </select>
                     </td>
-                    <td>
+                    <td data-col="stato" data-sort-value="@statoSortRank">
                         <select class="inline-input" data-field="Stato" data-stato-cell>
                             <option value="@StatoFornitore.Attivo" selected="@(statoUi == StatoFornitore.Attivo)">attivo</option>
                             <option value="@StatoFornitore.Dismesso" selected="@(statoUi == StatoFornitore.Dismesso)">dismesso</option>
                         </select>
                     </td>
-                    <td title="@tooltipMancanti" style="min-width: 130px;">
-                        <div style="display:flex; align-items:center; gap:6px;">
-                            <div style="flex:1; height:6px; background:#eee; border-radius:3px; overflow:hidden;">
+                    <td data-col="completezza" data-sort-value="@perc" data-sort-type="number" title="@tooltipMancanti">
+                        <div style="display:flex; align-items:center; gap:4px;">
+                            <div style="flex:1; height:5px; background:#eee; border-radius:3px; overflow:hidden; min-width:40px;">
                                 <div style="width:@(perc)%; height:100%; background:@barColor;"></div>
                             </div>
-                            <span style="font-size:.78rem; font-weight:600; color:@barColor; min-width:34px; text-align:right;">@perc%</span>
+                            <span style="font-weight:600; color:@barColor; min-width:30px; text-align:right;">@perc%</span>
                         </div>
                     </td>
-                    <td>
+                    <td data-col="sepa" data-sort-value="@sepaSortRank" data-sort-type="number">
                         @if (r.Completezza.SepaPronto)
                         {
                             <span class="badge" style="background:#dff5e6; color:#1f6e3a;" title="IBAN valido e dati anagrafici minimi presenti.">🏦 ok</span>
@@ -128,24 +156,16 @@ else
                         else
                         {
                             var motivo = "Dati SEPA mancanti: " + string.Join(", ", r.Completezza.CampiMancantiSepa);
-                            <span class="badge" style="background:#fde2e2; color:#a83a3a;" title="@motivo">⚠️ manca</span>
+                            <span class="badge" style="background:#fde2e2; color:#a83a3a;" title="@motivo">⚠</span>
                         }
                     </td>
-                    <td>
-                        @if (r.HaUtentePortale)
-                        {
-                            <span class="badge" style="background:#e3edff; color:#2457a4;">🔓 abilitato</span>
-                        }
-                        else
-                        {
-                            <span class="muted">—</span>
-                        }
+                    <td data-col="esposto" data-sort-value="@(((double)r.EspostoCorrente).ToString(CultureInfo.InvariantCulture))" data-sort-type="number" style="text-align:right;">
+                        <strong>@r.EspostoCorrente.ToString("N0", it) €</strong>
                     </td>
-                    <td style="text-align:right;"><strong>@r.EspostoCorrente.ToString("N0", it) €</strong></td>
-                    <td style="text-align:right;">@r.FatturePeriodoCorrente</td>
-                    <td style="white-space:nowrap;">
+                    <td data-col="ytd" data-sort-value="@r.FatturePeriodoCorrente" data-sort-type="number" style="text-align:right;">@r.FatturePeriodoCorrente</td>
+                    <td data-col="azioni" style="white-space:nowrap;">
                         <a class="btn btn--ghost btn--sm" asp-action="EditFornitore" asp-route-id="@r.Fornitore.Id">Apri</a>
-                        <button type="button" class="btn btn--ghost btn--sm" data-forn-delete title="Elimina fornitore" style="color:#a83a3a;">🗑 Elimina</button>
+                        <button type="button" class="btn btn--ghost btn--sm" data-forn-delete title="Elimina fornitore" style="color:#a83a3a;">🗑</button>
                     </td>
                 </tr>
             }
@@ -156,14 +176,69 @@ else
 }
 
 <style>
+    /* ── Griglia fornitori: compatta + interattiva ─────────────── */
+    .forn-grid {
+        font-size: .78rem;
+        table-layout: fixed;
+        width: max-content;
+        min-width: 100%;
+    }
+    .forn-grid th,
+    .forn-grid td {
+        padding: 4px 6px;
+        vertical-align: middle;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+    }
+    .forn-grid th {
+        position: relative;
+        user-select: none;
+        cursor: pointer;
+        background: var(--c-bg-soft, #faf6f0);
+        font-weight: 600;
+        font-size: .72rem;
+        text-transform: uppercase;
+        letter-spacing: .3px;
+        color: var(--c-ink-soft, #6b4d2a);
+    }
+    .forn-grid th[data-sort-key]:hover { background: #f3e6cf; }
+    .forn-grid th .th-label { display: inline-block; padding-right: 14px; }
+    .forn-grid th .th-sort {
+        position: absolute;
+        right: 16px;
+        top: 50%;
+        transform: translateY(-50%);
+        font-size: .7rem;
+        opacity: .35;
+        pointer-events: none;
+    }
+    .forn-grid th[data-sort-dir="asc"] .th-sort::after { content: "▲"; opacity: 1; }
+    .forn-grid th[data-sort-dir="desc"] .th-sort::after { content: "▼"; opacity: 1; }
+    .forn-grid th .th-resizer {
+        position: absolute;
+        right: 0;
+        top: 0;
+        bottom: 0;
+        width: 6px;
+        cursor: col-resize;
+        z-index: 2;
+    }
+    .forn-grid th .th-resizer:hover,
+    .forn-grid.is-resizing th .th-resizer.is-active {
+        background: var(--c-accent, #c47830);
+        opacity: .4;
+    }
+    .forn-grid.is-resizing { cursor: col-resize; user-select: none; }
+
     .inline-input {
         width: 100%;
-        padding: 4px 6px;
+        padding: 2px 4px;
         border: 1px solid transparent;
         background: transparent;
         font: inherit;
         color: inherit;
-        border-radius: 4px;
+        border-radius: 3px;
         transition: border-color .1s, background-color .1s;
     }
     .inline-input:hover { border-color: #ddd; }
@@ -184,16 +259,17 @@ else
         var grid = document.getElementById('fornitori-grid');
         if (!grid) return;
 
+        // ── Antiforgery + helpers ────────────────────────────────
         function tokenValue() {
             var host = document.getElementById('forn-antiforgery-host');
             return host ? (host.querySelector('input[name="__RequestVerificationToken"]')?.value || '') : '';
         }
-
         function flashCell(el, cls) {
             el.classList.add(cls);
             setTimeout(function () { el.classList.remove(cls); }, 1200);
         }
 
+        // ── Inline edit + delete ─────────────────────────────────
         async function save(row, control) {
             var id = row.getAttribute('data-id');
             var field = control.getAttribute('data-field');
@@ -217,14 +293,19 @@ else
                     if (err && err.error) alert(err.error);
                     return;
                 }
-                var data = await resp.json();
+                await resp.json();
                 control.setAttribute('data-original', value);
+                // sincronizza data-sort-value della cella ospitante
+                var cell = control.closest('td');
+                if (cell && cell.hasAttribute('data-sort-value')) cell.setAttribute('data-sort-value', value);
                 if (field === 'RagioneSociale') {
                     row.setAttribute('data-label', value);
                     var rsp = row.querySelector('[data-field="RagioneSocialePagamento"]');
                     if (rsp && (rsp.value === '' || rsp.value === original)) {
                         rsp.value = value;
                         rsp.setAttribute('data-original', value);
+                        var rspCell = rsp.closest('td');
+                        if (rspCell) rspCell.setAttribute('data-sort-value', value);
                     }
                 }
                 flashCell(control, 'inline-input--saved');
@@ -234,7 +315,6 @@ else
             }
         }
 
-        // Inizializza data-original e listener
         grid.querySelectorAll('[data-forn-row]').forEach(function (row) {
             row.querySelectorAll('.inline-input').forEach(function (el) {
                 el.setAttribute('data-original', el.value);
@@ -275,6 +355,107 @@ else
                     }
                 });
             }
+        });
+
+        // ── Sorting per colonna ──────────────────────────────────
+        var SORT_KEY = 'chipdent.fornitori.sort';
+        function cellSortValue(td) {
+            if (!td) return '';
+            if (td.hasAttribute('data-sort-value')) return td.getAttribute('data-sort-value');
+            var inp = td.querySelector('input, select');
+            if (inp) return inp.value;
+            return td.textContent.trim();
+        }
+        function sortBy(th) {
+            var key = th.getAttribute('data-sort-key');
+            if (!key) return;
+            var col = th.getAttribute('data-col');
+            var type = th.getAttribute('data-sort-type') || 'text';
+            var current = th.getAttribute('data-sort-dir');
+            var dir = current === 'asc' ? 'desc' : 'asc';
+
+            grid.querySelectorAll('th[data-sort-key]').forEach(function (h) { h.removeAttribute('data-sort-dir'); });
+            th.setAttribute('data-sort-dir', dir);
+
+            var tbody = grid.tBodies[0];
+            var rows = Array.prototype.slice.call(tbody.rows);
+            rows.sort(function (a, b) {
+                var av = cellSortValue(a.querySelector('td[data-col="' + col + '"]'));
+                var bv = cellSortValue(b.querySelector('td[data-col="' + col + '"]'));
+                if (type === 'number') {
+                    av = parseFloat(av); bv = parseFloat(bv);
+                    if (isNaN(av)) av = -Infinity;
+                    if (isNaN(bv)) bv = -Infinity;
+                    return dir === 'asc' ? av - bv : bv - av;
+                }
+                return dir === 'asc'
+                    ? av.localeCompare(bv, 'it', { sensitivity: 'base' })
+                    : bv.localeCompare(av, 'it', { sensitivity: 'base' });
+            });
+            rows.forEach(function (r) { tbody.appendChild(r); });
+            try { localStorage.setItem(SORT_KEY, JSON.stringify({ key: key, dir: dir })); } catch (e) {}
+        }
+        grid.querySelectorAll('th[data-sort-key]').forEach(function (th) {
+            th.addEventListener('click', function (e) {
+                if (e.target.classList.contains('th-resizer')) return;
+                sortBy(th);
+            });
+        });
+        // Ripristina ordinamento salvato
+        try {
+            var saved = JSON.parse(localStorage.getItem(SORT_KEY) || 'null');
+            if (saved && saved.key) {
+                var th = grid.querySelector('th[data-sort-key="' + saved.key + '"]');
+                if (th) {
+                    // Preimposta dir opposta in modo che sortBy la inverta a quella desiderata
+                    th.setAttribute('data-sort-dir', saved.dir === 'asc' ? 'desc' : 'asc');
+                    sortBy(th);
+                }
+            }
+        } catch (e) {}
+
+        // ── Ridimensionamento colonne ────────────────────────────
+        var WIDTH_KEY = 'chipdent.fornitori.colWidths';
+        function loadWidths() {
+            try { return JSON.parse(localStorage.getItem(WIDTH_KEY) || '{}') || {}; }
+            catch (e) { return {}; }
+        }
+        function saveWidth(col, px) {
+            var ws = loadWidths();
+            ws[col] = px;
+            try { localStorage.setItem(WIDTH_KEY, JSON.stringify(ws)); } catch (e) {}
+        }
+        var initialWidths = loadWidths();
+        grid.querySelectorAll('th[data-col]').forEach(function (th) {
+            var col = th.getAttribute('data-col');
+            if (initialWidths[col]) th.style.width = initialWidths[col] + 'px';
+        });
+
+        grid.querySelectorAll('th .th-resizer').forEach(function (handle) {
+            handle.addEventListener('mousedown', function (e) {
+                e.preventDefault();
+                e.stopPropagation();
+                var th = handle.parentElement;
+                var col = th.getAttribute('data-col');
+                var startX = e.clientX;
+                var startW = th.getBoundingClientRect().width;
+                handle.classList.add('is-active');
+                grid.classList.add('is-resizing');
+
+                function onMove(ev) {
+                    var w = Math.max(50, startW + (ev.clientX - startX));
+                    th.style.width = w + 'px';
+                }
+                function onUp() {
+                    document.removeEventListener('mousemove', onMove);
+                    document.removeEventListener('mouseup', onUp);
+                    handle.classList.remove('is-active');
+                    grid.classList.remove('is-resizing');
+                    saveWidth(col, Math.round(th.getBoundingClientRect().width));
+                }
+                document.addEventListener('mousemove', onMove);
+                document.addEventListener('mouseup', onUp);
+            });
         });
     })();
 </script>
