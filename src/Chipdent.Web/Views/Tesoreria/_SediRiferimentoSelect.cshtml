@@ -1,0 +1,45 @@
+@using Chipdent.Web.Domain.Entities
+@model Chipdent.Web.Models.SediRiferimentoSelectViewModel
+
+@{
+    var widgetId = "sediref-" + Guid.NewGuid().ToString("N").Substring(0, 8);
+    var selectedSet = new HashSet<string>(Model.Selected ?? new List<string>(), StringComparer.Ordinal);
+    var hasTutte = selectedSet.Contains(FornitoreSedi.Tutte);
+    // Nome usato dai badge: serializza la lista come campi multipli con lo stesso name.
+    var inputName = string.IsNullOrEmpty(Model.FieldName) ? "SediRiferimentoIds" : Model.FieldName;
+}
+
+<div class="sediref" data-sediref data-widget-id="@widgetId">
+    <div class="sediref__chips" data-sediref-chips>
+        @if (hasTutte)
+        {
+            <span class="sediref__chip sediref__chip--all" data-sediref-chip data-id="@FornitoreSedi.Tutte">
+                TUTTE
+                <button type="button" class="sediref__chip-x" data-sediref-remove aria-label="Rimuovi">×</button>
+                <input type="hidden" name="@inputName" value="@FornitoreSedi.Tutte" />
+            </span>
+        }
+        else
+        {
+            @foreach (var id in Model.Selected ?? Enumerable.Empty<string>())
+            {
+                var nome = Model.Cliniche.FirstOrDefault(c => c.Id == id)?.Nome ?? id;
+                <span class="sediref__chip" data-sediref-chip data-id="@id">
+                    @nome
+                    <button type="button" class="sediref__chip-x" data-sediref-remove aria-label="Rimuovi">×</button>
+                    <input type="hidden" name="@inputName" value="@id" />
+                </span>
+            }
+        }
+    </div>
+    <select class="form-control sediref__select" data-sediref-select aria-label="Aggiungi sede di riferimento">
+        <option value="">+ aggiungi sede…</option>
+        <option value="@FornitoreSedi.Tutte" data-tutte>TUTTE le sedi</option>
+        @foreach (var c in Model.Cliniche)
+        {
+            <option value="@c.Id">@c.Nome</option>
+        }
+    </select>
+    @* Garantisce che la chiave esista nel form post anche quando nessun chip è selezionato. *@
+    <input type="hidden" name="@inputName" value="" data-sediref-placeholder />
+</div>

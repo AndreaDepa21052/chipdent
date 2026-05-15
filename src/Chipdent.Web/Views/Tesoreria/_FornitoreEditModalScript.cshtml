@@ -83,6 +83,9 @@
             });
         });
 
+        // Multi-select sedi di riferimento (chip + dropdown)
+        if (window.SediRiferimentoSelect) window.SediRiferimentoSelect.initAll(dlg);
+
         // Submit AJAX
         const form = dlg.querySelector('#fornmodal-form');
         const errorsBox = dlg.querySelector('[data-dotmodal-errors]');
