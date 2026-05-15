@@ -295,20 +295,14 @@ public static class MongoSeeder
 
             // Wipe one-shot dell'anagrafica (fornitori + dottori + corsi-dottori + ECM
             // e cascata Tesoreria). Marcata in tenant.MigrazioniApplicate: gira solo
-            // una volta. Dopo il wipe NIENTE viene re-seedato automaticamente da
-            // FORNITORI Confident.xlsx (il vecchio ConfidentImportSeeder è stato
-            // rimosso): l'anagrafica resta vuota fino a popolamento manuale o
-            // tramite gli altri seeder qui sotto.
+            // una volta.
+            //
+            // Scelta esplicita dell'utente: NESSUN ripopolamento automatico
+            // dell'anagrafica fornitori/dottori. La ricreazione avviene dal portale.
+            // Tutti i seeder che creavano/aggiornavano fornitori (ConfidentImport,
+            // ScadenziarioFornitori, FattureFornitoriIban) sono quindi disattivati
+            // qui — i tool e i data file relativi restano sul repo come riferimento.
             await WipeAnagraficaSeeder.SeedAsync(ctx, tenant, logger, ct);
-
-            // Allinea l'anagrafica con i fornitori dello scadenziario: aggiorna gli
-            // IBAN sui fornitori già censiti e crea quelli mancanti.
-            await ScadenziarioFornitoriSeeder.SeedAsync(ctx, tenant, logger, ct);
-
-            // Riempi gli IBAN ancora mancanti leggendoli dalle fatture passive PDF
-            // (vedi FattureFornitoriIbanData, rigenerato da
-            // tools/import-fatture-ibans.py su FileRaw/DES-*.pdf).
-            await FattureFornitoriIbanSeeder.SeedAsync(ctx, tenant, logger, ct);
 
             await SeedTesoreriaAsync(ctx, hasher, tenant, cliniche, logger, ct);
             await SeedCashflowAsync(ctx, tenant, cliniche, logger, ct);
@@ -363,10 +357,10 @@ public static class MongoSeeder
         }
 
         if (cliniche.Count == 0) return;
-        // Idempotenza: i fornitori sono ora alimentati dallo ScadenziarioFornitoriSeeder
-        // (e dal popolamento manuale post-wipe), qui ci limitiamo a generare le
-        // fatture/scadenze demo agganciandole ai primi N fornitori-azienda esistenti.
-        // Saltiamo se ci sono già scadenze (già generate in un avvio precedente).
+        // Idempotenza: i fornitori sono alimentati esclusivamente dal portale
+        // (nessun seed automatico dopo il wipe). Qui ci limitiamo a generare
+        // fatture/scadenze demo agganciandole ai primi N fornitori-azienda
+        // esistenti. Saltiamo se non ci sono fornitori, o se ci sono già scadenze.
         if (await ctx.ScadenzePagamento.Find(s => s.TenantId == tenant.Id).AnyAsync(ct)) return;
 
         // Prendiamo solo i fornitori-azienda (no fornitori-ombra dei dottori).
