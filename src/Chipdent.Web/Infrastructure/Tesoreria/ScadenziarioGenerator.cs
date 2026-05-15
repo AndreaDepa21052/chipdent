@@ -7,20 +7,47 @@ namespace Chipdent.Web.Infrastructure.Tesoreria;
 
 /// <summary>
 /// Trasforma le righe importate (CCH/Ident) in Fatture + Scadenze applicando le regole
-/// del file <c>Regole scadenzario.xlsx</c>: classificazione fornitore, calcolo scadenze
-/// per tipologia (medici/laboratori/Invisalign/generici), gestione ritenute, note di
-/// credito, carta di credito, snap dei bonifici al 10 / fine mese, e una lista di
-/// <see cref="AlertScadenziario"/> per i casi che richiedono revisione manuale.
+/// del file <c>Regole scadenzario.xlsx</c>. Documento canonico delle regole:
+/// <c>docs/REGOLE_SCADENZIARIO.md</c> — tenere allineato a ogni modifica.
 ///
 /// <para>
-/// <b>REGOLA «Pagamenti manuali»</b>: se l'anagrafica fornitore ha
-/// <see cref="Fornitore.PagamentiManuali"/> = true, la fattura viene comunque
-/// generata e registrata, ma <b>non</b> viene emessa alcuna scadenza in
-/// scadenziario. La posizione confluisce in
-/// <see cref="Output.FatturePagamentoManuale"/> (tabella di alert dedicata)
-/// affinché l'operatore calcoli e disponga il pagamento a mano. La regola
-/// vince su tutte le altre (NC, carta di credito, ritenute incluse): se il
-/// flag è acceso, lo scadenziario automatico è disabilitato per quel fornitore.
+/// <b>Pipeline (per ogni riga importata)</b>:
+/// <list type="number">
+///   <item>Classificazione fornitore (Medico / Laboratorio / Invisalign / Locazione / Riba / CC / …)</item>
+///   <item>Match anagrafica fornitore per P.IVA → CF → ragione sociale (autocreazione se assente)</item>
+///   <item>Risoluzione clinica destinataria (LOC) — vedi regole sotto</item>
+///   <item>Costruzione fattura</item>
+///   <item><b>Short-circuit</b> per i fornitori a «pagamenti manuali» (vedi sotto)</item>
+///   <item>Calcolo scadenze per tipologia (incl. snap bonifici e ritenute)</item>
+///   <item>Arricchimento note con «nota secondaria automatica» della clinica (vedi sotto)</item>
+///   <item>Regole di confronto su storico (duplicati / scostamento importo)</item>
+/// </list>
+/// </para>
+///
+/// <para>
+/// <b>REGOLA «Pagamenti manuali» (Fornitore.PagamentiManuali = true)</b><br/>
+/// La fattura viene registrata, ma <b>non</b> viene emessa alcuna scadenza. La posizione
+/// confluisce in <see cref="Output.FatturePagamentoManuale"/> e in un alert dedicato.
+/// La regola vince su tutte le altre (NC, CC, ritenute incluse): l'operatore calcola e
+/// dispone il pagamento manualmente.
+/// </para>
+///
+/// <para>
+/// <b>REGOLA «LOC della scadenza» (Clinica.NomeAbbreviato)</b><br/>
+/// Il campo LOC mostrato nello scadenziario è derivato dalla clinica destinataria:
+/// se <c>Clinica.NomeAbbreviato</c> è valorizzato è usato tale e quale, altrimenti
+/// fallback alla tabella statica per nome. Il <see cref="ResolveLoc"/> usa lo stesso
+/// campo anche in lettura: l'abbreviazione presente nella sezione/nome fornitore
+/// dell'import viene matchata contro <c>Clinica.NomeAbbreviato</c> (priorità) prima
+/// che con le sigle storiche hardcoded.
+/// </para>
+///
+/// <para>
+/// <b>REGOLA «Nota secondaria automatica» (Clinica.AggiungiNotaSecondariaAutomaticamente)</b><br/>
+/// Quando il flag della clinica destinataria è true, il testo di
+/// <c>Clinica.NotaSecondariaAutomatica</c> viene appeso (separatore " · ") al campo
+/// <c>Scadenza.Note</c> di tutte le scadenze derivate dalla fattura (compresa la rata
+/// ritenuta). Pensato per istruzioni operative ricorrenti per sede.
 /// </para>
 /// </summary>
 public static class ScadenziarioGenerator
@@ -121,6 +148,7 @@ public static class ScadenziarioGenerator
         foreach (var d in input.Dottori) medici.Add(NormalizeNome($"{d.Cognome} {d.Nome}"));
 
         var cliniche = input.Cliniche.ToDictionary(c => c.Nome ?? "", c => c, StringComparer.OrdinalIgnoreCase);
+        var clinicheById = input.Cliniche.ToDictionary(c => c.Id, c => c);
         var cch = input.Cliniche.FirstOrDefault(c => c.IsHolding) ??
                   input.Cliniche.FirstOrDefault(c => string.Equals(c.Nome, "CCH", StringComparison.OrdinalIgnoreCase));
 
@@ -192,7 +220,7 @@ public static class ScadenziarioGenerator
             }
 
             // ── Clinica destinataria (LOC) ───────────────────────────────
-            var clinicaId = ResolveLoc(riga, nomeForn, cch, cliniche);
+            var clinicaId = ResolveLoc(riga, nomeForn, cch, cliniche, input.Cliniche);
             if (string.IsNullOrEmpty(clinicaId))
             {
                 output.Alerts.Add(new AlertScadenziario(AlertSeverita.Warn, "LOC mancante",
@@ -295,6 +323,22 @@ public static class ScadenziarioGenerator
             var scadenze = BuildScadenze(
                 tipo, fattura, fornitore, dataDoc, totale, netto, ritenuta,
                 isNotaCredito, iban, output.Alerts, riga);
+
+            // ── REGOLA «Nota secondaria automatica» ──────────────────────
+            // Se la clinica destinataria della fattura ha il flag attivo,
+            // appendiamo la NotaSecondariaAutomatica a Scadenza.Note. Si
+            // applica a TUTTE le scadenze derivate (compresa la rata ritenuta).
+            if (!string.IsNullOrEmpty(clinicaId)
+                && clinicheById.TryGetValue(clinicaId, out var clinicaDest)
+                && clinicaDest.AggiungiNotaSecondariaAutomaticamente
+                && !string.IsNullOrWhiteSpace(clinicaDest.NotaSecondariaAutomatica))
+            {
+                var nota = clinicaDest.NotaSecondariaAutomatica.Trim();
+                foreach (var s in scadenze)
+                {
+                    s.Note = string.IsNullOrWhiteSpace(s.Note) ? nota : $"{s.Note} · {nota}";
+                }
+            }
 
             output.Scadenze.AddRange(scadenze);
 
@@ -640,14 +684,28 @@ public static class ScadenziarioGenerator
     }
 
     private static string? ResolveLoc(
-        ImportFatturaRiga riga, string nomeForn, Clinica? cch, Dictionary<string, Clinica> cliniche)
+        ImportFatturaRiga riga, string nomeForn, Clinica? cch,
+        Dictionary<string, Clinica> cliniche,
+        IReadOnlyList<Clinica> clinicheAll)
     {
         // 1) Sezione CCH → holding
         if (string.Equals(riga.Sezione, "CCH", StringComparison.OrdinalIgnoreCase) && cch != null)
             return cch.Id;
 
-        // 2) Pattern nel nome fornitore (es "VODAFONE DESIO", "AFFITTO VAR")
         var n = nomeForn.ToUpperInvariant();
+
+        // 2) Match per NomeAbbreviato (campo «LOC» sulla scheda clinica).
+        //    Ha priorità sulla tabella statica perché riflette le impostazioni utente.
+        foreach (var cli in clinicheAll)
+        {
+            var abbr = (cli.NomeAbbreviato ?? "").Trim().ToUpperInvariant();
+            if (string.IsNullOrEmpty(abbr)) continue;
+            if (string.Equals(riga.Sezione, abbr, StringComparison.OrdinalIgnoreCase)) return cli.Id;
+            if (n.Contains(" " + abbr) || n.EndsWith(" " + abbr) || n.EndsWith("-" + abbr))
+                return cli.Id;
+        }
+
+        // 3) Tabella statica di fallback (varianti storiche del nome fornitore).
         foreach (var (sigla, nome) in SiglaToNome)
         {
             if (n.Contains(" " + sigla) || n.EndsWith(sigla) || n.Contains(nome))
