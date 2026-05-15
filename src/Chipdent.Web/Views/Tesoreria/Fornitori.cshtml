@@ -125,7 +125,13 @@ else
                 var statoUi = r.Fornitore.Stato == StatoFornitore.Attivo ? StatoFornitore.Attivo : StatoFornitore.Dismesso;
                 var statoSortRank = statoUi == StatoFornitore.Attivo ? 0 : 1;
                 var sepaSortRank = r.Completezza.SepaPronto ? 0 : 1;
-                <tr data-forn-row data-id="@r.Fornitore.Id" data-label="@r.Fornitore.RagioneSociale" data-is-dottore="@(string.IsNullOrEmpty(r.Fornitore.DottoreId) ? "0" : "1")">
+                // Un fornitore è considerato "dottore" ai fini del filtro se la ragione
+                // sociale inizia con "Dr. " oppure la categoria primaria è Medici.
+                var isDottore = (r.Fornitore.RagioneSociale ?? string.Empty)
+                                    .TrimStart()
+                                    .StartsWith("Dr. ", StringComparison.OrdinalIgnoreCase)
+                                || r.Fornitore.CategoriaDefault == CategoriaSpesa.Medici;
+                <tr data-forn-row data-id="@r.Fornitore.Id" data-label="@r.Fornitore.RagioneSociale" data-is-dottore="@(isDottore ? "1" : "0")">
                     <td class="muted" data-col="codice" data-sort-value="@(r.Fornitore.Codice ?? "")">
                         @(string.IsNullOrEmpty(r.Fornitore.Codice) ? "—" : r.Fornitore.Codice)
                         @* _TableSearch indicizza textContent; rendiamo cercabili anche i valori degli <input>. *@
