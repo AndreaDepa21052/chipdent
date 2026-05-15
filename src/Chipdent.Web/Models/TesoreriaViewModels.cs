@@ -258,6 +258,13 @@ public class FornitoreFormViewModel
     /// <summary>Pagamento ricorrente (canoni, abbonamenti, rate) — flag sì/no.</summary>
     public bool PagamentoRicorrente { get; set; }
 
+    /// <summary>
+    /// Quando true, lo <c>ScadenziarioGenerator</c> non emette scadenze automatiche
+    /// per le fatture di questo fornitore: vengono solo registrate e segnalate
+    /// nella tabella alert "pagamenti manuali".
+    /// </summary>
+    public bool PagamentiManuali { get; set; }
+
     /// <summary>Id della clinica di riferimento del fornitore (sede principale, legacy).
     /// Mantenuto in sync con il primo elemento non-TUTTE di <see cref="SediRiferimentoIds"/>.</summary>
     public string? SedeRiferimentoId { get; set; }
@@ -421,10 +428,27 @@ public class GeneraScadenziarioViewModel
     public List<AlertRow> Alerts { get; set; } = new();
     public List<AnteprimaScadenza> Anteprima { get; set; } = new();
 
+    /// <summary>
+    /// Fatture per le quali NON è stata generata scadenza perché il fornitore
+    /// è marcato come «pagamenti manuali». L'operatore deve calcolare e
+    /// disporre il pagamento a mano.
+    /// </summary>
+    public List<FatturaPagamentoManualeRow> FatturePagamentoManuale { get; set; } = new();
+
     public bool IsApplied { get; set; }
 
     public Dictionary<string, int> AlertsPerCategoria { get; set; } = new();
     public Dictionary<string, int> AlertsPerSeverita { get; set; } = new();
+}
+
+public class FatturaPagamentoManualeRow
+{
+    public string Fornitore { get; set; } = string.Empty;
+    public string? NumeroDoc { get; set; }
+    public DateTime DataDocumento { get; set; }
+    public decimal Totale { get; set; }
+    public string? Loc { get; set; }
+    public int RigaSorgente { get; set; }
 }
 
 public class AlertRow

@@ -77,6 +77,17 @@ public class Fornitore : TenantEntity
     /// segnalare le posizioni che si ripetono periodo dopo periodo.</summary>
     public bool PagamentoRicorrente { get; set; }
 
+    /// <summary>
+    /// Se true, per le fatture di questo fornitore <b>non</b> verranno generate scadenze
+    /// automatiche dallo <c>ScadenziarioGenerator</c>. Le fatture vengono comunque
+    /// registrate ma confluiscono in una tabella di alert "pagamenti manuali" che
+    /// avvisa l'operatore di calcolare e disporre il pagamento a mano (importo,
+    /// scadenza, metodo decisi caso per caso fuori dal motore standard).
+    /// Usato per fornitori atipici: spese accessorie, conguagli, anticipi soci,
+    /// posizioni in contenzioso, F24 manuali, ecc.
+    /// </summary>
+    public bool PagamentiManuali { get; set; }
+
     /// <summary>Id della <see cref="Clinica"/> di riferimento del fornitore (sede a cui è
     /// principalmente associato il rapporto). Null = non assegnata. Per le anagrafiche
     /// storiche viene popolata via backfill alla sede DESIO. Mantenuto come "sede primaria"

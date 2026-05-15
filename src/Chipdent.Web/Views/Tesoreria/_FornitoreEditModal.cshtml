@@ -294,6 +294,26 @@
                             </select>
                         </div>
                     </div>
+
+                    @* ── Toggle BEN VISIBILE: salta generazione scadenze automatiche ── *@
+                    <div class="dotmodal__manual-toggle @(vm.PagamentiManuali ? "is-active" : "")"
+                         style="margin-top: var(--s-4); padding: 16px 18px; border: 2px solid @(vm.PagamentiManuali ? "#c47830" : "#e9d8b8"); border-radius: 10px; background: @(vm.PagamentiManuali ? "linear-gradient(135deg, rgba(196,120,48,0.12), rgba(196,120,48,0.04))" : "rgba(255,247,232,0.6)"); transition: all .15s;">
+                        <label style="display:flex; gap:12px; align-items:flex-start; cursor:pointer; margin:0;">
+                            <input type="hidden" name="PagamentiManuali" value="false" />
+                            <input type="checkbox" name="PagamentiManuali" value="true" @(vm.PagamentiManuali ? "checked" : "")
+                                   style="width:22px; height:22px; margin-top:2px; accent-color:#c47830; cursor:pointer;" />
+                            <div style="flex:1;">
+                                <div style="font-weight:700; font-size:1rem; color:#3b1e0c; display:flex; align-items:center; gap:8px;">
+                                    <span style="font-size:1.2rem;">⚠️</span>
+                                    Per questo fornitore non generare scadenze automaticamente
+                                </div>
+                                <div style="font-size:.85rem; color:#7a5c3a; margin-top:6px; line-height:1.45;">
+                                    Quando attivo, le fatture importate vengono <strong>registrate ma non producono scadenze</strong> nello scadenziario.
+                                    Finiscono in una tabella di alert dedicata e i pagamenti andranno calcolati e disposti manualmente.
+                                </div>
+                            </div>
+                        </label>
+                    </div>
                 </section>
 
                 <section id="sec-note" class="dotmodal__section">

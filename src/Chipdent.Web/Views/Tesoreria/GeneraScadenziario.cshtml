@@ -79,6 +79,13 @@
     <div class="gs-kpi is-ok"><div class="lbl">Scadenze previste</div><div class="val">@Model.ScadenzeGenerate.ToString("N0", it)</div></div>
     <div class="gs-kpi is-ok"><div class="lbl">Fatture previste</div><div class="val">@Model.FattureGenerate.ToString("N0", it)</div></div>
     <div class="gs-kpi is-warn"><div class="lbl">Alert da verificare</div><div class="val">@Model.Alerts.Count.ToString("N0", it)</div></div>
+    @if (Model.FatturePagamentoManuale.Count > 0)
+    {
+        <div class="gs-kpi is-warn" title="Fatture per fornitori marcati 'pagamenti manuali': nessuna scadenza generata.">
+            <div class="lbl">⚠ Pagamenti manuali</div>
+            <div class="val">@Model.FatturePagamentoManuale.Count.ToString("N0", it)</div>
+        </div>
+    }
 </div>
 
 <div class="gs-grid">
@@ -107,6 +114,50 @@
     </label>
     <button type="submit" class="btn btn--primary">🚀 Rigenera scadenziario</button>
 </form>
+
+@if (Model.FatturePagamentoManuale.Count > 0)
+{
+    var totManuale = Model.FatturePagamentoManuale.Sum(p => p.Totale);
+    <div class="gs-section" style="border: 2px solid #c47830; border-radius: 10px; padding: 16px 18px; background: linear-gradient(135deg, rgba(196,120,48,0.10), rgba(196,120,48,0.02)); margin-bottom: var(--s-4);">
+        <h3 style="margin: 0 0 4px; display:flex; align-items:center; gap:10px;">
+            <span style="font-size:1.4rem;">⚠️</span>
+            Pagamenti manuali — fatture senza scadenza automatica
+            <span class="pill pill--warn" style="font-size:.78rem;">@Model.FatturePagamentoManuale.Count fatture · @totManuale.ToString("N2", it) €</span>
+        </h3>
+        <p class="muted" style="margin: 4px 0 12px; font-size:.88rem;">
+            Queste fatture appartengono a fornitori marcati come «pagamenti manuali» nell'anagrafica: <strong>non è stata generata alcuna scadenza</strong>.
+            L'operatore deve calcolare e disporre il pagamento a mano (importo, data, metodo decisi caso per caso).
+            Per disattivare questo comportamento, aprire la scheda del fornitore e togliere il flag «Per questo fornitore non generare scadenze automaticamente».
+        </p>
+        <table class="table" style="width:100%;">
+            <thead>
+                <tr>
+                    <th>Fornitore</th>
+                    <th>Documento</th>
+                    <th>Data</th>
+                    <th>LOC</th>
+                    <th style="text-align:right;">Importo</th>
+                </tr>
+            </thead>
+            <tbody>
+                @foreach (var p in Model.FatturePagamentoManuale.Take(500))
+                {
+                    <tr>
+                        <td><strong>@p.Fornitore</strong></td>
+                        <td>@(p.NumeroDoc ?? "—")</td>
+                        <td>@p.DataDocumento.ToString("dd/MM/yyyy")</td>
+                        <td class="muted">@(p.Loc ?? "—")</td>
+                        <td style="text-align:right; font-family:monospace;">@p.Totale.ToString("N2", it) €</td>
+                    </tr>
+                }
+            </tbody>
+        </table>
+        @if (Model.FatturePagamentoManuale.Count > 500)
+        {
+            <p class="muted" style="margin-top:6px;">Mostrate prime 500 di @Model.FatturePagamentoManuale.Count.</p>
+        }
+    </div>
+}
 
 <div class="gs-section">
     <h3>Riepilogo alert (@Model.Alerts.Count)</h3>
