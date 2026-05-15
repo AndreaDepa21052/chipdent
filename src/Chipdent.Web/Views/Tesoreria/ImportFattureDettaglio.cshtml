@@ -55,12 +55,46 @@
     }
     .file-block__totals strong { color:#3b1e0c; }
     .grid-righe { padding:0; overflow:auto; border:1px solid #e9dcc1; border-radius:0 0 10px 10px; }
-    .grid-righe table { width:100%; border-collapse: collapse; font-size:.85rem; }
-    .grid-righe th, .grid-righe td { padding:6px 10px; border-bottom:1px solid #f1e6cf; white-space: nowrap; }
-    .grid-righe th { position:sticky; top:0; background:#fff7e8; text-align:left; font-weight:600; color:#3b1e0c; }
+    .grid-righe table { width:100%; border-collapse: collapse; font-size:.72rem; }
+    .grid-righe th, .grid-righe td { padding:4px 8px; border-bottom:1px solid #f1e6cf; white-space: nowrap; }
+    .grid-righe th { position:sticky; top:0; background:#fff7e8; text-align:left; font-weight:600; color:#3b1e0c; font-size:.72rem; }
     .grid-righe tr.has-err { background: #fff5f5; }
     .grid-righe td.num { text-align:right; font-variant-numeric: tabular-nums; }
-    .err-list { font-size:.75rem; color:#9a1c1c; margin-top:2px; }
+    .err-list { font-size:.68rem; color:#9a1c1c; margin-top:2px; }
+    .grid-righe td.row-prog { cursor: pointer; color:#c47830; font-weight:600; text-decoration: underline dotted; text-underline-offset: 2px; }
+    .grid-righe td.row-prog:hover { color:#3b1e0c; background:#fff7e8; }
+
+    /* ── Row detail modal ──────────────────────────────────────────── */
+    .row-modal-overlay {
+        position: fixed; inset: 0; z-index: 90;
+        background: rgba(40, 22, 8, .55);
+        backdrop-filter: blur(6px) saturate(140%);
+        -webkit-backdrop-filter: blur(6px) saturate(140%);
+        display: none;
+        animation: impFadeIn .18s ease-out;
+    }
+    .row-modal-overlay.is-open { display: block; }
+    .row-modal-panel {
+        position: absolute; top: 8vh; left: 50%; transform: translateX(-50%);
+        width: min(720px, 92vw); max-height: 80vh; overflow-y: auto;
+        background: linear-gradient(180deg, #fffaf0 0%, #fff6e2 100%);
+        border-radius: 18px;
+        box-shadow: 0 30px 80px rgba(0,0,0,.4), 0 0 0 1px rgba(196,120,48,.25);
+        padding: 22px 26px;
+        animation: impSlideDown .22s cubic-bezier(.2,.8,.2,1);
+    }
+    .row-modal-panel h3 { margin: 0 0 4px; color:#3b1e0c; font-size:1.1rem; }
+    .row-modal-panel .row-modal-sub { color:#7a5c3a; font-size:.8rem; margin-bottom: 16px; }
+    .row-modal-panel dl { display: grid; grid-template-columns: max-content 1fr; gap: 6px 16px; margin: 0; }
+    .row-modal-panel dt { color:#7a5c3a; font-size:.78rem; font-weight:600; text-transform: uppercase; letter-spacing:.3px; }
+    .row-modal-panel dd { margin: 0; color:#3b1e0c; font-size:.92rem; word-break: break-word; }
+    .row-modal-panel dd.mono { font-family: 'JetBrains Mono', monospace; font-size:.82rem; }
+    .row-modal-close {
+        position: absolute; top: 12px; right: 14px;
+        background: transparent; border: none; cursor: pointer;
+        font-size: 1.4rem; color: #7a5c3a; line-height: 1;
+    }
+    .row-modal-close:hover { color:#3b1e0c; }
 
     /* ── Search overlay ─────────────────────────────────────────── */
     .imp-search-fab {
@@ -302,15 +336,37 @@
                         <th>IBAN</th>
                         <th>P.IVA</th>
                         <th>Causale</th>
-                        <th>Allegati</th>
-                        <th>Stato</th>
                     </tr>
                 </thead>
                 <tbody>
                 @foreach (var r in g.Righe)
                 {
+                    var rowData = new Dictionary<string, string?>
+                    {
+                        ["Progressivo"] = r.NumeroRiga.ToString(),
+                        ["Protocollo"] = r.Protocollo,
+                        ["Data registrazione"] = r.DataRegistrazione?.ToString("dd/MM/yyyy"),
+                        ["Numero"] = r.Numero,
+                        ["Pagina PDF"] = r.PaginaPdf?.ToString(),
+                        ["Data documento"] = r.DataDocumento?.ToString("dd/MM/yyyy"),
+                        ["Fornitore"] = r.Fornitore,
+                        ["Tipo documento"] = r.TipoDocumento,
+                        ["Totale documento"] = r.TotaleDocumento?.ToString("N2", it),
+                        ["IVA"] = r.Iva?.ToString("N2", it),
+                        ["Netto a pagare"] = r.NettoAPagare?.ToString("N2", it),
+                        ["Ritenuta"] = r.Ritenuta?.ToString("N2", it),
+                        ["Competenza"] = r.MeseCompetenza.HasValue ? $"{r.MeseCompetenza:00}/{r.AnnoCompetenza ?? r.DataDocumento?.Year ?? 0}" : null,
+                        ["Scadenza (PDF)"] = r.DataScadenzaPdf?.ToString("dd/MM/yyyy"),
+                        ["Modalità pagamento"] = r.ModalitaPagamentoPdf,
+                        ["IBAN"] = r.IbanFornitore,
+                        ["P.IVA"] = r.PartitaIvaFornitore,
+                        ["Causale"] = r.Causale,
+                        ["Allegati"] = r.Allegati?.ToString(),
+                        ["Stato"] = r.HaErrori ? "Errore: " + string.Join(" · ", r.Errori) : "OK",
+                    };
+                    var rowJson = System.Text.Json.JsonSerializer.Serialize(rowData);
                     <tr class="@(r.HaErrori ? "has-err" : "")">
-                        <td>@r.NumeroRiga</td>
+                        <td class="row-prog" data-row-detail="@rowJson" title="Apri dettaglio riga">@r.NumeroRiga</td>
                         <td>@r.Protocollo</td>
                         <td>@(r.DataRegistrazione?.ToString("dd/MM/yyyy") ?? "—")</td>
                         <td>
@@ -338,21 +394,9 @@
                         <td>@(r.MeseCompetenza.HasValue ? $"{r.MeseCompetenza:00}/{r.AnnoCompetenza ?? r.DataDocumento?.Year ?? 0}" : "—")</td>
                         <td>@(r.DataScadenzaPdf?.ToString("dd/MM/yyyy") ?? "—")</td>
                         <td>@(r.ModalitaPagamentoPdf ?? "—")</td>
-                        <td style="font-family:monospace; font-size:.78rem;">@(r.IbanFornitore ?? "—")</td>
-                        <td style="font-family:monospace; font-size:.78rem;">@(r.PartitaIvaFornitore ?? "—")</td>
+                        <td style="font-family:monospace; font-size:.7rem;">@(r.IbanFornitore ?? "—")</td>
+                        <td style="font-family:monospace; font-size:.7rem;">@(r.PartitaIvaFornitore ?? "—")</td>
                         <td>@r.Causale</td>
-                        <td>@r.Allegati</td>
-                        <td>
-                            @if (r.HaErrori)
-                            {
-                                <span class="pill pill--err">errore</span>
-                                <div class="err-list">@string.Join(" · ", r.Errori)</div>
-                            }
-                            else
-                            {
-                                <span class="pill pill--ok">ok</span>
-                            }
-                        </td>
                     </tr>
                 }
                 </tbody>
@@ -370,6 +414,15 @@
     <span>Cerca</span>
     <kbd>⌘K</kbd>
 </button>
+
+<div id="rowDetailOverlay" class="row-modal-overlay" role="dialog" aria-modal="true" aria-label="Dettaglio riga">
+    <div class="row-modal-panel" role="document">
+        <button type="button" class="row-modal-close" id="rowDetailClose" aria-label="Chiudi">✕</button>
+        <h3 id="rowDetailTitle">Dettaglio riga</h3>
+        <div class="row-modal-sub" id="rowDetailSub"></div>
+        <dl id="rowDetailBody"></dl>
+    </div>
+</div>
 
 <div id="impSearchOverlay" class="imp-search-overlay" role="dialog" aria-modal="true" aria-label="Ricerca nelle tabelle">
     <div class="imp-search-panel" role="document">
@@ -645,5 +698,60 @@
 
     // Inizializza il pannello con il riepilogo "totale righe per file"
     apply();
+})();
+</script>
+
+<script>
+// ── Modal dettaglio riga (click sul progressivo) ─────────────────
+(function () {
+    const overlay = document.getElementById('rowDetailOverlay');
+    const closeBtn = document.getElementById('rowDetailClose');
+    const titleEl = document.getElementById('rowDetailTitle');
+    const subEl = document.getElementById('rowDetailSub');
+    const bodyEl = document.getElementById('rowDetailBody');
+    if (!overlay) return;
+
+    const MONO_KEYS = new Set(['IBAN', 'P.IVA', 'Protocollo']);
+
+    function openRow(cell) {
+        let data;
+        try { data = JSON.parse(cell.getAttribute('data-row-detail') || '{}'); }
+        catch (_) { return; }
+
+        const block = cell.closest('[data-file-block]');
+        const fileName = block?.dataset.fileName || '';
+        titleEl.textContent = 'Riga #' + (data['Progressivo'] || '');
+        subEl.textContent = fileName;
+
+        bodyEl.innerHTML = '';
+        Object.entries(data).forEach(([k, v]) => {
+            if (v === null || v === undefined || v === '') return;
+            const dt = document.createElement('dt');
+            dt.textContent = k;
+            const dd = document.createElement('dd');
+            if (MONO_KEYS.has(k)) dd.classList.add('mono');
+            dd.textContent = v;
+            bodyEl.appendChild(dt);
+            bodyEl.appendChild(dd);
+        });
+
+        overlay.classList.add('is-open');
+        document.body.style.overflow = 'hidden';
+    }
+
+    function close() {
+        overlay.classList.remove('is-open');
+        document.body.style.overflow = '';
+    }
+
+    document.addEventListener('click', e => {
+        const cell = e.target.closest('.row-prog');
+        if (cell) { e.preventDefault(); openRow(cell); }
+    });
+    closeBtn.addEventListener('click', close);
+    overlay.addEventListener('click', e => { if (e.target === overlay) close(); });
+    document.addEventListener('keydown', e => {
+        if (e.key === 'Escape' && overlay.classList.contains('is-open')) close();
+    });
 })();
 </script>
