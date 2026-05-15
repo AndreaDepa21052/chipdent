@@ -504,11 +504,19 @@
         </div>
     </aside>
 
-<div class="scadenze-grid">
-<div class="card" style="padding:0; margin-bottom: var(--s-4); min-width: 0;">
-    <div class="card__header" style="padding: var(--s-3) var(--s-3) 0;">
-        <h3 class="card__title">Scadenze</h3>
+<div class="scadenze-grid" id="scadenze-grid-root">
+<div class="card" style="padding:0; margin-bottom: var(--s-4); min-width: 0;" data-grid-card>
+    <div class="card__header" style="padding: var(--s-3) var(--s-3) 0; display:flex; align-items:center; gap: var(--s-2);">
+        <h3 class="card__title" style="margin: 0;">Scadenze</h3>
         <span class="muted" style="font-size:.85rem;">@Model.Righe.Count righe</span>
+        <button type="button"
+                class="btn btn--ghost btn--sm"
+                data-grid-fullscreen-toggle
+                title="Apri la griglia a tutto schermo"
+                style="margin-left:auto; display:inline-flex; align-items:center; gap:4px;">
+            <span aria-hidden="true">⛶</span>
+            <span>A tutto schermo</span>
+        </button>
     </div>
 
     @{
@@ -805,6 +813,60 @@
 </div><!-- /scadenze-split -->
 </section><!-- /tab scadenze -->
 
+<!-- ── Modale griglia a tutto schermo ─────────────────────────────
+     Contiene un placeholder vuoto: alla pressione del bottone
+     "A tutto schermo" la card della griglia viene spostata qui via JS.
+     Alla chiusura viene ripristinata nella posizione originale. -->
+<dialog id="dlg-grid-fullscreen" class="dlg-fullscreen" aria-label="Scadenze a tutto schermo">
+    <div class="dlg-fullscreen__bar">
+        <strong style="font-size: .95rem;">Scadenze — vista estesa</strong>
+        <span class="muted" style="font-size:.8rem;">@Model.Righe.Count righe</span>
+        <button type="button" class="btn btn--ghost btn--sm" data-grid-fullscreen-close style="margin-left:auto;" title="Chiudi (Esc)">
+            ✕ Chiudi
+        </button>
+    </div>
+    <div class="dlg-fullscreen__body" id="dlg-grid-fullscreen-body"></div>
+</dialog>
+
+<style>
+    /* Modale full-screen della griglia scadenze: lasciamo respirare la
+       tabella su tutta la viewport, eliminando il vincolo a 320px del
+       calendario laterale. Il calendario resta fuori (la modale ospita
+       solo la card .scadenze-grid). */
+    dialog.dlg-fullscreen {
+        border: 0;
+        padding: 0;
+        margin: 0;
+        width: 100vw;
+        max-width: 100vw;
+        height: 100vh;
+        max-height: 100vh;
+        background: var(--c-bg, #f8f1e3);
+        color: inherit;
+        overflow: hidden;
+        display: flex;
+        flex-direction: column;
+    }
+    dialog.dlg-fullscreen::backdrop { background: rgba(59,30,12,0.55); }
+    .dlg-fullscreen__bar {
+        display: flex; align-items: center; gap: var(--s-3);
+        padding: var(--s-3) var(--s-4);
+        background: #fff;
+        border-bottom: 1px solid var(--c-border, #ece0cc);
+        flex: 0 0 auto;
+    }
+    .dlg-fullscreen__body {
+        flex: 1 1 auto;
+        overflow: auto;
+        padding: var(--s-4);
+    }
+    /* Quando la card è nella modale, rimuoviamo i vincoli di larghezza
+       e il margine inferiore per sfruttare tutta la viewport. */
+    .dlg-fullscreen__body > .card { margin-bottom: 0; }
+    .dlg-fullscreen__body .scadenze-grid .table { font-size: .85rem; }
+    .dlg-fullscreen__body .scadenze-grid .table thead th { font-size: .7rem; }
+</style>
+
 <!-- ── Modali pagamento ──────────────────────────────────────── -->
 <dialog id="dlg-paga" style="border:0; border-radius: 12px; padding: 0; max-width: 420px; box-shadow: 0 20px 60px rgba(0,0,0,0.18);">
     <form id="form-paga" method="post" style="padding: var(--s-4);">
@@ -949,6 +1011,46 @@
                     }, 50);
                 }
             });
+        });
+    })();
+
+    // Griglia scadenze a tutto schermo.
+    // Sposta la card della griglia dentro il dialog <dlg-grid-fullscreen>
+    // al click sul bottone; al close la ripristina nella sua posizione
+    // originale. Niente clone: lo spostamento conserva event listener,
+    // selezioni e stato del form filtri.
+    (function () {
+        var toggle = document.querySelector('[data-grid-fullscreen-toggle]');
+        var dlg = document.getElementById('dlg-grid-fullscreen');
+        var slot = document.getElementById('dlg-grid-fullscreen-body');
+        var card = document.querySelector('[data-grid-card]');
+        var root = document.getElementById('scadenze-grid-root');
+        var closeBtn = document.querySelector('[data-grid-fullscreen-close]');
+        if (!toggle || !dlg || !slot || !card || !root) return;
+
+        function open() {
+            if (!dlg.open) {
+                slot.appendChild(card);
+                if (typeof dlg.showModal === 'function') dlg.showModal();
+                else dlg.setAttribute('open', '');
+                document.body.style.overflow = 'hidden';
+            }
+        }
+        function close() {
+            if (dlg.open) {
+                if (typeof dlg.close === 'function') dlg.close();
+                else dlg.removeAttribute('open');
+            }
+        }
+        toggle.addEventListener('click', open);
+        if (closeBtn) closeBtn.addEventListener('click', close);
+        dlg.addEventListener('close', function () {
+            root.appendChild(card);
+            document.body.style.overflow = '';
+        });
+        // Click sul backdrop chiude la modale (Esc è gestito nativamente).
+        dlg.addEventListener('click', function (e) {
+            if (e.target === dlg) close();
         });
     })();
 
