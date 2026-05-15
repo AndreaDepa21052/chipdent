@@ -22,11 +22,12 @@ e produce in output:
 1. Classificazione fornitore
 2. Match anagrafica fornitore
 3. Risoluzione clinica destinataria (LOC)
-4. Costruzione fattura
+4. Costruzione fattura (incl. calcolo mese di competenza)
 5. **Short-circuit** se fornitore a pagamenti manuali → tabella alert dedicata
 6. Calcolo scadenze per tipologia
-7. Arricchimento note con «nota secondaria automatica» della clinica
-8. Regole di confronto su storico (duplicati / scostamento importo)
+7. **Override stato → Pagato** se fornitore con modalità «prima pagamento, poi emissione fattura»
+8. Arricchimento note con «nota secondaria automatica» (clinica + fornitore, cumulative)
+9. Regole di confronto su storico (duplicati / scostamento importo)
 
 ---
 
@@ -212,6 +213,38 @@ Quando `riga.Ritenuta > 0`:
 
 ---
 
+## 6.bis Regola «Modalità DopoIlPagamento → scadenza già pagata»
+
+> Trigger: `Fornitore.EmissioneFattura == DopoIlPagamento`
+> (in UI: «prima pagamento, poi emissione fattura»).
+
+Quando un fornitore è configurato in questa modalità, vuol dire che
+emette la fattura **dopo** aver ricevuto il pagamento. Per definizione,
+nel momento in cui la fattura arriva nel sistema, il bonifico è già
+stato disposto. La regola applicata è quindi:
+
+- Tutte le scadenze derivate dalla fattura vengono marcate come
+  `StatoScadenza.Pagato`.
+- `DataPagamento` viene impostata uguale alla **data fattura**
+  (`dataDoc`).
+- Alle `Scadenza.Note` viene appeso il testo
+  "*Pagamento già effettuato (fattura emessa post-pagamento)*".
+- Viene emesso un alert **«Pagamento già effettuato»** (Warn) per
+  ricordare all'operatore di riconciliare la posizione con l'estratto
+  conto bancario.
+
+La regola si applica dopo il calcolo della scadenza (sezione 6) e
+**prima** dell'arricchimento note (sezione 7), quindi le note secondarie
+automatiche (clinica + fornitore) si aggiungono in coda al messaggio
+"Pagamento già effettuato".
+
+Esempio di Scadenza.Note risultante con tutti i flag attivi:
+`Pagamento già effettuato (fattura emessa post-pagamento) · {nota clinica} · {Note fornitore} · {NotaSecondaria fornitore}`
+
+> **NB.** La regola non si applica ai fornitori con
+> `PagamentiManuali = true` perché quelli vengono short-circuitati prima
+> di entrare nel calcolo scadenze (sezione 5).
+
 ## 7. Regole «Nota secondaria automatica»
 
 Due regole indipendenti e **cumulative**: se entrambi i flag (clinica +
@@ -251,13 +284,14 @@ il campo «Note (primaria)»).
 
 1. `BuildScadenze` produce le scadenze con un eventuale `Note` interno
    (es. "NC Compass/DB · RID compensativa", "Ritenuta d'acconto · F24…").
-2. Si applica la regola CLINICA (sezione 7.1) → appende dopo l'eventuale
-   nota interna.
-3. Si applica la regola FORNITORE (sezione 7.2) → appende dopo
-   l'eventuale nota clinica.
+2. Si applica la regola «DopoIlPagamento» (sezione 6.bis) se attiva →
+   override stato + appende "Pagamento già effettuato …".
+3. Si applica la regola CLINICA (sezione 7.1) → appende dopo
+   l'eventuale nota delle fasi precedenti.
+4. Si applica la regola FORNITORE (sezione 7.2) → appende in coda.
 
-Risultato finale (entrambi i flag attivi):
-`{nota interna} · {nota secondaria clinica} · {Note fornitore} · {NotaSecondaria fornitore}`
+Risultato finale (tutti i flag attivi):
+`{nota interna} · Pagamento già effettuato (…) · {nota secondaria clinica} · {Note fornitore} · {NotaSecondaria fornitore}`
 
 ---
 
@@ -285,6 +319,7 @@ importi (per non perdere il segnale di duplicati / scostamento).
 | Parcella | Warn | Causale contiene "parcella" — possibile doppione |
 | Nota di credito | Warn | Verificare abbinamento alla fattura originale |
 | Pagamento manuale | Warn | Fornitore a pagamento manuale — nessuna scadenza generata |
+| Pagamento già effettuato | Warn | Fornitore «prima pagamento, poi fattura» — scadenza marcata come Pagato |
 | Mese di competenza assente | Warn | Scadenza medica calcolata sul mese fattura |
 | Snap bonifico | Info | Data scadenza riallineata al 10 o 30/31 |
 | RID da verificare | Info | Data scadenza RID non presente in PDF |
