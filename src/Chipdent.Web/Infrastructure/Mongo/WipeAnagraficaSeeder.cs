@@ -22,10 +22,11 @@ namespace Chipdent.Web.Infrastructure.Mongo;
 /// in <see cref="Tenant.MigrazioniApplicate"/>. Se l'utente vorrà rifarla in
 /// futuro, basterà cambiare la chiave (o rimuoverla dalla lista del tenant).
 ///
-/// Ordine in <see cref="MongoSeeder.SeedAsync"/>: deve girare PRIMA di
-/// <see cref="ConfidentImportSeeder"/>, così la condizione "nessun fornitore
-/// con Codice" diventa vera e il re-seed dall'anagrafica seed-data parte
-/// nello stesso startup.
+/// Dopo il wipe l'anagrafica fornitori/dottori NON viene più auto-ripopolata
+/// da FORNITORI Confident.xlsx (la pipeline ConfidentImportSeeder è stata
+/// rimossa). Restano attivi <see cref="ScadenziarioFornitoriSeeder"/> (crea
+/// fornitori dallo scadenziario.xlsx) e <see cref="FattureFornitoriIbanSeeder"/>
+/// (riempie gli IBAN dai PDF). Il resto deve essere caricato a mano.
 /// </summary>
 internal static class WipeAnagraficaSeeder
 {
@@ -99,7 +100,7 @@ internal static class WipeAnagraficaSeeder
         tenant.MigrazioniApplicate.Add(MigrationKey);
 
         logger.LogInformation(
-            "WipeAnagrafica: completata — fornitori {F}, dottori {D}, corsi-dottori {C}, ECM {E} cancellati. ConfidentImportSeeder ri-seederà l'anagrafica nello stesso startup.",
+            "WipeAnagrafica: completata — fornitori {F}, dottori {D}, corsi-dottori {C}, ECM {E} cancellati. Nessun re-seed automatico da FORNITORI Confident.xlsx.",
             fornitoriCount, dottoriCount, corsiCount, ecmCount);
     }
 }
