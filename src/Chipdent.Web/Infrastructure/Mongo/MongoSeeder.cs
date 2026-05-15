@@ -305,6 +305,11 @@ public static class MongoSeeder
             // gestiti dal portale dopo il primo run.
             await FattureFornitoriAnagraficaSeeder.SeedAsync(ctx, tenant, logger, ct);
 
+            // Ricreazione one-shot dell'anagrafica dottori dall'elenco
+            // FORNITORI Confident (97 voci). Gira solo se la migrazione
+            // "recreate-dottori-2026-05-15" non è già stata applicata.
+            await RecreateDottoriSeeder.SeedAsync(ctx, tenant, logger, ct);
+
             await SeedTesoreriaAsync(ctx, hasher, tenant, cliniche, logger, ct);
             await SeedCashflowAsync(ctx, tenant, cliniche, logger, ct);
             await SeedChecklistDipendenteAsync(ctx, tenant, cliniche, logger, ct);
