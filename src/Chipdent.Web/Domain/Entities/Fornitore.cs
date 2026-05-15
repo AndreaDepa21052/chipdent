@@ -56,7 +56,20 @@ public class Fornitore : TenantEntity
     public CategoriaSpesa? CategoriaSecondaria { get; set; }
 
     public StatoFornitore Stato { get; set; } = StatoFornitore.Attivo;
+
+    /// <summary>Nota primaria libera del fornitore (testo descrittivo, libero formato).</summary>
     public string? Note { get; set; }
+
+    /// <summary>
+    /// Quando true, durante la generazione delle scadenze viene appeso alla
+    /// <c>Scadenza.Note</c> il testo "<see cref="Note"/> · <see cref="NotaSecondaria"/>"
+    /// (separatore " · "). Mirror della stessa regola applicata sulla clinica
+    /// destinataria, ma a livello di fornitore. Default false.
+    /// </summary>
+    public bool AggiungiNotaSecondariaAutomaticamente { get; set; }
+
+    /// <summary>Nota secondaria. Letta solo se <see cref="AggiungiNotaSecondariaAutomaticamente"/> è true.</summary>
+    public string? NotaSecondaria { get; set; }
 
     // Termini di pagamento da contratto / accordi commerciali ─────────────
     /// <summary>Numero di giorni dalla base di pagamento alla scadenza (es. 30, 60).</summary>

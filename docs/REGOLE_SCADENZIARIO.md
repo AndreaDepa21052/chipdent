@@ -101,6 +101,38 @@ Tutte le fatture importate hanno:
 Nota di credito: identificata da `Totale < 0` o `TipoDocumento` che contiene
 "NC" / "credito". L'importo viene forzato in segno negativo.
 
+### 4.1 Mese di competenza
+
+Il **mese di competenza** della fattura (mostrato in UI come `apr 26` —
+formato `MMM yy` in italiano) viene calcolato in ordine di priorità:
+
+1. **Estratto dal PDF della fattura** — campi `riga.MeseCompetenza` +
+   `riga.AnnoCompetenza` valorizzati dal parser PDF (più affidabile, viene
+   letto direttamente dal documento).
+2. **Parsing della causale** via regex su nomi mese italiani — funzione
+   `MeseDaCausale`. Riconosce:
+   - forme estese: gennaio, febbraio, marzo, … dicembre
+   - abbreviazioni: gen/genn, feb/febb, mar, apr, mag, giu, lug, ago,
+     set/sett, ott, nov, dic
+   - anno opzionale a 2 o 4 cifre ("Compenso ott 2025", "Canone apr 26",
+     "Periodo dic"). Se l'anno manca → anno corrente.
+3. **Fallback** al mese della data fattura
+   (`riga.DataDocumento` ?? `riga.DataRegistrazione` ?? oggi).
+
+> Il mese di competenza è memorizzato sulla fattura come primo giorno del
+> mese (`new DateTime(year, month, 1)` UTC).
+
+La competenza ha due usi distinti:
+
+- **Visualizzazione**: cella «Competenza» nello scadenziario, formattata
+  `MMM yy` in it-IT (esempio: gennaio 2026 → `gen 26`, aprile 2026 →
+  `apr 26`).
+- **Calcolo scadenza**: per fornitori **Medico / DirezioneSanitaria /
+  Laboratorio** la scadenza è 60 gg dopo il fine mese di competenza
+  (non della data fattura). Se la competenza non è ricavabile né dal PDF
+  né dalla causale viene emesso un alert **«Mese di competenza assente»**
+  e si applica il fallback alla data fattura.
+
 ---
 
 ## 5. Regola «Pagamenti manuali»
@@ -180,17 +212,52 @@ Quando `riga.Ritenuta > 0`:
 
 ---
 
-## 7. Regola «Nota secondaria automatica»
+## 7. Regole «Nota secondaria automatica»
+
+Due regole indipendenti e **cumulative**: se entrambi i flag (clinica +
+fornitore) sono attivi, entrambe le note vengono appese in sequenza
+(prima clinica, poi fornitore).
+
+### 7.1 Lato CLINICA
 
 > Trigger: `Clinica.AggiungiNotaSecondariaAutomaticamente = true` sulla
-> clinica destinataria.
+> clinica destinataria della fattura.
 
 Se attivo e `Clinica.NotaSecondariaAutomatica` non vuota, il testo viene
 **appeso** al campo `Scadenza.Note` di tutte le scadenze generate per
 quella fattura (separatore " · "). Si applica anche alla rata ritenuta.
 
-Toggle UI: sezione «Note» sulla scheda clinica (riquadro in ambra
+Toggle UI: sezione «Note» sulla scheda clinica (riquadro ambra
 "Aggiungi nota secondaria automaticamente").
+
+### 7.2 Lato FORNITORE
+
+> Trigger: `Fornitore.AggiungiNotaSecondariaAutomaticamente = true`
+> sull'anagrafica fornitore.
+
+Quando attivo, viene appesa al `Scadenza.Note` la sequenza
+"`Fornitore.Note · Fornitore.NotaSecondaria`" (separatore " · "):
+- se entrambi i testi sono valorizzati → appende `Note · NotaSecondaria`
+- se solo uno dei due è valorizzato → appende quello presente
+- se entrambi vuoti → nessun effetto (anche col flag acceso)
+
+Si applica a tutte le scadenze derivate dalla fattura, rata ritenuta
+inclusa.
+
+Toggle UI: sezione «Note» sulla scheda fornitore (riquadro ambra sotto
+il campo «Note (primaria)»).
+
+### 7.3 Ordine di applicazione
+
+1. `BuildScadenze` produce le scadenze con un eventuale `Note` interno
+   (es. "NC Compass/DB · RID compensativa", "Ritenuta d'acconto · F24…").
+2. Si applica la regola CLINICA (sezione 7.1) → appende dopo l'eventuale
+   nota interna.
+3. Si applica la regola FORNITORE (sezione 7.2) → appende dopo
+   l'eventuale nota clinica.
+
+Risultato finale (entrambi i flag attivi):
+`{nota interna} · {nota secondaria clinica} · {Note fornitore} · {NotaSecondaria fornitore}`
 
 ---
 

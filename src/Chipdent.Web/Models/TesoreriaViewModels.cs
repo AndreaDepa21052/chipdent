@@ -245,6 +245,13 @@ public class FornitoreFormViewModel
     public StatoFornitore Stato { get; set; } = StatoFornitore.Attivo;
     public string? Note { get; set; }
 
+    /// <summary>Quando true, appende "<c>Note · NotaSecondaria</c>" del fornitore
+    /// alla Scadenza.Note in fase di generazione.</summary>
+    public bool AggiungiNotaSecondariaAutomaticamente { get; set; }
+
+    /// <summary>Testo della nota secondaria del fornitore.</summary>
+    public string? NotaSecondaria { get; set; }
+
     // Termini di pagamento contrattuali
     [Range(0, 365, ErrorMessage = "Giorni tra 0 e 365.")]
     public int TerminiPagamentoGiorni { get; set; } = 30;

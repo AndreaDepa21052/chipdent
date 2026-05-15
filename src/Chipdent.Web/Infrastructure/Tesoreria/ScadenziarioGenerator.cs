@@ -49,6 +49,32 @@ namespace Chipdent.Web.Infrastructure.Tesoreria;
 /// <c>Scadenza.Note</c> di tutte le scadenze derivate dalla fattura (compresa la rata
 /// ritenuta). Pensato per istruzioni operative ricorrenti per sede.
 /// </para>
+///
+/// <para>
+/// <b>REGOLA «Nota secondaria automatica» (Fornitore.AggiungiNotaSecondariaAutomaticamente)</b><br/>
+/// Mirror della stessa regola sulla clinica ma a livello di fornitore. Quando il
+/// flag è true, viene appesa la sequenza
+/// "<c>Fornitore.Note · Fornitore.NotaSecondaria</c>" al campo <c>Scadenza.Note</c>.
+/// Se uno dei due testi è vuoto si prende solo quello presente. Le due regole
+/// (clinica + fornitore) sono indipendenti e cumulative: se entrambi i flag sono
+/// attivi entrambe le note vengono appese in sequenza (prima clinica, poi fornitore).
+/// </para>
+///
+/// <para>
+/// <b>Calcolo del MESE DI COMPETENZA</b> (mostrato in UI come "apr 26",
+/// formato <c>MMM yy</c> in it-IT)<br/>
+/// In ordine di priorità:
+/// <list type="number">
+///   <item>Estratto dal PDF della fattura (<c>ImportFatturaRiga.MeseCompetenza</c> +
+///         <c>AnnoCompetenza</c>) — più affidabile</item>
+///   <item>Parsing della causale via regex su nomi mese italiani (es. "Compenso ott 2025")
+///         in <c>MeseDaCausale</c></item>
+///   <item>Fallback al mese della data fattura</item>
+/// </list>
+/// La competenza è usata sia per il campo "MeseCompetenza" della fattura sia per
+/// calcolare la scadenza dei fornitori medici/laboratorio/direzione sanitaria
+/// (60 gg fine mese rispetto al mese di competenza).
+/// </para>
 /// </summary>
 public static class ScadenziarioGenerator
 {
@@ -324,7 +350,7 @@ public static class ScadenziarioGenerator
                 tipo, fattura, fornitore, dataDoc, totale, netto, ritenuta,
                 isNotaCredito, iban, output.Alerts, riga);
 
-            // ── REGOLA «Nota secondaria automatica» ──────────────────────
+            // ── REGOLA «Nota secondaria automatica» (CLINICA) ───────────
             // Se la clinica destinataria della fattura ha il flag attivo,
             // appendiamo la NotaSecondariaAutomatica a Scadenza.Note. Si
             // applica a TUTTE le scadenze derivate (compresa la rata ritenuta).
@@ -337,6 +363,25 @@ public static class ScadenziarioGenerator
                 foreach (var s in scadenze)
                 {
                     s.Note = string.IsNullOrWhiteSpace(s.Note) ? nota : $"{s.Note} · {nota}";
+                }
+            }
+
+            // ── REGOLA «Nota secondaria automatica» (FORNITORE) ─────────
+            // Mirror del flag clinica ma sul fornitore: appende la sequenza
+            // "Note (primaria) · NotaSecondaria" del fornitore a Scadenza.Note.
+            // Se manca uno dei due testi viene preso solo quello presente.
+            if (fornitore.AggiungiNotaSecondariaAutomaticamente)
+            {
+                var parts = new List<string>();
+                if (!string.IsNullOrWhiteSpace(fornitore.Note)) parts.Add(fornitore.Note.Trim());
+                if (!string.IsNullOrWhiteSpace(fornitore.NotaSecondaria)) parts.Add(fornitore.NotaSecondaria.Trim());
+                if (parts.Count > 0)
+                {
+                    var notaForn = string.Join(" · ", parts);
+                    foreach (var s in scadenze)
+                    {
+                        s.Note = string.IsNullOrWhiteSpace(s.Note) ? notaForn : $"{s.Note} · {notaForn}";
+                    }
                 }
             }
 
