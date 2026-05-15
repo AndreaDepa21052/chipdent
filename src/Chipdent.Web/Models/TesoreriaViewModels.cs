@@ -262,6 +262,22 @@ public class FornitoreFormViewModel
     public bool IsDottoreOmbra { get; set; }
 }
 
+/// <summary>
+/// Modale di modifica rapida del fornitore: form principale + striscia verticale
+/// a sinistra con le criticità anagrafiche/SEPA da risolvere. Speculare al pattern
+/// usato per la scheda dottore.
+/// </summary>
+public class FornitoreEditModalViewModel
+{
+    public Fornitore Fornitore { get; set; } = null!;
+    public FornitoreFormViewModel Form { get; set; } = null!;
+    public FornitoreCompletezza.Esito Completezza { get; set; } =
+        new(0, false, Array.Empty<string>(), Array.Empty<string>());
+    public decimal EspostoCorrente { get; set; }
+    public int FatturePeriodoCorrente { get; set; }
+    public bool HaUtentePortale { get; set; }
+}
+
 public class FornitoriIndexViewModel
 {
     public List<FornitoreRow> Fornitori { get; set; } = new();

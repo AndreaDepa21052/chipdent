@@ -824,14 +824,83 @@ public class TesoreriaController : Controller
         });
     }
 
+    /// <summary>Restituisce la modale di modifica rapida del fornitore (partial).</summary>
+    [HttpGet("fornitori/{id}/edit-modal")]
+    public async Task<IActionResult> FornitoreEditModal(string id)
+    {
+        var tid = _tenant.TenantId!;
+        var f = await _mongo.Fornitori.Find(x => x.Id == id && x.TenantId == tid).FirstOrDefaultAsync();
+        if (f is null) return NotFound();
+
+        var hasUser = await _mongo.Users.Find(u => u.TenantId == tid
+            && u.Role == UserRole.Fornitore && u.LinkedPersonId == f.Id).AnyAsync();
+
+        // Esposto e fatture YTD per il fornitore (KPI mostrati nell'header modale).
+        var oggi = DateTime.UtcNow.Date;
+        var inizioAnno = new DateTime(oggi.Year, 1, 1, 0, 0, 0, DateTimeKind.Utc);
+        var esposto = await _mongo.ScadenzePagamento
+            .Find(s => s.TenantId == tid && s.FornitoreId == f.Id
+                && (s.Stato == StatoScadenza.DaPagare || s.Stato == StatoScadenza.Programmato || s.Stato == StatoScadenza.Insoluto))
+            .ToListAsync();
+        var fatturePeriodoCorrente = (int)await _mongo.Fatture
+            .CountDocumentsAsync(x => x.TenantId == tid && x.FornitoreId == f.Id && x.DataEmissione >= inizioAnno);
+
+        var form = new FornitoreFormViewModel
+        {
+            Id = f.Id,
+            Codice = f.Codice,
+            RagioneSociale = f.RagioneSociale,
+            RagioneSocialePagamento = string.IsNullOrWhiteSpace(f.RagioneSocialePagamento) ? f.RagioneSociale : f.RagioneSocialePagamento,
+            PartitaIva = f.PartitaIva,
+            CodiceFiscale = f.CodiceFiscale,
+            CodiceSdi = f.CodiceSdi,
+            Pec = f.Pec,
+            EmailContatto = f.EmailContatto,
+            Telefono = f.Telefono,
+            Indirizzo = f.Indirizzo,
+            Localita = f.Localita,
+            Provincia = f.Provincia,
+            CodicePostale = f.CodicePostale,
+            Iban = f.Iban,
+            CategoriaDefault = f.CategoriaDefault,
+            CategoriaSecondaria = f.CategoriaSecondaria,
+            Stato = f.Stato,
+            Note = f.Note,
+            TerminiPagamentoGiorni = f.TerminiPagamentoGiorni,
+            BasePagamento = f.BasePagamento,
+            EmissioneFattura = f.EmissioneFattura,
+            HaUtentePortale = hasUser,
+            IsDottoreOmbra = !string.IsNullOrEmpty(f.DottoreId)
+        };
+
+        return PartialView("_FornitoreEditModal", new FornitoreEditModalViewModel
+        {
+            Fornitore = f,
+            Form = form,
+            Completezza = FornitoreCompletezza.Valuta(f),
+            EspostoCorrente = esposto.Sum(s => s.Importo),
+            FatturePeriodoCorrente = fatturePeriodoCorrente,
+            HaUtentePortale = hasUser
+        });
+    }
+
     [HttpPost("fornitori/{id}")]
     [ValidateAntiForgeryToken]
-    public async Task<IActionResult> EditFornitore(string id, FornitoreFormViewModel vm)
+    public async Task<IActionResult> EditFornitore(string id, FornitoreFormViewModel vm,
+        [FromHeader(Name = "X-Edit-Modal")] string? modal)
     {
+        var isModal = modal == "1";
         var f = await _mongo.Fornitori.Find(x => x.Id == id && x.TenantId == _tenant.TenantId).FirstOrDefaultAsync();
         if (f is null) return NotFound();
         if (!ModelState.IsValid)
         {
+            if (isModal)
+            {
+                var errors = ModelState
+                    .Where(e => e.Value!.Errors.Count > 0)
+                    .ToDictionary(e => e.Key, e => e.Value!.Errors.Select(x => x.ErrorMessage).ToArray());
+                return BadRequest(new { errors });
+            }
             ViewData["Section"] = "fornitori";
             return View("FornitoreForm", vm);
         }
@@ -887,6 +956,8 @@ public class TesoreriaController : Controller
                         .Set(u => u.UpdatedAt, DateTime.UtcNow));
             }
         }
+
+        if (isModal) return Json(new { ok = true, name = vm.RagioneSociale });
 
         TempData["flash"] = "Fornitore aggiornato.";
         return RedirectToAction(nameof(Fornitori));
