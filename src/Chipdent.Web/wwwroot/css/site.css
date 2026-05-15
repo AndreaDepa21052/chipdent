@@ -2580,3 +2580,133 @@ dialog.dotmodal-dialog::backdrop {
     .fornmodal__strip-list { flex-direction: row; flex-wrap: wrap; }
     .fornmodal__chip { width: auto; }
 }
+
+/* ==========================================================================
+   Modale modifica clinica — variante con fascia orizzontale criticità in alto
+   ========================================================================== */
+.clinmodal__body {
+    /* Solo form a tutta larghezza: la criticità sta nella band orizzontale sopra */
+    grid-template-columns: minmax(0, 1fr);
+}
+.clinmodal__body .dotmodal__form { border-right: 0; }
+
+.clinmodal__band {
+    display: flex;
+    align-items: stretch;
+    gap: 18px;
+    padding: 14px 22px;
+    background: linear-gradient(180deg, #fbf1dd 0%, #f5e8d0 100%);
+    border-bottom: 1px solid var(--c-border, #ece2cc);
+    flex-shrink: 0;
+}
+.clinmodal__band-summary {
+    flex: 0 0 200px;
+    background: #fffaf2;
+    border: 1px solid var(--c-border, #ece2cc);
+    border-radius: 12px;
+    padding: 10px 14px;
+    text-align: center;
+    box-shadow: 0 2px 6px rgba(59,30,12,0.06);
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+}
+.clinmodal__band-perc {
+    font-size: 1.5rem;
+    font-weight: 700;
+    line-height: 1;
+    letter-spacing: -.02em;
+}
+.clinmodal__band-bar {
+    height: 6px;
+    background: #ece2cc;
+    border-radius: 4px;
+    overflow: hidden;
+    margin: 6px 0 4px;
+}
+.clinmodal__band-bar > div {
+    height: 100%;
+    border-radius: 4px;
+    transition: width .3s ease;
+}
+.clinmodal__band-label {
+    font-size: .72rem;
+    font-weight: 600;
+    color: #6b5538;
+    letter-spacing: .02em;
+}
+.clinmodal__band-chips {
+    flex: 1 1 auto;
+    display: flex;
+    flex-wrap: wrap;
+    align-content: center;
+    gap: 6px 8px;
+    min-width: 0;
+}
+.clinmodal__band-ok {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 10px 14px;
+    background: #f3faf2;
+    border: 1px solid #bde6c8;
+    border-radius: 10px;
+    color: #1f6e3a;
+    font-size: .85rem;
+    font-weight: 600;
+}
+.clinmodal__band-ok-icon { font-size: 1.1rem; }
+
+.clinmodal__chip {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    padding: 6px 10px;
+    border-radius: 999px;
+    border: 1px solid transparent;
+    background: #fff7e6;
+    color: #2b1a08;
+    text-align: left;
+    cursor: pointer;
+    font-size: .78rem;
+    line-height: 1.2;
+    text-decoration: none;
+    transition: transform .12s, box-shadow .12s, background .15s, border-color .15s;
+    box-shadow: 0 1px 2px rgba(59,30,12,0.04);
+}
+.clinmodal__chip:hover {
+    transform: translateY(-1px);
+    box-shadow: 0 3px 8px rgba(59,30,12,0.10);
+}
+.clinmodal__chip:focus-visible {
+    outline: 2px solid #c47830;
+    outline-offset: 1px;
+}
+.clinmodal__chip--critico {
+    background: rgba(168,58,58,0.08);
+    border-color: rgba(168,58,58,0.30);
+    color: #7a2a2a;
+}
+.clinmodal__chip--critico:hover { background: rgba(168,58,58,0.16); }
+.clinmodal__chip--avviso {
+    background: rgba(168,96,16,0.08);
+    border-color: rgba(168,96,16,0.30);
+    color: #6e4810;
+}
+.clinmodal__chip--avviso:hover { background: rgba(168,96,16,0.16); }
+.clinmodal__chip-icon {
+    font-size: .95rem;
+    flex-shrink: 0;
+}
+.clinmodal__chip-label {
+    font-weight: 600;
+    white-space: nowrap;
+}
+
+@media (max-width: 860px) {
+    .clinmodal__band {
+        flex-direction: column;
+        padding: 12px 14px;
+    }
+    .clinmodal__band-summary { flex: 1 1 auto; }
+}
