@@ -1,0 +1,311 @@
+@model Chipdent.Web.Models.FornitoreEditModalViewModel
+@using Chipdent.Web.Domain.Entities
+@using System.Globalization
+@{
+    var f = Model.Fornitore;
+    var vm = Model.Form;
+    var it = new CultureInfo("it-IT");
+    var iniziali = string.Concat((f.RagioneSociale ?? "")
+        .Split(new[] { ' ', '.', '-' }, StringSplitOptions.RemoveEmptyEntries)
+        .Take(2).Select(s => char.ToUpperInvariant(s[0])));
+    if (string.IsNullOrEmpty(iniziali)) iniziali = "F";
+    var perc = Model.Completezza.Percentuale;
+    var barColor = perc >= 90 ? "#3aa15b" : perc >= 60 ? "#c47830" : "#a83a3a";
+    var categorie = Enum.GetValues<CategoriaSpesa>()
+        .OrderBy(c => c.ToString(), StringComparer.OrdinalIgnoreCase)
+        .ToList();
+
+    // Mappa criticità → anchor del campo. Etichette identiche a FornitoreCompletezza.
+    var anchorByCampo = new Dictionary<string, (string anchor, string icona, string sezione)>(StringComparer.OrdinalIgnoreCase)
+    {
+        { "IBAN valido",      ("fld-Iban",           "🏦", "sec-bonifici") },
+        { "Ragione sociale",  ("fld-RagioneSociale", "🏢", "sec-identita") },
+        { "P.IVA o C.F.",     ("fld-PartitaIva",     "🆔", "sec-identita") },
+        { "Indirizzo",        ("fld-Indirizzo",      "📍", "sec-sede")     },
+        { "Località",         ("fld-Localita",       "🏙",  "sec-sede")    },
+        { "CAP",              ("fld-CodicePostale",  "📮", "sec-sede")     },
+        { "Codice SDI o PEC", ("fld-Pec",            "📨", "sec-contatti") },
+        { "Email contatto",   ("fld-EmailContatto",  "✉️", "sec-contatti") },
+        { "Telefono",         ("fld-Telefono",       "📞", "sec-contatti") },
+        { "Provincia",        ("fld-Provincia",      "🗺",  "sec-sede")    }
+    };
+}
+
+@functions {
+    (string anchor, string icona, string sezione) MapCampoCrit(
+        Dictionary<string, (string anchor, string icona, string sezione)> mappa, string campo)
+        => mappa.TryGetValue(campo, out var v) ? v : ("", "•", "");
+}
+
+<div class="dotmodal fornmodal" data-fornitore-id="@f.Id">
+    <header class="dotmodal__header">
+        <div class="dotmodal__avatar">@iniziali</div>
+        <div class="dotmodal__head-text">
+            <div class="dotmodal__eyebrow">Modifica scheda fornitore</div>
+            <h2 class="dotmodal__title">@f.RagioneSociale</h2>
+            <div class="dotmodal__meta">
+                @if (!string.IsNullOrEmpty(f.Codice))
+                {
+                    <span class="muted">@f.Codice</span>
+                    <span class="dotmodal__sep">·</span>
+                }
+                <span>@(string.IsNullOrEmpty(f.PartitaIva) ? "P.IVA —" : "P.IVA " + f.PartitaIva)</span>
+                <span class="dotmodal__sep">·</span>
+                <span>Esposto @Model.EspostoCorrente.ToString("N0", it) €</span>
+                <span class="dotmodal__sep">·</span>
+                <span>@Model.FatturePeriodoCorrente fatt. YTD</span>
+            </div>
+        </div>
+        <button type="button" class="dotmodal__close" data-dotmodal-close aria-label="Chiudi">×</button>
+    </header>
+
+    <div class="dotmodal__body fornmodal__body">
+        @* ── Striscia verticale: criticità da gestire ──────────── *@
+        <aside class="fornmodal__strip" aria-label="Criticità anagrafica">
+            <div class="fornmodal__strip-summary">
+                <div class="fornmodal__strip-perc" style="color:@barColor;">@perc%</div>
+                <div class="fornmodal__strip-bar">
+                    <div style="width:@(perc)%; background:@barColor;"></div>
+                </div>
+                <div class="fornmodal__strip-label">
+                    @(Model.Completezza.SepaPronto ? "🏦 SEPA pronto" : "⚠ SEPA incompleto")
+                </div>
+            </div>
+
+            @if (Model.Completezza.CampiMancantiSepa.Count == 0 && Model.Completezza.CampiMancantiAltri.Count == 0)
+            {
+                <div class="fornmodal__strip-ok">
+                    <div class="fornmodal__strip-ok-icon">✅</div>
+                    <div class="fornmodal__strip-ok-text">Anagrafica completa.<br/>Nessuna criticità.</div>
+                </div>
+            }
+            else
+            {
+                if (Model.Completezza.CampiMancantiSepa.Count > 0)
+                {
+                    <div class="fornmodal__strip-head fornmodal__strip-head--critico">
+                        🔴 Critici · SEPA
+                    </div>
+                    <ul class="fornmodal__strip-list">
+                        @foreach (var campo in Model.Completezza.CampiMancantiSepa)
+                        {
+                            var info = MapCampoCrit(anchorByCampo, campo);
+                            <li>
+                                <button type="button"
+                                        class="fornmodal__chip fornmodal__chip--critico"
+                                        data-jump-to="@info.anchor"
+                                        data-section="@info.sezione"
+                                        title="Vai al campo «@campo»">
+                                    <span class="fornmodal__chip-icon">@info.icona</span>
+                                    <span class="fornmodal__chip-label">@campo</span>
+                                </button>
+                            </li>
+                        }
+                    </ul>
+                }
+                if (Model.Completezza.CampiMancantiAltri.Count > 0)
+                {
+                    <div class="fornmodal__strip-head fornmodal__strip-head--avviso">
+                        🟡 Consigliati
+                    </div>
+                    <ul class="fornmodal__strip-list">
+                        @foreach (var campo in Model.Completezza.CampiMancantiAltri)
+                        {
+                            var info = MapCampoCrit(anchorByCampo, campo);
+                            <li>
+                                <button type="button"
+                                        class="fornmodal__chip fornmodal__chip--avviso"
+                                        data-jump-to="@info.anchor"
+                                        data-section="@info.sezione"
+                                        title="Vai al campo «@campo»">
+                                    <span class="fornmodal__chip-icon">@info.icona</span>
+                                    <span class="fornmodal__chip-label">@campo</span>
+                                </button>
+                            </li>
+                        }
+                    </ul>
+                }
+            }
+
+            @if (vm.IsDottoreOmbra)
+            {
+                <div class="fornmodal__strip-note">
+                    🩺 Controparte di un Dottore: i dati sono sincronizzati dalla scheda.
+                </div>
+            }
+        </aside>
+
+        <form id="fornmodal-form" method="post" action="/tesoreria/fornitori/@f.Id" class="dotmodal__form" novalidate>
+            @Html.AntiForgeryToken()
+            <input type="hidden" name="Id" value="@f.Id" />
+
+            <nav class="dotmodal__sectionnav">
+                <a href="#sec-identita" class="is-active">Identità</a>
+                <a href="#sec-contatti">Contatti</a>
+                <a href="#sec-sede">Sede</a>
+                <a href="#sec-bonifici">Bonifici</a>
+                <a href="#sec-termini">Termini</a>
+                <a href="#sec-note">Note</a>
+            </nav>
+
+            <div class="dotmodal__scroll">
+                <section id="sec-identita" class="dotmodal__section">
+                    <h3 class="dotmodal__sec-title">🏢 Identità</h3>
+                    <div class="dotmodal__grid">
+                        <div class="form-group">
+                            <label class="form-label">Codice</label>
+                            <input class="form-control" name="Codice" value="@vm.Codice" placeholder="auto F####" />
+                        </div>
+                        <div class="form-group">
+                            <label class="form-label">Stato</label>
+                            <select class="form-control" name="Stato">
+                                <option value="@StatoFornitore.Attivo" selected="@(vm.Stato == StatoFornitore.Attivo)">Attivo</option>
+                                <option value="@StatoFornitore.Dismesso" selected="@(vm.Stato != StatoFornitore.Attivo)">Dismesso</option>
+                            </select>
+                        </div>
+                        <div class="form-group dotmodal__full">
+                            <label class="form-label">Ragione sociale *</label>
+                            <input id="fld-RagioneSociale" class="form-control" name="RagioneSociale" value="@vm.RagioneSociale" required />
+                        </div>
+                        <div class="form-group dotmodal__full">
+                            <label class="form-label">Ragione sociale pagamento</label>
+                            <input id="fld-RagioneSocialePagamento" class="form-control" name="RagioneSocialePagamento"
+                                   value="@vm.RagioneSocialePagamento" placeholder="(uguale alla ragione sociale)" />
+                            <span class="hint">Beneficiario reale del bonifico. Default = ragione sociale.</span>
+                        </div>
+                        <div class="form-group">
+                            <label class="form-label">P. IVA</label>
+                            <input id="fld-PartitaIva" class="form-control" name="PartitaIva" value="@vm.PartitaIva" />
+                        </div>
+                        <div class="form-group">
+                            <label class="form-label">Codice fiscale</label>
+                            <input id="fld-CodiceFiscale" class="form-control" name="CodiceFiscale" value="@vm.CodiceFiscale" style="text-transform: uppercase; font-family: monospace;" />
+                        </div>
+                        <div class="form-group">
+                            <label class="form-label">Codice SDI</label>
+                            <input id="fld-CodiceSdi" class="form-control" name="CodiceSdi" value="@vm.CodiceSdi" maxlength="7" placeholder="7 caratteri" style="font-family: monospace;" />
+                        </div>
+                    </div>
+                </section>
+
+                <section id="sec-contatti" class="dotmodal__section">
+                    <h3 class="dotmodal__sec-title">📞 Contatti</h3>
+                    <div class="dotmodal__grid">
+                        <div class="form-group">
+                            <label class="form-label">PEC</label>
+                            <input id="fld-Pec" class="form-control" type="email" name="Pec" value="@vm.Pec" placeholder="azienda@pec.it" />
+                        </div>
+                        <div class="form-group">
+                            <label class="form-label">Email contatto / portale</label>
+                            <input id="fld-EmailContatto" class="form-control" type="email" name="EmailContatto" value="@vm.EmailContatto" />
+                        </div>
+                        <div class="form-group">
+                            <label class="form-label">Telefono</label>
+                            <input id="fld-Telefono" class="form-control" name="Telefono" value="@vm.Telefono" />
+                        </div>
+                    </div>
+                </section>
+
+                <section id="sec-sede" class="dotmodal__section">
+                    <h3 class="dotmodal__sec-title">📍 Sede legale</h3>
+                    <div class="dotmodal__grid">
+                        <div class="form-group dotmodal__full">
+                            <label class="form-label">Indirizzo</label>
+                            <input id="fld-Indirizzo" class="form-control" name="Indirizzo" value="@vm.Indirizzo" placeholder="Via / Piazza, numero civico" />
+                        </div>
+                        <div class="form-group">
+                            <label class="form-label">Località</label>
+                            <input id="fld-Localita" class="form-control" name="Localita" value="@vm.Localita" />
+                        </div>
+                        <div class="form-group">
+                            <label class="form-label">Provincia</label>
+                            <input id="fld-Provincia" class="form-control" name="Provincia" value="@vm.Provincia" maxlength="2" placeholder="MI" style="text-transform: uppercase;" />
+                        </div>
+                        <div class="form-group">
+                            <label class="form-label">CAP</label>
+                            <input id="fld-CodicePostale" class="form-control" name="CodicePostale" value="@vm.CodicePostale" maxlength="10" placeholder="20100" />
+                        </div>
+                    </div>
+                </section>
+
+                <section id="sec-bonifici" class="dotmodal__section">
+                    <h3 class="dotmodal__sec-title">💳 Bonifici &amp; categorie</h3>
+                    <div class="dotmodal__grid">
+                        <div class="form-group dotmodal__full">
+                            <label class="form-label">IBAN per bonifici</label>
+                            <input id="fld-Iban" class="form-control" name="Iban" value="@vm.Iban" maxlength="34" placeholder="IT60 X054 2811 1010 0000 0123 456" style="font-family: monospace;" />
+                            <span class="hint">Obbligatorio per generare la distinta SEPA.</span>
+                        </div>
+                        <div class="form-group">
+                            <label class="form-label">Categoria di default</label>
+                            <select class="form-control" name="CategoriaDefault">
+                                @foreach (var c in categorie)
+                                {
+                                    <option value="@c" selected="@(vm.CategoriaDefault == c)">@c</option>
+                                }
+                            </select>
+                        </div>
+                        <div class="form-group">
+                            <label class="form-label">Categoria secondaria</label>
+                            <select class="form-control" name="CategoriaSecondaria">
+                                <option value="">— nessuna —</option>
+                                @foreach (var c in categorie)
+                                {
+                                    <option value="@c" selected="@(vm.CategoriaSecondaria == c)">@c</option>
+                                }
+                            </select>
+                        </div>
+                    </div>
+                </section>
+
+                <section id="sec-termini" class="dotmodal__section">
+                    <h3 class="dotmodal__sec-title">📅 Termini di pagamento</h3>
+                    <p class="muted" style="font-size:.82rem; margin:0 0 10px;">Tipico: 30 gg D.F., 30 gg F.M., 60 gg F.M.S.</p>
+                    <div class="dotmodal__grid">
+                        <div class="form-group">
+                            <label class="form-label">Giorni</label>
+                            <input class="form-control" type="number" min="0" max="365" name="TerminiPagamentoGiorni" value="@vm.TerminiPagamentoGiorni" />
+                        </div>
+                        <div class="form-group">
+                            <label class="form-label">Base di calcolo</label>
+                            <select class="form-control" name="BasePagamento">
+                                <option value="@BasePagamento.DataFattura" selected="@(vm.BasePagamento == BasePagamento.DataFattura)">Data fattura (D.F.)</option>
+                                <option value="@BasePagamento.FineMeseFattura" selected="@(vm.BasePagamento == BasePagamento.FineMeseFattura)">Fine mese fattura (F.M.)</option>
+                                <option value="@BasePagamento.FineMeseSuccessivo" selected="@(vm.BasePagamento == BasePagamento.FineMeseSuccessivo)">Fine mese successivo (F.M.S.)</option>
+                            </select>
+                        </div>
+                        <div class="form-group dotmodal__full">
+                            <label class="form-label">Emissione fattura</label>
+                            <select class="form-control" name="EmissioneFattura">
+                                <option value="@EmissioneFattura.PrimaDelPagamento" selected="@(vm.EmissioneFattura == EmissioneFattura.PrimaDelPagamento)">Prima del pagamento</option>
+                                <option value="@EmissioneFattura.DopoIlPagamento" selected="@(vm.EmissioneFattura == EmissioneFattura.DopoIlPagamento)">Dopo il pagamento</option>
+                                <option value="@EmissioneFattura.Nd" selected="@(vm.EmissioneFattura == EmissioneFattura.Nd)">ND (non disponibile)</option>
+                            </select>
+                        </div>
+                    </div>
+                </section>
+
+                <section id="sec-note" class="dotmodal__section">
+                    <h3 class="dotmodal__sec-title">📝 Note</h3>
+                    <div class="dotmodal__grid">
+                        <div class="form-group dotmodal__full">
+                            <textarea class="form-control" name="Note" rows="3">@vm.Note</textarea>
+                        </div>
+                    </div>
+                </section>
+
+                <div class="dotmodal__errors" data-dotmodal-errors hidden></div>
+            </div>
+        </form>
+    </div>
+
+    <footer class="dotmodal__footer">
+        <a class="dotmodal__expand" href="/tesoreria/fornitori/@f.Id" target="_top" title="Apri la versione a pagina intera">
+            ⤢ Espandi scheda di modifica
+        </a>
+        <div class="dotmodal__footer-actions">
+            <button type="button" class="btn btn--ghost" data-dotmodal-close>Annulla</button>
+            <button type="submit" form="fornmodal-form" class="btn btn--primary" data-dotmodal-save>Salva modifiche</button>
+        </div>
+    </footer>
+</div>
