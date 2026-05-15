@@ -296,13 +296,14 @@ public static class MongoSeeder
             // Wipe one-shot dell'anagrafica (fornitori + dottori + corsi-dottori + ECM
             // e cascata Tesoreria). Marcata in tenant.MigrazioniApplicate: gira solo
             // una volta.
-            //
-            // Scelta esplicita dell'utente: NESSUN ripopolamento automatico
-            // dell'anagrafica fornitori/dottori. La ricreazione avviene dal portale.
-            // Tutti i seeder che creavano/aggiornavano fornitori (ConfidentImport,
-            // ScadenziarioFornitori, FattureFornitoriIban) sono quindi disattivati
-            // qui — i tool e i data file relativi restano sul repo come riferimento.
             await WipeAnagraficaSeeder.SeedAsync(ctx, tenant, logger, ct);
+
+            // Popola l'anagrafica fornitori dai cedenti estratti dalle fatture passive
+            // PDF (vedi FattureFornitoriAnagraficaData, rigenerato da
+            // tools/import-fatture-anagrafica.py su FileRaw/DES-*.pdf). Idempotente:
+            // gira solo se l'anagrafica è vuota, così non interferisce con i fornitori
+            // gestiti dal portale dopo il primo run.
+            await FattureFornitoriAnagraficaSeeder.SeedAsync(ctx, tenant, logger, ct);
 
             await SeedTesoreriaAsync(ctx, hasher, tenant, cliniche, logger, ct);
             await SeedCashflowAsync(ctx, tenant, cliniche, logger, ct);
