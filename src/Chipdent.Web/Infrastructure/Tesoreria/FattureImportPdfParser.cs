@@ -53,6 +53,17 @@ public static class FattureImportPdfParser
         int? MeseCompetenza,
         int? AnnoCompetenza,
         string? PeriodoRiferimentoRaw,
+        // ── Cessionario/committente (la NOSTRA Società che ha ricevuto fattura) ──
+        string? CessionarioRagioneSociale,
+        string? CessionarioPartitaIva,
+        string? CessionarioCodiceFiscale,
+        string? CessionarioIndirizzo,
+        string? CessionarioCap,
+        string? CessionarioLocalita,
+        string? CessionarioProvincia,
+        // ── LOC eventualmente menzionata nelle parti descrittive (causale,
+        //     descrizioni di riga). Es. "Royalties MI7", "Canone — DESIO". ──
+        string? LocRilevataDaTesto,
         string TestoCompleto);
 
     public sealed record ParsedPdf(
@@ -120,9 +131,18 @@ public static class FattureImportPdfParser
         var text = string.Join("\n", pagine);
 
         // ── Anagrafica fornitore (cedente/prestatore) ────────────────────
-        // Tutti i campi anagrafici sono nel primo blocco fino a "Cessionario/committente".
+        // Il blocco fornitore è dall'inizio fino a "Cessionario/committente".
+        // Il blocco cessionario è da "Cessionario/committente" fino a
+        // "Tipologia documento" (header della sezione documento).
         var cessIdx = text.IndexOf("Cessionario/committente", StringComparison.OrdinalIgnoreCase);
+        var tipoDocIdx = text.IndexOf("Tipologia documento", StringComparison.OrdinalIgnoreCase);
         var blockForn = cessIdx > 0 ? text.Substring(0, cessIdx) : text;
+        string blockCess = string.Empty;
+        if (cessIdx > 0)
+        {
+            var endCess = tipoDocIdx > cessIdx ? tipoDocIdx : Math.Min(text.Length, cessIdx + 2000);
+            blockCess = text.Substring(cessIdx, endCess - cessIdx);
+        }
 
         var piva = ExtractField(blockForn, @"Identificativo fiscale ai fini IVA:\s*(\S+)");
         var cf   = ExtractField(blockForn, @"Codice fiscale:\s*(\S+)");
@@ -232,6 +252,35 @@ public static class FattureImportPdfParser
             }
         }
 
+        // ── Cessionario/committente (chi riceve la fattura — la NOSTRA Società) ──
+        string? cessPiva = null, cessCf = null, cessDenom = null,
+                cessIndir = null, cessCap = null, cessLocalita = null, cessProv = null;
+        if (!string.IsNullOrEmpty(blockCess))
+        {
+            cessPiva = ExtractField(blockCess, @"Identificativo fiscale ai fini IVA:\s*(\S+)");
+            cessCf   = ExtractField(blockCess, @"Codice fiscale:\s*(\S+)");
+            cessDenom = ExtractField(blockCess, @"Denominazione:\s*(.+?)\s*\r?\n");
+            if (string.IsNullOrEmpty(cessDenom))
+                cessDenom = ExtractField(blockCess, @"Cognome nome:\s*(.+?)\s*\r?\n");
+            cessIndir = ExtractField(blockCess, @"Indirizzo:\s*(.+?)\s*\r?\n");
+            var cComM = Regex.Match(blockCess, @"Comune:\s*(.+?)\s+Provincia:\s*([A-Z]{2})");
+            if (cComM.Success)
+            {
+                cessLocalita = cComM.Groups[1].Value.Trim();
+                cessProv = cComM.Groups[2].Value.Trim();
+            }
+            var cCapM = Regex.Match(blockCess, @"Cap:\s*(\d{5})");
+            if (cCapM.Success) cessCap = cCapM.Groups[1].Value;
+        }
+
+        // ── LOC nel testo descrittivo ────────────────────────────────────
+        // Le fatture B2B verso il gruppo riportano spesso la sigla della sede
+        // di destinazione nelle righe descrittive ("Royalties MI7 dic 25",
+        // "Canone affitto STUDIO DENTISTICO DESIO", "Manutenzione — CCH").
+        // Isoliamo la sezione "descrittiva" (dopo Causale / Descrizione) per
+        // non confondere sigle che compaiono in indirizzi del cessionario.
+        string? locTesto = RilevaLocDaTesto(text);
+
         return new PdfFattura(
             PaginaStart: pStart,
             PaginaEnd: pEndExclusive,
@@ -259,7 +308,55 @@ public static class FattureImportPdfParser
             MeseCompetenza: meseComp,
             AnnoCompetenza: annoComp,
             PeriodoRiferimentoRaw: periodoRaw,
+            CessionarioRagioneSociale: cessDenom,
+            CessionarioPartitaIva: cessPiva,
+            CessionarioCodiceFiscale: cessCf,
+            CessionarioIndirizzo: cessIndir,
+            CessionarioCap: cessCap,
+            CessionarioLocalita: cessLocalita,
+            CessionarioProvincia: cessProv,
+            LocRilevataDaTesto: locTesto,
             TestoCompleto: text);
+    }
+
+    /// <summary>
+    /// Sigle LOC del network Confident usate nelle descrizioni di fattura.
+    /// Il match è "word-boundary": evita falsi positivi su sottostringhe
+    /// (es. "MI7" non matcha "MI78", "COMO" non matcha "COMODA"). Vince la
+    /// prima occorrenza nella sezione descrittiva. Se nessuna sigla matcha
+    /// si ritorna null e ScadenziarioGenerator userà gli altri segnali.
+    /// </summary>
+    private static readonly string[] LocSigleNote = new[]
+    {
+        "CCH", "MI3", "MI6", "MI7", "MI9",
+        "DESIO", "VARESE", "GIUSSANO", "CORMANO", "COMO",
+        "BUSTO", "BOLLATE", "BRUGHERIO", "COMASINA", "SGM",
+        "MILANO3", "MILANO6", "MILANO7", "MILANO9"
+    };
+
+    private static string? RilevaLocDaTesto(string text)
+    {
+        if (string.IsNullOrEmpty(text)) return null;
+
+        // Prendiamo la "parte bassa" della fattura: descrizioni, causale,
+        // periodo di riferimento — escludiamo l'header anagrafico per evitare
+        // confusione con indirizzi di sede legale di cedente/cessionario.
+        var startDescr = -1;
+        foreach (var anchor in new[] { "Cod. articolo", "Descrizione", "Causale" })
+        {
+            var idx = text.IndexOf(anchor, StringComparison.OrdinalIgnoreCase);
+            if (idx >= 0 && (startDescr < 0 || idx < startDescr)) startDescr = idx;
+        }
+        var slice = startDescr > 0 ? text.Substring(startDescr) : text;
+        var upper = slice.ToUpperInvariant();
+
+        foreach (var sigla in LocSigleNote)
+        {
+            // \b non funziona bene con cifre adiacenti; usiamo un look-around manuale.
+            var pattern = $@"(?<![A-Z0-9]){Regex.Escape(sigla)}(?![A-Z0-9])";
+            if (Regex.IsMatch(upper, pattern)) return sigla;
+        }
+        return null;
     }
 
     // ─────────────────────────────────────────────────────────────────────

@@ -64,13 +64,14 @@ namespace Chipdent.Web.Infrastructure.Tesoreria;
 /// </para>
 ///
 /// <para>
-/// <b>REGOLA «Nota secondaria automatica» (Fornitore.AggiungiNotaSecondariaAutomaticamente)</b><br/>
-/// Mirror della stessa regola sulla clinica ma a livello di fornitore. Quando il
-/// flag è true, viene appesa la sequenza
-/// "<c>Fornitore.Note · Fornitore.NotaSecondaria</c>" al campo <c>Scadenza.Note</c>.
-/// Se uno dei due testi è vuoto si prende solo quello presente. Le due regole
-/// (clinica + fornitore) sono indipendenti e cumulative: se entrambi i flag sono
-/// attivi entrambe le note vengono appese in sequenza (prima clinica, poi fornitore).
+/// <b>REGOLA «Note del fornitore»</b><br/>
+/// La nota primaria <c>Fornitore.Note</c> viene <b>sempre</b> appesa al campo
+/// <c>Scadenza.Note</c> (separatore " · "). La nota secondaria
+/// <c>Fornitore.NotaSecondaria</c> viene appesa <b>solo se</b> il flag
+/// <c>Fornitore.AggiungiNotaSecondariaAutomaticamente</c> è true; in tal caso
+/// le due note vengono concatenate (primaria · secondaria). Le regole clinica e
+/// fornitore sono indipendenti e cumulative: se entrambi i blocchi producono
+/// testo, vengono appesi in sequenza (prima clinica, poi fornitore).
 /// </para>
 ///
 /// <para>
@@ -100,6 +101,10 @@ public static class ScadenziarioGenerator
         public required IReadOnlyList<Fornitore> Fornitori { get; init; }
         public required IReadOnlyList<Clinica> Cliniche { get; init; }
         public required IReadOnlyList<Dottore> Dottori { get; init; }
+        /// <summary>Anagrafica delle Società del gruppo. Usata da
+        /// <see cref="ResolveLoc"/> per matchare il cessionario letto dal PDF
+        /// alla Società destinataria e risalire alla clinica (LOC).</summary>
+        public IReadOnlyList<Societa> Societa { get; init; } = Array.Empty<Societa>();
         /// <summary>Userid che firma le fatture generate (creator/approver).</summary>
         public string? UserId { get; init; }
     }
@@ -191,6 +196,30 @@ public static class ScadenziarioGenerator
         var cch = input.Cliniche.FirstOrDefault(c => c.IsHolding) ??
                   input.Cliniche.FirstOrDefault(c => string.Equals(c.Nome, "CCH", StringComparison.OrdinalIgnoreCase));
 
+        // ── Indici Società per match cessionario → Società → Clinica ─────
+        // P.IVA e CF sono identificatori legali univoci. La RagioneSociale
+        // è l'ultimo fallback e meno robusta (varianti tipografiche).
+        var societaByPiva = new Dictionary<string, Societa>(StringComparer.OrdinalIgnoreCase);
+        var societaByCf = new Dictionary<string, Societa>(StringComparer.OrdinalIgnoreCase);
+        var societaByNome = new Dictionary<string, Societa>(StringComparer.OrdinalIgnoreCase);
+        foreach (var s in input.Societa)
+        {
+            var sp = NormalizeIdFiscale(s.PartitaIva);
+            if (!string.IsNullOrEmpty(sp)) societaByPiva[sp] = s;
+            var sc = NormalizeIdFiscale(s.CodiceFiscale);
+            if (!string.IsNullOrEmpty(sc)) societaByCf[sc] = s;
+            if (!string.IsNullOrWhiteSpace(s.RagioneSociale))
+                societaByNome[NormalizeNome(s.RagioneSociale)] = s;
+            if (!string.IsNullOrWhiteSpace(s.Nome))
+                societaByNome.TryAdd(NormalizeNome(s.Nome), s);
+        }
+        // Una Società ha (al più) una clinica associata (Clinica.SocietaId).
+        // Costruiamo l'indice inverso per risolvere LOC da Società.
+        var clinicaBySocietaId = input.Cliniche
+            .Where(c => !string.IsNullOrEmpty(c.SocietaId))
+            .GroupBy(c => c.SocietaId!)
+            .ToDictionary(g => g.Key, g => g.First());
+
         // Storico per fornitore costruito incrementalmente, usato per duplicate-detection,
         // copia IBAN precedente e confronto importo (Cristal/Infinity/Locazioni).
         var ibanCacheByForn = new Dictionary<string, string?>(StringComparer.OrdinalIgnoreCase);
@@ -259,7 +288,8 @@ public static class ScadenziarioGenerator
             }
 
             // ── Clinica destinataria (LOC) ───────────────────────────────
-            var clinicaId = ResolveLoc(riga, nomeForn, cch, cliniche, input.Cliniche);
+            var clinicaId = ResolveLoc(riga, nomeForn, cch, cliniche, input.Cliniche,
+                societaByPiva, societaByCf, societaByNome, clinicaBySocietaId);
             if (string.IsNullOrEmpty(clinicaId))
             {
                 output.Alerts.Add(new AlertScadenziario(AlertSeverita.Warn, "LOC mancante",
@@ -399,15 +429,20 @@ public static class ScadenziarioGenerator
                 }
             }
 
-            // ── REGOLA «Nota secondaria automatica» (FORNITORE) ─────────
-            // Mirror del flag clinica ma sul fornitore: appende la sequenza
-            // "Note (primaria) · NotaSecondaria" del fornitore a Scadenza.Note.
-            // Se manca uno dei due testi viene preso solo quello presente.
-            if (fornitore.AggiungiNotaSecondariaAutomaticamente)
+            // ── REGOLA «Note del fornitore» ──────────────────────────────
+            // - Note primarie (Fornitore.Note): SEMPRE appese alla scadenza.
+            // - Nota secondaria (Fornitore.NotaSecondaria): appesa SOLO se il
+            //   flag <c>AggiungiNotaSecondariaAutomaticamente</c> è true.
+            // Quando entrambe sono presenti vengono concatenate in sequenza
+            // (separatore " · "). Se la nota primaria è vuota e il flag della
+            // secondaria è attivo, viene appesa solo la secondaria.
             {
                 var parts = new List<string>();
-                if (!string.IsNullOrWhiteSpace(fornitore.Note)) parts.Add(fornitore.Note.Trim());
-                if (!string.IsNullOrWhiteSpace(fornitore.NotaSecondaria)) parts.Add(fornitore.NotaSecondaria.Trim());
+                if (!string.IsNullOrWhiteSpace(fornitore.Note))
+                    parts.Add(fornitore.Note.Trim());
+                if (fornitore.AggiungiNotaSecondariaAutomaticamente
+                    && !string.IsNullOrWhiteSpace(fornitore.NotaSecondaria))
+                    parts.Add(fornitore.NotaSecondaria.Trim());
                 if (parts.Count > 0)
                 {
                     var notaForn = string.Join(" · ", parts);
@@ -761,19 +796,68 @@ public static class ScadenziarioGenerator
         };
     }
 
+    /// <summary>
+    /// Risolve la clinica destinataria della fattura (campo LOC dello scadenziario =
+    /// <see cref="Clinica.NomeAbbreviato"/>). Ordine di priorità — dal segnale più
+    /// affidabile al più euristico:
+    /// <list type="number">
+    ///   <item>Cessionario letto dal PDF (P.IVA → CF → Ragione sociale) → Società →
+    ///         Clinica con quella <c>SocietaId</c>. È il segnale più affidabile
+    ///         perché la fatturazione elettronica vincola P.IVA/CF al destinatario.</item>
+    ///   <item>Sezione CSV "CCH" → holding</item>
+    ///   <item>LOC rilevata dal testo descrittivo del PDF (causale, descrizioni di
+    ///         riga) — match contro <c>Clinica.NomeAbbreviato</c></item>
+    ///   <item>Match della <c>Sezione</c> CSV o del nome fornitore con
+    ///         <c>Clinica.NomeAbbreviato</c></item>
+    ///   <item>Tabella statica di fallback (sigle storiche)</item>
+    /// </list>
+    /// </summary>
     private static string? ResolveLoc(
         ImportFatturaRiga riga, string nomeForn, Clinica? cch,
         Dictionary<string, Clinica> cliniche,
-        IReadOnlyList<Clinica> clinicheAll)
+        IReadOnlyList<Clinica> clinicheAll,
+        Dictionary<string, Societa> societaByPiva,
+        Dictionary<string, Societa> societaByCf,
+        Dictionary<string, Societa> societaByNome,
+        Dictionary<string, Clinica> clinicaBySocietaId)
     {
-        // 1) Sezione CCH → holding
+        // 1) Cessionario PDF → Società → Clinica (segnale più affidabile)
+        Societa? societa = null;
+        var cessP = NormalizeIdFiscale(riga.PartitaIvaCessionario);
+        if (!string.IsNullOrEmpty(cessP)) societaByPiva.TryGetValue(cessP, out societa);
+        if (societa is null)
+        {
+            var cessC = NormalizeIdFiscale(riga.CodiceFiscaleCessionario);
+            if (!string.IsNullOrEmpty(cessC)) societaByCf.TryGetValue(cessC, out societa);
+        }
+        if (societa is null && !string.IsNullOrWhiteSpace(riga.RagioneSocialeCessionario))
+        {
+            societaByNome.TryGetValue(NormalizeNome(riga.RagioneSocialeCessionario), out societa);
+        }
+        if (societa is not null && clinicaBySocietaId.TryGetValue(societa.Id, out var cliFromSoc))
+            return cliFromSoc.Id;
+
+        // 2) Sezione CCH → holding
         if (string.Equals(riga.Sezione, "CCH", StringComparison.OrdinalIgnoreCase) && cch != null)
             return cch.Id;
 
+        // 3) LOC rilevata dal testo descrittivo del PDF
+        if (!string.IsNullOrWhiteSpace(riga.LocRilevataDaTesto))
+        {
+            var locUp = riga.LocRilevataDaTesto.Trim().ToUpperInvariant();
+            foreach (var cli in clinicheAll)
+            {
+                var abbr = (cli.NomeAbbreviato ?? "").Trim().ToUpperInvariant();
+                if (!string.IsNullOrEmpty(abbr) && string.Equals(abbr, locUp, StringComparison.Ordinal))
+                    return cli.Id;
+            }
+            // Anche match sul Nome (es. "DESIO", "VARESE")
+            if (cliniche.TryGetValue(locUp, out var byNome)) return byNome.Id;
+        }
+
         var n = nomeForn.ToUpperInvariant();
 
-        // 2) Match per NomeAbbreviato (campo «LOC» sulla scheda clinica).
-        //    Ha priorità sulla tabella statica perché riflette le impostazioni utente.
+        // 4) Match per NomeAbbreviato sulla sezione/nome fornitore.
         foreach (var cli in clinicheAll)
         {
             var abbr = (cli.NomeAbbreviato ?? "").Trim().ToUpperInvariant();
@@ -783,7 +867,7 @@ public static class ScadenziarioGenerator
                 return cli.Id;
         }
 
-        // 3) Tabella statica di fallback (varianti storiche del nome fornitore).
+        // 5) Tabella statica di fallback (varianti storiche del nome fornitore).
         foreach (var (sigla, nome) in SiglaToNome)
         {
             if (n.Contains(" " + sigla) || n.EndsWith(sigla) || n.Contains(nome))
