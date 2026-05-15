@@ -781,7 +781,8 @@ public class TesoreriaController : Controller
             BasePagamento = vm.BasePagamento,
             EmissioneFattura = vm.EmissioneFattura,
             PagamentoRicorrente = vm.PagamentoRicorrente,
-            SedeRiferimentoId = string.IsNullOrWhiteSpace(vm.SedeRiferimentoId) ? null : vm.SedeRiferimentoId
+            SediRiferimentoIds = NormalizeSediRiferimentoIds(vm.SediRiferimentoIds, vm.SedeRiferimentoId),
+            SedeRiferimentoId = PrimarySedeFrom(NormalizeSediRiferimentoIds(vm.SediRiferimentoIds, vm.SedeRiferimentoId))
         };
         await _mongo.Fornitori.InsertOneAsync(f);
         await _audit.LogAsync("Fornitore", f.Id, f.RagioneSociale, AuditAction.Created, actor: User);
@@ -829,6 +830,7 @@ public class TesoreriaController : Controller
             EmissioneFattura = f.EmissioneFattura,
             PagamentoRicorrente = f.PagamentoRicorrente,
             SedeRiferimentoId = f.SedeRiferimentoId,
+            SediRiferimentoIds = EffectiveSediRiferimento(f),
             Cliniche = await GetClinicheAsync(),
             HaUtentePortale = hasUser,
             IsDottoreOmbra = !string.IsNullOrEmpty(f.DottoreId)
@@ -882,6 +884,7 @@ public class TesoreriaController : Controller
             EmissioneFattura = f.EmissioneFattura,
             PagamentoRicorrente = f.PagamentoRicorrente,
             SedeRiferimentoId = f.SedeRiferimentoId,
+            SediRiferimentoIds = EffectiveSediRiferimento(f),
             Cliniche = await _mongo.Cliniche.Find(c => c.TenantId == tid).SortBy(c => c.Nome).ToListAsync(),
             HaUtentePortale = hasUser,
             IsDottoreOmbra = !string.IsNullOrEmpty(f.DottoreId)
@@ -950,7 +953,8 @@ public class TesoreriaController : Controller
                 .Set(x => x.BasePagamento, vm.BasePagamento)
                 .Set(x => x.EmissioneFattura, vm.EmissioneFattura)
                 .Set(x => x.PagamentoRicorrente, vm.PagamentoRicorrente)
-                .Set(x => x.SedeRiferimentoId, string.IsNullOrWhiteSpace(vm.SedeRiferimentoId) ? null : vm.SedeRiferimentoId)
+                .Set(x => x.SediRiferimentoIds, NormalizeSediRiferimentoIds(vm.SediRiferimentoIds, vm.SedeRiferimentoId))
+                .Set(x => x.SedeRiferimentoId, PrimarySedeFrom(NormalizeSediRiferimentoIds(vm.SediRiferimentoIds, vm.SedeRiferimentoId)))
                 .Set(x => x.UpdatedAt, DateTime.UtcNow));
 
         var updated = await _mongo.Fornitori.Find(x => x.Id == id).FirstOrDefaultAsync();
@@ -1052,29 +1056,52 @@ public class TesoreriaController : Controller
                 break;
 
             case "SedeRiferimentoId":
-                string? sedeId = string.IsNullOrWhiteSpace(trimmed) ? null : trimmed;
-                string sedeLabel = "—";
-                if (sedeId is not null)
+            case "SediRiferimentoIds":
+                // value = lista di id separati da virgola; può contenere il sentinel "TUTTE".
+                var incomingIds = (trimmed ?? "")
+                    .Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries)
+                    .Distinct(StringComparer.Ordinal)
+                    .ToList();
+                var normalized = NormalizeSediRiferimentoIds(incomingIds, null);
+
+                // Valida che ogni id specifico esista come clinica del tenant.
+                var specifici = normalized.Where(s => s != FornitoreSedi.Tutte).ToList();
+                Dictionary<string, string> nomiNuovi = new(StringComparer.Ordinal);
+                if (specifici.Count > 0)
                 {
-                    var clinica = await _mongo.Cliniche
-                        .Find(c => c.Id == sedeId && c.TenantId == tid)
-                        .FirstOrDefaultAsync();
-                    if (clinica is null)
+                    var trovati = await _mongo.Cliniche
+                        .Find(c => specifici.Contains(c.Id) && c.TenantId == tid)
+                        .ToListAsync();
+                    if (trovati.Count != specifici.Count)
                         return BadRequest(new { ok = false, error = "Sede non valida." });
-                    sedeLabel = clinica.Nome;
+                    nomiNuovi = trovati.ToDictionary(c => c.Id, c => c.Nome, StringComparer.Ordinal);
                 }
-                string oldSedeLabel = "—";
-                if (!string.IsNullOrEmpty(f.SedeRiferimentoId))
+
+                static string FormatSedi(List<string> ids, Dictionary<string, string> nomi)
                 {
-                    var prev = await _mongo.Cliniche
-                        .Find(c => c.Id == f.SedeRiferimentoId && c.TenantId == tid)
-                        .FirstOrDefaultAsync();
-                    if (prev is not null) oldSedeLabel = prev.Nome;
+                    if (ids.Count == 0) return "—";
+                    if (ids.Contains(FornitoreSedi.Tutte, StringComparer.Ordinal)) return "TUTTE";
+                    return string.Join(", ", ids.Select(i => nomi.TryGetValue(i, out var n) ? n : i));
                 }
-                oldValue = oldSedeLabel;
-                newValueDisplay = sedeLabel;
-                update = Builders<Fornitore>.Update.Set(x => x.SedeRiferimentoId, sedeId);
-                fieldLabel = "Sede di riferimento";
+
+                // Etichetta vecchio valore (per audit).
+                var vecchieSedi = EffectiveSediRiferimento(f);
+                var vecchieSpecifiche = vecchieSedi.Where(s => s != FornitoreSedi.Tutte).ToList();
+                Dictionary<string, string> nomiVecchi = new(StringComparer.Ordinal);
+                if (vecchieSpecifiche.Count > 0)
+                {
+                    var trovate = await _mongo.Cliniche
+                        .Find(c => vecchieSpecifiche.Contains(c.Id) && c.TenantId == tid)
+                        .ToListAsync();
+                    nomiVecchi = trovate.ToDictionary(c => c.Id, c => c.Nome, StringComparer.Ordinal);
+                }
+
+                oldValue = FormatSedi(vecchieSedi, nomiVecchi);
+                newValueDisplay = FormatSedi(normalized, nomiNuovi);
+                update = Builders<Fornitore>.Update
+                    .Set(x => x.SediRiferimentoIds, normalized)
+                    .Set(x => x.SedeRiferimentoId, PrimarySedeFrom(normalized));
+                fieldLabel = "Sedi di riferimento";
                 break;
 
             default:
@@ -1145,9 +1172,47 @@ public class TesoreriaController : Controller
         EmissioneFattura = src.EmissioneFattura,
         PagamentoRicorrente = src.PagamentoRicorrente,
         SedeRiferimentoId = src.SedeRiferimentoId,
+        SediRiferimentoIds = src.SediRiferimentoIds?.ToList() ?? new List<string>(),
         DottoreId = src.DottoreId,
         IsDeleted = src.IsDeleted
     };
+
+    /// <summary>Restituisce le sedi di riferimento "effettive" di un fornitore: la lista
+    /// <see cref="Fornitore.SediRiferimentoIds"/> se valorizzata, altrimenti il campo legacy
+    /// <see cref="Fornitore.SedeRiferimentoId"/> come singolo elemento, altrimenti lista vuota.</summary>
+    private static List<string> EffectiveSediRiferimento(Fornitore f)
+    {
+        if (f.SediRiferimentoIds is { Count: > 0 })
+            return f.SediRiferimentoIds.ToList();
+        if (!string.IsNullOrWhiteSpace(f.SedeRiferimentoId))
+            return new List<string> { f.SedeRiferimentoId! };
+        return new List<string>();
+    }
+
+    /// <summary>Pulisce la lista di id sedi proveniente dal form: rimuove duplicati e stringhe
+    /// vuote, e se contiene il sentinel <see cref="FornitoreSedi.Tutte"/> tiene solo quello.
+    /// In fallback usa <paramref name="legacySingle"/> per compatibilità con form vecchi.</summary>
+    private static List<string> NormalizeSediRiferimentoIds(IEnumerable<string>? ids, string? legacySingle)
+    {
+        var list = (ids ?? Array.Empty<string>())
+            .Where(s => !string.IsNullOrWhiteSpace(s))
+            .Select(s => s.Trim())
+            .Distinct(StringComparer.Ordinal)
+            .ToList();
+
+        if (list.Count == 0 && !string.IsNullOrWhiteSpace(legacySingle))
+            list.Add(legacySingle!.Trim());
+
+        if (list.Contains(FornitoreSedi.Tutte, StringComparer.Ordinal))
+            return new List<string> { FornitoreSedi.Tutte };
+
+        return list;
+    }
+
+    /// <summary>Primo id "specifico" della lista sedi (escludendo il sentinel "TUTTE"),
+    /// utilizzato come valore del campo legacy <see cref="Fornitore.SedeRiferimentoId"/>.</summary>
+    private static string? PrimarySedeFrom(List<string> sedi)
+        => sedi.FirstOrDefault(s => !string.Equals(s, FornitoreSedi.Tutte, StringComparison.Ordinal));
 
     private Task<List<Clinica>> GetClinicheAsync()
         => _mongo.Cliniche.Find(c => c.TenantId == _tenant.TenantId).SortBy(c => c.Nome).ToListAsync();

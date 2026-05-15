@@ -59,15 +59,9 @@
 
     <div class="grid" style="grid-template-columns: 1fr; gap: var(--s-3);">
         <div class="form-group">
-            <label class="form-label" asp-for="SedeRiferimentoId">Sede di riferimento</label>
-            <select class="form-control" asp-for="SedeRiferimentoId">
-                <option value="" selected="@string.IsNullOrEmpty(Model.SedeRiferimentoId)">— nessuna —</option>
-                @foreach (var c in Model.Cliniche)
-                {
-                    <option value="@c.Id" selected="@(Model.SedeRiferimentoId == c.Id)">@c.Nome</option>
-                }
-            </select>
-            <span class="hint">Sede della catena a cui il fornitore è principalmente associato.</span>
+            <label class="form-label">Sedi di riferimento</label>
+            <partial name="_SediRiferimentoSelect" model="new Chipdent.Web.Models.SediRiferimentoSelectViewModel { Selected = Model.SediRiferimentoIds, Cliniche = Model.Cliniche }" />
+            <span class="hint">Sedi della catena a cui il fornitore è associato. Seleziona <strong>TUTTE</strong> per applicarlo a tutte le sedi.</span>
         </div>
     </div>
 
@@ -227,6 +221,8 @@
         <button type="submit" class="btn btn--primary">@(isNew ? "Crea fornitore" : "Salva modifiche")</button>
     </div>
 </form>
+
+<partial name="_SediRiferimentoStyles" />
 
 @section Scripts {
 <script>

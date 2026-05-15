@@ -1,0 +1,140 @@
+@* CSS + JS condivisi per il widget _SediRiferimentoSelect (chip multi-select con TUTTE). *@
+<style>
+    .sediref { display:flex; flex-direction:column; gap:8px; }
+    .sediref__chips { display:flex; flex-wrap:wrap; gap:6px; min-height: 0; }
+    .sediref__chips:empty { display:none; }
+    .sediref__chip {
+        display:inline-flex; align-items:center; gap:6px;
+        padding:3px 4px 3px 10px;
+        background:#fff6e2; color:#3b1e0c;
+        border:1px solid #e9dcc1; border-radius:999px;
+        font-size:.82rem; font-weight:500;
+        white-space:nowrap;
+    }
+    .sediref__chip--all {
+        background: linear-gradient(135deg, #c47830 0%, #3b1e0c 100%);
+        color:#fff7e8; border-color:transparent;
+        font-weight:600; letter-spacing:.3px;
+    }
+    .sediref__chip-x {
+        display:inline-flex; align-items:center; justify-content:center;
+        width:18px; height:18px;
+        background: rgba(59,30,12,.12);
+        color: inherit;
+        border: none; border-radius: 999px;
+        cursor: pointer; font-size: 1rem; line-height: 1;
+        padding: 0;
+        transition: background .12s, transform .12s;
+    }
+    .sediref__chip-x:hover { background: rgba(59,30,12,.28); transform: scale(1.1); }
+    .sediref__chip--all .sediref__chip-x { background: rgba(255,255,255,.22); }
+    .sediref__chip--all .sediref__chip-x:hover { background: rgba(255,255,255,.4); }
+    .sediref__select { max-width: 100%; }
+</style>
+
+<script>
+(function () {
+    const TUTTE = 'TUTTE';
+
+    function escapeHtml(s) {
+        return (s ?? '').toString().replace(/[&<>"']/g, ch => ({
+            '&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'
+        }[ch]));
+    }
+
+    function chipHtml(id, label, fieldName, isAll) {
+        const cls = 'sediref__chip' + (isAll ? ' sediref__chip--all' : '');
+        return `<span class="${cls}" data-sediref-chip data-id="${escapeHtml(id)}">`
+            + escapeHtml(label)
+            + `<button type="button" class="sediref__chip-x" data-sediref-remove aria-label="Rimuovi">×</button>`
+            + `<input type="hidden" name="${escapeHtml(fieldName)}" value="${escapeHtml(id)}" />`
+            + `</span>`;
+    }
+
+    function init(widget) {
+        if (widget.__sedirefInit) return;
+        widget.__sedirefInit = true;
+        const chipsEl = widget.querySelector('[data-sediref-chips]');
+        const selectEl = widget.querySelector('[data-sediref-select]');
+        const placeholder = widget.querySelector('[data-sediref-placeholder]');
+        if (!chipsEl || !selectEl) return;
+        const fieldName = placeholder?.getAttribute('name') || 'SediRiferimentoIds';
+
+        function currentIds() {
+            return Array.from(chipsEl.querySelectorAll('[data-sediref-chip]'))
+                .map(c => c.getAttribute('data-id'));
+        }
+
+        function refreshSelectOptions() {
+            const ids = new Set(currentIds());
+            const hasTutte = ids.has(TUTTE);
+            Array.from(selectEl.options).forEach(opt => {
+                if (!opt.value) { opt.hidden = false; return; }
+                if (opt.value === TUTTE) {
+                    // se ci sono sedi specifiche, nascondo TUTTE; se è già selezionato, lo nascondo
+                    opt.hidden = hasTutte || (ids.size > 0);
+                } else {
+                    opt.hidden = hasTutte || ids.has(opt.value);
+                }
+            });
+        }
+
+        function notifyChange() {
+            widget.dispatchEvent(new CustomEvent('sediref:change', {
+                bubbles: true,
+                detail: { ids: currentIds() }
+            }));
+        }
+
+        function addChip(id, label, isAll) {
+            chipsEl.insertAdjacentHTML('beforeend', chipHtml(id, label, fieldName, isAll));
+            refreshSelectOptions();
+            notifyChange();
+        }
+
+        function removeChip(chipEl) {
+            chipEl.remove();
+            refreshSelectOptions();
+            notifyChange();
+        }
+
+        selectEl.addEventListener('change', () => {
+            const val = selectEl.value;
+            if (!val) return;
+            const opt = selectEl.options[selectEl.selectedIndex];
+            const label = opt.textContent.trim();
+
+            if (val === TUTTE) {
+                // svuota tutto, lascia solo TUTTE
+                chipsEl.innerHTML = '';
+                addChip(TUTTE, 'TUTTE', true);
+            } else {
+                // se c'era TUTTE, lo rimuovo
+                const tutteChip = chipsEl.querySelector(`[data-sediref-chip][data-id="${TUTTE}"]`);
+                if (tutteChip) tutteChip.remove();
+                addChip(val, label, false);
+            }
+            selectEl.value = '';
+        });
+
+        chipsEl.addEventListener('click', e => {
+            const btn = e.target.closest('[data-sediref-remove]');
+            if (!btn) return;
+            e.preventDefault();
+            const chip = btn.closest('[data-sediref-chip]');
+            if (chip) removeChip(chip);
+        });
+
+        refreshSelectOptions();
+    }
+
+    function initAll(root) {
+        (root || document).querySelectorAll('[data-sediref]').forEach(init);
+    }
+
+    document.addEventListener('DOMContentLoaded', () => initAll());
+    // Re-init dopo apertura modale o aggiornamenti AJAX
+    document.addEventListener('sediref:rescan', e => initAll(e.target || document));
+    window.SediRiferimentoSelect = { initAll };
+})();
+</script>

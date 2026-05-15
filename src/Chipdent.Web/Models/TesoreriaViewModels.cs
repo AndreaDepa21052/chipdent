@@ -258,8 +258,13 @@ public class FornitoreFormViewModel
     /// <summary>Pagamento ricorrente (canoni, abbonamenti, rate) — flag sì/no.</summary>
     public bool PagamentoRicorrente { get; set; }
 
-    /// <summary>Id della clinica di riferimento del fornitore (sede principale).</summary>
+    /// <summary>Id della clinica di riferimento del fornitore (sede principale, legacy).
+    /// Mantenuto in sync con il primo elemento non-TUTTE di <see cref="SediRiferimentoIds"/>.</summary>
     public string? SedeRiferimentoId { get; set; }
+
+    /// <summary>Sedi di riferimento del fornitore (multi-select). Può contenere il sentinel
+    /// "TUTTE" (<see cref="FornitoreSedi.Tutte"/>) o una lista di id clinica.</summary>
+    public List<string> SediRiferimentoIds { get; set; } = new();
 
     /// <summary>Cliniche disponibili per la tendina "Sede di riferimento".</summary>
     public List<Clinica> Cliniche { get; set; } = new();
@@ -271,6 +276,21 @@ public class FornitoreFormViewModel
 
     /// <summary>True se questo Fornitore è la controparte fattura di un Dottore (ombra).</summary>
     public bool IsDottoreOmbra { get; set; }
+}
+
+/// <summary>
+/// Dati per il widget riusabile di selezione multipla "Sedi di riferimento" (chip + dropdown).
+/// </summary>
+public class SediRiferimentoSelectViewModel
+{
+    /// <summary>Id selezionati (può contenere il sentinel <c>FornitoreSedi.Tutte</c>).</summary>
+    public List<string> Selected { get; set; } = new();
+
+    /// <summary>Cliniche disponibili nella tendina.</summary>
+    public List<Clinica> Cliniche { get; set; } = new();
+
+    /// <summary>Nome del campo da postare (default: <c>SediRiferimentoIds</c>).</summary>
+    public string? FieldName { get; set; }
 }
 
 /// <summary>

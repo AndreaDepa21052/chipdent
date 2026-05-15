@@ -79,8 +79,15 @@ public class Fornitore : TenantEntity
 
     /// <summary>Id della <see cref="Clinica"/> di riferimento del fornitore (sede a cui è
     /// principalmente associato il rapporto). Null = non assegnata. Per le anagrafiche
-    /// storiche viene popolata via backfill alla sede DESIO.</summary>
+    /// storiche viene popolata via backfill alla sede DESIO. Mantenuto come "sede primaria"
+    /// (= primo id non-TUTTE di <see cref="SediRiferimentoIds"/>) per compatibilità con il
+    /// codice che assume una singola sede di riferimento.</summary>
     public string? SedeRiferimentoId { get; set; }
+
+    /// <summary>Sedi di riferimento del fornitore (multi-sede). Può contenere il sentinel
+    /// <see cref="FornitoreSedi.Tutte"/> per indicare "tutte le sedi", oppure una lista di
+    /// id di cliniche. Lista vuota = nessuna sede assegnata.</summary>
+    public List<string> SediRiferimentoIds { get; set; } = new();
 
     // Link al Dottore (un Dottore è anche un Fornitore quando è collaboratore/libero
     // professionista — riusa il modulo Tesoreria per gestire i suoi pagamenti).
@@ -90,6 +97,15 @@ public class Fornitore : TenantEntity
     /// <summary>Soft-delete: il record resta su DB (fatture/scadenze storiche puntano qui) ma
     /// non viene mostrato nella griglia anagrafica. Settato dalla cancellazione utente.</summary>
     public bool IsDeleted { get; set; }
+}
+
+/// <summary>
+/// Valori speciali usati in <see cref="Fornitore.SediRiferimentoIds"/>.
+/// </summary>
+public static class FornitoreSedi
+{
+    /// <summary>Sentinel che indica "tutte le sedi" — selezionato esclude qualsiasi id specifico.</summary>
+    public const string Tutte = "TUTTE";
 }
 
 /// <summary>

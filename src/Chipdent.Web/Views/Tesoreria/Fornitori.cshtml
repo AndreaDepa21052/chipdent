@@ -161,19 +161,37 @@ else
                         </select>
                     </td>
                     @{
-                        var sedeNome = !string.IsNullOrEmpty(r.Fornitore.SedeRiferimentoId)
-                            && clinicheById.TryGetValue(r.Fornitore.SedeRiferimentoId!, out var sn)
-                            ? sn
-                            : "";
+                        // Sedi effettive: lista multi-sede se valorizzata, altrimenti fallback al campo legacy.
+                        var sediEff = (r.Fornitore.SediRiferimentoIds is { Count: > 0 })
+                            ? r.Fornitore.SediRiferimentoIds
+                            : (!string.IsNullOrEmpty(r.Fornitore.SedeRiferimentoId)
+                                ? new List<string> { r.Fornitore.SedeRiferimentoId! }
+                                : new List<string>());
+                        var sediLabel = sediEff.Count == 0
+                            ? ""
+                            : sediEff.Contains(FornitoreSedi.Tutte)
+                                ? "TUTTE"
+                                : string.Join(", ", sediEff.Select(id => clinicheById.TryGetValue(id, out var n) ? n : id));
                     }
-                    <td data-col="sede" data-sort-value="@sedeNome">
-                        <select class="inline-input" data-field="SedeRiferimentoId">
-                            <option value="" selected="@string.IsNullOrEmpty(r.Fornitore.SedeRiferimentoId)">— nessuna —</option>
-                            @foreach (var c in cliniche)
+                    <td data-col="sede" data-sort-value="@sediLabel" data-edit-fornitore="@r.Fornitore.Id" title="Modifica sedi dal pannello fornitore" style="cursor:pointer;">
+                        <div class="sediref-cell">
+                            @if (sediEff.Count == 0)
                             {
-                                <option value="@c.Id" selected="@(r.Fornitore.SedeRiferimentoId == c.Id)">@c.Nome</option>
+                                <span class="muted" style="font-size:.78rem;">— nessuna —</span>
                             }
-                        </select>
+                            else if (sediEff.Contains(FornitoreSedi.Tutte))
+                            {
+                                <span class="sediref-cell__chip sediref-cell__chip--all">TUTTE</span>
+                            }
+                            else
+                            {
+                                @foreach (var id in sediEff)
+                                {
+                                    var nome = clinicheById.TryGetValue(id, out var n) ? n : id;
+                                    <span class="sediref-cell__chip">@nome</span>
+                                }
+                            }
+                        </div>
                     </td>
                     <td data-col="stato" data-sort-value="@statoSortRank">
                         <select class="inline-input" data-field="Stato" data-stato-cell>
@@ -246,8 +264,23 @@ else
 </dialog>
 
 <partial name="_FornitoreEditModalScript" />
+<partial name="_SediRiferimentoStyles" />
 
 <style>
+    /* Badge sedi in griglia (read-only): cliccando apre la modale di modifica. */
+    .sediref-cell { display:flex; flex-wrap:wrap; gap:3px; align-items:center; }
+    .sediref-cell__chip {
+        display:inline-block; padding:1px 8px;
+        background:#fff6e2; color:#3b1e0c;
+        border:1px solid #e9dcc1; border-radius:999px;
+        font-size:.72rem; line-height:1.4; white-space:nowrap;
+    }
+    .sediref-cell__chip--all {
+        background: linear-gradient(135deg, #c47830 0%, #3b1e0c 100%);
+        color:#fff7e8; border-color:transparent;
+        font-weight:600; letter-spacing:.3px;
+    }
+
     /* ── Griglia fornitori: compatta + interattiva ─────────────── */
     .forn-grid-card {
         max-height: calc(100vh - 240px);
