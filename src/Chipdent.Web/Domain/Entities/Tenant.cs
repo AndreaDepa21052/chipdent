@@ -46,4 +46,9 @@ public class Tenant : Entity
     public string? PagatoreRagioneSociale { get; set; }
     /// <summary>Codice fiscale dell'ordinante (alcune banche lo richiedono come OrgId nella distinta).</summary>
     public string? PagatoreCodiceFiscale { get; set; }
+
+    /// <summary>Chiavi delle migrazioni one-shot già eseguite su questo tenant. Usato dai
+    /// seeder di tipo "wipe & reseed" per evitare di rigirare l'operazione su startup
+    /// successivi (vedi <see cref="Chipdent.Web.Infrastructure.Mongo.WipeAnagraficaSeeder"/>).</summary>
+    public List<string> MigrazioniApplicate { get; set; } = new();
 }
