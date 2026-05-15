@@ -77,6 +77,11 @@ public class Fornitore : TenantEntity
     /// segnalare le posizioni che si ripetono periodo dopo periodo.</summary>
     public bool PagamentoRicorrente { get; set; }
 
+    /// <summary>Id della <see cref="Clinica"/> di riferimento del fornitore (sede a cui è
+    /// principalmente associato il rapporto). Null = non assegnata. Per le anagrafiche
+    /// storiche viene popolata via backfill alla sede DESIO.</summary>
+    public string? SedeRiferimentoId { get; set; }
+
     // Link al Dottore (un Dottore è anche un Fornitore quando è collaboratore/libero
     // professionista — riusa il modulo Tesoreria per gestire i suoi pagamenti).
     /// <summary>Id del Dottore se questo Fornitore è la "controparte fattura" di un dottore.</summary>

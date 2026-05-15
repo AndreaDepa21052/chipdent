@@ -10,6 +10,8 @@
     var categorie = Enum.GetValues<CategoriaSpesa>()
         .OrderBy(c => c.ToString(), StringComparer.OrdinalIgnoreCase)
         .ToList();
+    var cliniche = Model.Cliniche;
+    var clinicheById = cliniche.ToDictionary(c => c.Id, c => c.Nome);
 }
 
 <partial name="_Flash" />
@@ -47,6 +49,12 @@ else
 {
     <div data-table-search>
         <partial name="_TableSearch" model='new Microsoft.AspNetCore.Mvc.ViewFeatures.ViewDataDictionary(ViewData) { ["Placeholder"] = "Cerca fornitore per ragione sociale, P.IVA, categoria…", ["Singular"] = "fornitore", ["Plural"] = "fornitori" }' />
+        <div class="forn-toolbar">
+            <label class="forn-toggle">
+                <input type="checkbox" id="forn-hide-dottori" />
+                <span>Non farmi vedere i dottori</span>
+            </label>
+        </div>
         <div class="table-search__empty">Nessun fornitore corrisponde alla ricerca.</div>
     <div class="card forn-grid-card" style="padding:0;">
         <table class="table forn-grid" id="fornitori-grid">
@@ -69,6 +77,9 @@ else
                     </th>
                     <th data-sort-key="cat2" data-col="cat2" style="width:150px;">
                         <span class="th-label">Cat. secondaria</span><span class="th-sort"></span><span class="th-resizer"></span>
+                    </th>
+                    <th data-sort-key="sede" data-col="sede" style="width:140px;">
+                        <span class="th-label">Sede rif.</span><span class="th-sort"></span><span class="th-resizer"></span>
                     </th>
                     <th data-sort-key="stato" data-col="stato" style="width:100px;">
                         <span class="th-label">Stato</span><span class="th-sort"></span><span class="th-resizer"></span>
@@ -104,7 +115,7 @@ else
                 var statoUi = r.Fornitore.Stato == StatoFornitore.Attivo ? StatoFornitore.Attivo : StatoFornitore.Dismesso;
                 var statoSortRank = statoUi == StatoFornitore.Attivo ? 0 : 1;
                 var sepaSortRank = r.Completezza.SepaPronto ? 0 : 1;
-                <tr data-forn-row data-id="@r.Fornitore.Id" data-label="@r.Fornitore.RagioneSociale">
+                <tr data-forn-row data-id="@r.Fornitore.Id" data-label="@r.Fornitore.RagioneSociale" data-is-dottore="@(string.IsNullOrEmpty(r.Fornitore.DottoreId) ? "0" : "1")">
                     <td class="muted" data-col="codice" data-sort-value="@(r.Fornitore.Codice ?? "")">
                         @(string.IsNullOrEmpty(r.Fornitore.Codice) ? "—" : r.Fornitore.Codice)
                         @* _TableSearch indicizza textContent; rendiamo cercabili anche i valori degli <input>. *@
@@ -131,6 +142,21 @@ else
                             @foreach (var c in categorie)
                             {
                                 <option value="@c" selected="@(r.Fornitore.CategoriaSecondaria == c)">@c</option>
+                            }
+                        </select>
+                    </td>
+                    @{
+                        var sedeNome = !string.IsNullOrEmpty(r.Fornitore.SedeRiferimentoId)
+                            && clinicheById.TryGetValue(r.Fornitore.SedeRiferimentoId!, out var sn)
+                            ? sn
+                            : "";
+                    }
+                    <td data-col="sede" data-sort-value="@sedeNome">
+                        <select class="inline-input" data-field="SedeRiferimentoId">
+                            <option value="" selected="@string.IsNullOrEmpty(r.Fornitore.SedeRiferimentoId)">— nessuna —</option>
+                            @foreach (var c in cliniche)
+                            {
+                                <option value="@c.Id" selected="@(r.Fornitore.SedeRiferimentoId == c.Id)">@c.Nome</option>
                             }
                         </select>
                     </td>
@@ -294,6 +320,26 @@ else
     [data-forn-row].is-removing { opacity: .4; pointer-events: none; transition: opacity .2s; }
     [data-stato-cell] option[value="Dismesso"] { color: #777; }
     [data-forn-row].is-page-hidden { display: none !important; }
+
+    /* Toggle "Non farmi vedere i dottori": nasconde i fornitori-ombra di dottori. */
+    .forn-toolbar {
+        display: flex;
+        align-items: center;
+        gap: var(--s-3);
+        margin: 0 0 var(--s-2);
+        padding: 0 4px;
+    }
+    .forn-toggle {
+        display: inline-flex;
+        align-items: center;
+        gap: 6px;
+        font-size: .82rem;
+        color: var(--c-ink-soft, #6b5538);
+        cursor: pointer;
+        user-select: none;
+    }
+    .forn-toggle input { cursor: pointer; }
+    tbody.hide-dottori [data-forn-row][data-is-dottore="1"] { display: none !important; }
 
     /* ── Pager ────────────────────────────────────────────────── */
     .forn-pager {
@@ -570,8 +616,13 @@ else
         } catch (e) {}
 
         function searchVisibleRows() {
+            var hideDottori = tbodyEl.classList.contains('hide-dottori');
             return Array.prototype.slice.call(tbodyEl.rows)
-                .filter(function (r) { return r.style.display !== 'none'; });
+                .filter(function (r) {
+                    if (r.style.display === 'none') return false;
+                    if (hideDottori && r.getAttribute('data-is-dottore') === '1') return false;
+                    return true;
+                });
         }
 
         function buildPageNumbers(total, current) {
@@ -687,6 +738,22 @@ else
                 setTimeout(applyPagination, 200);
             }
         });
+
+        // ── Toggle "Non farmi vedere i dottori" ───────────────────
+        var HIDE_DOTT_KEY = 'chipdent.fornitori.hideDottori';
+        var hideDottoriCb = document.getElementById('forn-hide-dottori');
+        if (hideDottoriCb) {
+            var saved = false;
+            try { saved = localStorage.getItem(HIDE_DOTT_KEY) === '1'; } catch (e) {}
+            hideDottoriCb.checked = saved;
+            tbodyEl.classList.toggle('hide-dottori', saved);
+            hideDottoriCb.addEventListener('change', function () {
+                tbodyEl.classList.toggle('hide-dottori', hideDottoriCb.checked);
+                try { localStorage.setItem(HIDE_DOTT_KEY, hideDottoriCb.checked ? '1' : '0'); } catch (e) {}
+                currentPage = 1;
+                applyPagination();
+            });
+        }
 
         applyPagination();
     })();

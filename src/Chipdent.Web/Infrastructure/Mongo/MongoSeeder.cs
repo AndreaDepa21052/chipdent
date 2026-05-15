@@ -322,6 +322,10 @@ public static class MongoSeeder
             // ne sia rimasto privo (regressioni storiche, ombra di dottori legacy, …).
             await BackfillCodiceFornitoriSeeder.SeedAsync(ctx, tenant, logger, ct);
 
+            // Backfill: i fornitori senza sede di riferimento vengono collocati su DESIO
+            // (default richiesto dal cliente; modificabile dalla griglia o dalla scheda).
+            await BackfillSedeRiferimentoFornitoriSeeder.SeedAsync(ctx, tenant, logger, ct);
+
             // One-shot: rimuove il fornitore fantasma con ragione sociale "FORNITORI"
             // (header della colonna A del file xlsx importata per errore come riga dati).
             await PurgeHeaderFornitoreSeeder.SeedAsync(ctx, tenant, logger, ct);

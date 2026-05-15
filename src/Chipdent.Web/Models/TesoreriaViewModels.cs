@@ -258,6 +258,12 @@ public class FornitoreFormViewModel
     /// <summary>Pagamento ricorrente (canoni, abbonamenti, rate) — flag sì/no.</summary>
     public bool PagamentoRicorrente { get; set; }
 
+    /// <summary>Id della clinica di riferimento del fornitore (sede principale).</summary>
+    public string? SedeRiferimentoId { get; set; }
+
+    /// <summary>Cliniche disponibili per la tendina "Sede di riferimento".</summary>
+    public List<Clinica> Cliniche { get; set; } = new();
+
     /// <summary>Se true crea anche un User di portale per questo fornitore.</summary>
     public bool AbilitaPortale { get; set; }
     public string? PortalePassword { get; set; }
@@ -286,6 +292,9 @@ public class FornitoreEditModalViewModel
 public class FornitoriIndexViewModel
 {
     public List<FornitoreRow> Fornitori { get; set; } = new();
+
+    /// <summary>Cliniche del tenant — popolate la tendina "Sede di riferimento" nella griglia.</summary>
+    public List<Clinica> Cliniche { get; set; } = new();
 }
 
 public class FornitoreRow

@@ -164,6 +164,16 @@
                             </select>
                         </div>
                         <div class="form-group dotmodal__full">
+                            <label class="form-label">Sede di riferimento</label>
+                            <select class="form-control" name="SedeRiferimentoId">
+                                <option value="" selected="@string.IsNullOrEmpty(vm.SedeRiferimentoId)">— nessuna —</option>
+                                @foreach (var c in vm.Cliniche)
+                                {
+                                    <option value="@c.Id" selected="@(vm.SedeRiferimentoId == c.Id)">@c.Nome</option>
+                                }
+                            </select>
+                        </div>
+                        <div class="form-group dotmodal__full">
                             <label class="form-label">Ragione sociale *</label>
                             <input id="fld-RagioneSociale" class="form-control" name="RagioneSociale" value="@vm.RagioneSociale" required />
                         </div>
