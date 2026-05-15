@@ -139,6 +139,28 @@ public class ImportFatturaRiga : TenantEntity
     public string? EmailFornitore { get; set; }
     public string? TelefonoFornitore { get; set; }
 
+    // ── Anagrafica cessionario/committente (la NOSTRA Società che ha ricevuto
+    //    la fattura) letta dal PDF. Usata da ScadenziarioGenerator per:
+    //    - identificare la Società destinataria (match per P.IVA → CF → RagSoc)
+    //    - di conseguenza la Clinica (Clinica.SocietaId) → LOC = NomeAbbreviato
+    //    - propagare l'IBAN della Società come ordinante della scadenza
+    // ──────────────────────────────────────────────────────────────
+    public string? PartitaIvaCessionario { get; set; }
+    public string? CodiceFiscaleCessionario { get; set; }
+    public string? RagioneSocialeCessionario { get; set; }
+    public string? IndirizzoCessionario { get; set; }
+    public string? CapCessionario { get; set; }
+    public string? LocalitaCessionario { get; set; }
+    public string? ProvinciaCessionario { get; set; }
+
+    /// <summary>
+    /// Sigla LOC (es. "MI7", "CCH", "BUS") rilevata leggendo le parti descrittive
+    /// del PDF (causale, descrizioni di riga, oggetto). Usata come segnale di
+    /// fallback per <see cref="ScadenziarioGenerator.ResolveLoc"/> quando il
+    /// match cessionario→Società non risolve.
+    /// </summary>
+    public string? LocRilevataDaTesto { get; set; }
+
     /// <summary>Pagina del PDF originale dove inizia questa fattura (1-based). Null se non da PDF.</summary>
     public int? PaginaPdf { get; set; }
 
