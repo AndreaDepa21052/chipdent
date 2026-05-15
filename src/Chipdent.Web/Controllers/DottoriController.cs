@@ -180,6 +180,8 @@ public class DottoriController : Controller
     [ValidateAntiForgeryToken]
     public async Task<IActionResult> Create(Dottore model)
     {
+        ModelState.Remove(nameof(Dottore.NumeroAlbo));
+        ModelState.Remove(nameof(Dottore.Specializzazione));
         if (!ModelState.IsValid)
         {
             ViewData["Section"] = "dottori";
@@ -253,6 +255,8 @@ public class DottoriController : Controller
     {
         if (id != model.Id) return BadRequest();
         var isModal = modal == "1";
+        ModelState.Remove(nameof(Dottore.NumeroAlbo));
+        ModelState.Remove(nameof(Dottore.Specializzazione));
         if (!ModelState.IsValid)
         {
             if (isModal)
