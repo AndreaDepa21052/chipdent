@@ -773,7 +773,8 @@ public class TesoreriaController : Controller
             Note = vm.Note,
             TerminiPagamentoGiorni = vm.TerminiPagamentoGiorni,
             BasePagamento = vm.BasePagamento,
-            EmissioneFattura = vm.EmissioneFattura
+            EmissioneFattura = vm.EmissioneFattura,
+            PagamentoRicorrente = vm.PagamentoRicorrente
         };
         await _mongo.Fornitori.InsertOneAsync(f);
         await _audit.LogAsync("Fornitore", f.Id, f.RagioneSociale, AuditAction.Created, actor: User);
@@ -819,6 +820,7 @@ public class TesoreriaController : Controller
             TerminiPagamentoGiorni = f.TerminiPagamentoGiorni,
             BasePagamento = f.BasePagamento,
             EmissioneFattura = f.EmissioneFattura,
+            PagamentoRicorrente = f.PagamentoRicorrente,
             HaUtentePortale = hasUser,
             IsDottoreOmbra = !string.IsNullOrEmpty(f.DottoreId)
         });
@@ -869,6 +871,7 @@ public class TesoreriaController : Controller
             TerminiPagamentoGiorni = f.TerminiPagamentoGiorni,
             BasePagamento = f.BasePagamento,
             EmissioneFattura = f.EmissioneFattura,
+            PagamentoRicorrente = f.PagamentoRicorrente,
             HaUtentePortale = hasUser,
             IsDottoreOmbra = !string.IsNullOrEmpty(f.DottoreId)
         };
@@ -934,6 +937,7 @@ public class TesoreriaController : Controller
                 .Set(x => x.TerminiPagamentoGiorni, vm.TerminiPagamentoGiorni)
                 .Set(x => x.BasePagamento, vm.BasePagamento)
                 .Set(x => x.EmissioneFattura, vm.EmissioneFattura)
+                .Set(x => x.PagamentoRicorrente, vm.PagamentoRicorrente)
                 .Set(x => x.UpdatedAt, DateTime.UtcNow));
 
         var updated = await _mongo.Fornitori.Find(x => x.Id == id).FirstOrDefaultAsync();
@@ -1100,6 +1104,7 @@ public class TesoreriaController : Controller
         TerminiPagamentoGiorni = src.TerminiPagamentoGiorni,
         BasePagamento = src.BasePagamento,
         EmissioneFattura = src.EmissioneFattura,
+        PagamentoRicorrente = src.PagamentoRicorrente,
         DottoreId = src.DottoreId,
         IsDeleted = src.IsDeleted
     };

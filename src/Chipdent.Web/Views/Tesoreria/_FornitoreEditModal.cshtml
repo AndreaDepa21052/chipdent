@@ -274,12 +274,19 @@
                                 <option value="@BasePagamento.FineMeseSuccessivo" selected="@(vm.BasePagamento == BasePagamento.FineMeseSuccessivo)">Fine mese successivo (F.M.S.)</option>
                             </select>
                         </div>
-                        <div class="form-group dotmodal__full">
-                            <label class="form-label">Emissione fattura</label>
+                        <div class="form-group">
+                            <label class="form-label">Modalità di pagamento</label>
                             <select class="form-control" name="EmissioneFattura">
-                                <option value="@EmissioneFattura.PrimaDelPagamento" selected="@(vm.EmissioneFattura == EmissioneFattura.PrimaDelPagamento)">Prima del pagamento</option>
-                                <option value="@EmissioneFattura.DopoIlPagamento" selected="@(vm.EmissioneFattura == EmissioneFattura.DopoIlPagamento)">Dopo il pagamento</option>
-                                <option value="@EmissioneFattura.Nd" selected="@(vm.EmissioneFattura == EmissioneFattura.Nd)">ND (non disponibile)</option>
+                                <option value="@EmissioneFattura.PrimaDelPagamento" selected="@(vm.EmissioneFattura == EmissioneFattura.PrimaDelPagamento)">Prima fattura, poi pagamento</option>
+                                <option value="@EmissioneFattura.DopoIlPagamento" selected="@(vm.EmissioneFattura == EmissioneFattura.DopoIlPagamento)">Prima pagamento, poi emissione fattura</option>
+                                <option value="@EmissioneFattura.Nd" selected="@(vm.EmissioneFattura == EmissioneFattura.Nd)">— non specificato —</option>
+                            </select>
+                        </div>
+                        <div class="form-group">
+                            <label class="form-label">Pagamento ricorrente</label>
+                            <select class="form-control" name="PagamentoRicorrente">
+                                <option value="false" selected="@(!vm.PagamentoRicorrente)">No</option>
+                                <option value="true" selected="@(vm.PagamentoRicorrente)">Sì</option>
                             </select>
                         </div>
                     </div>
