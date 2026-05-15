@@ -65,8 +65,17 @@ public class Fornitore : TenantEntity
     /// <summary>Schema di calcolo della scadenza attesa.</summary>
     public BasePagamento BasePagamento { get; set; } = BasePagamento.DataFattura;
 
-    /// <summary>Momento di emissione della fattura rispetto al pagamento.</summary>
+    /// <summary>Momento di emissione della fattura rispetto al pagamento. Nel form anagrafica
+    /// è esposto come "Modalità di pagamento" con due opzioni: prima pagamento poi fattura
+    /// (<see cref="EmissioneFattura.DopoIlPagamento"/>) oppure prima fattura poi pagamento
+    /// (<see cref="EmissioneFattura.PrimaDelPagamento"/>). <see cref="EmissioneFattura.Nd"/>
+    /// resta come valore di compatibilità per anagrafiche storiche non ancora classificate.</summary>
     public EmissioneFattura EmissioneFattura { get; set; } = EmissioneFattura.Nd;
+
+    /// <summary>Indica che il fornitore emette pagamenti ricorrenti (es. canoni mensili, rate
+    /// di leasing, abbonamenti) anziché fatture spot. Usato in scadenziario/cashflow per
+    /// segnalare le posizioni che si ripetono periodo dopo periodo.</summary>
+    public bool PagamentoRicorrente { get; set; }
 
     // Link al Dottore (un Dottore è anche un Fornitore quando è collaboratore/libero
     // professionista — riusa il modulo Tesoreria per gestire i suoi pagamenti).

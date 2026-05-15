@@ -162,14 +162,22 @@
                 </select>
             </div>
         </div>
-        <div class="grid" style="grid-template-columns: 1fr; gap: var(--s-3); margin-top: var(--s-3);">
+        <div class="grid" style="grid-template-columns: 1fr 1fr; gap: var(--s-3); margin-top: var(--s-3);">
             <div class="form-group" style="margin: 0;">
-                <label class="form-label" asp-for="EmissioneFattura">Emissione fattura</label>
+                <label class="form-label" asp-for="EmissioneFattura">Modalità di pagamento</label>
                 <select class="form-control" asp-for="EmissioneFattura">
-                    <option value="@EmissioneFattura.PrimaDelPagamento" selected="@(Model.EmissioneFattura == EmissioneFattura.PrimaDelPagamento)">Prima del pagamento</option>
-                    <option value="@EmissioneFattura.DopoIlPagamento" selected="@(Model.EmissioneFattura == EmissioneFattura.DopoIlPagamento)">Dopo il pagamento</option>
-                    <option value="@EmissioneFattura.Nd" selected="@(Model.EmissioneFattura == EmissioneFattura.Nd)">ND (non disponibile)</option>
+                    <option value="@EmissioneFattura.PrimaDelPagamento" selected="@(Model.EmissioneFattura == EmissioneFattura.PrimaDelPagamento)">Prima fattura, poi pagamento</option>
+                    <option value="@EmissioneFattura.DopoIlPagamento" selected="@(Model.EmissioneFattura == EmissioneFattura.DopoIlPagamento)">Prima pagamento, poi emissione fattura</option>
+                    <option value="@EmissioneFattura.Nd" selected="@(Model.EmissioneFattura == EmissioneFattura.Nd)">— non specificato —</option>
                 </select>
+            </div>
+            <div class="form-group" style="margin: 0;">
+                <label class="form-label" asp-for="PagamentoRicorrente">Pagamento ricorrente</label>
+                <select class="form-control" asp-for="PagamentoRicorrente">
+                    <option value="false" selected="@(!Model.PagamentoRicorrente)">No</option>
+                    <option value="true" selected="@(Model.PagamentoRicorrente)">Sì</option>
+                </select>
+                <span class="hint">Canoni, abbonamenti, rate periodiche.</span>
             </div>
         </div>
     </div>

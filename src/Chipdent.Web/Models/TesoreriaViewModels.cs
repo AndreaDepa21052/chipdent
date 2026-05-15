@@ -250,8 +250,13 @@ public class FornitoreFormViewModel
     public int TerminiPagamentoGiorni { get; set; } = 30;
     public BasePagamento BasePagamento { get; set; } = BasePagamento.DataFattura;
 
-    /// <summary>Momento di emissione della fattura rispetto al pagamento.</summary>
+    /// <summary>Modalità di pagamento (in UI): prima pagamento poi fattura
+    /// (<see cref="EmissioneFattura.DopoIlPagamento"/>) o prima fattura poi pagamento
+    /// (<see cref="EmissioneFattura.PrimaDelPagamento"/>).</summary>
     public EmissioneFattura EmissioneFattura { get; set; } = EmissioneFattura.Nd;
+
+    /// <summary>Pagamento ricorrente (canoni, abbonamenti, rate) — flag sì/no.</summary>
+    public bool PagamentoRicorrente { get; set; }
 
     /// <summary>Se true crea anche un User di portale per questo fornitore.</summary>
     public bool AbilitaPortale { get; set; }
