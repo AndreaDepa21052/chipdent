@@ -223,14 +223,45 @@ public class DottoriController : Controller
         return View("Form", d);
     }
 
+    /// <summary>Restituisce il partial della modale di modifica rapida con dati e alert.</summary>
+    [HttpGet("{id}/edit-modal")]
+    [Authorize(Policy = Policies.RequireBackoffice)]
+    public async Task<IActionResult> EditModal(string id)
+    {
+        var d = await Load(id);
+        if (d is null) return NotFound();
+
+        var documenti = await _mongo.DocumentiDottore
+            .Find(x => x.TenantId == _tenant.TenantId && x.DottoreId == id).ToListAsync();
+        var attestati = await _mongo.AttestatiEcm
+            .Find(a => a.TenantId == _tenant.TenantId && a.DottoreId == id).ToListAsync();
+        var alerts = DottoreAlertCalculator.Calcola(d, documenti, attestati, DateTime.UtcNow);
+        var cliniche = await CliniceListAsync();
+
+        return PartialView("_EditModal", new DottoreEditModalViewModel
+        {
+            Dottore = d,
+            Cliniche = cliniche,
+            Alerts = alerts
+        });
+    }
+
     [HttpPost("{id}/modifica")]
     [Authorize(Policy = Policies.RequireBackoffice)]
     [ValidateAntiForgeryToken]
-    public async Task<IActionResult> Edit(string id, Dottore model)
+    public async Task<IActionResult> Edit(string id, Dottore model, [FromHeader(Name = "X-Edit-Modal")] string? modal)
     {
         if (id != model.Id) return BadRequest();
+        var isModal = modal == "1";
         if (!ModelState.IsValid)
         {
+            if (isModal)
+            {
+                var errors = ModelState
+                    .Where(e => e.Value!.Errors.Count > 0)
+                    .ToDictionary(e => e.Key, e => e.Value!.Errors.Select(x => x.ErrorMessage).ToArray());
+                return BadRequest(new { errors });
+            }
             ViewData["Section"] = "dottori";
             ViewData["IsNew"] = false;
             ViewData["Cliniche"] = await CliniceListAsync();
@@ -256,6 +287,8 @@ public class DottoriController : Controller
                 fromC?.Id, fromC?.Nome, toC?.Id ?? "", toC?.Nome ?? "",
                 MotivoTrasferimento.Riorganizzazione, "Aggiornamento sede principale", DateTime.Today);
         }
+
+        if (isModal) return Json(new { ok = true, name = model.NomeCompleto });
 
         TempData["flash"] = $"Dottore «{model.NomeCompleto}» aggiornato.";
         return RedirectToAction(nameof(Details), new { id });

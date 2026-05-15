@@ -1,0 +1,273 @@
+@model Chipdent.Web.Models.DottoreEditModalViewModel
+@using Chipdent.Web.Domain.Entities
+@using Chipdent.Web.Models
+@{
+    var d = Model.Dottore;
+    var alertCritici = Model.Alerts.Where(a => a.Livello == AlertLivello.Critico).ToList();
+    var alertAvvisi  = Model.Alerts.Where(a => a.Livello == AlertLivello.Avviso).ToList();
+}
+
+<div class="dotmodal" data-dottore-id="@d.Id">
+    <header class="dotmodal__header">
+        <div class="dotmodal__avatar">@d.Iniziali</div>
+        <div class="dotmodal__head-text">
+            <div class="dotmodal__eyebrow">Modifica scheda dottore</div>
+            <h2 class="dotmodal__title">@d.NomeCompleto</h2>
+            <div class="dotmodal__meta">
+                <span>@d.Specializzazione</span>
+                <span class="dotmodal__sep">·</span>
+                <span>@d.TipoContratto</span>
+                @if (!string.IsNullOrEmpty(d.Codice))
+                {
+                    <span class="dotmodal__sep">·</span>
+                    <span class="muted">@d.Codice</span>
+                }
+            </div>
+        </div>
+        <button type="button" class="dotmodal__close" data-dotmodal-close aria-label="Chiudi">×</button>
+    </header>
+
+    <div class="dotmodal__body">
+        <form id="dotmodal-form" method="post" action="/dottori/@d.Id/modifica" class="dotmodal__form" novalidate>
+            @Html.AntiForgeryToken()
+            <input type="hidden" name="Id" value="@d.Id" />
+
+            <nav class="dotmodal__sectionnav">
+                <a href="#sec-identita" class="is-active">Identità</a>
+                <a href="#sec-contatti">Contatti</a>
+                <a href="#sec-professione">Professione</a>
+                <a href="#sec-contratto">Contratto</a>
+                <a href="#sec-doc">Documento</a>
+                <a href="#sec-note">Note</a>
+            </nav>
+
+            <div class="dotmodal__scroll">
+                <section id="sec-identita" class="dotmodal__section">
+                    <h3 class="dotmodal__sec-title">👤 Identità</h3>
+                    <div class="dotmodal__grid">
+                        <div class="form-group">
+                            <label class="form-label">Codice</label>
+                            <input class="form-control" name="Codice" value="@d.Codice" />
+                        </div>
+                        <div class="form-group">
+                            <label class="form-label">Nome</label>
+                            <input class="form-control" name="Nome" value="@d.Nome" required />
+                        </div>
+                        <div class="form-group">
+                            <label class="form-label">Cognome</label>
+                            <input class="form-control" name="Cognome" value="@d.Cognome" required />
+                        </div>
+                        <div class="form-group">
+                            <label class="form-label">Data di nascita</label>
+                            <input class="form-control" type="date" name="DataNascita" value="@d.DataNascita?.ToString("yyyy-MM-dd")" />
+                        </div>
+                        <div class="form-group">
+                            <label class="form-label">Luogo di nascita</label>
+                            <input class="form-control" name="LuogoNascita" value="@d.LuogoNascita" />
+                        </div>
+                        <div class="form-group">
+                            <label class="form-label">Codice fiscale</label>
+                            <input class="form-control" name="CodiceFiscale" value="@d.CodiceFiscale" maxlength="16" style="text-transform: uppercase; font-family: monospace;" />
+                        </div>
+                        <div class="form-group">
+                            <label class="form-label">Partita IVA</label>
+                            <input class="form-control" name="PartitaIVA" value="@d.PartitaIVA" maxlength="11" style="font-family: monospace;" />
+                        </div>
+                    </div>
+                </section>
+
+                <section id="sec-contatti" class="dotmodal__section">
+                    <h3 class="dotmodal__sec-title">📞 Contatti</h3>
+                    <div class="dotmodal__grid">
+                        <div class="form-group">
+                            <label class="form-label">Email lavoro</label>
+                            <input class="form-control" type="email" name="Email" value="@d.Email" required />
+                        </div>
+                        <div class="form-group">
+                            <label class="form-label">Email personale</label>
+                            <input class="form-control" type="email" name="EmailPersonale" value="@d.EmailPersonale" />
+                        </div>
+                        <div class="form-group">
+                            <label class="form-label">Telefono</label>
+                            <input class="form-control" name="Telefono" value="@d.Telefono" />
+                        </div>
+                        <div class="form-group">
+                            <label class="form-label">Cellulare</label>
+                            <input class="form-control" name="Cellulare" value="@d.Cellulare" />
+                        </div>
+                        <div class="form-group dotmodal__full">
+                            <label class="form-label">Indirizzo PEC</label>
+                            <input class="form-control" type="email" name="Pec" value="@d.Pec" placeholder="nome.cognome@pec.it" />
+                        </div>
+                        <div class="form-group dotmodal__full">
+                            <label class="form-label">Indirizzo di residenza</label>
+                            <input class="form-control" name="IndirizzoResidenza" value="@d.IndirizzoResidenza" />
+                        </div>
+                    </div>
+                </section>
+
+                <section id="sec-professione" class="dotmodal__section">
+                    <h3 class="dotmodal__sec-title">🩺 Professione</h3>
+                    <div class="dotmodal__grid">
+                        <div class="form-group">
+                            <label class="form-label">Specializzazione</label>
+                            <input class="form-control" name="Specializzazione" value="@d.Specializzazione" required />
+                        </div>
+                        <div class="form-group">
+                            <label class="form-label">Anni di esperienza</label>
+                            <input class="form-control" type="number" min="0" max="60" name="AnniEsperienza" value="@d.AnniEsperienza" />
+                        </div>
+                        <div class="form-group">
+                            <label class="form-label">Numero albo</label>
+                            <input class="form-control" name="NumeroAlbo" value="@d.NumeroAlbo" required />
+                        </div>
+                        <div class="form-group">
+                            <label class="form-label">Scadenza albo</label>
+                            <input class="form-control" type="date" name="ScadenzaAlbo" value="@d.ScadenzaAlbo?.ToString("yyyy-MM-dd")" />
+                        </div>
+                    </div>
+                </section>
+
+                <section id="sec-contratto" class="dotmodal__section">
+                    <h3 class="dotmodal__sec-title">📋 Contratto</h3>
+                    <div class="dotmodal__grid">
+                        <div class="form-group">
+                            <label class="form-label">Tipo contratto</label>
+                            <select class="form-control" name="TipoContratto">
+                                @foreach (var t in Enum.GetValues<TipoContratto>())
+                                {
+                                    <option value="@t" selected="@(t == d.TipoContratto)">@t</option>
+                                }
+                            </select>
+                        </div>
+                        <div class="form-group">
+                            <label class="form-label">Sede principale</label>
+                            <select class="form-control" name="ClinicaPrincipaleId">
+                                <option value="">— nessuna —</option>
+                                @foreach (var c in Model.Cliniche)
+                                {
+                                    <option value="@c.Id" selected="@(c.Id == d.ClinicaPrincipaleId)">@c.Nome (@c.Citta)</option>
+                                }
+                            </select>
+                        </div>
+                        <div class="form-group">
+                            <label class="form-label">Data assunzione</label>
+                            <input class="form-control" type="date" name="DataAssunzione" value="@d.DataAssunzione.ToString("yyyy-MM-dd")" required />
+                        </div>
+                        <div class="form-group">
+                            <label class="form-label">Data dimissioni</label>
+                            <input class="form-control" type="date" name="DataDimissioni" value="@d.DataDimissioni?.ToString("yyyy-MM-dd")" />
+                        </div>
+                        <div class="form-group dotmodal__full">
+                            <label class="form-label">IBAN</label>
+                            <input class="form-control" name="IBAN" value="@d.IBAN" maxlength="34" style="font-family: monospace;" placeholder="IT60 X054 2811 1010 0000 0123 456" />
+                        </div>
+                        <div class="form-group dotmodal__full">
+                            <label class="form-check">
+                                <input type="checkbox" name="Attivo" value="true" @(d.Attivo ? "checked" : "") />
+                                <input type="hidden" name="Attivo" value="false" />
+                                Profilo attivo
+                            </label>
+                        </div>
+                    </div>
+                </section>
+
+                <section id="sec-doc" class="dotmodal__section">
+                    <h3 class="dotmodal__sec-title">🪪 Documento d'identità</h3>
+                    <div class="dotmodal__grid">
+                        <div class="form-group">
+                            <label class="form-label">Numero documento</label>
+                            <input class="form-control" name="DocumentoNumero" value="@d.DocumentoNumero" />
+                        </div>
+                        <div class="form-group">
+                            <label class="form-label">Scadenza documento</label>
+                            <input class="form-control" type="date" name="DocumentoScadenza" value="@d.DocumentoScadenza?.ToString("yyyy-MM-dd")" />
+                        </div>
+                    </div>
+                </section>
+
+                <section id="sec-note" class="dotmodal__section">
+                    <h3 class="dotmodal__sec-title">📝 Note</h3>
+                    <div class="dotmodal__grid">
+                        <div class="form-group dotmodal__full">
+                            <textarea class="form-control" name="Note" rows="4">@d.Note</textarea>
+                        </div>
+                    </div>
+                </section>
+
+                <div class="dotmodal__errors" data-dotmodal-errors hidden></div>
+            </div>
+        </form>
+
+        <aside class="dotmodal__aside">
+            <div class="dotmodal__aside-card">
+                <div class="dotmodal__aside-title">🔔 Alert critici</div>
+                @if (alertCritici.Count == 0)
+                {
+                    <p class="dotmodal__aside-empty">✅ Nessun alert critico aperto.</p>
+                }
+                else
+                {
+                    <ul class="dotmodal__alertlist">
+                        @foreach (var a in alertCritici)
+                        {
+                            var tab = a.Categoria == "ecm" ? "ecm" : "documenti";
+                            <li class="dotmodal__alert dotmodal__alert--critico">
+                                <div class="dotmodal__alert-row">
+                                    <span class="dotmodal__alert-icon">🔴</span>
+                                    <div>
+                                        <div class="dotmodal__alert-title">@a.Titolo</div>
+                                        <div class="dotmodal__alert-desc">@a.Descrizione</div>
+                                    </div>
+                                </div>
+                                <a class="dotmodal__alert-cta" href="/dottori/@d.Id?tab=@tab" target="_top">
+                                    Vai a gestione →
+                                </a>
+                            </li>
+                        }
+                    </ul>
+                }
+            </div>
+
+            @if (alertAvvisi.Count > 0)
+            {
+                <div class="dotmodal__aside-card dotmodal__aside-card--soft">
+                    <div class="dotmodal__aside-title dotmodal__aside-title--soft">🟡 Avvisi</div>
+                    <ul class="dotmodal__alertlist">
+                        @foreach (var a in alertAvvisi)
+                        {
+                            var tab = a.Categoria == "ecm" ? "ecm" : "documenti";
+                            <li class="dotmodal__alert dotmodal__alert--avviso">
+                                <div class="dotmodal__alert-row">
+                                    <span class="dotmodal__alert-icon">🟡</span>
+                                    <div>
+                                        <div class="dotmodal__alert-title">@a.Titolo</div>
+                                        <div class="dotmodal__alert-desc">@a.Descrizione</div>
+                                    </div>
+                                </div>
+                                <a class="dotmodal__alert-cta" href="/dottori/@d.Id?tab=@tab" target="_top">Apri →</a>
+                            </li>
+                        }
+                    </ul>
+                </div>
+            }
+
+            <div class="dotmodal__aside-card dotmodal__aside-card--quick">
+                <div class="dotmodal__aside-title dotmodal__aside-title--soft">⚡ Azioni rapide</div>
+                <a class="dotmodal__quick" href="/dottori/@d.Id?tab=cliniche" target="_top">🏥 Collaborazioni cliniche</a>
+                <a class="dotmodal__quick" href="/dottori/@d.Id?tab=documenti" target="_top">📁 Fascicolo documenti</a>
+                <a class="dotmodal__quick" href="/dottori/@d.Id?tab=ecm" target="_top">🎓 Attestati ECM</a>
+            </div>
+        </aside>
+    </div>
+
+    <footer class="dotmodal__footer">
+        <a class="dotmodal__expand" href="/dottori/@d.Id/modifica" target="_top" title="Apri la versione a pagina intera">
+            ⤢ Ingrandisci scheda di modifica
+        </a>
+        <div class="dotmodal__footer-actions">
+            <button type="button" class="btn btn--ghost" data-dotmodal-close>Annulla</button>
+            <button type="submit" form="dotmodal-form" class="btn btn--primary" data-dotmodal-save>Salva modifiche</button>
+        </div>
+    </footer>
+</div>
