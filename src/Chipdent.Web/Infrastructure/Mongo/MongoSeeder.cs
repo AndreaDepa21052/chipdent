@@ -292,6 +292,12 @@ public static class MongoSeeder
 
             await SeedHistoricalAiDataAsync(ctx, tenant, logger, ct);
 
+            // Wipe one-shot dell'anagrafica (fornitori + dottori + corsi-dottori + ECM
+            // e cascata Tesoreria). Marcata in tenant.MigrazioniApplicate: gira solo
+            // una volta. Deve precedere ConfidentImportSeeder per innescare il re-seed
+            // nello stesso startup.
+            await WipeAnagraficaSeeder.SeedAsync(ctx, tenant, logger, ct);
+
             // Importa l'anagrafica reale Confident (fornitori + dottori) PRIMA del
             // seed Tesoreria, così le fatture/scadenze demo possono agganciarsi ai
             // fornitori importati invece che ai 7 fornitori demo storici.
