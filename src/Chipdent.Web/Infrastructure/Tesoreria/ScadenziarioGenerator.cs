@@ -43,6 +43,19 @@ namespace Chipdent.Web.Infrastructure.Tesoreria;
 /// </para>
 ///
 /// <para>
+/// <b>REGOLA «Modalità DopoIlPagamento → scadenza già pagata»</b><br/>
+/// Se l'anagrafica fornitore ha
+/// <c>EmissioneFattura = DopoIlPagamento</c> (in UI: «prima pagamento,
+/// poi emissione fattura»), tutte le scadenze derivate dalla fattura
+/// vengono marcate come <c>StatoScadenza.Pagato</c> con
+/// <c>DataPagamento = data fattura</c>. Il razionale è che la fattura
+/// arriva nel sistema dopo che il bonifico è già stato disposto, quindi
+/// la scadenza è "nata pagata". Viene emesso un alert
+/// <b>«Pagamento già effettuato»</b> (Warn) per ricordare di riconciliare
+/// con l'estratto conto.
+/// </para>
+///
+/// <para>
 /// <b>REGOLA «Nota secondaria automatica» (Clinica.AggiungiNotaSecondariaAutomaticamente)</b><br/>
 /// Quando il flag della clinica destinataria è true, il testo di
 /// <c>Clinica.NotaSecondariaAutomatica</c> viene appeso (separatore " · ") al campo
@@ -349,6 +362,26 @@ public static class ScadenziarioGenerator
             var scadenze = BuildScadenze(
                 tipo, fattura, fornitore, dataDoc, totale, netto, ritenuta,
                 isNotaCredito, iban, output.Alerts, riga);
+
+            // ── REGOLA «Modalità DopoIlPagamento → scadenza già pagata» ──
+            // Per i fornitori che emettono la fattura DOPO aver ricevuto il
+            // pagamento, quando l'import arriva il bonifico è già stato
+            // disposto: marchiamo TUTTE le scadenze derivate come Pagato
+            // alla data fattura. Alert dedicato per segnalarlo all'operatore.
+            if (fornitore.EmissioneFattura == EmissioneFattura.DopoIlPagamento && scadenze.Count > 0)
+            {
+                foreach (var s in scadenze)
+                {
+                    s.Stato = StatoScadenza.Pagato;
+                    s.DataPagamento = DateTime.SpecifyKind(dataDoc.Date, DateTimeKind.Utc);
+                    s.Note = string.IsNullOrWhiteSpace(s.Note)
+                        ? "Pagamento già effettuato (fattura emessa post-pagamento)"
+                        : $"{s.Note} · Pagamento già effettuato (fattura emessa post-pagamento)";
+                }
+                output.Alerts.Add(new AlertScadenziario(AlertSeverita.Warn, "Pagamento già effettuato",
+                    $"Fornitore «{fornitore.RagioneSociale}» configurato come «prima pagamento, poi emissione fattura»: scadenza marcata come PAGATA al {dataDoc:dd/MM/yyyy}. Verificare riconciliazione con l'estratto conto.",
+                    fornitore.RagioneSociale, riga.Numero, dataDoc, riga.NumeroRiga));
+            }
 
             // ── REGOLA «Nota secondaria automatica» (CLINICA) ───────────
             // Se la clinica destinataria della fattura ha il flag attivo,
