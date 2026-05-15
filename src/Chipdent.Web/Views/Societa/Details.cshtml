@@ -1,0 +1,112 @@
+@model Chipdent.Web.Domain.Entities.Societa
+@{
+    ViewData["Title"] = Model.Nome;
+    var cliniche = (IReadOnlyList<Chipdent.Web.Domain.Entities.Clinica>)(ViewData["Cliniche"] ?? new List<Chipdent.Web.Domain.Entities.Clinica>());
+}
+
+<partial name="_Flash" />
+
+<div class="page-head">
+    <div>
+        <h2>
+            @Model.Nome
+            @if (Model.IsHolding)
+            {
+                <span class="badge badge--warning" style="margin-left:8px; font-size:.7rem; vertical-align:middle;">holding</span>
+            }
+        </h2>
+        <p class="page-head__sub">@Model.RagioneSociale</p>
+    </div>
+    <div class="page-head__actions">
+        <a class="btn btn--ghost" asp-action="Index">← Elenco</a>
+        <a class="btn btn--primary" asp-action="Edit" asp-route-id="@Model.Id">Modifica</a>
+    </div>
+</div>
+
+<div class="card">
+    <div class="form-grid">
+        <div>
+            <div class="muted" style="font-size:.78rem;">Forma giuridica</div>
+            <div class="strong">@(Model.FormaGiuridica ?? "—")</div>
+        </div>
+        <div>
+            <div class="muted" style="font-size:.78rem;">Data costituzione</div>
+            <div class="strong">@(Model.DataCostituzione?.ToString("dd/MM/yyyy") ?? "—")</div>
+        </div>
+        <div>
+            <div class="muted" style="font-size:.78rem;">Capitale sociale</div>
+            <div class="strong">@(Model.CapitaleSociale?.ToString("N2") ?? "—") €</div>
+        </div>
+        <div>
+            <div class="muted" style="font-size:.78rem;">Codice ATECO</div>
+            <div class="strong">@(Model.CodiceAteco ?? "—")</div>
+        </div>
+        <div>
+            <div class="muted" style="font-size:.78rem;">Codice fiscale</div>
+            <div class="strong" style="font-family: monospace;">@(Model.CodiceFiscale ?? "—")</div>
+        </div>
+        <div>
+            <div class="muted" style="font-size:.78rem;">Partita IVA</div>
+            <div class="strong" style="font-family: monospace;">@(Model.PartitaIva ?? "—")</div>
+        </div>
+        <div>
+            <div class="muted" style="font-size:.78rem;">Numero REA</div>
+            <div class="strong">@(Model.NumeroRea ?? "—")</div>
+        </div>
+        <div>
+            <div class="muted" style="font-size:.78rem;">PEC</div>
+            <div class="strong">@(Model.Pec ?? "—")</div>
+        </div>
+    </div>
+</div>
+
+<div class="card" style="margin-top: var(--s-3);">
+    <h3 style="margin-top:0;">📍 Sede legale</h3>
+    <div>@(Model.IndirizzoSedeLegale ?? "—")</div>
+    <div class="muted">@Model.CapSedeLegale @Model.ComuneSedeLegale @(string.IsNullOrEmpty(Model.ProvinciaSedeLegale) ? "" : $"({Model.ProvinciaSedeLegale})")</div>
+</div>
+
+<div class="card" style="margin-top: var(--s-3);">
+    <h3 style="margin-top:0;">🏦 Dati bancari</h3>
+    <div class="form-grid">
+        <div>
+            <div class="muted" style="font-size:.78rem;">IBAN per pagamenti</div>
+            <div class="strong" style="font-family: monospace;">@(Model.Iban ?? "—")</div>
+        </div>
+        <div>
+            <div class="muted" style="font-size:.78rem;">BIC / SWIFT</div>
+            <div class="strong" style="font-family: monospace;">@(Model.Bic ?? "—")</div>
+        </div>
+    </div>
+    @if (string.IsNullOrEmpty(Model.Iban))
+    {
+        <div class="alert alert--warning" style="margin-top: var(--s-3);">
+            ⚠ IBAN mancante. Senza IBAN non sarà possibile generare distinte SEPA per le scadenze di questa società.
+        </div>
+    }
+</div>
+
+<div class="card" style="margin-top: var(--s-3);">
+    <h3 style="margin-top:0;">🏥 Cliniche associate (@cliniche.Count)</h3>
+    @if (cliniche.Count == 0)
+    {
+        <p class="muted">Nessuna clinica ancora associata. Apri la scheda di una clinica per legarla a questa società.</p>
+    }
+    else
+    {
+        <ul style="margin: 0; padding-left: 20px;">
+            @foreach (var c in cliniche)
+            {
+                <li><a asp-controller="Cliniche" asp-action="Details" asp-route-id="@c.Id">@c.Nome</a> — @c.Citta</li>
+            }
+        </ul>
+    }
+</div>
+
+@if (!string.IsNullOrEmpty(Model.Note))
+{
+    <div class="card" style="margin-top: var(--s-3);">
+        <h3 style="margin-top:0;">📝 Note</h3>
+        <p style="white-space: pre-wrap;">@Model.Note</p>
+    </div>
+}

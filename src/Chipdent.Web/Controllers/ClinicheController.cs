@@ -37,6 +37,11 @@ public class ClinicheController : Controller
             .SortBy(c => c.Nome)
             .ToListAsync();
 
+        var societa = await _mongo.Societa
+            .Find(s => s.TenantId == _tenant.TenantId)
+            .ToListAsync();
+        var societaMap = societa.ToDictionary(s => s.Id, s => s);
+
         // Alert dal Calendario interventi per ogni clinica: scaduti + in scadenza ≤ 30 gg.
         // Pre-computati qui per evitare N query dalla view.
         var oggi = DateTime.UtcNow.Date;
@@ -55,6 +60,7 @@ public class ClinicheController : Controller
         ViewData["Section"] = "cliniche";
         ViewData["ViewMode"] = view == "mappa" ? "mappa" : "lista";
         ViewData["Alerts"] = alertMap;
+        ViewData["SocietaMap"] = societaMap;
         return View(items);
     }
 
@@ -324,10 +330,11 @@ public class ClinicheController : Controller
 
     [HttpGet("nuova")]
     [Authorize(Policy = Policies.RequireManagement)]
-    public IActionResult Create()
+    public async Task<IActionResult> Create()
     {
         ViewData["Section"] = "cliniche";
         ViewData["IsNew"] = true;
+        await PopulateSocietaAsync();
         return View("Form", new Clinica());
     }
 
@@ -340,10 +347,12 @@ public class ClinicheController : Controller
         {
             ViewData["Section"] = "cliniche";
             ViewData["IsNew"] = true;
+            await PopulateSocietaAsync();
             return View("Form", model);
         }
         model.TenantId = _tenant.TenantId!;
         model.CreatedAt = DateTime.UtcNow;
+        if (string.IsNullOrWhiteSpace(model.SocietaId)) model.SocietaId = null;
         await _mongo.Cliniche.InsertOneAsync(model);
         TempData["flash"] = $"Clinica «{model.Nome}» creata.";
         return RedirectToAction(nameof(Index));
@@ -357,6 +366,7 @@ public class ClinicheController : Controller
         if (clinica is null) return NotFound();
         ViewData["Section"] = "cliniche";
         ViewData["IsNew"] = false;
+        await PopulateSocietaAsync();
         return View("Form", clinica);
     }
 
@@ -382,6 +392,12 @@ public class ClinicheController : Controller
             .CountDocumentsAsync(d => d.TenantId == tid && d.ClinicaPrincipaleId == id);
         var dipendentiCount = (int)await _mongo.Dipendenti
             .CountDocumentsAsync(d => d.TenantId == tid && d.ClinicaId == id);
+
+        var societa = await _mongo.Societa
+            .Find(s => s.TenantId == tid)
+            .SortBy(s => s.Nome)
+            .ToListAsync();
+        ViewData["Societa"] = societa;
 
         var vm = new ClinicaEditModalViewModel
         {
@@ -470,6 +486,7 @@ public class ClinicheController : Controller
             }
             ViewData["Section"] = "cliniche";
             ViewData["IsNew"] = false;
+            await PopulateSocietaAsync();
             return View("Form", model);
         }
         var existing = await Load(id);
@@ -477,6 +494,7 @@ public class ClinicheController : Controller
         model.TenantId = existing.TenantId;
         model.CreatedAt = existing.CreatedAt;
         model.UpdatedAt = DateTime.UtcNow;
+        if (string.IsNullOrWhiteSpace(model.SocietaId)) model.SocietaId = null;
         await _mongo.Cliniche.ReplaceOneAsync(c => c.Id == id && c.TenantId == _tenant.TenantId, model);
         TempData["flash"] = $"Clinica «{model.Nome}» aggiornata.";
         if (isModal) return Ok(new { ok = true });
@@ -497,4 +515,13 @@ public class ClinicheController : Controller
         => await _mongo.Cliniche
             .Find(c => c.Id == id && c.TenantId == _tenant.TenantId)
             .FirstOrDefaultAsync();
+
+    private async Task PopulateSocietaAsync()
+    {
+        var societa = await _mongo.Societa
+            .Find(s => s.TenantId == _tenant.TenantId)
+            .SortBy(s => s.Nome)
+            .ToListAsync();
+        ViewData["Societa"] = societa;
+    }
 }

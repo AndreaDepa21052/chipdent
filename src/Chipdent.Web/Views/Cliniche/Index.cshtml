@@ -4,6 +4,7 @@
     var viewMode = (ViewData["ViewMode"] as string) ?? "lista";
     var geoCount = Model.Count(c => c.IsGeolocalized);
     var alerts = (ViewData["Alerts"] as Dictionary<string, Chipdent.Web.Controllers.ClinicheController.ClinicaAlerts>) ?? new();
+    var societaMap = (ViewData["SocietaMap"] as Dictionary<string, Chipdent.Web.Domain.Entities.Societa>) ?? new();
 
     // Cliniche con criticità in cima (scaduti prima, poi imminenti); poi alfabetico.
     Chipdent.Web.Controllers.ClinicheController.ClinicaAlerts? AlertOf(string id) => alerts.TryGetValue(id, out var a) ? a : null;
@@ -78,6 +79,7 @@ else
             <thead>
                 <tr>
                     <th>Nome</th>
+                    <th>Società</th>
                     <th>Città</th>
                     <th>Riuniti</th>
                     <th>Stato</th>
@@ -90,10 +92,28 @@ else
                 {
                     var a = AlertOf(c.Id);
                     var rowCls = a is null ? "" : (a.Scaduti > 0 ? "row--alert-danger" : (a.Imminenti > 0 ? "row--alert-warn" : ""));
+                    var societa = !string.IsNullOrEmpty(c.SocietaId) && societaMap.TryGetValue(c.SocietaId, out var sv) ? sv : null;
                     <tr class="@rowCls">
                         <td>
                             <div class="strong">@c.Nome</div>
                             <div class="muted">@c.Indirizzo @(c.IsGeolocalized ? "📍" : "")</div>
+                        </td>
+                        <td>
+                            @if (societa is not null)
+                            {
+                                <a asp-controller="Societa" asp-action="Details" asp-route-id="@societa.Id"
+                                   style="text-decoration:none;" title="@societa.RagioneSociale">
+                                    <span class="strong" style="font-size:.88rem;">@societa.Nome</span>
+                                    @if (societa.IsHolding)
+                                    {
+                                        <span class="badge badge--warning" style="margin-left:4px; font-size:.65rem;">holding</span>
+                                    }
+                                </a>
+                            }
+                            else
+                            {
+                                <span class="muted" style="font-size:.82rem;" title="Apri «Modifica rapida» per associare la società">— non associata</span>
+                            }
                         </td>
                         <td>@c.Citta</td>
                         <td>@c.NumeroRiuniti</td>

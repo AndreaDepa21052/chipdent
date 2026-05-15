@@ -62,6 +62,7 @@
         ["product-backlog"]= ("Backlog di prodotto", "ProductBacklog"),
         ["rls"]            = ("RLS / Sicurezza", "Rls"),
         ["documentazione"] = ("Documentazione", "Documentazione"),
+        ["societa"]        = ("Società", "Societa"),
         ["cliniche"]       = ("Cliniche", "Cliniche"),
         ["dottori"]        = ("Dottori", "Dottori"),
         ["dipendenti"]     = ("Dipendenti", "Dipendenti"),
@@ -345,6 +346,12 @@
                             <span>Anagrafiche</span>
                             <svg class="nav__group-chev" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M6 9l6 6 6-6"/></svg>
                         </summary>
+                        @if (ShowSection("societa")) {
+                        <a class="nav__item @(section == "societa" ? "is-active" : "")" data-tour="nav-societa" asp-controller="Societa" asp-action="Index">
+                            <svg class="nav__icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 21h18M3 7l9-4 9 4M5 21V11M19 21V11M9 21v-6h6v6"/></svg>
+                            Società
+                        </a>
+                        }
                         @if (ShowSection("cliniche")) {
                         <a class="nav__item @(section == "cliniche" ? "is-active" : "")" data-tour="nav-cliniche" asp-controller="Cliniche" asp-action="Index">
                             <svg class="nav__icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 21V8l9-5 9 5v13"/><path d="M9 21V12h6v9"/></svg>

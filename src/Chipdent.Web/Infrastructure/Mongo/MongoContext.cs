@@ -31,6 +31,7 @@ public class MongoContext
     public IMongoCollection<Tenant> Tenants => Database.GetCollection<Tenant>("tenants");
     public IMongoCollection<User> Users => Database.GetCollection<User>("users");
     public IMongoCollection<Clinica> Cliniche => Database.GetCollection<Clinica>("cliniche");
+    public IMongoCollection<Societa> Societa => Database.GetCollection<Societa>("societa");
     public IMongoCollection<Dottore> Dottori => Database.GetCollection<Dottore>("dottori");
     public IMongoCollection<Dipendente> Dipendenti => Database.GetCollection<Dipendente>("dipendenti");
     public IMongoCollection<Turno> Turni => Database.GetCollection<Turno>("turni");

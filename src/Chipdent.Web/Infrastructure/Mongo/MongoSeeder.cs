@@ -147,6 +147,10 @@ public static class MongoSeeder
                 }
             }
 
+            // Anagrafica società del gruppo (estratta da visure camerali)
+            // + backfill SocietaId sulle cliniche per nome.
+            await SocietaSeeder.SeedAsync(ctx, tenant, logger, ct);
+
             var milanoIdSeed = cliniche.FirstOrDefault(c => c.Nome == "MILANO7")?.Id;
             if (!string.IsNullOrEmpty(milanoIdSeed))
             {
