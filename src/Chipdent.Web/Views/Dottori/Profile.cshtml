@@ -81,7 +81,7 @@
                     <button type="submit" class="btn btn--ghost">↺ Riattiva</button>
                 </form>
             }
-            <a class="btn btn--primary" asp-action="Edit" asp-route-id="@d.Id">Modifica</a>
+            <button type="button" class="btn btn--primary" data-edit-dottore="@d.Id">Modifica</button>
         </div>
     </div>
 
@@ -725,3 +725,11 @@
         <partial name="_AuditFeed" model="Model.Audit" />
     }
 </div>
+
+<dialog id="dlg-dottore-edit" class="dotmodal-dialog" aria-label="Modifica dottore">
+    <div class="dotmodal" data-dotmodal-loading>
+        <div style="padding: 60px; text-align:center; color: var(--c-ink-soft, #6b5538);">Caricamento…</div>
+    </div>
+</dialog>
+
+<partial name="_DottoreEditModalScript" />

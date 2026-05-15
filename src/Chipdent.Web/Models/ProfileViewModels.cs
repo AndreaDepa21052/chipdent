@@ -76,6 +76,17 @@ public class DottoreListItem
     }
 }
 
+/// <summary>
+/// Dati necessari a popolare la modale di modifica rapida del dottore.
+/// La modale rende il form completo con un pannello laterale di alert critici.
+/// </summary>
+public class DottoreEditModalViewModel
+{
+    public Dottore Dottore { get; set; } = new();
+    public IReadOnlyList<Clinica> Cliniche { get; set; } = Array.Empty<Clinica>();
+    public IReadOnlyList<DottoreAlert> Alerts { get; set; } = Array.Empty<DottoreAlert>();
+}
+
 public class DottoreTesoreriaSnapshot
 {
     public string FornitoreId { get; set; } = string.Empty;
