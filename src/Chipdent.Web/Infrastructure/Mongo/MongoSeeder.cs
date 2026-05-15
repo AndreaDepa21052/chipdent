@@ -326,6 +326,10 @@ public static class MongoSeeder
             // (default richiesto dal cliente; modificabile dalla griglia o dalla scheda).
             await BackfillSedeRiferimentoFornitoriSeeder.SeedAsync(ctx, tenant, logger, ct);
 
+            // Backfill: porta in DB le categorie (Tipo) lette dal file scadenziario,
+            // matchate per approssimazione semantica sulla RagioneSociale del fornitore.
+            await BackfillCategoriaFornitoriDaScadenziarioSeeder.SeedAsync(ctx, tenant, logger, ct);
+
             // One-shot: rimuove il fornitore fantasma con ragione sociale "FORNITORI"
             // (header della colonna A del file xlsx importata per errore come riga dati).
             await PurgeHeaderFornitoreSeeder.SeedAsync(ctx, tenant, logger, ct);
