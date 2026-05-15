@@ -1594,10 +1594,16 @@ public class TesoreriaController : Controller
     /// <summary>
     /// Sigla 3 caratteri usata da Confident nel file scadenziario (BOL, BUS, CCH, COM, COR,
     /// DES, GIU, MI3, MI6, MI7, MI9, SGM, VAR, BRU, CMS).
+    /// <para>
+    /// Priorità: <see cref="Clinica.NomeAbbreviato"/> se valorizzato → fallback alla
+    /// tabella statica per nome → fallback ai primi 3 caratteri.
+    /// </para>
     /// </summary>
     private static string SiglaSede(Clinica? c)
     {
         if (c is null) return "—";
+        if (!string.IsNullOrWhiteSpace(c.NomeAbbreviato))
+            return c.NomeAbbreviato.Trim().ToUpperInvariant();
         var nome = (c.Nome ?? "").Trim().ToUpperInvariant().Replace(".", "").Replace(" ", "");
         return nome switch
         {

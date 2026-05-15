@@ -122,6 +122,7 @@
                 <a href="#sec-contatti">Contatti</a>
                 <a href="#sec-sede">Sede</a>
                 <a href="#sec-bancario">Dati bancari</a>
+                <a href="#sec-note">Note</a>
             </nav>
 
             <div class="dotmodal__scroll">
@@ -131,6 +132,12 @@
                         <div class="form-group dotmodal__full">
                             <label class="form-label">Nome clinica *</label>
                             <input id="fld-Nome" class="form-control" name="Nome" value="@c.Nome" required placeholder="Es. Confident Bologna" />
+                        </div>
+                        <div class="form-group">
+                            <label class="form-label">Nome abbreviato (LOC)</label>
+                            <input id="fld-NomeAbbreviato" class="form-control" name="NomeAbbreviato" value="@c.NomeAbbreviato"
+                                   maxlength="8" placeholder="Es. MI7" style="font-family: monospace; text-transform: uppercase;" />
+                            <small class="muted" style="font-size:.75rem;">Sigla LOC in scadenziario.</small>
                         </div>
                         <div class="form-group">
                             <label class="form-label">Stato</label>
@@ -233,6 +240,40 @@
                             <label class="form-label">BIC / SWIFT</label>
                             <input id="fld-BicOrdinante" class="form-control" name="BicOrdinante" value="@c.BicOrdinante"
                                    placeholder="UNCRITMM" maxlength="11" style="font-family: monospace;" />
+                        </div>
+                    </div>
+                </section>
+
+                <section id="sec-note" class="dotmodal__section">
+                    <h3 class="dotmodal__sec-title">📝 Note</h3>
+                    <div class="dotmodal__grid">
+                        <div class="form-group dotmodal__full">
+                            <label class="form-label">Note</label>
+                            <textarea class="form-control" name="Note" rows="3" placeholder="Note libere sulla clinica…">@c.Note</textarea>
+                        </div>
+                    </div>
+
+                    <div style="margin-top: 12px; padding: 14px 16px; border: 2px solid @(c.AggiungiNotaSecondariaAutomaticamente ? "#c47830" : "#e9d8b8"); border-radius: 10px; background: @(c.AggiungiNotaSecondariaAutomaticamente ? "linear-gradient(135deg, rgba(196,120,48,0.10), rgba(196,120,48,0.02))" : "rgba(255,247,232,0.5)"); transition: all .15s;">
+                        <label style="display:flex; gap:12px; align-items:flex-start; cursor:pointer; margin:0;">
+                            <input type="hidden" name="AggiungiNotaSecondariaAutomaticamente" value="false" />
+                            <input type="checkbox" name="AggiungiNotaSecondariaAutomaticamente" value="true"
+                                   @(c.AggiungiNotaSecondariaAutomaticamente ? "checked" : "")
+                                   style="width:22px; height:22px; margin-top:2px; accent-color:#c47830; cursor:pointer;" />
+                            <div style="flex:1;">
+                                <div style="font-weight:700; font-size:1rem; color:#3b1e0c; display:flex; align-items:center; gap:8px;">
+                                    <span style="font-size:1.2rem;">🔁</span>
+                                    Aggiungi nota secondaria automaticamente
+                                </div>
+                                <div style="font-size:.85rem; color:#7a5c3a; margin-top:6px; line-height:1.45;">
+                                    Quando attivo, le scadenze generate per fatture di questa clinica avranno il testo qui sotto appeso
+                                    automaticamente al campo Note della scadenza.
+                                </div>
+                            </div>
+                        </label>
+                        <div class="form-group" style="margin-top: 12px; margin-bottom: 0;">
+                            <label class="form-label" style="font-size:.82rem;">Testo della nota secondaria</label>
+                            <input class="form-control" name="NotaSecondariaAutomatica" value="@c.NotaSecondariaAutomatica"
+                                   placeholder="Es. Verificare con direzione sede" maxlength="200" />
                         </div>
                     </div>
                 </section>
