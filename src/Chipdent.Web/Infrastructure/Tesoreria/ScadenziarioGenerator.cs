@@ -11,6 +11,17 @@ namespace Chipdent.Web.Infrastructure.Tesoreria;
 /// per tipologia (medici/laboratori/Invisalign/generici), gestione ritenute, note di
 /// credito, carta di credito, snap dei bonifici al 10 / fine mese, e una lista di
 /// <see cref="AlertScadenziario"/> per i casi che richiedono revisione manuale.
+///
+/// <para>
+/// <b>REGOLA «Pagamenti manuali»</b>: se l'anagrafica fornitore ha
+/// <see cref="Fornitore.PagamentiManuali"/> = true, la fattura viene comunque
+/// generata e registrata, ma <b>non</b> viene emessa alcuna scadenza in
+/// scadenziario. La posizione confluisce in
+/// <see cref="Output.FatturePagamentoManuale"/> (tabella di alert dedicata)
+/// affinché l'operatore calcoli e disponga il pagamento a mano. La regola
+/// vince su tutte le altre (NC, carta di credito, ritenute incluse): se il
+/// flag è acceso, lo scadenziario automatico è disabilitato per quel fornitore.
+/// </para>
 /// </summary>
 public static class ScadenziarioGenerator
 {
@@ -33,9 +44,32 @@ public static class ScadenziarioGenerator
         public List<ScadenzaPagamento> Scadenze { get; } = new();
         public List<Fornitore> FornitoriNuovi { get; } = new();
         public List<AlertScadenziario> Alerts { get; } = new();
+
+        /// <summary>
+        /// Fatture che NON hanno prodotto scadenza perché il fornitore ha il flag
+        /// <see cref="Fornitore.PagamentiManuali"/> attivo. Tabella mostrata
+        /// nell'anteprima di generazione scadenziario come alert dedicato: per
+        /// queste fatture il pagamento va calcolato e disposto manualmente
+        /// (l'operatore decide importo, data, metodo).
+        /// </summary>
+        public List<FatturaPagamentoManuale> FatturePagamentoManuale { get; } = new();
+
         public int RigheElaborate { get; set; }
         public int RigheSaltate { get; set; }
     }
+
+    /// <summary>
+    /// Record di una fattura per la quale la generazione di scadenza è stata
+    /// saltata per via del flag «pagamenti manuali» sul fornitore.
+    /// </summary>
+    public sealed record FatturaPagamentoManuale(
+        string FornitoreId,
+        string FornitoreNome,
+        string? NumeroDoc,
+        DateTime DataDocumento,
+        decimal Totale,
+        string? ClinicaId,
+        int RigaSorgente);
 
     /// <summary>Tipologia operativa derivata dal nome fornitore (governa la regola di scadenza).</summary>
     public enum TipoFornitoreOp
@@ -223,6 +257,30 @@ public static class ScadenziarioGenerator
                 ApprovataDaUserId = input.UserId
             };
             output.Fatture.Add(fattura);
+
+            // ── REGOLA «Pagamenti manuali» ───────────────────────────────
+            // Se il fornitore ha il flag attivo, la fattura è già stata
+            // registrata sopra ma NON generiamo nessuna scadenza: la posizione
+            // entra nella tabella alert dedicata. La regola vince su tutte le
+            // altre (NC, CC, ritenute incluse).
+            if (fornitore.PagamentiManuali)
+            {
+                output.FatturePagamentoManuale.Add(new FatturaPagamentoManuale(
+                    fornitore.Id, fornitore.RagioneSociale, riga.Numero, dataDoc,
+                    totale, fattura.ClinicaId, riga.NumeroRiga));
+                output.Alerts.Add(new AlertScadenziario(AlertSeverita.Warn, "Pagamento manuale",
+                    $"Fornitore «{fornitore.RagioneSociale}» è marcato come «pagamenti manuali»: fattura registrata senza scadenza. Calcolare e disporre il pagamento a mano.",
+                    fornitore.RagioneSociale, riga.Numero, dataDoc, riga.NumeroRiga));
+
+                // Importi storici comunque aggiornati per duplicate-detection.
+                if (!importiByForn.TryGetValue(key, out var listaMan))
+                {
+                    listaMan = new List<(DateTime, decimal)>();
+                    importiByForn[key] = listaMan;
+                }
+                listaMan.Add((dataDoc, totale));
+                continue;
+            }
 
             // ── IBAN: priorità a quello letto dal PDF della singola fattura
             //    (più affidabile e specifico), poi anagrafica fornitore, poi

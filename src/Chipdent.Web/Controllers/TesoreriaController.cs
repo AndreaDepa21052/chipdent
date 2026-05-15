@@ -781,6 +781,7 @@ public class TesoreriaController : Controller
             BasePagamento = vm.BasePagamento,
             EmissioneFattura = vm.EmissioneFattura,
             PagamentoRicorrente = vm.PagamentoRicorrente,
+            PagamentiManuali = vm.PagamentiManuali,
             SediRiferimentoIds = NormalizeSediRiferimentoIds(vm.SediRiferimentoIds, vm.SedeRiferimentoId),
             SedeRiferimentoId = PrimarySedeFrom(NormalizeSediRiferimentoIds(vm.SediRiferimentoIds, vm.SedeRiferimentoId))
         };
@@ -829,6 +830,7 @@ public class TesoreriaController : Controller
             BasePagamento = f.BasePagamento,
             EmissioneFattura = f.EmissioneFattura,
             PagamentoRicorrente = f.PagamentoRicorrente,
+            PagamentiManuali = f.PagamentiManuali,
             SedeRiferimentoId = f.SedeRiferimentoId,
             SediRiferimentoIds = EffectiveSediRiferimento(f),
             Cliniche = await GetClinicheAsync(),
@@ -883,6 +885,7 @@ public class TesoreriaController : Controller
             BasePagamento = f.BasePagamento,
             EmissioneFattura = f.EmissioneFattura,
             PagamentoRicorrente = f.PagamentoRicorrente,
+            PagamentiManuali = f.PagamentiManuali,
             SedeRiferimentoId = f.SedeRiferimentoId,
             SediRiferimentoIds = EffectiveSediRiferimento(f),
             Cliniche = await _mongo.Cliniche.Find(c => c.TenantId == tid).SortBy(c => c.Nome).ToListAsync(),
@@ -953,6 +956,7 @@ public class TesoreriaController : Controller
                 .Set(x => x.BasePagamento, vm.BasePagamento)
                 .Set(x => x.EmissioneFattura, vm.EmissioneFattura)
                 .Set(x => x.PagamentoRicorrente, vm.PagamentoRicorrente)
+                .Set(x => x.PagamentiManuali, vm.PagamentiManuali)
                 .Set(x => x.SediRiferimentoIds, NormalizeSediRiferimentoIds(vm.SediRiferimentoIds, vm.SedeRiferimentoId))
                 .Set(x => x.SedeRiferimentoId, PrimarySedeFrom(NormalizeSediRiferimentoIds(vm.SediRiferimentoIds, vm.SedeRiferimentoId)))
                 .Set(x => x.UpdatedAt, DateTime.UtcNow));
@@ -1171,6 +1175,7 @@ public class TesoreriaController : Controller
         BasePagamento = src.BasePagamento,
         EmissioneFattura = src.EmissioneFattura,
         PagamentoRicorrente = src.PagamentoRicorrente,
+        PagamentiManuali = src.PagamentiManuali,
         SedeRiferimentoId = src.SedeRiferimentoId,
         SediRiferimentoIds = src.SediRiferimentoIds?.ToList() ?? new List<string>(),
         DottoreId = src.DottoreId,
@@ -2654,11 +2659,15 @@ public class TesoreriaController : Controller
             Note = $"Cancellate {oldScadCount} scadenze e {oldFattCount} fatture. " +
                    $"Generate {output.Fatture.Count} fatture, {output.Scadenze.Count} scadenze, " +
                    $"{output.FornitoriNuovi.Count} nuovi fornitori. " +
-                   $"Alert: {output.Alerts.Count}."
+                   $"Alert: {output.Alerts.Count}. " +
+                   $"Fatture a pagamento manuale (senza scadenza): {output.FatturePagamentoManuale.Count}."
         });
 
         TempData["flash"] = $"✓ Scadenziario rigenerato: {output.Scadenze.Count} scadenze su {output.Fatture.Count} fatture. " +
-                            $"{output.Alerts.Count} alert da verificare.";
+                            $"{output.Alerts.Count} alert da verificare" +
+                            (output.FatturePagamentoManuale.Count > 0
+                                ? $", {output.FatturePagamentoManuale.Count} fatture a pagamento manuale."
+                                : ".");
         return RedirectToAction(nameof(Index));
     }
 
@@ -2724,6 +2733,18 @@ public class TesoreriaController : Controller
             Riga = a.RigaSorgente
         }).ToList();
 
+        var pagamentiManualiRows = output.FatturePagamentoManuale
+            .OrderBy(p => p.DataDocumento)
+            .Select(p => new FatturaPagamentoManualeRow
+            {
+                Fornitore = p.FornitoreNome,
+                NumeroDoc = p.NumeroDoc,
+                DataDocumento = p.DataDocumento,
+                Totale = p.Totale,
+                Loc = !string.IsNullOrEmpty(p.ClinicaId) ? SiglaSede(clinByIdAll.GetValueOrDefault(p.ClinicaId)) : null,
+                RigaSorgente = p.RigaSorgente
+            }).ToList();
+
         return new GeneraScadenziarioViewModel
         {
             RigheImportateTotali = righe.Count,
@@ -2737,6 +2758,7 @@ public class TesoreriaController : Controller
             FattureAttuali = (int)fattureAttuali,
             Alerts = alertRows,
             Anteprima = anteprima,
+            FatturePagamentoManuale = pagamentiManualiRows,
             IsApplied = isApplied,
             AlertsPerCategoria = alertRows.GroupBy(a => a.Regola).ToDictionary(g => g.Key, g => g.Count()),
             AlertsPerSeverita = alertRows.GroupBy(a => a.Severita).ToDictionary(g => g.Key, g => g.Count())
