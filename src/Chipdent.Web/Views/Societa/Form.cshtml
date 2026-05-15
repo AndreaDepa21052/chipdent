@@ -100,6 +100,32 @@
         </fieldset>
 
         <fieldset style="margin-top: var(--s-4); padding: var(--s-3); border: 1px solid var(--c-border, #ece0cc); border-radius: 8px;">
+            <legend style="padding: 0 8px; font-size: .85rem; color: var(--c-ink-soft);">🏥 Sede operativa (unità locale)</legend>
+            <p class="muted" style="font-size:.82rem; margin: 0 0 8px;">
+                Indirizzo dove la società opera effettivamente (in genere coincide con l'indirizzo della clinica).
+                Estratto dalla sezione «Unità Locali» della visura camerale.
+            </p>
+            <div class="form-grid">
+                <div class="form-group full">
+                    <label class="form-label" asp-for="IndirizzoSedeOperativa">Indirizzo</label>
+                    <input class="form-control" asp-for="IndirizzoSedeOperativa" placeholder="Via / Piazza, numero civico" />
+                </div>
+                <div class="form-group">
+                    <label class="form-label" asp-for="ComuneSedeOperativa">Comune</label>
+                    <input class="form-control" asp-for="ComuneSedeOperativa" />
+                </div>
+                <div class="form-group">
+                    <label class="form-label" asp-for="ProvinciaSedeOperativa">Provincia (sigla)</label>
+                    <input class="form-control" asp-for="ProvinciaSedeOperativa" maxlength="2" placeholder="MI" />
+                </div>
+                <div class="form-group">
+                    <label class="form-label" asp-for="CapSedeOperativa">CAP</label>
+                    <input class="form-control" asp-for="CapSedeOperativa" maxlength="5" />
+                </div>
+            </div>
+        </fieldset>
+
+        <fieldset style="margin-top: var(--s-4); padding: var(--s-3); border: 1px solid var(--c-border, #ece0cc); border-radius: 8px;">
             <legend style="padding: 0 8px; font-size: .85rem; color: var(--c-ink-soft);">📞 Contatti</legend>
             <div class="form-grid">
                 <div class="form-group">
