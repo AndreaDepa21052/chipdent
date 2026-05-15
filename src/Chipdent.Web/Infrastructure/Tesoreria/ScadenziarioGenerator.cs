@@ -117,6 +117,7 @@ public static class ScadenziarioGenerator
                 {
                     TenantId = input.TenantId,
                     RagioneSociale = nomeForn,
+                    RagioneSocialePagamento = nomeForn,
                     CategoriaDefault = MappaCategoriaDefault(tipo),
                     TerminiPagamentoGiorni = TipiATerminiGiorni(tipo),
                     BasePagamento = TipiABasePagamento(tipo),

@@ -130,7 +130,7 @@ public class TesoreriaController : Controller
                     Loc = SiglaSede(c),
                     ClinicaId = s.ClinicaId,
                     NumeroDoc = fa?.Numero ?? "—",
-                    FornitoreNome = f?.RagioneSociale ?? "— fornitore rimosso —",
+                    FornitoreNome = f?.NomePerPagamento ?? "— fornitore rimosso —",
                     FornitoreId = s.FornitoreId,
                     Imponibile = fa?.Imponibile ?? 0,
                     Iva = fa?.Iva ?? 0,
@@ -2514,7 +2514,7 @@ public class TesoreriaController : Controller
                 var cli  = !string.IsNullOrEmpty(s.ClinicaId) ? clinByIdAll.GetValueOrDefault(s.ClinicaId) : null;
                 return new AnteprimaScadenza
                 {
-                    Fornitore = forn?.RagioneSociale ?? "—",
+                    Fornitore = forn?.NomePerPagamento ?? "—",
                     NumeroDoc = fatt?.Numero ?? "—",
                     DataDoc = fatt?.DataEmissione ?? s.DataScadenza,
                     DataScadenza = s.DataScadenza,
