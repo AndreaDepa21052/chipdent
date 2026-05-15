@@ -57,6 +57,20 @@
         </div>
     </div>
 
+    <div class="grid" style="grid-template-columns: 1fr; gap: var(--s-3);">
+        <div class="form-group">
+            <label class="form-label" asp-for="SedeRiferimentoId">Sede di riferimento</label>
+            <select class="form-control" asp-for="SedeRiferimentoId">
+                <option value="" selected="@string.IsNullOrEmpty(Model.SedeRiferimentoId)">— nessuna —</option>
+                @foreach (var c in Model.Cliniche)
+                {
+                    <option value="@c.Id" selected="@(Model.SedeRiferimentoId == c.Id)">@c.Nome</option>
+                }
+            </select>
+            <span class="hint">Sede della catena a cui il fornitore è principalmente associato.</span>
+        </div>
+    </div>
+
     <div class="grid" style="grid-template-columns: 1fr 1fr; gap: var(--s-3);">
         <div class="form-group">
             <label class="form-label" asp-for="RagioneSocialePagamento">Ragione sociale pagamento</label>

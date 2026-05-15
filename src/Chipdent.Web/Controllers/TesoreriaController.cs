@@ -720,15 +720,20 @@ public class TesoreriaController : Controller
             Completezza = FornitoreCompletezza.Valuta(f)
         }).ToList();
 
+        var cliniche = await _mongo.Cliniche.Find(c => c.TenantId == tid).SortBy(c => c.Nome).ToListAsync();
+
         ViewData["Section"] = "fornitori";
-        return View(new FornitoriIndexViewModel { Fornitori = rows });
+        return View(new FornitoriIndexViewModel { Fornitori = rows, Cliniche = cliniche });
     }
 
     [HttpGet("fornitori/nuovo")]
-    public IActionResult NuovoFornitore()
+    public async Task<IActionResult> NuovoFornitore()
     {
         ViewData["Section"] = "fornitori";
-        return View("FornitoreForm", new FornitoreFormViewModel());
+        return View("FornitoreForm", new FornitoreFormViewModel
+        {
+            Cliniche = await GetClinicheAsync()
+        });
     }
 
     [HttpPost("fornitori/nuovo")]
@@ -737,6 +742,7 @@ public class TesoreriaController : Controller
     {
         if (!ModelState.IsValid)
         {
+            vm.Cliniche = await GetClinicheAsync();
             ViewData["Section"] = "fornitori";
             return View("FornitoreForm", vm);
         }
@@ -774,7 +780,8 @@ public class TesoreriaController : Controller
             TerminiPagamentoGiorni = vm.TerminiPagamentoGiorni,
             BasePagamento = vm.BasePagamento,
             EmissioneFattura = vm.EmissioneFattura,
-            PagamentoRicorrente = vm.PagamentoRicorrente
+            PagamentoRicorrente = vm.PagamentoRicorrente,
+            SedeRiferimentoId = string.IsNullOrWhiteSpace(vm.SedeRiferimentoId) ? null : vm.SedeRiferimentoId
         };
         await _mongo.Fornitori.InsertOneAsync(f);
         await _audit.LogAsync("Fornitore", f.Id, f.RagioneSociale, AuditAction.Created, actor: User);
@@ -821,6 +828,8 @@ public class TesoreriaController : Controller
             BasePagamento = f.BasePagamento,
             EmissioneFattura = f.EmissioneFattura,
             PagamentoRicorrente = f.PagamentoRicorrente,
+            SedeRiferimentoId = f.SedeRiferimentoId,
+            Cliniche = await GetClinicheAsync(),
             HaUtentePortale = hasUser,
             IsDottoreOmbra = !string.IsNullOrEmpty(f.DottoreId)
         });
@@ -872,6 +881,8 @@ public class TesoreriaController : Controller
             BasePagamento = f.BasePagamento,
             EmissioneFattura = f.EmissioneFattura,
             PagamentoRicorrente = f.PagamentoRicorrente,
+            SedeRiferimentoId = f.SedeRiferimentoId,
+            Cliniche = await _mongo.Cliniche.Find(c => c.TenantId == tid).SortBy(c => c.Nome).ToListAsync(),
             HaUtentePortale = hasUser,
             IsDottoreOmbra = !string.IsNullOrEmpty(f.DottoreId)
         };
@@ -904,6 +915,7 @@ public class TesoreriaController : Controller
                     .ToDictionary(e => e.Key, e => e.Value!.Errors.Select(x => x.ErrorMessage).ToArray());
                 return BadRequest(new { errors });
             }
+            vm.Cliniche = await GetClinicheAsync();
             ViewData["Section"] = "fornitori";
             return View("FornitoreForm", vm);
         }
@@ -938,6 +950,7 @@ public class TesoreriaController : Controller
                 .Set(x => x.BasePagamento, vm.BasePagamento)
                 .Set(x => x.EmissioneFattura, vm.EmissioneFattura)
                 .Set(x => x.PagamentoRicorrente, vm.PagamentoRicorrente)
+                .Set(x => x.SedeRiferimentoId, string.IsNullOrWhiteSpace(vm.SedeRiferimentoId) ? null : vm.SedeRiferimentoId)
                 .Set(x => x.UpdatedAt, DateTime.UtcNow));
 
         var updated = await _mongo.Fornitori.Find(x => x.Id == id).FirstOrDefaultAsync();
@@ -1038,6 +1051,32 @@ public class TesoreriaController : Controller
                 fieldLabel = "Stato";
                 break;
 
+            case "SedeRiferimentoId":
+                string? sedeId = string.IsNullOrWhiteSpace(trimmed) ? null : trimmed;
+                string sedeLabel = "—";
+                if (sedeId is not null)
+                {
+                    var clinica = await _mongo.Cliniche
+                        .Find(c => c.Id == sedeId && c.TenantId == tid)
+                        .FirstOrDefaultAsync();
+                    if (clinica is null)
+                        return BadRequest(new { ok = false, error = "Sede non valida." });
+                    sedeLabel = clinica.Nome;
+                }
+                string oldSedeLabel = "—";
+                if (!string.IsNullOrEmpty(f.SedeRiferimentoId))
+                {
+                    var prev = await _mongo.Cliniche
+                        .Find(c => c.Id == f.SedeRiferimentoId && c.TenantId == tid)
+                        .FirstOrDefaultAsync();
+                    if (prev is not null) oldSedeLabel = prev.Nome;
+                }
+                oldValue = oldSedeLabel;
+                newValueDisplay = sedeLabel;
+                update = Builders<Fornitore>.Update.Set(x => x.SedeRiferimentoId, sedeId);
+                fieldLabel = "Sede di riferimento";
+                break;
+
             default:
                 return BadRequest(new { ok = false, error = "Campo non modificabile inline." });
         }
@@ -1105,9 +1144,13 @@ public class TesoreriaController : Controller
         BasePagamento = src.BasePagamento,
         EmissioneFattura = src.EmissioneFattura,
         PagamentoRicorrente = src.PagamentoRicorrente,
+        SedeRiferimentoId = src.SedeRiferimentoId,
         DottoreId = src.DottoreId,
         IsDeleted = src.IsDeleted
     };
+
+    private Task<List<Clinica>> GetClinicheAsync()
+        => _mongo.Cliniche.Find(c => c.TenantId == _tenant.TenantId).SortBy(c => c.Nome).ToListAsync();
 
     // ─────────────────────────────────────────────────────────────
     //  DATI BANCARI ORDINANTE (Tenant settings)
