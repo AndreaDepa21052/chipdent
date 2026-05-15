@@ -5,6 +5,14 @@ namespace Chipdent.Web.Domain.Entities;
 public class Clinica : TenantEntity
 {
     public string Nome { get; set; } = string.Empty;
+
+    /// <summary>
+    /// Società (persona giuridica) a cui appartiene la clinica. Null = non
+    /// ancora associata. I pagamenti delle scadenze della clinica seguono
+    /// l'IBAN della società (vedi <see cref="Societa.Iban"/>).
+    /// </summary>
+    public string? SocietaId { get; set; }
+
     public string Citta { get; set; } = string.Empty;
     public string Indirizzo { get; set; } = string.Empty;
     public string? Telefono { get; set; }

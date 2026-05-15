@@ -48,6 +48,7 @@ public static class MenuCatalog
         }),
         new("anagrafiche", "Anagrafiche", new List<Section>
         {
+            new("societa",      "Società"),
             new("cliniche",     "Cliniche"),
             new("dottori",      "Dottori"),
             new("dipendenti",   "Dipendenti"),
