@@ -67,8 +67,21 @@ public static class ScadenziarioGenerator
     public static Output Genera(Input input)
     {
         var output = new Output();
+        // Indici di lookup multipli: P.IVA e CF (più stabili del nome), poi RagioneSociale
+        // come fallback. Le fatture importate possono arrivare con P.IVA e CF dal PDF: se
+        // matchano un fornitore esistente, evitiamo di crearne uno duplicato per varianti
+        // del nome (es. "AGESP S.P.A." vs "AGESP SPA").
+        var fornitoriByPiva = new Dictionary<string, Fornitore>(StringComparer.OrdinalIgnoreCase);
+        var fornitoriByCf = new Dictionary<string, Fornitore>(StringComparer.OrdinalIgnoreCase);
         var fornitoriByKey = new Dictionary<string, Fornitore>(StringComparer.OrdinalIgnoreCase);
-        foreach (var f in input.Fornitori) fornitoriByKey[NormalizeNome(f.RagioneSociale)] = f;
+        foreach (var f in input.Fornitori)
+        {
+            fornitoriByKey[NormalizeNome(f.RagioneSociale)] = f;
+            var piva = NormalizeIdFiscale(f.PartitaIva);
+            if (!string.IsNullOrEmpty(piva)) fornitoriByPiva[piva] = f;
+            var cf = NormalizeIdFiscale(f.CodiceFiscale);
+            if (!string.IsNullOrEmpty(cf)) fornitoriByCf[cf] = f;
+        }
 
         var medici = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
         foreach (var d in input.Dottori) medici.Add(NormalizeNome($"{d.Cognome} {d.Nome}"));
@@ -111,19 +124,33 @@ public static class ScadenziarioGenerator
             }
 
             // ── Match / autocreazione fornitore ──────────────────────────
-            if (!fornitoriByKey.TryGetValue(key, out var fornitore))
+            // Priorità: 1) Partita IVA da PDF, 2) Codice Fiscale da PDF, 3) RagioneSociale.
+            // P.IVA/CF sono identificatori legali univoci e resistono alle varianti tipografiche
+            // del nome ("S.p.A." vs "SPA", maiuscole/minuscole, abbreviazioni).
+            var piva = NormalizeIdFiscale(riga.PartitaIvaFornitore);
+            var cf = NormalizeIdFiscale(riga.CodiceFiscaleFornitore);
+            Fornitore? fornitore = null;
+            if (!string.IsNullOrEmpty(piva)) fornitoriByPiva.TryGetValue(piva, out fornitore);
+            if (fornitore is null && !string.IsNullOrEmpty(cf)) fornitoriByCf.TryGetValue(cf, out fornitore);
+            if (fornitore is null) fornitoriByKey.TryGetValue(key, out fornitore);
+
+            if (fornitore is null)
             {
                 fornitore = new Fornitore
                 {
                     TenantId = input.TenantId,
                     RagioneSociale = nomeForn,
                     RagioneSocialePagamento = nomeForn,
+                    PartitaIva = string.IsNullOrEmpty(piva) ? null : riga.PartitaIvaFornitore,
+                    CodiceFiscale = string.IsNullOrEmpty(cf) ? null : riga.CodiceFiscaleFornitore,
                     CategoriaDefault = MappaCategoriaDefault(tipo),
                     TerminiPagamentoGiorni = TipiATerminiGiorni(tipo),
                     BasePagamento = TipiABasePagamento(tipo),
                     Stato = StatoFornitore.Attivo
                 };
                 fornitoriByKey[key] = fornitore;
+                if (!string.IsNullOrEmpty(piva)) fornitoriByPiva[piva] = fornitore;
+                if (!string.IsNullOrEmpty(cf)) fornitoriByCf[cf] = fornitore;
                 output.FornitoriNuovi.Add(fornitore);
                 output.Alerts.Add(new AlertScadenziario(AlertSeverita.Info, "Catalogazione fornitore",
                     $"Creato nuovo fornitore «{nomeForn}» (tipo: {tipo}). Verifica IBAN e termini.",
@@ -658,4 +685,16 @@ public static class ScadenziarioGenerator
 
     private static string NormalizeNome(string s) =>
         Regex.Replace((s ?? "").Trim().ToLowerInvariant(), @"\s+", " ");
+
+    /// <summary>
+    /// Normalizza un identificativo fiscale (P.IVA o CF) per il match: rimuove spazi,
+    /// trattini, prefisso paese ("IT") e mette in maiuscolo. Stringa vuota se non valida.
+    /// </summary>
+    private static string NormalizeIdFiscale(string? s)
+    {
+        if (string.IsNullOrWhiteSpace(s)) return string.Empty;
+        var clean = Regex.Replace(s.Trim().ToUpperInvariant(), @"[\s\-\.]", "");
+        if (clean.StartsWith("IT") && clean.Length > 11) clean = clean[2..];
+        return clean;
+    }
 }

@@ -1182,7 +1182,7 @@ public class TesoreriaController : Controller
                     return new SepaXmlBuilder.SepaTransazione(
                         EndToEndId: $"{messageId}-{gi + 1:00}-{idx + 1:0000}",
                         Importo: Math.Round(s.Importo, 2),
-                        BeneficiarioNome: f?.RagioneSociale ?? "Fornitore",
+                        BeneficiarioNome: f?.NomePerPagamento ?? "Fornitore",
                         BeneficiarioIban: ibanBenef,
                         BeneficiarioBic: null,
                         Causale: causale,
