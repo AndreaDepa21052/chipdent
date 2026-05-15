@@ -17,8 +17,15 @@
 <partial name="_Flash" />
 
 <div class="page-head">
-    <div>
-        <h2>👥 Fornitori</h2>
+    <div class="forn-title-zone">
+        <h2 class="forn-title">
+            <span class="forn-title__icon" id="forn-title-icon">👥</span>
+            <span>Fornitori</span>
+            @if (senzaSepa > 0)
+            {
+                <span class="forn-title__pulse" aria-hidden="true"></span>
+            }
+        </h2>
         <p class="page-head__sub">Anagrafica passiva. Click sulle intestazioni per ordinare, trascina il bordo destro per ridimensionare le colonne.</p>
     </div>
     <div class="page-head__actions">
@@ -27,17 +34,22 @@
     </div>
 </div>
 
+@if (senzaSepa > 0)
+{
+    <div class="forn-callout" data-forn-callout role="alert">
+        <span class="forn-callout__caret" aria-hidden="true"></span>
+        <span class="forn-callout__icon" aria-hidden="true">⚠️</span>
+        <div class="forn-callout__body">
+            <strong>@senzaSepa fornitor@(senzaSepa == 1 ? "e" : "i") attiv@(senzaSepa == 1 ? "o" : "i") con dati SEPA incompleti.</strong>
+            <span class="muted">Senza IBAN valido (e dati anagrafici minimi) non è possibile generare la distinta di incasso/pagamento SEPA.</span>
+        </div>
+        <button type="button" class="forn-callout__close" data-forn-callout-close aria-label="Chiudi avviso">×</button>
+    </div>
+}
+
 <form id="forn-antiforgery-host" style="display:none;">
     @Html.AntiForgeryToken()
 </form>
-
-@if (senzaSepa > 0)
-{
-    <div class="card" style="background:#fff7e6; border-left: 4px solid #c47830; margin-bottom: var(--s-3);">
-        <strong style="color:#a86010;">⚠️ @senzaSepa fornitor@(senzaSepa == 1 ? "e" : "i") attiv@(senzaSepa == 1 ? "o" : "i") con dati SEPA incompleti.</strong>
-        <span class="muted">Senza IBAN valido (e dati anagrafici minimi) non è possibile generare la distinta di incasso/pagamento SEPA.</span>
-    </div>
-}
 
 @if (Model.Fornitori.Count == 0)
 {
@@ -48,11 +60,12 @@
 else
 {
     <div data-table-search>
-        <partial name="_TableSearch" model='new Microsoft.AspNetCore.Mvc.ViewFeatures.ViewDataDictionary(ViewData) { ["Placeholder"] = "Cerca fornitore per ragione sociale, categoria…", ["Singular"] = "fornitore", ["Plural"] = "fornitori" }' />
-        <div class="forn-toolbar">
-            <label class="forn-toggle">
+        <div class="forn-controls">
+            <partial name="_TableSearch" model='new Microsoft.AspNetCore.Mvc.ViewFeatures.ViewDataDictionary(ViewData) { ["Placeholder"] = "Cerca fornitore per ragione sociale, categoria…", ["Singular"] = "fornitore", ["Plural"] = "fornitori" }' />
+            <label class="forn-switch" title="Nasconde i fornitori-ombra collegati a dottori">
                 <input type="checkbox" id="forn-hide-dottori" />
-                <span>Non farmi vedere i dottori</span>
+                <span class="forn-switch__track"><span class="forn-switch__thumb"></span></span>
+                <span class="forn-switch__label">Non farmi vedere i dottori</span>
             </label>
         </div>
         <div class="table-search__empty">Nessun fornitore corrisponde alla ricerca.</div>
@@ -334,25 +347,151 @@ else
     [data-stato-cell] option[value="Dismesso"] { color: #777; }
     [data-forn-row].is-page-hidden { display: none !important; }
 
-    /* Toggle "Non farmi vedere i dottori": nasconde i fornitori-ombra di dottori. */
-    .forn-toolbar {
+    /* Controls row: search + toggle sulla stessa riga. */
+    .forn-controls {
         display: flex;
         align-items: center;
         gap: var(--s-3);
-        margin: 0 0 var(--s-2);
-        padding: 0 4px;
+        margin-bottom: var(--s-2);
+        flex-wrap: wrap;
     }
-    .forn-toggle {
+    .forn-controls .table-search { margin-bottom: 0; flex: 1 1 280px; }
+
+    /* Pill switch — "Non farmi vedere i dottori". */
+    .forn-switch {
         display: inline-flex;
         align-items: center;
-        gap: 6px;
-        font-size: .82rem;
-        color: var(--c-ink-soft, #6b5538);
+        gap: 8px;
         cursor: pointer;
         user-select: none;
+        font-size: .82rem;
+        color: var(--c-ink-soft, #6b5538);
+        white-space: nowrap;
+        padding: 6px 12px 6px 8px;
+        background: #fff;
+        border: 1px solid var(--c-border, #e9e1d3);
+        border-radius: 999px;
+        transition: border-color .15s, box-shadow .15s, background-color .15s;
     }
-    .forn-toggle input { cursor: pointer; }
+    .forn-switch:hover {
+        border-color: #d4c3a0;
+        box-shadow: 0 1px 4px rgba(140, 90, 30, .08);
+    }
+    .forn-switch input {
+        position: absolute;
+        opacity: 0;
+        pointer-events: none;
+        width: 1px; height: 1px;
+    }
+    .forn-switch__track {
+        position: relative;
+        width: 32px; height: 18px;
+        background: #d8cdb6;
+        border-radius: 999px;
+        transition: background-color .18s ease;
+        flex: none;
+    }
+    .forn-switch__thumb {
+        position: absolute;
+        top: 2px; left: 2px;
+        width: 14px; height: 14px;
+        background: #fff;
+        border-radius: 50%;
+        box-shadow: 0 1px 2px rgba(0,0,0,.22);
+        transition: left .18s ease;
+    }
+    .forn-switch input:checked ~ .forn-switch__track { background: var(--c-accent, #c47830); }
+    .forn-switch input:checked ~ .forn-switch__track .forn-switch__thumb { left: 16px; }
+    .forn-switch input:focus-visible ~ .forn-switch__track {
+        box-shadow: 0 0 0 3px rgba(196,120,48,.28);
+    }
+    .forn-switch__label { font-weight: 500; letter-spacing: .1px; }
+    .forn-switch input:checked ~ .forn-switch__label { color: #6b3a0a; }
+
     tbody.hide-dottori [data-forn-row][data-is-dottore="1"] { display: none !important; }
+
+    /* Title + callout SEPA ────────────────────────────────────── */
+    .forn-title-zone { position: relative; }
+    .forn-title {
+        display: inline-flex;
+        align-items: center;
+        gap: 8px;
+        margin: 0;
+        position: relative;
+    }
+    .forn-title__icon {
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        position: relative;
+    }
+    .forn-title__pulse {
+        position: absolute;
+        top: -2px; right: -6px;
+        width: 10px; height: 10px;
+        background: #d94f2a;
+        border-radius: 50%;
+        box-shadow: 0 0 0 0 rgba(217, 79, 42, .55);
+        animation: forn-pulse 1.8s infinite;
+    }
+    @@keyframes forn-pulse {
+        0%   { box-shadow: 0 0 0 0 rgba(217, 79, 42, .55); }
+        70%  { box-shadow: 0 0 0 10px rgba(217, 79, 42, 0); }
+        100% { box-shadow: 0 0 0 0 rgba(217, 79, 42, 0); }
+    }
+
+    .forn-callout {
+        position: relative;
+        margin: -4px 0 var(--s-3);
+        max-width: 760px;
+        padding: 10px 38px 10px 14px;
+        background: #fff7e6;
+        border: 1px solid #e0c79a;
+        border-left: 3px solid #c47830;
+        border-radius: 8px;
+        display: flex;
+        align-items: center;
+        gap: 10px;
+        font-size: .88rem;
+        line-height: 1.35;
+        color: #6b3a0a;
+        box-shadow: 0 2px 8px rgba(196, 120, 48, .10);
+        animation: forn-callout-in .22s ease-out;
+    }
+    @@keyframes forn-callout-in {
+        from { opacity: 0; transform: translateY(-4px); }
+        to   { opacity: 1; transform: translateY(0); }
+    }
+    .forn-callout__caret {
+        position: absolute;
+        top: -7px; left: 22px;
+        width: 12px; height: 12px;
+        background: #fff7e6;
+        border-top: 1px solid #e0c79a;
+        border-left: 1px solid #e0c79a;
+        transform: rotate(45deg);
+    }
+    .forn-callout__icon { font-size: 1.1rem; flex: none; }
+    .forn-callout__body { flex: 1; }
+    .forn-callout__body strong { color: #a86010; margin-right: 4px; }
+    .forn-callout__close {
+        position: absolute;
+        top: 6px; right: 6px;
+        background: transparent;
+        border: 0;
+        font-size: 1.1rem;
+        line-height: 1;
+        color: #a86010;
+        cursor: pointer;
+        padding: 4px 8px;
+        border-radius: 4px;
+        transition: background-color .15s;
+    }
+    .forn-callout__close:hover { background: rgba(196, 120, 48, .12); color: #6b3a0a; }
+    .forn-callout.is-closing { animation: forn-callout-out .18s ease-in forwards; }
+    @@keyframes forn-callout-out {
+        to { opacity: 0; transform: translateY(-4px); height: 0; margin: 0; padding-top: 0; padding-bottom: 0; border-width: 0; }
+    }
 
     /* ── Pager ────────────────────────────────────────────────── */
     .forn-pager {
@@ -769,6 +908,18 @@ else
         }
 
         applyPagination();
+
+        // ── Callout SEPA: chiudibile (non persistito: ricompare a ogni accesso). ──
+        var callout = document.querySelector('[data-forn-callout]');
+        var closeBtn = document.querySelector('[data-forn-callout-close]');
+        if (callout && closeBtn) {
+            closeBtn.addEventListener('click', function () {
+                callout.classList.add('is-closing');
+                setTimeout(function () {
+                    if (callout.parentNode) callout.parentNode.removeChild(callout);
+                }, 200);
+            });
+        }
     })();
 </script>
 }
