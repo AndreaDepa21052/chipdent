@@ -1990,6 +1990,14 @@ public class TesoreriaController : Controller
             r.PecFornitore          = fp.Pec;
             r.EmailFornitore        = fp.Email;
             r.TelefonoFornitore     = fp.Telefono;
+            r.PartitaIvaCessionario     = fp.CessionarioPartitaIva;
+            r.CodiceFiscaleCessionario  = fp.CessionarioCodiceFiscale;
+            r.RagioneSocialeCessionario = fp.CessionarioRagioneSociale;
+            r.IndirizzoCessionario      = fp.CessionarioIndirizzo;
+            r.CapCessionario            = fp.CessionarioCap;
+            r.LocalitaCessionario       = fp.CessionarioLocalita;
+            r.ProvinciaCessionario      = fp.CessionarioProvincia;
+            r.LocRilevataDaTesto        = fp.LocRilevataDaTesto;
             r.PaginaPdf             = fp.PaginaStart;
         }
     }
@@ -2044,6 +2052,14 @@ public class TesoreriaController : Controller
             PecFornitore = fp.Pec,
             EmailFornitore = fp.Email,
             TelefonoFornitore = fp.Telefono,
+            PartitaIvaCessionario = fp.CessionarioPartitaIva,
+            CodiceFiscaleCessionario = fp.CessionarioCodiceFiscale,
+            RagioneSocialeCessionario = fp.CessionarioRagioneSociale,
+            IndirizzoCessionario = fp.CessionarioIndirizzo,
+            CapCessionario = fp.CessionarioCap,
+            LocalitaCessionario = fp.CessionarioLocalita,
+            ProvinciaCessionario = fp.CessionarioProvincia,
+            LocRilevataDaTesto = fp.LocRilevataDaTesto,
             PaginaPdf = fp.PaginaStart
         };
     }
@@ -2617,10 +2633,11 @@ public class TesoreriaController : Controller
         await _mongo.ScadenzePagamento.DeleteManyAsync(s => s.TenantId == tid);
         await _mongo.Fatture.DeleteManyAsync(f => f.TenantId == tid);
 
-        // 2) Carica fornitori e cliniche
+        // 2) Carica fornitori, cliniche e Società (per match cessionario→Società→Clinica)
         var fornitoriCorrenti = await _mongo.Fornitori.Find(f => f.TenantId == tid).ToListAsync();
         var cliniche = await _mongo.Cliniche.Find(c => c.TenantId == tid).ToListAsync();
         var dottori = await _mongo.Dottori.Find(d => d.TenantId == tid).ToListAsync();
+        var societa = await _mongo.Societa.Find(s => s.TenantId == tid).ToListAsync();
 
         // 3) Carica TUTTE le righe importate (batch storici)
         var righe = await _mongo.ImportFattureRighe.Find(r => r.TenantId == tid).ToListAsync();
@@ -2632,6 +2649,7 @@ public class TesoreriaController : Controller
             Fornitori = fornitoriCorrenti,
             Cliniche = cliniche,
             Dottori = dottori,
+            Societa = societa,
             UserId = userId
         });
 
@@ -2695,6 +2713,7 @@ public class TesoreriaController : Controller
         var fornitoriCorrenti = await _mongo.Fornitori.Find(f => f.TenantId == tid).ToListAsync();
         var cliniche = await _mongo.Cliniche.Find(c => c.TenantId == tid).ToListAsync();
         var dottori = await _mongo.Dottori.Find(d => d.TenantId == tid).ToListAsync();
+        var societa = await _mongo.Societa.Find(s => s.TenantId == tid).ToListAsync();
         var righe = await _mongo.ImportFattureRighe.Find(r => r.TenantId == tid).ToListAsync();
         var scadenzeAttuali = await _mongo.ScadenzePagamento.CountDocumentsAsync(s => s.TenantId == tid);
         var pagateAttuali = await _mongo.ScadenzePagamento.CountDocumentsAsync(s => s.TenantId == tid && s.Stato == StatoScadenza.Pagato);
@@ -2707,6 +2726,7 @@ public class TesoreriaController : Controller
             Fornitori = fornitoriCorrenti,
             Cliniche = cliniche,
             Dottori = dottori,
+            Societa = societa,
             UserId = null
         });
 
