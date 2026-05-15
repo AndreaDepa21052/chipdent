@@ -777,6 +777,8 @@ public class TesoreriaController : Controller
             CategoriaSecondaria = vm.CategoriaSecondaria,
             Stato = vm.Stato,
             Note = vm.Note,
+            AggiungiNotaSecondariaAutomaticamente = vm.AggiungiNotaSecondariaAutomaticamente,
+            NotaSecondaria = vm.NotaSecondaria,
             TerminiPagamentoGiorni = vm.TerminiPagamentoGiorni,
             BasePagamento = vm.BasePagamento,
             EmissioneFattura = vm.EmissioneFattura,
@@ -826,6 +828,8 @@ public class TesoreriaController : Controller
             CategoriaSecondaria = f.CategoriaSecondaria,
             Stato = f.Stato,
             Note = f.Note,
+            AggiungiNotaSecondariaAutomaticamente = f.AggiungiNotaSecondariaAutomaticamente,
+            NotaSecondaria = f.NotaSecondaria,
             TerminiPagamentoGiorni = f.TerminiPagamentoGiorni,
             BasePagamento = f.BasePagamento,
             EmissioneFattura = f.EmissioneFattura,
@@ -881,6 +885,8 @@ public class TesoreriaController : Controller
             CategoriaSecondaria = f.CategoriaSecondaria,
             Stato = f.Stato,
             Note = f.Note,
+            AggiungiNotaSecondariaAutomaticamente = f.AggiungiNotaSecondariaAutomaticamente,
+            NotaSecondaria = f.NotaSecondaria,
             TerminiPagamentoGiorni = f.TerminiPagamentoGiorni,
             BasePagamento = f.BasePagamento,
             EmissioneFattura = f.EmissioneFattura,
@@ -952,6 +958,8 @@ public class TesoreriaController : Controller
                 .Set(x => x.CategoriaSecondaria, vm.CategoriaSecondaria)
                 .Set(x => x.Stato, vm.Stato)
                 .Set(x => x.Note, vm.Note)
+                .Set(x => x.AggiungiNotaSecondariaAutomaticamente, vm.AggiungiNotaSecondariaAutomaticamente)
+                .Set(x => x.NotaSecondaria, vm.NotaSecondaria)
                 .Set(x => x.TerminiPagamentoGiorni, vm.TerminiPagamentoGiorni)
                 .Set(x => x.BasePagamento, vm.BasePagamento)
                 .Set(x => x.EmissioneFattura, vm.EmissioneFattura)
@@ -1171,6 +1179,8 @@ public class TesoreriaController : Controller
         CategoriaSecondaria = src.CategoriaSecondaria,
         Stato = src.Stato,
         Note = src.Note,
+        AggiungiNotaSecondariaAutomaticamente = src.AggiungiNotaSecondariaAutomaticamente,
+        NotaSecondaria = src.NotaSecondaria,
         TerminiPagamentoGiorni = src.TerminiPagamentoGiorni,
         BasePagamento = src.BasePagamento,
         EmissioneFattura = src.EmissioneFattura,
