@@ -32,6 +32,14 @@ public class Societa : TenantEntity
     public string? ProvinciaSedeLegale { get; set; }
     public string? CapSedeLegale { get; set; }
 
+    // Sede operativa / unità locale (dove la società opera effettivamente,
+    // tipicamente l'indirizzo della clinica). Distinta dalla sede legale,
+    // che per tutto il gruppo Confident è centralizzata a Gallarate.
+    public string? IndirizzoSedeOperativa { get; set; }
+    public string? ComuneSedeOperativa { get; set; }
+    public string? ProvinciaSedeOperativa { get; set; }
+    public string? CapSedeOperativa { get; set; }
+
     // Contatti
     public string? Pec { get; set; }
     public string? Email { get; set; }

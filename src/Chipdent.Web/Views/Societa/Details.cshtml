@@ -61,6 +61,19 @@
 </div>
 
 <div class="card" style="margin-top: var(--s-3);">
+    <h3 style="margin-top:0;">🏥 Sede operativa</h3>
+    @if (!string.IsNullOrEmpty(Model.IndirizzoSedeOperativa) || !string.IsNullOrEmpty(Model.ComuneSedeOperativa))
+    {
+        <div>@Model.IndirizzoSedeOperativa</div>
+        <div class="muted">@Model.CapSedeOperativa @Model.ComuneSedeOperativa @(string.IsNullOrEmpty(Model.ProvinciaSedeOperativa) ? "" : $"({Model.ProvinciaSedeOperativa})")</div>
+    }
+    else
+    {
+        <p class="muted">Nessuna unità locale dichiarata.</p>
+    }
+</div>
+
+<div class="card" style="margin-top: var(--s-3);">
     <h3 style="margin-top:0;">📍 Sede legale</h3>
     <div>@(Model.IndirizzoSedeLegale ?? "—")</div>
     <div class="muted">@Model.CapSedeLegale @Model.ComuneSedeLegale @(string.IsNullOrEmpty(Model.ProvinciaSedeLegale) ? "" : $"({Model.ProvinciaSedeLegale})")</div>

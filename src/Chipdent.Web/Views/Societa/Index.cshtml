@@ -42,6 +42,7 @@ else
                     <tr>
                         <th>Nome</th>
                         <th>Ragione sociale</th>
+                        <th>Sede operativa</th>
                         <th>Sede legale</th>
                         <th>P.IVA / CF</th>
                         <th>REA</th>
@@ -70,10 +71,23 @@ else
                             </td>
                             <td>@s.RagioneSociale</td>
                             <td>
+                                @if (!string.IsNullOrEmpty(s.IndirizzoSedeOperativa) || !string.IsNullOrEmpty(s.ComuneSedeOperativa))
+                                {
+                                    <div>@s.IndirizzoSedeOperativa</div>
+                                    <div class="muted" style="font-size:.8rem;">
+                                        @s.CapSedeOperativa @s.ComuneSedeOperativa @(string.IsNullOrEmpty(s.ProvinciaSedeOperativa) ? "" : $"({s.ProvinciaSedeOperativa})")
+                                    </div>
+                                }
+                                else
+                                {
+                                    <span class="muted" title="Per la holding/sede legale è normale non avere unità locali">—</span>
+                                }
+                            </td>
+                            <td>
                                 @if (!string.IsNullOrEmpty(s.IndirizzoSedeLegale) || !string.IsNullOrEmpty(s.ComuneSedeLegale))
                                 {
-                                    <div>@s.IndirizzoSedeLegale</div>
-                                    <div class="muted" style="font-size:.8rem;">
+                                    <div style="font-size:.85rem;">@s.IndirizzoSedeLegale</div>
+                                    <div class="muted" style="font-size:.78rem;">
                                         @s.CapSedeLegale @s.ComuneSedeLegale @(string.IsNullOrEmpty(s.ProvinciaSedeLegale) ? "" : $"({s.ProvinciaSedeLegale})")
                                     </div>
                                 }

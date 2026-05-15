@@ -24,26 +24,32 @@ public static class SocietaSeeder
         string CodiceAteco,
         string Pec,
         string DemoIban,
+        // Sede operativa (unità locale) estratta dalla visura camerale.
+        // Null per la holding (nessuna unità locale dichiarata).
+        string? IndirizzoOp,
+        string? ComuneOp,
+        string? ProvinciaOp,
+        string? CapOp,
         bool IsHolding = false);
 
     private static readonly Seed[] Catalogo = new[]
     {
-        // L'unica S.p.A. è la holding CCH (sede legale principale del gruppo).
-        new Seed("Ident CCH",          "CONFIDENT COMMERCIALE HOLDING S.P.A SOCIETA' BENEFIT", "11659240961", "11659240961", "VA - 384027", "società per azioni",            new DateTime(2021,03,10), 50_000m, "73.11.02", "cchsrl@pec.cgn.it",            "IT60X0306901604100000200001", IsHolding: true),
-        new Seed("Ident",              "IDENT SRL",              "03774390128", "03774390128", "VA - 378013", "società a responsabilità limitata", new DateTime(2020,05,28), 30_000m, "86.23.00", "identsrl@pec.cgn.it",          "IT60X0306901604100000200002"),
-        new Seed("Ident Cormano",      "IDENT CORMANO SRL",      "03886660129", "03886660129", "VA - 386325", "società a responsabilità limitata", new DateTime(2022,03,11), 20_000m, "86.23.00", "identcormano@pec.cgn.it",      "IT60X0306901604100000200003"),
-        new Seed("Ident Giussano",     "IDENT GIUSSANO SRL",     "03846780124", "03846780124", "VA - 383450", "società a responsabilità limitata", new DateTime(2021,08,03), 20_000m, "86.23.00", "identgiussanosrl@pec.cgn.it",  "IT60X0306901604100000200004"),
-        new Seed("Ident Milano 3",     "IDENT MILANO3 SRL",      "04044840124", "04044840124", "VA - 397827", "società a responsabilità limitata", new DateTime(2024,10,18), 20_000m, "86.23.00", "identmilano3srl@pec.it",       "IT60X0306901604100000200005"),
-        new Seed("Ident Milano 6",     "IDENT MILANO6 SRL",      "04032580120", "04032580120", "VA - 396915", "società a responsabilità limitata", new DateTime(2024,07,12), 20_000m, "86.23.00", "identmilano6srl@pec.it",       "IT60X0306901604100000200006"),
-        new Seed("Ident Milano 7",     "IDENT MILANO7 SRL",      "03916500121", "03916500121", "VA - 388438", "società a responsabilità limitata", new DateTime(2022,09,22), 20_000m, "86.23.00", "identmilano7srl@pec.it",       "IT60X0306901604100000200007"),
-        new Seed("Ident Milano 9",     "IDENT MILANO9 SRL",      "03932250123", "03932250123", "VA - 389743", "società a responsabilità limitata", new DateTime(2023,01,10), 20_000m, "86.23.00", "identmilano9srl@pec.it",       "IT60X0306901604100000200008"),
-        new Seed("Ident SGM",          "IDENT SGM SRL",          "03974920120", "03974920120", "VA - 392779", "società a responsabilità limitata", new DateTime(2023,09,05), 20_000m, "86.23.00", "identsgmsrl@pec.it",           "IT60X0306901604100000200009"),
-        new Seed("Ident Varese",       "IDENT VARESE SRL",       "11685190966", "11685190966", "VA - 382574", "società a responsabilità limitata", new DateTime(2021,03,24), 30_000m, "86.23.00", "identvaresesrl@pec.cgn.it",    "IT60X0306901604100000200010"),
-        new Seed("Ident Bollate",      "IDENT BOLLATE SRL",      "04001360124", "04001360124", "VA - 394627", "società a responsabilità limitata", new DateTime(2024,01,29), 20_000m, "86.23.00", "identbollatesrl@pec.it",       "IT60X0306901604100000200011"),
-        new Seed("Ident Brugherio",    "IDENT BRUGHERIO SRL",    "04052040120", "04052040120", "VA - 398503", "società a responsabilità limitata", new DateTime(2024,12,18), 20_000m, "86.23.00", "identbrugheriosrl@pec.it",     "IT60X0306901604100000200012"),
-        new Seed("Ident Busto Arsizio","IDENT BUSTO ARSIZIO SRL","03989870120", "03989870120", "VA - 393979", "società a responsabilità limitata", new DateTime(2023,12,19), 20_000m, "86.23.00", "identbustoarsiziosrl@pec.it",  "IT60X0306901604100000200013"),
-        new Seed("Ident Comasina",     "IDENT COMASINA SRL",     "04080280128", "04080280128", "VA - 400403", "società a responsabilità limitata", new DateTime(2025,04,18), 20_000m, "86.23.00", "identcomasinasrl@pec.it",      "IT60X0306901604100000200014"),
-        new Seed("Ident Como",         "IDENT COMO SRL",         "03891040127", "03891040127", "VA - 386598", "società a responsabilità limitata", new DateTime(2022,04,01), 20_000m, "86.23.00", "identcomosrl@pec.cgn.it",      "IT60X0306901604100000200015")
+        // L'unica S.p.A. è la holding CCH (sede legale principale del gruppo) — nessuna unità locale.
+        new Seed("Ident CCH",          "CONFIDENT COMMERCIALE HOLDING S.P.A SOCIETA' BENEFIT", "11659240961", "11659240961", "VA - 384027", "società per azioni",            new DateTime(2021,03,10), 50_000m, "73.11.02", "cchsrl@pec.cgn.it",            "IT60X0306901604100000200001", null,                                     null,                      null, null,    IsHolding: true),
+        new Seed("Ident",              "IDENT SRL",              "03774390128", "03774390128", "VA - 378013", "società a responsabilità limitata", new DateTime(2020,05,28), 30_000m, "86.23.00", "identsrl@pec.cgn.it",          "IT60X0306901604100000200002", "VIA MILANO 179",                          "DESIO",                   "MB", "20832"),
+        new Seed("Ident Cormano",      "IDENT CORMANO SRL",      "03886660129", "03886660129", "VA - 386325", "società a responsabilità limitata", new DateTime(2022,03,11), 20_000m, "86.23.00", "identcormano@pec.cgn.it",      "IT60X0306901604100000200003", "VIA VALASSINA 2",                         "CORMANO",                 "MI", "20032"),
+        new Seed("Ident Giussano",     "IDENT GIUSSANO SRL",     "03846780124", "03846780124", "VA - 383450", "società a responsabilità limitata", new DateTime(2021,08,03), 20_000m, "86.23.00", "identgiussanosrl@pec.cgn.it",  "IT60X0306901604100000200004", "VIALE BRIANZA 14/F",                      "GIUSSANO",                "MB", "20833"),
+        new Seed("Ident Milano 3",     "IDENT MILANO3 SRL",      "04044840124", "04044840124", "VA - 397827", "società a responsabilità limitata", new DateTime(2024,10,18), 20_000m, "86.23.00", "identmilano3srl@pec.it",       "IT60X0306901604100000200005", "VIA CASORETTO 45",                        "MILANO",                  "MI", "20131"),
+        new Seed("Ident Milano 6",     "IDENT MILANO6 SRL",      "04032580120", "04032580120", "VA - 396915", "società a responsabilità limitata", new DateTime(2024,07,12), 20_000m, "86.23.00", "identmilano6srl@pec.it",       "IT60X0306901604100000200006", "VIALE FAMAGOSTA 7",                       "MILANO",                  "MI", "20142"),
+        new Seed("Ident Milano 7",     "IDENT MILANO7 SRL",      "03916500121", "03916500121", "VA - 388438", "società a responsabilità limitata", new DateTime(2022,09,22), 20_000m, "86.23.00", "identmilano7srl@pec.it",       "IT60X0306901604100000200007", "VIA DELLE FORZE ARMATE 260",              "MILANO",                  "MI", "20147"),
+        new Seed("Ident Milano 9",     "IDENT MILANO9 SRL",      "03932250123", "03932250123", "VA - 389743", "società a responsabilità limitata", new DateTime(2023,01,10), 20_000m, "86.23.00", "identmilano9srl@pec.it",       "IT60X0306901604100000200008", "VIA PIANELL SALVATORE 63",                "MILANO",                  "MI", "20162"),
+        new Seed("Ident SGM",          "IDENT SGM SRL",          "03974920120", "03974920120", "VA - 392779", "società a responsabilità limitata", new DateTime(2023,09,05), 20_000m, "86.23.00", "identsgmsrl@pec.it",           "IT60X0306901604100000200009", "VIA RISORGIMENTO 3",                      "SAN GIULIANO MILANESE",   "MI", "20098"),
+        new Seed("Ident Varese",       "IDENT VARESE SRL",       "11685190966", "11685190966", "VA - 382574", "società a responsabilità limitata", new DateTime(2021,03,24), 30_000m, "86.23.00", "identvaresesrl@pec.cgn.it",    "IT60X0306901604100000200010", "VIALE BELFORTE 5B",                       "VARESE",                  "VA", "21100"),
+        new Seed("Ident Bollate",      "IDENT BOLLATE SRL",      "04001360124", "04001360124", "VA - 394627", "società a responsabilità limitata", new DateTime(2024,01,29), 20_000m, "86.23.00", "identbollatesrl@pec.it",       "IT60X0306901604100000200011", "VIA IV NOVEMBRE 1C",                      "BOLLATE",                 "MI", "20021"),
+        new Seed("Ident Brugherio",    "IDENT BRUGHERIO SRL",    "04052040120", "04052040120", "VA - 398503", "società a responsabilità limitata", new DateTime(2024,12,18), 20_000m, "86.23.00", "identbrugheriosrl@pec.it",     "IT60X0306901604100000200012", "VIALE LOMBARDIA 94/96",                   "BRUGHERIO",               "MB", "20861"),
+        new Seed("Ident Busto Arsizio","IDENT BUSTO ARSIZIO SRL","03989870120", "03989870120", "VA - 393979", "società a responsabilità limitata", new DateTime(2023,12,19), 20_000m, "86.23.00", "identbustoarsiziosrl@pec.it",  "IT60X0306901604100000200013", "PIAZZA ALESSANDRO MANZONI 17",            "BUSTO ARSIZIO",           "VA", "21052"),
+        new Seed("Ident Comasina",     "IDENT COMASINA SRL",     "04080280128", "04080280128", "VA - 400403", "società a responsabilità limitata", new DateTime(2025,04,18), 20_000m, "86.23.00", "identcomasinasrl@pec.it",      "IT60X0306901604100000200014", "VIA ALESSANDRO LITTA MODIGNANI 5",        "MILANO",                  "MI", "20161"),
+        new Seed("Ident Como",         "IDENT COMO SRL",         "03891040127", "03891040127", "VA - 386598", "società a responsabilità limitata", new DateTime(2022,04,01), 20_000m, "86.23.00", "identcomosrl@pec.cgn.it",      "IT60X0306901604100000200015", "VIALE FRATELLI ROSSELLI 13",              "COMO",                    "CO", "22100")
     };
 
     public static async Task SeedAsync(MongoContext ctx, Tenant tenant, ILogger logger, CancellationToken ct = default)
@@ -79,6 +85,10 @@ public static class SocietaSeeder
                 ComuneSedeLegale = "GALLARATE",
                 ProvinciaSedeLegale = "VA",
                 CapSedeLegale = "21013",
+                IndirizzoSedeOperativa = s.IndirizzoOp,
+                ComuneSedeOperativa = s.ComuneOp,
+                ProvinciaSedeOperativa = s.ProvinciaOp,
+                CapSedeOperativa = s.CapOp,
                 Iban = s.DemoIban,
                 Bic = "BCITITMM",
                 IsHolding = s.IsHolding
@@ -90,7 +100,39 @@ public static class SocietaSeeder
             logger.LogInformation("Seeded {Count} società", nuove.Count);
         }
 
+        await BackfillSedeOperativaAsync(ctx, tenant, existing, logger, ct);
         await BackfillClinicaSocietaAsync(ctx, tenant, logger, ct);
+    }
+
+    /// <summary>
+    /// Migrazione idempotente: popola IndirizzoSedeOperativa &amp; co.
+    /// sulle società già esistenti che ne sono prive (matching su CodiceFiscale).
+    /// </summary>
+    private static async Task BackfillSedeOperativaAsync(MongoContext ctx, Tenant tenant, List<Societa> existing, ILogger logger, CancellationToken ct)
+    {
+        var byCf = Catalogo.ToDictionary(c => c.CodiceFiscale, c => c, StringComparer.OrdinalIgnoreCase);
+        var aggiornate = 0;
+        foreach (var s in existing)
+        {
+            if (string.IsNullOrEmpty(s.CodiceFiscale)) continue;
+            if (!byCf.TryGetValue(s.CodiceFiscale, out var src)) continue;
+            if (src.IndirizzoOp is null) continue;
+            if (!string.IsNullOrEmpty(s.IndirizzoSedeOperativa)) continue;
+            await ctx.Societa.UpdateOneAsync(
+                x => x.Id == s.Id,
+                Builders<Societa>.Update
+                    .Set(x => x.IndirizzoSedeOperativa, src.IndirizzoOp)
+                    .Set(x => x.ComuneSedeOperativa, src.ComuneOp)
+                    .Set(x => x.ProvinciaSedeOperativa, src.ProvinciaOp)
+                    .Set(x => x.CapSedeOperativa, src.CapOp)
+                    .Set(x => x.UpdatedAt, DateTime.UtcNow),
+                cancellationToken: ct);
+            aggiornate++;
+        }
+        if (aggiornate > 0)
+        {
+            logger.LogInformation("Backfill sede operativa su {Count} società", aggiornate);
+        }
     }
 
     /// <summary>
