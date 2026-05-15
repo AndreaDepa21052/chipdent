@@ -738,6 +738,12 @@
                             <div class="muted" style="font-size: .68rem; line-height: 1.2; margin-top: 2px;" title="@insertaTooltip">
                                 @origineLabel · @r.CaricataDaNome · @r.CaricataIl.ToLocalTime().ToString("dd/MM/yy")
                             </div>
+                            @if (!string.IsNullOrWhiteSpace(r.Note))
+                            {
+                                <div style="font-size:.68rem; line-height:1.25; margin-top:3px; padding:3px 6px; background:rgba(196,120,48,0.08); border-left:2px solid #c47830; border-radius:2px; color:#5a3f1f;" title="@r.Note">
+                                    📝 @r.Note
+                                </div>
+                            }
                         </td>
                         <td style="text-align:right;" title="@totaleTooltip"><strong>@EurDec(r.Totale)</strong></td>
                         <td>
