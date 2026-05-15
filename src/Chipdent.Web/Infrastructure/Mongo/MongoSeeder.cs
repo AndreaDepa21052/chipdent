@@ -301,6 +301,11 @@ public static class MongoSeeder
             // IBAN sui fornitori già censiti e crea quelli mancanti.
             await ScadenziarioFornitoriSeeder.SeedAsync(ctx, tenant, logger, ct);
 
+            // Riempi gli IBAN ancora mancanti leggendoli dalle fatture passive PDF
+            // (vedi FattureFornitoriIbanData, rigenerato da
+            // tools/import-fatture-ibans.py su FileRaw/DES-*.pdf).
+            await FattureFornitoriIbanSeeder.SeedAsync(ctx, tenant, logger, ct);
+
             await SeedTesoreriaAsync(ctx, hasher, tenant, cliniche, logger, ct);
             await SeedCashflowAsync(ctx, tenant, cliniche, logger, ct);
             await SeedChecklistDipendenteAsync(ctx, tenant, cliniche, logger, ct);
