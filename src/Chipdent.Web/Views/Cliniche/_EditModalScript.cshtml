@@ -1,0 +1,182 @@
+@{
+    // Script condiviso che gestisce apertura/chiusura/submit AJAX della modale di
+    // modifica clinica. Si aggancia a <dialog id="dlg-clinica-edit"> e a tutti
+    // gli elementi con [data-edit-clinica="<id>"].
+}
+<script>
+(function () {
+    const dlg = document.getElementById('dlg-clinica-edit');
+    if (!dlg) return;
+
+    function setLoading() {
+        dlg.innerHTML = '<div class="dotmodal"><div style="padding:60px;text-align:center;color:#6b5538;">Caricamento…</div></div>';
+    }
+
+    function close() {
+        if (typeof dlg.close === 'function') dlg.close();
+        else dlg.removeAttribute('open');
+    }
+
+    async function open(id) {
+        setLoading();
+        if (typeof dlg.showModal === 'function') dlg.showModal();
+        else dlg.setAttribute('open', '');
+
+        try {
+            const r = await fetch('/cliniche/' + encodeURIComponent(id) + '/edit-modal', {
+                headers: { 'X-Requested-With': 'XMLHttpRequest' }
+            });
+            if (!r.ok) throw new Error('Errore caricamento (' + r.status + ')');
+            const html = await r.text();
+            dlg.innerHTML = html;
+            wireUpInner();
+        } catch (err) {
+            dlg.innerHTML = '<div class="dotmodal"><div style="padding:30px;color:#7a2a2a;">Impossibile caricare la scheda: ' + (err.message || err) + ' <button type="button" class="btn btn--ghost" onclick="this.closest(\'dialog\').close()">Chiudi</button></div></div>';
+        }
+    }
+
+    function wireUpInner() {
+        dlg.querySelectorAll('[data-dotmodal-close]').forEach(b =>
+            b.addEventListener('click', () => close()));
+
+        const nav = dlg.querySelector('.dotmodal__sectionnav');
+        const scroll = dlg.querySelector('.dotmodal__scroll');
+
+        // Section nav: smooth scroll + scrollspy
+        if (nav && scroll) {
+            nav.querySelectorAll('a').forEach(a => {
+                a.addEventListener('click', (e) => {
+                    e.preventDefault();
+                    const target = scroll.querySelector(a.getAttribute('href'));
+                    if (target) target.scrollIntoView({ behavior: 'smooth', block: 'start' });
+                });
+            });
+            const sections = Array.from(scroll.querySelectorAll('.dotmodal__section'));
+            scroll.addEventListener('scroll', () => {
+                const top = scroll.scrollTop + 20;
+                let active = sections[0];
+                for (const s of sections) {
+                    if (s.offsetTop - 30 <= top) active = s;
+                }
+                if (active) {
+                    nav.querySelectorAll('a').forEach(a => a.classList.toggle(
+                        'is-active', a.getAttribute('href') === '#' + active.id));
+                }
+            }, { passive: true });
+        }
+
+        // Fascia criticità: click su chip → scrolla al campo e mette il focus.
+        dlg.querySelectorAll('.clinmodal__chip[data-jump-to]').forEach(chip => {
+            chip.addEventListener('click', () => {
+                const fldId = chip.getAttribute('data-jump-to');
+                const sectionId = chip.getAttribute('data-section');
+                const fld = fldId ? dlg.querySelector('#' + fldId) : null;
+                const sec = sectionId ? dlg.querySelector('#' + sectionId) : null;
+                if (sec && scroll) sec.scrollIntoView({ behavior: 'smooth', block: 'start' });
+                if (fld) {
+                    setTimeout(() => {
+                        fld.focus({ preventScroll: true });
+                        fld.classList.add('fornmodal__fld-flash');
+                        setTimeout(() => fld.classList.remove('fornmodal__fld-flash'), 1200);
+                    }, 260);
+                }
+            });
+        });
+
+        // Geocode dall'indirizzo (Nominatim).
+        const geoBtn = dlg.querySelector('[data-clinmodal-geocode]');
+        const geoStatus = dlg.querySelector('[data-clinmodal-geocode-status]');
+        const indirizzoFld = dlg.querySelector('#fld-Indirizzo');
+        const cittaFld = dlg.querySelector('#fld-Citta');
+        const latFld = dlg.querySelector('#fld-Latitudine');
+        const lngFld = dlg.querySelector('#fld-Longitudine');
+        if (geoBtn) {
+            geoBtn.addEventListener('click', async () => {
+                const q = [indirizzoFld?.value, cittaFld?.value].filter(Boolean).join(', ');
+                if (!q) { if (geoStatus) geoStatus.textContent = 'Compila prima Indirizzo e Città.'; return; }
+                if (geoStatus) geoStatus.textContent = 'Ricerca in corso…';
+                try {
+                    const r = await fetch('https://nominatim.openstreetmap.org/search?format=json&limit=1&q=' + encodeURIComponent(q), {
+                        headers: { 'Accept': 'application/json' }
+                    });
+                    const results = await r.json();
+                    if (!results || !results.length) {
+                        if (geoStatus) geoStatus.textContent = 'Nessun risultato.';
+                        return;
+                    }
+                    if (latFld) latFld.value = parseFloat(results[0].lat).toFixed(6);
+                    if (lngFld) lngFld.value = parseFloat(results[0].lon).toFixed(6);
+                    if (geoStatus) geoStatus.textContent = '✓ Coordinate trovate.';
+                } catch {
+                    if (geoStatus) geoStatus.textContent = 'Errore di rete.';
+                }
+            });
+        }
+
+        // Submit AJAX
+        const form = dlg.querySelector('#clinmodal-form');
+        const errorsBox = dlg.querySelector('[data-dotmodal-errors]');
+        const saveBtn = dlg.querySelector('[data-dotmodal-save]');
+        if (form) {
+            form.addEventListener('submit', async (e) => {
+                e.preventDefault();
+                if (errorsBox) { errorsBox.hidden = true; errorsBox.textContent = ''; }
+                const fd = new FormData(form);
+                if (saveBtn) { saveBtn.setAttribute('disabled', 'disabled'); saveBtn.textContent = 'Salvataggio…'; }
+                try {
+                    const r = await fetch(form.action, {
+                        method: 'POST',
+                        body: fd,
+                        headers: { 'X-Edit-Modal': '1', 'X-Requested-With': 'XMLHttpRequest' }
+                    });
+                    if (r.ok) {
+                        close();
+                        window.location.reload();
+                        return;
+                    }
+                    if (r.status === 400) {
+                        const data = await r.json().catch(() => ({}));
+                        if (errorsBox) {
+                            const lines = [];
+                            if (data && data.errors) {
+                                for (const k of Object.keys(data.errors)) {
+                                    for (const m of data.errors[k]) lines.push((k ? k + ': ' : '') + m);
+                                }
+                            }
+                            errorsBox.textContent = lines.length ? lines.join(' · ') : 'Validazione fallita.';
+                            errorsBox.hidden = false;
+                            errorsBox.scrollIntoView({ behavior: 'smooth', block: 'center' });
+                        }
+                    } else {
+                        if (errorsBox) {
+                            errorsBox.textContent = 'Errore inatteso (' + r.status + ').';
+                            errorsBox.hidden = false;
+                        }
+                    }
+                } catch (err) {
+                    if (errorsBox) {
+                        errorsBox.textContent = 'Errore rete: ' + (err.message || err);
+                        errorsBox.hidden = false;
+                    }
+                } finally {
+                    if (saveBtn) { saveBtn.removeAttribute('disabled'); saveBtn.textContent = 'Salva modifiche'; }
+                }
+            });
+        }
+    }
+
+    // Trigger globale
+    document.addEventListener('click', (e) => {
+        const t = e.target.closest('[data-edit-clinica]');
+        if (!t) return;
+        e.preventDefault();
+        const id = t.getAttribute('data-edit-clinica');
+        if (id) open(id);
+    });
+
+    // Click sul backdrop chiude
+    dlg.addEventListener('click', (e) => {
+        if (e.target === dlg) close();
+    });
+})();
+</script>

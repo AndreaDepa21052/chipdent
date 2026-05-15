@@ -1,0 +1,242 @@
+@model Chipdent.Web.Models.ClinicaEditModalViewModel
+@using Chipdent.Web.Domain.Entities
+@{
+    var c = Model.Clinica;
+    var perc = Model.Completezza;
+    var barColor = perc >= 90 ? "#3aa15b" : perc >= 60 ? "#c47830" : "#a83a3a";
+    var iniziali = string.Concat((c.Nome ?? "")
+        .Split(new[] { ' ', '.', '-' }, StringSplitOptions.RemoveEmptyEntries)
+        .Take(2).Select(s => char.ToUpperInvariant(s[0])));
+    if (string.IsNullOrEmpty(iniziali)) iniziali = "C";
+}
+
+<div class="dotmodal clinmodal" data-clinica-id="@c.Id">
+    <header class="dotmodal__header">
+        <div class="dotmodal__avatar">@iniziali</div>
+        <div class="dotmodal__head-text">
+            <div class="dotmodal__eyebrow">Modifica scheda clinica</div>
+            <h2 class="dotmodal__title">@c.Nome</h2>
+            <div class="dotmodal__meta">
+                <span>@(string.IsNullOrEmpty(c.Citta) ? "—" : c.Citta)</span>
+                <span class="dotmodal__sep">·</span>
+                <span>@c.NumeroRiuniti riuniti</span>
+                <span class="dotmodal__sep">·</span>
+                <span>@Model.Dottori dottori · @Model.Dipendenti dipendenti</span>
+                @switch (c.Stato)
+                {
+                    case ClinicaStato.Operativa:
+                        <span class="dotmodal__sep">·</span><span style="color:#9be0b2;">● operativa</span>
+                        break;
+                    case ClinicaStato.InApertura:
+                        <span class="dotmodal__sep">·</span><span style="color:#ffd591;">● in apertura</span>
+                        break;
+                    case ClinicaStato.Chiusa:
+                        <span class="dotmodal__sep">·</span><span style="color:#ffb3a8;">● chiusa</span>
+                        break;
+                }
+            </div>
+        </div>
+        <button type="button" class="dotmodal__close" data-dotmodal-close aria-label="Chiudi">×</button>
+    </header>
+
+    @* ── Fascia orizzontale criticità ─────────────────────────────────── *@
+    <div class="clinmodal__band" aria-label="Riepilogo criticità clinica">
+        <div class="clinmodal__band-summary">
+            <div class="clinmodal__band-perc" style="color:@barColor;">@perc%</div>
+            <div class="clinmodal__band-bar">
+                <div style="width:@(perc)%; background:@barColor;"></div>
+            </div>
+            <div class="clinmodal__band-label">
+                @(Model.NessunaCriticita ? "✅ Anagrafica completa" : "⚠ Da completare")
+            </div>
+        </div>
+
+        <div class="clinmodal__band-chips">
+            @if (Model.NessunaCriticita)
+            {
+                <div class="clinmodal__band-ok">
+                    <span class="clinmodal__band-ok-icon">✅</span>
+                    Nessuna criticità rilevata su questa sede.
+                </div>
+            }
+            else
+            {
+                @foreach (var k in Model.Critiche)
+                {
+                    if (!string.IsNullOrEmpty(k.Href))
+                    {
+                        <a class="clinmodal__chip clinmodal__chip--critico"
+                           href="@k.Href" target="_top"
+                           title="@(k.Tooltip ?? k.Etichetta)">
+                            <span class="clinmodal__chip-icon">@k.Icona</span>
+                            <span class="clinmodal__chip-label">@k.Etichetta</span>
+                        </a>
+                    }
+                    else
+                    {
+                        <button type="button"
+                                class="clinmodal__chip clinmodal__chip--critico"
+                                data-jump-to="@k.JumpToFieldId"
+                                data-section="@k.JumpToSectionId"
+                                title="@(k.Tooltip ?? ("Vai al campo «" + k.Etichetta + "»"))">
+                            <span class="clinmodal__chip-icon">@k.Icona</span>
+                            <span class="clinmodal__chip-label">@k.Etichetta</span>
+                        </button>
+                    }
+                }
+                @foreach (var k in Model.Avvisi)
+                {
+                    if (!string.IsNullOrEmpty(k.Href))
+                    {
+                        <a class="clinmodal__chip clinmodal__chip--avviso"
+                           href="@k.Href" target="_top"
+                           title="@(k.Tooltip ?? k.Etichetta)">
+                            <span class="clinmodal__chip-icon">@k.Icona</span>
+                            <span class="clinmodal__chip-label">@k.Etichetta</span>
+                        </a>
+                    }
+                    else
+                    {
+                        <button type="button"
+                                class="clinmodal__chip clinmodal__chip--avviso"
+                                data-jump-to="@k.JumpToFieldId"
+                                data-section="@k.JumpToSectionId"
+                                title="@(k.Tooltip ?? ("Vai al campo «" + k.Etichetta + "»"))">
+                            <span class="clinmodal__chip-icon">@k.Icona</span>
+                            <span class="clinmodal__chip-label">@k.Etichetta</span>
+                        </button>
+                    }
+                }
+            }
+        </div>
+    </div>
+
+    <div class="dotmodal__body clinmodal__body">
+        <form id="clinmodal-form" method="post" action="/cliniche/@c.Id/modifica" class="dotmodal__form" novalidate>
+            @Html.AntiForgeryToken()
+            <input type="hidden" name="Id" value="@c.Id" />
+
+            <nav class="dotmodal__sectionnav">
+                <a href="#sec-identita" class="is-active">Identità</a>
+                <a href="#sec-contatti">Contatti</a>
+                <a href="#sec-sede">Sede</a>
+                <a href="#sec-bancario">Dati bancari</a>
+            </nav>
+
+            <div class="dotmodal__scroll">
+                <section id="sec-identita" class="dotmodal__section">
+                    <h3 class="dotmodal__sec-title">🏢 Identità</h3>
+                    <div class="dotmodal__grid">
+                        <div class="form-group dotmodal__full">
+                            <label class="form-label">Nome clinica *</label>
+                            <input id="fld-Nome" class="form-control" name="Nome" value="@c.Nome" required placeholder="Es. Confident Bologna" />
+                        </div>
+                        <div class="form-group">
+                            <label class="form-label">Stato</label>
+                            <select class="form-control" name="Stato">
+                                @foreach (var s in Enum.GetValues<ClinicaStato>())
+                                {
+                                    <option value="@s" selected="@(s == c.Stato)">@s</option>
+                                }
+                            </select>
+                        </div>
+                        <div class="form-group">
+                            <label class="form-label">Numero riuniti</label>
+                            <input id="fld-NumeroRiuniti" class="form-control" type="number" min="0" name="NumeroRiuniti" value="@c.NumeroRiuniti" />
+                        </div>
+                        <div class="form-group">
+                            <label class="form-label">Organico target</label>
+                            <input id="fld-OrganicoTarget" class="form-control" type="number" min="0" name="OrganicoTarget" value="@c.OrganicoTarget" placeholder="Es. 8" />
+                        </div>
+                        <div class="form-group">
+                            <label class="form-check" style="margin-top: 24px;">
+                                <input type="checkbox" name="IsHolding" value="true" @(c.IsHolding ? "checked" : "") />
+                                <input type="hidden" name="IsHolding" value="false" />
+                                Soggetto holding (no clinica clinica)
+                            </label>
+                        </div>
+                    </div>
+                </section>
+
+                <section id="sec-contatti" class="dotmodal__section">
+                    <h3 class="dotmodal__sec-title">📞 Contatti</h3>
+                    <div class="dotmodal__grid">
+                        <div class="form-group">
+                            <label class="form-label">Telefono</label>
+                            <input id="fld-Telefono" class="form-control" name="Telefono" value="@c.Telefono" placeholder="+39 …" />
+                        </div>
+                        <div class="form-group">
+                            <label class="form-label">Email</label>
+                            <input id="fld-Email" class="form-control" type="email" name="Email" value="@c.Email" />
+                        </div>
+                    </div>
+                </section>
+
+                <section id="sec-sede" class="dotmodal__section">
+                    <h3 class="dotmodal__sec-title">📍 Sede</h3>
+                    <div class="dotmodal__grid">
+                        <div class="form-group dotmodal__full">
+                            <label class="form-label">Indirizzo *</label>
+                            <input id="fld-Indirizzo" class="form-control" name="Indirizzo" value="@c.Indirizzo" required placeholder="Via / Piazza, numero civico" />
+                        </div>
+                        <div class="form-group dotmodal__full">
+                            <label class="form-label">Città *</label>
+                            <input id="fld-Citta" class="form-control" name="Citta" value="@c.Citta" required />
+                        </div>
+                        <div class="form-group">
+                            <label class="form-label">Latitudine</label>
+                            <input id="fld-Latitudine" class="form-control" type="number" step="any" name="Latitudine" value="@c.Latitudine" placeholder="Es. 45.4654" />
+                        </div>
+                        <div class="form-group">
+                            <label class="form-label">Longitudine</label>
+                            <input id="fld-Longitudine" class="form-control" type="number" step="any" name="Longitudine" value="@c.Longitudine" placeholder="Es. 9.1859" />
+                        </div>
+                        <div class="form-group dotmodal__full">
+                            <button type="button" class="btn btn--ghost btn--sm" data-clinmodal-geocode style="font-size:.78rem;">
+                                📍 Cerca coordinate dall'indirizzo
+                            </button>
+                            <span data-clinmodal-geocode-status style="margin-left:8px; font-size:.78rem; color: var(--c-ink-soft);"></span>
+                        </div>
+                    </div>
+                </section>
+
+                <section id="sec-bancario" class="dotmodal__section">
+                    <h3 class="dotmodal__sec-title">🏦 Dati bancari ordinante</h3>
+                    <p class="muted" style="font-size:.82rem; margin:0 0 10px;">
+                        Se compilati, i bonifici a fornitori di questa sede partiranno da questo IBAN.
+                        Lasciandoli vuoti si userà l'IBAN del workspace.
+                    </p>
+                    <div class="dotmodal__grid">
+                        <div class="form-group dotmodal__full">
+                            <label class="form-label">Ragione sociale ordinante</label>
+                            <input id="fld-RagioneSocialeOrdinante" class="form-control" name="RagioneSocialeOrdinante"
+                                   value="@c.RagioneSocialeOrdinante" maxlength="70" placeholder="Es. Confident Milano S.r.l." />
+                        </div>
+                        <div class="form-group">
+                            <label class="form-label">IBAN ordinante</label>
+                            <input id="fld-IbanOrdinante" class="form-control" name="IbanOrdinante" value="@c.IbanOrdinante"
+                                   placeholder="IT…" style="font-family: monospace;" />
+                        </div>
+                        <div class="form-group">
+                            <label class="form-label">BIC / SWIFT</label>
+                            <input id="fld-BicOrdinante" class="form-control" name="BicOrdinante" value="@c.BicOrdinante"
+                                   placeholder="UNCRITMM" maxlength="11" style="font-family: monospace;" />
+                        </div>
+                    </div>
+                </section>
+
+                <div class="dotmodal__errors" data-dotmodal-errors hidden></div>
+            </div>
+        </form>
+    </div>
+
+    <footer class="dotmodal__footer">
+        <a class="dotmodal__expand" href="/cliniche/@c.Id/modifica" target="_top" title="Apri la versione a pagina intera">
+            ⤢ Ingrandisci scheda di modifica
+        </a>
+        <div class="dotmodal__footer-actions">
+            <button type="button" class="btn btn--ghost" data-dotmodal-close>Annulla</button>
+            <button type="submit" form="clinmodal-form" class="btn btn--primary" data-dotmodal-save>Salva modifiche</button>
+        </div>
+    </footer>
+</div>

@@ -3,6 +3,7 @@ using Chipdent.Web.Infrastructure.Identity;
 using Chipdent.Web.Infrastructure.Mongo;
 using Chipdent.Web.Infrastructure.Rls;
 using Chipdent.Web.Infrastructure.Tenancy;
+using Chipdent.Web.Models;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using MongoDB.Driver;
@@ -359,14 +360,114 @@ public class ClinicheController : Controller
         return View("Form", clinica);
     }
 
+    /// <summary>Restituisce la modale di modifica rapida della clinica (partial).</summary>
+    [HttpGet("{id}/edit-modal")]
+    [Authorize(Policy = Policies.RequireBackoffice)]
+    public async Task<IActionResult> EditModal(string id)
+    {
+        var clinica = await Load(id);
+        if (clinica is null) return NotFound();
+
+        var tid = _tenant.TenantId;
+        var oggi = DateTime.UtcNow.Date;
+        var soglia30 = oggi.AddDays(30);
+
+        var interventi = await _mongo.InterventiClinica
+            .Find(i => i.TenantId == tid && i.ClinicaId == id && i.ProssimaScadenza != null && i.ProssimaScadenza <= soglia30)
+            .ToListAsync();
+        var scaduti = interventi.Count(i => i.ProssimaScadenza!.Value.Date < oggi);
+        var imminenti = interventi.Count(i => i.ProssimaScadenza!.Value.Date >= oggi && i.ProssimaScadenza.Value.Date <= soglia30);
+
+        var dottoriCount = (int)await _mongo.Dottori
+            .CountDocumentsAsync(d => d.TenantId == tid && d.ClinicaPrincipaleId == id);
+        var dipendentiCount = (int)await _mongo.Dipendenti
+            .CountDocumentsAsync(d => d.TenantId == tid && d.ClinicaId == id);
+
+        var vm = new ClinicaEditModalViewModel
+        {
+            Clinica = clinica,
+            InterventiScaduti = scaduti,
+            InterventiImminenti = imminenti,
+            Dottori = dottoriCount,
+            Dipendenti = dipendentiCount
+        };
+
+        var calendarioHref = Url.Action("Index", "CalendarioInterventi");
+
+        if (scaduti > 0)
+        {
+            vm.Critiche.Add(new ClinicaCriticita(
+                $"{scaduti} interventi scaduti", "⛔",
+                Href: calendarioHref,
+                Tooltip: "Apri il Calendario interventi per gestire le scadenze già scadute"));
+        }
+        if (imminenti > 0)
+        {
+            vm.Avvisi.Add(new ClinicaCriticita(
+                $"{imminenti} in scadenza ≤ 30 gg", "⏰",
+                Href: calendarioHref,
+                Tooltip: "Apri il Calendario interventi per le scadenze imminenti"));
+        }
+
+        // Campi anagrafici — criticità sulla scheda. I "critici" sono campi
+        // richiesti (Nome/Citta/Indirizzo). Gli altri sono "avvisi" raccomandati.
+        if (string.IsNullOrWhiteSpace(clinica.Nome))
+            vm.Critiche.Add(new ClinicaCriticita("Nome clinica", "🏷", "fld-Nome", "sec-identita"));
+        if (string.IsNullOrWhiteSpace(clinica.Citta))
+            vm.Critiche.Add(new ClinicaCriticita("Città", "🏙", "fld-Citta", "sec-sede"));
+        if (string.IsNullOrWhiteSpace(clinica.Indirizzo))
+            vm.Critiche.Add(new ClinicaCriticita("Indirizzo", "📍", "fld-Indirizzo", "sec-sede"));
+
+        if (string.IsNullOrWhiteSpace(clinica.Telefono))
+            vm.Avvisi.Add(new ClinicaCriticita("Telefono", "📞", "fld-Telefono", "sec-contatti"));
+        if (string.IsNullOrWhiteSpace(clinica.Email))
+            vm.Avvisi.Add(new ClinicaCriticita("Email", "✉️", "fld-Email", "sec-contatti"));
+        if (!clinica.IsGeolocalized)
+            vm.Avvisi.Add(new ClinicaCriticita("Coordinate GPS", "🗺", "fld-Latitudine", "sec-sede"));
+        if (clinica.NumeroRiuniti <= 0)
+            vm.Avvisi.Add(new ClinicaCriticita("Numero riuniti", "🦷", "fld-NumeroRiuniti", "sec-identita"));
+        if (!clinica.OrganicoTarget.HasValue || clinica.OrganicoTarget.Value <= 0)
+            vm.Avvisi.Add(new ClinicaCriticita("Organico target", "👥", "fld-OrganicoTarget", "sec-identita"));
+
+        // Completezza: 9 voci anagrafiche pesate pari + assenza interventi scaduti.
+        var voci = new[]
+        {
+            !string.IsNullOrWhiteSpace(clinica.Nome),
+            !string.IsNullOrWhiteSpace(clinica.Citta),
+            !string.IsNullOrWhiteSpace(clinica.Indirizzo),
+            !string.IsNullOrWhiteSpace(clinica.Telefono),
+            !string.IsNullOrWhiteSpace(clinica.Email),
+            clinica.IsGeolocalized,
+            clinica.NumeroRiuniti > 0,
+            clinica.OrganicoTarget.HasValue && clinica.OrganicoTarget.Value > 0,
+            scaduti == 0
+        };
+        vm.Completezza = (int)Math.Round(voci.Count(x => x) * 100.0 / voci.Length);
+
+        return PartialView("_EditModal", vm);
+    }
+
     [HttpPost("{id}/modifica")]
     [Authorize(Policy = Policies.RequireBackoffice)]
     [ValidateAntiForgeryToken]
-    public async Task<IActionResult> Edit(string id, Clinica model)
+    public async Task<IActionResult> Edit(string id, Clinica model,
+        [FromHeader(Name = "X-Edit-Modal")] string? modal)
     {
-        if (id != model.Id) return BadRequest();
+        var isModal = modal == "1";
+        if (id != model.Id)
+        {
+            if (isModal) return BadRequest(new { errors = new { Id = new[] { "Id non coerente." } } });
+            return BadRequest();
+        }
         if (!ModelState.IsValid)
         {
+            if (isModal)
+            {
+                var errors = ModelState
+                    .Where(e => e.Value!.Errors.Count > 0)
+                    .ToDictionary(e => e.Key, e => e.Value!.Errors.Select(x => x.ErrorMessage).ToArray());
+                return BadRequest(new { errors });
+            }
             ViewData["Section"] = "cliniche";
             ViewData["IsNew"] = false;
             return View("Form", model);
@@ -378,6 +479,7 @@ public class ClinicheController : Controller
         model.UpdatedAt = DateTime.UtcNow;
         await _mongo.Cliniche.ReplaceOneAsync(c => c.Id == id && c.TenantId == _tenant.TenantId, model);
         TempData["flash"] = $"Clinica «{model.Nome}» aggiornata.";
+        if (isModal) return Ok(new { ok = true });
         return RedirectToAction(nameof(Details), new { id });
     }
 
