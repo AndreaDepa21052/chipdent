@@ -20,6 +20,15 @@ public class Fornitore : TenantEntity
     /// diversa dal soggetto che emette fattura (es. mandato di pagamento, gruppo, holding).</summary>
     public string RagioneSocialePagamento { get; set; } = string.Empty;
 
+    /// <summary>Nome da mostrare nello scadenziario / distinta come beneficiario del pagamento:
+    /// <see cref="RagioneSocialePagamento"/> se valorizzata, altrimenti fallback alla
+    /// <see cref="RagioneSociale"/> della fattura. Non persistita.</summary>
+    [System.Text.Json.Serialization.JsonIgnore]
+    [MongoDB.Bson.Serialization.Attributes.BsonIgnore]
+    public string NomePerPagamento => string.IsNullOrWhiteSpace(RagioneSocialePagamento)
+        ? RagioneSociale
+        : RagioneSocialePagamento;
+
     public string? PartitaIva { get; set; }
     public string? CodiceFiscale { get; set; }
     public string? CodiceSdi { get; set; }
