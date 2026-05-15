@@ -312,6 +312,10 @@ public static class MongoSeeder
             // Backfill difensivo: assegna un codice a qualunque fornitore esistente
             // ne sia rimasto privo (regressioni storiche, ombra di dottori legacy, …).
             await BackfillCodiceFornitoriSeeder.SeedAsync(ctx, tenant, logger, ct);
+
+            // One-shot: rimuove il fornitore fantasma con ragione sociale "FORNITORI"
+            // (header della colonna A del file xlsx importata per errore come riga dati).
+            await PurgeHeaderFornitoreSeeder.SeedAsync(ctx, tenant, logger, ct);
             if (ombraCreati > 0)
             {
                 logger.LogInformation("Sincronizzati {Count} fornitori-ombra dei dottori", ombraCreati);
