@@ -48,7 +48,7 @@
 else
 {
     <div data-table-search>
-        <partial name="_TableSearch" model='new Microsoft.AspNetCore.Mvc.ViewFeatures.ViewDataDictionary(ViewData) { ["Placeholder"] = "Cerca fornitore per ragione sociale, P.IVA, categoria…", ["Singular"] = "fornitore", ["Plural"] = "fornitori" }' />
+        <partial name="_TableSearch" model='new Microsoft.AspNetCore.Mvc.ViewFeatures.ViewDataDictionary(ViewData) { ["Placeholder"] = "Cerca fornitore per ragione sociale, categoria…", ["Singular"] = "fornitore", ["Plural"] = "fornitori" }' />
         <div class="forn-toolbar">
             <label class="forn-toggle">
                 <input type="checkbox" id="forn-hide-dottori" />
@@ -60,43 +60,40 @@ else
         <table class="table forn-grid" id="fornitori-grid">
             <thead>
                 <tr>
-                    <th data-sort-key="codice" data-col="codice" style="width:80px;">
+                    <th data-sort-key="codice" data-col="codice" style="width:56px;">
                         <span class="th-label">Codice</span><span class="th-sort"></span><span class="th-resizer"></span>
                     </th>
-                    <th data-sort-key="ragsoc" data-col="ragsoc" style="width:200px;">
+                    <th data-sort-key="ragsoc" data-col="ragsoc" style="width:11%;">
                         <span class="th-label">Ragione sociale</span><span class="th-sort"></span><span class="th-resizer"></span>
                     </th>
-                    <th data-sort-key="ragsocpag" data-col="ragsocpag" style="width:200px;">
+                    <th data-sort-key="ragsocpag" data-col="ragsocpag" style="width:11%;">
                         <span class="th-label">Rag. soc. pagamento</span><span class="th-sort"></span><span class="th-resizer"></span>
                     </th>
-                    <th data-sort-key="piva" data-col="piva" style="width:120px;">
-                        <span class="th-label">P.IVA</span><span class="th-sort"></span><span class="th-resizer"></span>
-                    </th>
-                    <th data-sort-key="cat1" data-col="cat1" style="width:150px;">
+                    <th data-sort-key="cat1" data-col="cat1" style="width:11%;">
                         <span class="th-label">Cat. primaria</span><span class="th-sort"></span><span class="th-resizer"></span>
                     </th>
-                    <th data-sort-key="cat2" data-col="cat2" style="width:150px;">
+                    <th data-sort-key="cat2" data-col="cat2" style="width:11%;">
                         <span class="th-label">Cat. secondaria</span><span class="th-sort"></span><span class="th-resizer"></span>
                     </th>
-                    <th data-sort-key="sede" data-col="sede" style="width:140px;">
+                    <th data-sort-key="sede" data-col="sede" style="width:9%;">
                         <span class="th-label">Sede rif.</span><span class="th-sort"></span><span class="th-resizer"></span>
                     </th>
-                    <th data-sort-key="stato" data-col="stato" style="width:100px;">
+                    <th data-sort-key="stato" data-col="stato" style="width:74px;">
                         <span class="th-label">Stato</span><span class="th-sort"></span><span class="th-resizer"></span>
                     </th>
-                    <th data-sort-key="completezza" data-col="completezza" title="Percentuale di completezza dell'anagrafica + dati SEPA. I campi SEPA pesano il doppio." style="width:120px;">
-                        <span class="th-label">Completezza</span><span class="th-sort"></span><span class="th-resizer"></span>
+                    <th data-sort-key="completezza" data-col="completezza" title="Percentuale di completezza dell'anagrafica + dati SEPA. I campi SEPA pesano il doppio." style="width:88px;">
+                        <span class="th-label">Compl.</span><span class="th-sort"></span><span class="th-resizer"></span>
                     </th>
-                    <th data-sort-key="sepa" data-col="sepa" style="width:80px;">
+                    <th data-sort-key="sepa" data-col="sepa" style="width:52px;">
                         <span class="th-label">SEPA</span><span class="th-sort"></span><span class="th-resizer"></span>
                     </th>
-                    <th data-sort-key="esposto" data-col="esposto" data-sort-type="number" style="width:100px; text-align:right;">
+                    <th data-sort-key="esposto" data-col="esposto" data-sort-type="number" style="width:78px; text-align:right;">
                         <span class="th-label">Esposto</span><span class="th-sort"></span><span class="th-resizer"></span>
                     </th>
-                    <th data-sort-key="ytd" data-col="ytd" data-sort-type="number" style="width:80px; text-align:right;">
-                        <span class="th-label">Fatt. YTD</span><span class="th-sort"></span><span class="th-resizer"></span>
+                    <th data-sort-key="ytd" data-col="ytd" data-sort-type="number" style="width:54px; text-align:right;">
+                        <span class="th-label">YTD</span><span class="th-sort"></span><span class="th-resizer"></span>
                     </th>
-                    <th data-col="azioni" style="width:140px;">
+                    <th data-col="azioni" style="width:104px;">
                         <span class="th-label"></span><span class="th-resizer"></span>
                     </th>
                 </tr>
@@ -119,7 +116,7 @@ else
                     <td class="muted" data-col="codice" data-sort-value="@(r.Fornitore.Codice ?? "")">
                         @(string.IsNullOrEmpty(r.Fornitore.Codice) ? "—" : r.Fornitore.Codice)
                         @* _TableSearch indicizza textContent; rendiamo cercabili anche i valori degli <input>. *@
-                        <span style="display:none;" data-search-blob>@r.Fornitore.RagioneSociale @rsPagamento @(r.Fornitore.PartitaIva ?? "") @r.Fornitore.CategoriaDefault @(r.Fornitore.CategoriaSecondaria?.ToString() ?? "")</span>
+                        <span style="display:none;" data-search-blob>@r.Fornitore.RagioneSociale @rsPagamento @r.Fornitore.CategoriaDefault @(r.Fornitore.CategoriaSecondaria?.ToString() ?? "")</span>
                     </td>
                     <td data-col="ragsoc" data-sort-value="@r.Fornitore.RagioneSociale">
                         <input class="inline-input" data-field="RagioneSociale" value="@r.Fornitore.RagioneSociale" />
@@ -127,7 +124,6 @@ else
                     <td data-col="ragsocpag" data-sort-value="@rsPagamento">
                         <input class="inline-input" data-field="RagioneSocialePagamento" value="@rsPagamento" placeholder="(uguale alla ragione sociale)" />
                     </td>
-                    <td class="muted" data-col="piva" data-sort-value="@(r.Fornitore.PartitaIva ?? "")">@(r.Fornitore.PartitaIva ?? "—")</td>
                     <td data-col="cat1" data-sort-value="@r.Fornitore.CategoriaDefault">
                         <select class="inline-input" data-field="CategoriaDefault">
                             @foreach (var c in categorie)
@@ -240,21 +236,39 @@ else
         position: relative;
     }
     .forn-grid {
-        font-size: .78rem;
+        font-size: .76rem;
         table-layout: fixed;
-        width: max-content;
-        min-width: 100%;
+        width: 100%;
         border-collapse: separate;
         border-spacing: 0;
     }
     .forn-grid th,
     .forn-grid td {
-        padding: 4px 6px;
+        padding: 2px 4px;
         vertical-align: middle;
         overflow: hidden;
         text-overflow: ellipsis;
         white-space: nowrap;
     }
+    /* Azioni sempre visibili: sticky a destra anche se la viewport è stretta. */
+    .forn-grid th[data-col="azioni"],
+    .forn-grid td[data-col="azioni"] {
+        position: sticky;
+        right: 0;
+        background: #fff;
+        box-shadow: -6px 0 8px -6px rgba(60, 30, 12, .12);
+    }
+    .forn-grid th[data-col="azioni"] {
+        background: var(--c-bg-soft, #faf6f0);
+        z-index: 6;
+    }
+    [data-forn-row]:hover td[data-col="azioni"] { background: #fbf6ec; }
+    .forn-grid td[data-col="azioni"] .btn {
+        padding: 2px 6px;
+        min-width: 0;
+        line-height: 1.1;
+    }
+    .forn-grid td[data-col="azioni"] .btn + .btn { margin-left: 2px; }
     .forn-grid th {
         position: sticky;
         top: 0;
