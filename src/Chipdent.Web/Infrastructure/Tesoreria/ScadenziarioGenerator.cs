@@ -225,6 +225,20 @@ public static class ScadenziarioGenerator
         var ibanCacheByForn = new Dictionary<string, string?>(StringComparer.OrdinalIgnoreCase);
         var importiByForn = new Dictionary<string, List<(DateTime data, decimal importo)>>(StringComparer.OrdinalIgnoreCase);
 
+        // Codice scadenza: progressivo per anno+mese della data scadenza,
+        // formato SC-YYYYMM-NNNN. Reset ad ogni rigenerazione (la sequenza
+        // non è persistita: il codice serve come riferimento "umano" stabile
+        // all'interno dello stesso scadenziario rigenerato).
+        var seqByMese = new Dictionary<string, int>(StringComparer.Ordinal);
+        string NextCodiceScadenza(DateTime dataScadenza)
+        {
+            var key = dataScadenza.ToString("yyyyMM");
+            seqByMese.TryGetValue(key, out var n);
+            n++;
+            seqByMese[key] = n;
+            return $"SC-{key}-{n:D4}";
+        }
+
         // Ordine cronologico per applicare le regole di "fattura precedente"
         // in modo deterministico (più vecchia → più recente).
         var righeOrdinate = input.Righe
@@ -453,6 +467,13 @@ public static class ScadenziarioGenerator
                 }
             }
 
+            // Assegnazione del codice scadenza in ordine cronologico stabile
+            // sulla data scadenza (le rate F24/ritenute prendono il codice
+            // successivo alla loro padre — sono già appese in fondo a `scadenze`).
+            foreach (var sc in scadenze)
+            {
+                sc.Codice = NextCodiceScadenza(sc.DataScadenza);
+            }
             output.Scadenze.AddRange(scadenze);
 
             // ── Duplicate / scostamento importo ─────────────────────────

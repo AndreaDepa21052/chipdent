@@ -65,19 +65,20 @@ public class TesoreriaController : Controller
         var fatture = await _mongo.Fatture.Find(f => f.TenantId == tid).ToListAsync();
         var fatturePerId = fatture.ToDictionary(f => f.Id);
 
-        // IBAN ordinante: deriva dalla Società di appartenenza della clinica
-        // destinataria della fattura. Fallback all'IBAN ordinante della clinica
-        // stessa quando la Società non è associata o non ha IBAN configurato.
+        // Dati ordinante (IBAN, BIC, ragione sociale) derivati dalla Società
+        // di appartenenza della clinica destinataria della fattura. Fallback
+        // all'IBAN ordinante della clinica quando la Società non è associata
+        // o non ha IBAN configurato. È il "DA" del bonifico mostrato in griglia.
         var societaList = await _mongo.Societa.Find(s => s.TenantId == tid).ToListAsync();
         var societaById = societaList.ToDictionary(s => s.Id);
-        string? IbanOrdinanteForClinica(Clinica? c)
+        (string? iban, string? bic, string? nome) OrdinanteForClinica(Clinica? c)
         {
-            if (c == null) return null;
+            if (c == null) return (null, null, null);
             if (!string.IsNullOrEmpty(c.SocietaId)
                 && societaById.TryGetValue(c.SocietaId, out var soc)
                 && !string.IsNullOrWhiteSpace(soc.Iban))
-                return soc.Iban;
-            return c.IbanOrdinante;
+                return (soc.Iban, soc.Bic, !string.IsNullOrWhiteSpace(soc.Nome) ? soc.Nome : soc.RagioneSociale);
+            return (c.IbanOrdinante, c.BicOrdinante, c.RagioneSocialeOrdinante ?? c.Nome);
         }
 
         // Mappa userId -> FullName per risolvere "Caricata da" sulle fatture create dal back-office.
@@ -135,6 +136,8 @@ public class TesoreriaController : Controller
                     && (string.IsNullOrWhiteSpace(ibanEffettivo)
                         || !FornitoreCompletezza.IsValidIban(FornitoreCompletezza.NormalizeIban(ibanEffettivo)));
 
+                var ord = OrdinanteForClinica(c);
+
                 return new RigaTesoreria
                 {
                     ScadenzaId = s.Id,
@@ -155,7 +158,9 @@ public class TesoreriaController : Controller
                     Categoria = s.Categoria,
                     Note = s.Note ?? fa?.Note,
                     Iban = string.IsNullOrWhiteSpace(s.Iban) ? f?.Iban : s.Iban,
-                    IbanOrdinante = IbanOrdinanteForClinica(c),
+                    IbanOrdinante = ord.iban,
+                    BicOrdinante = ord.bic,
+                    SocietaNome = ord.nome,
                     FlagBM = fa?.BonificoMultiploCbi ?? false,
                     FlagEM = fa?.FlagEM,
                     TipoEmissione = fa?.TipoEmissione ?? TipoEmissioneFattura.NonSpecificato,
@@ -276,11 +281,21 @@ public class TesoreriaController : Controller
             PagatoMeseCorrente = pagatoMese,
             CountFattureInApprovazione = fattureInApprovazione,
             CountFuoriTermini = fuoriTerminiCount,
-            Righe = righe,
+            Righe = righe
+                .Skip(Math.Max(0, (Math.Max(1, filtro.Page) - 1) * Math.Max(1, filtro.Size)))
+                .Take(Math.Max(1, filtro.Size))
+                .ToList(),
+            RigheTotali = righe.Count,
+            Pagina = Math.Max(1, filtro.Page),
+            RighePerPagina = Math.Max(1, filtro.Size),
             TopFornitori = top,
             Filtro = filtro,
             CliniceLookup = cliniche.OrderBy(c => c.Nome).Select(c => (c.Id, c.Nome)).ToList(),
             FornitoriLookup = fornitori.OrderBy(f => f.RagioneSociale).Select(f => (f.Id, f.RagioneSociale)).ToList(),
+            RegoleCustom = await _mongo.RegoleScadenziarioCustom
+                .Find(r => r.TenantId == tid)
+                .SortByDescending(r => r.CreatedAt)
+                .ToListAsync(),
             SpesaPerCategoria12m = perCategoria,
             CashOutFuturo90gg = futuro,
             SpesaPerSede = perSede,
@@ -1496,47 +1511,315 @@ public class TesoreriaController : Controller
     }
 
     // ─────────────────────────────────────────────────────────────
-    //  EXPORT CSV
+    //  EXPORT CSV / XLSX
     // ─────────────────────────────────────────────────────────────
     [HttpGet("export.csv")]
     public async Task<IActionResult> ExportCsv()
+    {
+        var (header, rows) = await BuildExportRowsAsync();
+        var sb = new StringBuilder();
+        sb.Append('﻿'); // BOM UTF-8 (Excel apre con encoding corretto)
+        sb.AppendLine(string.Join(';', header));
+        foreach (var r in rows)
+        {
+            sb.AppendLine(string.Join(';', r.Select(Csv)));
+        }
+        var bytes = Encoding.UTF8.GetBytes(sb.ToString());
+        return File(bytes, "text/csv; charset=utf-8", $"tesoreria-{DateTime.UtcNow:yyyyMMdd}.csv");
+    }
+
+    [HttpGet("export.xlsx")]
+    public async Task<IActionResult> ExportXlsx()
+    {
+        var (header, rows) = await BuildExportRowsAsync();
+        var bytes = XlsxWriter.Build("Scadenziario", header, rows);
+        return File(bytes,
+            "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+            $"tesoreria-{DateTime.UtcNow:yyyyMMdd}.xlsx");
+    }
+
+    /// <summary>
+    /// Costruisce header + righe per gli export. Include tutti i dati della
+    /// griglia, inclusi i nuovi campi (IBAN ordinante, Società, BIC).
+    /// L'export NON è paginato: restituisce sempre l'intero scadenziario.
+    /// </summary>
+    private async Task<(string[] Header, List<string[]> Rows)> BuildExportRowsAsync()
     {
         var tid = _tenant.TenantId!;
         var scadenze = await _mongo.ScadenzePagamento.Find(s => s.TenantId == tid).ToListAsync();
         var fatture = (await _mongo.Fatture.Find(f => f.TenantId == tid).ToListAsync()).ToDictionary(f => f.Id);
         var fornitori = (await _mongo.Fornitori.Find(f => f.TenantId == tid).ToListAsync()).ToDictionary(f => f.Id);
         var cliniche = (await _mongo.Cliniche.Find(c => c.TenantId == tid).ToListAsync()).ToDictionary(c => c.Id);
+        var societa = (await _mongo.Societa.Find(s => s.TenantId == tid).ToListAsync()).ToDictionary(s => s.Id);
 
-        var sb = new StringBuilder();
-        sb.Append('﻿'); // BOM UTF-8 (Excel)
-        sb.AppendLine("Data;Competenza;LOC;EM;BM;NumeroDoc;Fornitore;Imponibile;IVA;Totale;Metodo;Stato;Categoria;Note;IBAN");
+        var header = new[]
+        {
+            "Data", "Competenza", "LOC", "Sede", "Società", "EM", "BM",
+            "NumeroDoc", "Fornitore", "P.IVA fornitore",
+            "Imponibile", "IVA", "Totale", "Metodo", "Stato", "DataPagamento",
+            "Categoria", "Note", "IBAN ordinante", "BIC ordinante", "IBAN beneficiario"
+        };
+
+        var rows = new List<string[]>(scadenze.Count);
         var oggi = DateTime.UtcNow.Date;
         var inv = CultureInfo.InvariantCulture;
+        var itCulture = new CultureInfo("it-IT");
         foreach (var s in scadenze.OrderBy(x => x.DataScadenza))
         {
             var fa = fatture.GetValueOrDefault(s.FatturaId);
             var fr = fornitori.GetValueOrDefault(s.FornitoreId);
             var c = cliniche.GetValueOrDefault(s.ClinicaId);
+            Societa? soc = (c != null && !string.IsNullOrEmpty(c.SocietaId))
+                ? societa.GetValueOrDefault(c.SocietaId) : null;
+            var ibanOrd = !string.IsNullOrWhiteSpace(soc?.Iban) ? soc!.Iban : c?.IbanOrdinante;
+            var bicOrd  = !string.IsNullOrWhiteSpace(soc?.Bic)  ? soc!.Bic  : c?.BicOrdinante;
+            var nomeSoc = !string.IsNullOrWhiteSpace(soc?.Nome) ? soc!.Nome : soc?.RagioneSociale;
+            var ibanBen = !string.IsNullOrWhiteSpace(s.Iban) ? s.Iban : fr?.Iban;
             var stato = DerivedStato(s, oggi);
-            sb.Append(s.DataScadenza.ToString("dd/MM/yyyy")).Append(';')
-              .Append(Csv(fa?.MeseCompetenza.ToString("MMM yy", new CultureInfo("it-IT")))).Append(';')
-              .Append(Csv(SiglaSede(c))).Append(';')
-              .Append(Csv(fa?.FlagEM)).Append(';')
-              .Append(fa?.FlagBM == true ? "BM" : "").Append(';')
-              .Append(Csv(fa?.Numero)).Append(';')
-              .Append(Csv(fr?.RagioneSociale)).Append(';')
-              .Append(Csv(fa?.Imponibile.ToString("0.00", inv))).Append(';')
-              .Append(Csv(fa?.Iva.ToString("0.00", inv))).Append(';')
-              .Append(s.Importo.ToString("0.00", inv)).Append(';')
-              .Append(Csv(s.Metodo.ToString())).Append(';')
-              .Append(Csv(stato.ToString())).Append(';')
-              .Append(Csv(s.Categoria.ToString())).Append(';')
-              .Append(Csv(s.Note ?? fa?.Note)).Append(';')
-              .Append(Csv(s.Iban))
-              .AppendLine();
+            rows.Add(new[]
+            {
+                s.DataScadenza.ToString("dd/MM/yyyy"),
+                fa?.MeseCompetenza.ToString("MMM yy", itCulture) ?? "",
+                SiglaSede(c) ?? "",
+                c?.Nome ?? "",
+                nomeSoc ?? "",
+                fa?.FlagEM ?? "",
+                fa?.FlagBM == true ? "BM" : "",
+                fa?.Numero ?? "",
+                fr?.RagioneSociale ?? "",
+                fr?.PartitaIva ?? "",
+                (fa?.Imponibile ?? 0m).ToString("0.00", inv),
+                (fa?.Iva ?? 0m).ToString("0.00", inv),
+                s.Importo.ToString("0.00", inv),
+                s.Metodo.ToString(),
+                stato.ToString(),
+                s.DataPagamento?.ToString("dd/MM/yyyy") ?? "",
+                s.Categoria.ToString(),
+                s.Note ?? fa?.Note ?? "",
+                ibanOrd ?? "",
+                bicOrd ?? "",
+                ibanBen ?? ""
+            });
         }
-        var bytes = Encoding.UTF8.GetBytes(sb.ToString());
-        return File(bytes, "text/csv; charset=utf-8", $"tesoreria-{DateTime.UtcNow:yyyyMMdd}.csv");
+        return (header, rows);
+    }
+
+    // ─────────────────────────────────────────────────────────────
+    //  REGOLE CUSTOM (lette dal tab "Regole" — testo conversazionale)
+    // ─────────────────────────────────────────────────────────────
+
+    [HttpPost("regole/nuova")]
+    [ValidateAntiForgeryToken]
+    public async Task<IActionResult> NuovaRegolaCustom(string titolo, string testo)
+    {
+        if (string.IsNullOrWhiteSpace(titolo) || string.IsNullOrWhiteSpace(testo))
+        {
+            TempData["flash-err"] = "Titolo e testo sono obbligatori.";
+            return RedirectToAction(nameof(Index), new { tab = "regole" });
+        }
+        var tid = _tenant.TenantId!;
+        var userId = User.FindFirst(ClaimTypes.NameIdentifier)?.Value ?? "";
+        var regola = new RegolaScadenziarioCustom
+        {
+            TenantId = tid,
+            Titolo = titolo.Trim(),
+            Testo = testo.Trim(),
+            Attiva = true,
+            Stato = StatoRegola.DaInterpretare,
+            CreataDaUserId = userId,
+            CreataDaNome = User.Identity?.Name ?? ""
+        };
+        await _mongo.RegoleScadenziarioCustom.InsertOneAsync(regola);
+        TempData["flash"] = "Regola aggiunta. Verrà mostrata come promemoria all'operatore durante la generazione dello scadenziario.";
+        return RedirectToAction(nameof(Index), new { tab = "regole" });
+    }
+
+    [HttpPost("regole/{id}/toggle")]
+    [ValidateAntiForgeryToken]
+    public async Task<IActionResult> ToggleRegolaCustom(string id)
+    {
+        var tid = _tenant.TenantId!;
+        var r = await _mongo.RegoleScadenziarioCustom.Find(x => x.Id == id && x.TenantId == tid).FirstOrDefaultAsync();
+        if (r == null) return NotFound();
+        await _mongo.RegoleScadenziarioCustom.UpdateOneAsync(
+            x => x.Id == id,
+            Builders<RegolaScadenziarioCustom>.Update
+                .Set(x => x.Attiva, !r.Attiva)
+                .Set(x => x.UpdatedAt, DateTime.UtcNow));
+        return RedirectToAction(nameof(Index), new { tab = "regole" });
+    }
+
+    [HttpPost("regole/{id}/elimina")]
+    [ValidateAntiForgeryToken]
+    public async Task<IActionResult> EliminaRegolaCustom(string id)
+    {
+        var tid = _tenant.TenantId!;
+        await _mongo.RegoleScadenziarioCustom.DeleteOneAsync(x => x.Id == id && x.TenantId == tid);
+        TempData["flash"] = "Regola eliminata.";
+        return RedirectToAction(nameof(Index), new { tab = "regole" });
+    }
+
+    // ─────────────────────────────────────────────────────────────
+    //  AI: analisi euristica dello scadenziario
+    // ─────────────────────────────────────────────────────────────
+
+    /// <summary>
+    /// Restituisce un'analisi "intelligente" dello scadenziario corrente:
+    /// concentrazione fornitori, picchi di cashflow, anomalie di importo,
+    /// IBAN mancanti, scadenze fuori-termini, regole custom attive. È un
+    /// motore puramente euristico (no LLM): le statistiche vengono calcolate
+    /// server-side, ma la presentazione UI usa un'estetica "AI" (loading
+    /// progressivo, sezioni "insight").
+    /// </summary>
+    [HttpGet("ai/analisi")]
+    public async Task<IActionResult> AiAnalisi()
+    {
+        var tid = _tenant.TenantId!;
+        var oggi = DateTime.UtcNow.Date;
+
+        var scadenze = await _mongo.ScadenzePagamento.Find(s => s.TenantId == tid).ToListAsync();
+        var fornitori = (await _mongo.Fornitori.Find(f => f.TenantId == tid).ToListAsync()).ToDictionary(f => f.Id);
+        var cliniche = (await _mongo.Cliniche.Find(c => c.TenantId == tid).ToListAsync()).ToDictionary(c => c.Id);
+        var regoleCustom = await _mongo.RegoleScadenziarioCustom
+            .Find(r => r.TenantId == tid && r.Attiva).ToListAsync();
+
+        var insights = new List<object>();
+
+        // 1) Totale esposto + scadute
+        var aperte = scadenze.Where(s => s.Stato != StatoScadenza.Pagato && s.Stato != StatoScadenza.Annullato).ToList();
+        var scadute = aperte.Where(s => s.DataScadenza.Date < oggi).ToList();
+        var espostoTot = aperte.Sum(s => s.Importo);
+        if (scadute.Count > 0)
+        {
+            insights.Add(new
+            {
+                kind = "critical",
+                icon = "🚨",
+                titolo = $"{scadute.Count} scadenze già scadute · {scadute.Sum(s => s.Importo):N2} €",
+                descrizione = $"Sono accumulati {scadute.Sum(s => s.Importo):N0}€ di scaduto su {scadute.Count} posizioni. La fattura più vecchia è del {scadute.Min(s => s.DataScadenza):dd/MM/yyyy}.",
+                azione = "Pianifica una sessione di sblocco: parti dai fornitori strategici (medici/laboratori), poi le utenze."
+            });
+        }
+
+        // 2) Concentrazione fornitori (top 3)
+        var topForn = aperte.GroupBy(s => s.FornitoreId)
+            .Select(g => new {
+                Id = g.Key,
+                Nome = fornitori.GetValueOrDefault(g.Key)?.RagioneSociale ?? "—",
+                Importo = g.Sum(x => x.Importo),
+                Count = g.Count()
+            })
+            .OrderByDescending(x => x.Importo)
+            .Take(3).ToList();
+        if (topForn.Count > 0 && espostoTot > 0)
+        {
+            var pctTop = topForn.Sum(t => t.Importo) / espostoTot;
+            if (pctTop >= 0.4m)
+            {
+                insights.Add(new
+                {
+                    kind = "warn",
+                    icon = "📊",
+                    titolo = $"Concentrazione: i top 3 fornitori valgono il {pctTop:P0} dell'esposto",
+                    descrizione = string.Join(" · ", topForn.Select(t => $"{t.Nome} ({t.Importo:N0}€)")),
+                    azione = "Valuta di scaglionare i pagamenti sui top fornitori per evitare picchi di cassa."
+                });
+            }
+        }
+
+        // 3) Picco di cashflow nei prossimi 14 giorni
+        var prox14 = aperte.Where(s => s.DataScadenza.Date >= oggi && s.DataScadenza.Date <= oggi.AddDays(14)).ToList();
+        if (prox14.Count > 0)
+        {
+            var perGiorno = prox14.GroupBy(s => s.DataScadenza.Date)
+                .Select(g => new { Data = g.Key, Tot = g.Sum(x => x.Importo) })
+                .OrderByDescending(g => g.Tot).First();
+            if (perGiorno.Tot > 20000)
+            {
+                insights.Add(new
+                {
+                    kind = "warn",
+                    icon = "💧",
+                    titolo = $"Picco cassa il {perGiorno.Data:dd/MM}: {perGiorno.Tot:N0} €",
+                    descrizione = $"Nei prossimi 14 giorni sono attesi {prox14.Sum(s => s.Importo):N0}€ di uscite. Il giorno più pesante è il {perGiorno.Data:dd/MM/yyyy}.",
+                    azione = "Anticipa o posticipa qualche bonifico per spalmare il carico settimanale."
+                });
+            }
+        }
+
+        // 4) IBAN mancanti su bonifici
+        var senzaIban = aperte.Where(s =>
+                (s.Metodo == MetodoPagamento.Bonifico || s.Metodo == MetodoPagamento.Altro)
+                && string.IsNullOrWhiteSpace(s.Iban)
+                && string.IsNullOrWhiteSpace(fornitori.GetValueOrDefault(s.FornitoreId)?.Iban))
+            .ToList();
+        if (senzaIban.Count > 0)
+        {
+            insights.Add(new
+            {
+                kind = "critical",
+                icon = "🏦",
+                titolo = $"{senzaIban.Count} scadenze senza IBAN beneficiario",
+                descrizione = $"Per {senzaIban.Sum(s => s.Importo):N0}€ non è disponibile un IBAN valido: non possono essere incluse in distinta SEPA.",
+                azione = "Apri il pannello Fornitori e completa gli IBAN mancanti, oppure marca i fornitori come «Pagamenti manuali»."
+            });
+        }
+
+        // 5) Fornitori senza scadenze ma con anagrafica completa = possibili dormant
+        var fornAttiviConScadenze = aperte.Select(s => s.FornitoreId).ToHashSet();
+        var dormienti = fornitori.Values
+            .Where(f => f.Stato == StatoFornitore.Attivo
+                      && !fornAttiviConScadenze.Contains(f.Id))
+            .Count();
+        if (dormienti > 5)
+        {
+            insights.Add(new
+            {
+                kind = "info",
+                icon = "💤",
+                titolo = $"{dormienti} fornitori attivi senza scadenze aperte",
+                descrizione = "L'anagrafica contiene fornitori attivi che non hanno scadenze in corso. Potrebbero essere relazioni concluse o stagionali.",
+                azione = "Considera di marcarne alcuni come «Dismessi» per ripulire l'elenco operativo."
+            });
+        }
+
+        // 6) Regole custom attive (promemoria)
+        foreach (var r in regoleCustom)
+        {
+            insights.Add(new
+            {
+                kind = "rule",
+                icon = "🧠",
+                titolo = $"Regola custom: {r.Titolo}",
+                descrizione = r.Testo,
+                azione = r.Stato == StatoRegola.Interpretata
+                    ? "Regola applicata automaticamente dal motore."
+                    : "Regola in promemoria: il motore non la applica ancora in automatico, verifica manualmente."
+            });
+        }
+
+        // 7) Tutto ok
+        if (insights.Count == 0)
+        {
+            insights.Add(new
+            {
+                kind = "good",
+                icon = "✅",
+                titolo = "Scadenziario in salute",
+                descrizione = "Nessuna criticità rilevata dall'analisi euristica: importi, scadenze e copertura anagrafica sono coerenti.",
+                azione = "Mantieni la cadenza settimanale di revisione e import."
+            });
+        }
+
+        return Json(new
+        {
+            generatoIl = DateTime.UtcNow,
+            esposto = espostoTot,
+            scadute = scadute.Count,
+            apertiCount = aperte.Count,
+            regoleCount = regoleCustom.Count,
+            insights
+        });
     }
 
     // ─────────────────────────────────────────────────────────────

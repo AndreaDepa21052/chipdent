@@ -8,6 +8,17 @@ namespace Chipdent.Web.Domain.Entities;
 /// </summary>
 public class ScadenzaPagamento : TenantEntity
 {
+    /// <summary>
+    /// Codice univoco "umano" della scadenza, generato dallo
+    /// <c>ScadenziarioGenerator</c> al momento della creazione. Formato:
+    /// <c>SC-YYYYMM-NNNN</c> dove YYYYMM è l'anno+mese della data scadenza e
+    /// NNNN è un progressivo a 4 cifre nel mese (es. <c>SC-202604-0017</c>).
+    /// Usato in UI (griglia, ricevute, riferimenti distinta) per dare un
+    /// identificatore citabile, opposto all'ObjectId Mongo. Può essere null
+    /// sulle scadenze più vecchie create prima dell'introduzione del campo.
+    /// </summary>
+    public string? Codice { get; set; }
+
     public string FatturaId { get; set; } = string.Empty;
     public string FornitoreId { get; set; } = string.Empty;
     public string ClinicaId { get; set; } = string.Empty;
