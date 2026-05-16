@@ -115,9 +115,9 @@ else
                                 <a class="ibtn" asp-action="Details" asp-route-id="@d.Id" title="Dettagli">
                                     <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M5 12h14M13 5l7 7-7 7"/></svg>
                                 </a>
-                                <a class="ibtn" asp-action="Edit" asp-route-id="@d.Id" title="Modifica">
+                                <button type="button" class="ibtn" data-edit-dipendente="@d.Id" title="Modifica rapida">
                                     <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>
-                                </a>
+                                </button>
                             </div>
                         </td>
                     </tr>
@@ -127,3 +127,11 @@ else
     </div>
     </div>
 }
+
+<dialog id="dlg-dipendente-edit" class="dotmodal-dialog" aria-label="Modifica dipendente">
+    <div class="dotmodal" data-dotmodal-loading>
+        <div style="padding: 60px; text-align:center; color: var(--c-ink-soft, #6b5538);">Caricamento…</div>
+    </div>
+</dialog>
+
+<partial name="_DipendenteEditModalScript" />
