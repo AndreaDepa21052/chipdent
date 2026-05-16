@@ -97,6 +97,31 @@ public class DottoreTesoreriaSnapshot
     public int ScadenzeScadute { get; set; }
 }
 
+/// <summary>
+/// Dati necessari a popolare la modale di modifica rapida del dipendente.
+/// La modale rende il form completo con una striscia verticale di criticità
+/// (chip cliccabili che saltano al campo corrispondente del form).
+/// </summary>
+public class DipendenteEditModalViewModel
+{
+    public Dipendente Dipendente { get; set; } = new();
+    public IReadOnlyList<Clinica> Cliniche { get; set; } = Array.Empty<Clinica>();
+    public IReadOnlyList<Dipendente> Managers { get; set; } = Array.Empty<Dipendente>();
+    public List<DipendenteCriticita> Critiche { get; set; } = new();
+    public List<DipendenteCriticita> Avvisi { get; set; } = new();
+    /// <summary>Percentuale di completezza anagrafica (0-100).</summary>
+    public int Completezza { get; set; }
+
+    public bool NessunaCriticita => Critiche.Count == 0 && Avvisi.Count == 0;
+}
+
+public record DipendenteCriticita(
+    string Etichetta,
+    string Icona,
+    string JumpToFieldId,
+    string JumpToSectionId,
+    string? Tooltip = null);
+
 public class DipendenteProfileViewModel
 {
     public Dipendente Dipendente { get; set; } = new();
