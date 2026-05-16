@@ -599,9 +599,110 @@
     }
     .dlg-ai__body { padding: 22px 24px; overflow-y: auto; }
 
-    .ai-loader { display: flex; flex-direction: column; align-items: center; padding: 30px 10px; }
-    .ai-loader__logo { margin-bottom: 22px; }
+    .ai-loader { display: flex; flex-direction: column; align-items: center; padding: 24px 10px 18px; }
     .ai-loader__steps { width: 100%; max-width: 460px; }
+
+    /* ─── Loader spaziale Chipdent ──────────────────────────────────
+       Scoiattolo (logo.png) al centro, halo pulsante, 3 pianeti su
+       orbite ellittiche a velocità diverse, stelline animate in fondo,
+       e gli occhi del chipmunk che ruotano dolcemente in microcerchio. */
+    .ai-space {
+        position: relative; width: 240px; height: 240px;
+        margin: 0 auto 18px;
+        border-radius: 50%;
+        background:
+            radial-gradient(ellipse at center, rgba(196,120,48,0.18) 0%, rgba(59,30,12,0.55) 50%, #0b1228 100%),
+            radial-gradient(circle at 30% 30%, rgba(255,255,255,0.04), transparent 50%);
+        overflow: hidden;
+        box-shadow: inset 0 0 24px rgba(0,0,0,0.5), 0 14px 36px rgba(11,18,40,0.25);
+    }
+    /* Stelline: gradients radiali ripetuti con piccoli punti bianchi. */
+    .ai-space__stars {
+        position: absolute; inset: 0; pointer-events: none; opacity: .85;
+        background-image:
+            radial-gradient(1.2px 1.2px at 12% 18%, #fff 99%, transparent),
+            radial-gradient(1px 1px at 78% 22%, #fff 99%, transparent),
+            radial-gradient(1.4px 1.4px at 22% 78%, #fff 99%, transparent),
+            radial-gradient(1px 1px at 85% 70%, #fde7c0 99%, transparent),
+            radial-gradient(1.1px 1.1px at 56% 12%, #cde2ff 99%, transparent),
+            radial-gradient(1px 1px at 8% 55%, #fff 99%, transparent),
+            radial-gradient(1.2px 1.2px at 90% 42%, #fff 99%, transparent);
+        animation: ai-twinkle-bg 3.2s ease-in-out infinite alternate;
+    }
+    @@keyframes ai-twinkle-bg { from { opacity: .55; } to { opacity: 1; } }
+
+    .ai-space__halo {
+        position: absolute; left: 50%; top: 50%;
+        width: 120px; height: 120px; transform: translate(-50%, -50%);
+        border-radius: 50%;
+        background: radial-gradient(circle, rgba(255,232,180,0.55) 0%, rgba(255,232,180,0.18) 45%, transparent 70%);
+        animation: ai-halo 2.4s ease-in-out infinite;
+    }
+    @@keyframes ai-halo { 0%,100% { transform: translate(-50%,-50%) scale(1); opacity:.9;} 50% { transform: translate(-50%,-50%) scale(1.12); opacity:.6;} }
+
+    /* Logo Chipdent al centro, dimensione contenuta dentro l'halo. */
+    .ai-space__logo {
+        position: absolute; left: 50%; top: 50%;
+        width: 88px; height: 88px; transform: translate(-50%, -50%);
+        z-index: 3;
+    }
+    .ai-space__face {
+        width: 100%; height: 100%; border-radius: 50%;
+        object-fit: cover;
+        box-shadow: 0 6px 18px rgba(0,0,0,0.35), inset 0 0 0 2px rgba(196,120,48,0.6);
+        background: #fff;
+        animation: ai-bob 3s ease-in-out infinite;
+    }
+    @@keyframes ai-bob { 0%,100% { transform: translateY(0); } 50% { transform: translateY(-3px); } }
+
+    /* Occhi che ruotano: due piccoli cerchi sopra il chipmunk, sovrapposti
+       alle posizioni degli occhi del logo. Le pupille orbitano in microcerchio
+       per dare l'effetto "looking around". */
+    .ai-space__eye {
+        position: absolute; top: 30%; width: 10px; height: 10px;
+        border-radius: 50%; background: #fff;
+        box-shadow: 0 0 0 1px rgba(59,30,12,0.6);
+        overflow: hidden; z-index: 4;
+    }
+    .ai-space__eye--l { left: 26%; }
+    .ai-space__eye--r { right: 26%; }
+    .ai-space__pupil {
+        position: absolute; left: 50%; top: 50%;
+        width: 4px; height: 4px; margin: -2px 0 0 -2px;
+        background: #1a0e05; border-radius: 50%;
+        animation: ai-eye-rotate 3.5s linear infinite;
+    }
+    .ai-space__eye--r .ai-space__pupil { animation-delay: -.4s; }
+    @@keyframes ai-eye-rotate {
+        0%   { transform: translate(0, -2px); }
+        25%  { transform: translate(2px, 0); }
+        50%  { transform: translate(0, 2px); }
+        75%  { transform: translate(-2px, 0); }
+        100% { transform: translate(0, -2px); }
+    }
+
+    /* Orbite: ogni .ai-space__orbit è un cerchio centrato che ruota. Il
+       pianeta è un span posizionato su top dell'orbita, così rotando
+       l'orbita il pianeta gira intorno al centro. */
+    .ai-space__orbit {
+        position: absolute; left: 50%; top: 50%;
+        border: 1px dashed rgba(255,255,255,0.12);
+        border-radius: 50%;
+        transform-origin: center center;
+        z-index: 2;
+    }
+    .ai-space__orbit--1 { width: 150px; height: 150px; margin: -75px 0 0 -75px; animation: ai-orbit 4.5s linear infinite; }
+    .ai-space__orbit--2 { width: 200px; height: 200px; margin: -100px 0 0 -100px; animation: ai-orbit 7s linear infinite reverse; }
+    .ai-space__orbit--3 { width: 224px; height: 224px; margin: -112px 0 0 -112px; animation: ai-orbit 10s linear infinite; }
+    @@keyframes ai-orbit { from { transform: rotate(0deg); } to { transform: rotate(360deg); } }
+    .ai-space__planet {
+        position: absolute; left: 50%; top: -6px; transform: translateX(-50%);
+        width: 12px; height: 12px; border-radius: 50%;
+        box-shadow: 0 0 8px currentColor, inset -2px -2px 3px rgba(0,0,0,0.35);
+    }
+    .ai-space__planet--sun  { background: radial-gradient(circle at 35% 35%, #fff2b8, #f6c34a 60%, #c47830); color: #f6c34a; width: 14px; height: 14px; top: -7px; }
+    .ai-space__planet--mars { background: radial-gradient(circle at 35% 35%, #ffb78a, #d36b3a 60%, #7a2e11); color: #d36b3a; }
+    .ai-space__planet--ice  { background: radial-gradient(circle at 35% 35%, #d8ecff, #6aa3d4 60%, #234866); color: #6aa3d4; width: 10px; height: 10px; top: -5px; }
     .ai-loader__step {
         padding: 8px 12px; margin: 4px 0; border-radius: 8px;
         background: rgba(196,120,48,0.04); color: var(--c-ink-muted, #998);
@@ -1575,28 +1676,44 @@
     </div>
 </section><!-- /tab regole -->
 
-<!-- ── Modale AI: analisi euristica con UX "machine learning" ──── -->
+<!-- ── Modale AI: analisi euristica con UX "machine learning" ────
+     Il bottone Chiudi è dentro un <form method="dialog">: alla submit
+     il browser chiude nativamente il dialog (nessun JS necessario).
+     L'evento 'close' del dialog viene comunque ascoltato lato JS per
+     reset dello stato (loader/result). -->
 <dialog id="dlg-ai" class="dlg-ai" aria-label="Analisi AI dello scadenziario">
-    <div class="dlg-ai__bar">
+    <form method="dialog" class="dlg-ai__bar">
         <div class="dlg-ai__title">
             <span class="dlg-ai__sparkle">✦</span>
             <span>Analisi AI dello Scadenziario</span>
         </div>
-        <button type="button" class="btn btn--ghost btn--sm" data-ai-close>✕ Chiudi</button>
-    </div>
+        <button type="submit" class="btn btn--ghost btn--sm" data-ai-close value="close">✕ Chiudi</button>
+    </form>
     <div class="dlg-ai__body" data-ai-body>
-        <!-- Stato 1: loading -->
+        <!-- Stato 1: loading "spaziale" con il chipmunk e i pianeti che orbitano -->
         <div class="ai-loader" data-ai-loader>
-            <div class="ai-loader__logo">
-                <svg viewBox="0 0 64 64" width="84" height="84" aria-hidden="true">
-                    <circle cx="32" cy="32" r="26" fill="none" stroke="#c47830" stroke-width="3" stroke-dasharray="40 124" stroke-linecap="round">
-                        <animateTransform attributeName="transform" type="rotate" from="0 32 32" to="360 32 32" dur="1.4s" repeatCount="indefinite"/>
-                    </circle>
-                    <circle cx="32" cy="32" r="18" fill="none" stroke="#3b1e0c" stroke-width="2" stroke-dasharray="20 80" stroke-linecap="round" opacity=".6">
-                        <animateTransform attributeName="transform" type="rotate" from="360 32 32" to="0 32 32" dur="2.1s" repeatCount="indefinite"/>
-                    </circle>
-                    <text x="32" y="38" text-anchor="middle" font-size="22" fill="#3b1e0c" font-weight="700">🧠</text>
-                </svg>
+            <div class="ai-space" aria-hidden="true">
+                <div class="ai-space__stars"></div>
+                <!-- Orbite e pianeti: ogni orbita è un cerchio sottile con un
+                     pianeta posizionato in cima, l'intero contenitore ruota. -->
+                <div class="ai-space__orbit ai-space__orbit--1">
+                    <span class="ai-space__planet ai-space__planet--sun"></span>
+                </div>
+                <div class="ai-space__orbit ai-space__orbit--2">
+                    <span class="ai-space__planet ai-space__planet--mars"></span>
+                </div>
+                <div class="ai-space__orbit ai-space__orbit--3">
+                    <span class="ai-space__planet ai-space__planet--ice"></span>
+                </div>
+                <!-- Logo Chipdent centrale con halo pulsante -->
+                <div class="ai-space__halo"></div>
+                <div class="ai-space__logo">
+                    <img src="~/img/logo.png" alt="" class="ai-space__face" />
+                    <!-- Occhi che girano sopra il chipmunk: piccole pupille
+                         nere che orbitano in microcerchio dentro l'occhio. -->
+                    <span class="ai-space__eye ai-space__eye--l"><span class="ai-space__pupil"></span></span>
+                    <span class="ai-space__eye ai-space__eye--r"><span class="ai-space__pupil"></span></span>
+                </div>
             </div>
             <div class="ai-loader__steps">
                 <div class="ai-loader__step is-active" data-step="1">Lettura scadenziario corrente…</div>
@@ -1616,13 +1733,13 @@
      "A tutto schermo" la card della griglia viene spostata qui via JS.
      Alla chiusura viene ripristinata nella posizione originale. -->
 <dialog id="dlg-grid-fullscreen" class="dlg-fullscreen" aria-label="Scadenze a tutto schermo">
-    <div class="dlg-fullscreen__bar">
+    <form method="dialog" class="dlg-fullscreen__bar">
         <strong style="font-size: .95rem;">Scadenze — vista estesa</strong>
         <span class="muted" style="font-size:.8rem;">@Model.Righe.Count righe</span>
-        <button type="button" class="btn btn--ghost btn--sm" data-grid-fullscreen-close style="margin-left:auto;" title="Chiudi (Esc)">
+        <button type="submit" class="btn btn--ghost btn--sm" data-grid-fullscreen-close style="margin-left:auto;" title="Chiudi (Esc)">
             ✕ Chiudi
         </button>
-    </div>
+    </form>
     <div class="dlg-fullscreen__body" id="dlg-grid-fullscreen-body"></div>
 </dialog>
 
@@ -2013,33 +2130,30 @@
     // sequenza, poi fetch dei risultati euristici dal server e rendering
     // delle "insight card". Niente LLM: la fonte dati è /tesoreria/ai/analisi
     // che calcola statistiche server-side; la UX vende l'esperienza AI.
+    //
+    // Chiusura: il bottone Chiudi è dentro <form method="dialog">, quindi
+    // la submit chiude nativamente il dialog (e fa partire l'evento 'close').
+    // Backdrop e Esc usano le API native. Niente handler manuali sul click.
     (function () {
         var trigger = document.querySelector('[data-ai-trigger]');
         var dlg = document.getElementById('dlg-ai');
-        // Cerco loader/result dentro al dialog (più robusto del global selector).
         var loader = dlg && dlg.querySelector('[data-ai-loader]');
         var result = dlg && dlg.querySelector('[data-ai-result]');
         if (!trigger || !dlg) return;
 
-        function closeDlg() {
-            try { if (typeof dlg.close === 'function' && dlg.open) dlg.close(); } catch (e) {}
-            dlg.removeAttribute('open');
+        // Cleanup quando il dialog si chiude (per qualunque motivo).
+        dlg.addEventListener('close', function () {
             document.body.style.overflow = '';
-        }
-        // Delegazione sul dialog: qualunque elemento con [data-ai-close] (o
-        // figlio di esso) chiude la modale. Resiste a re-render del contenuto.
-        dlg.addEventListener('click', function (e) {
-            if (e.target.closest('[data-ai-close]')) {
-                e.preventDefault();
-                e.stopPropagation();
-                closeDlg();
-                return;
-            }
-            if (e.target === dlg) closeDlg();
+            if (loader) loader.hidden = false;
+            if (result) { result.hidden = true; result.innerHTML = ''; }
         });
-        // Esc → chiusura nativa del dialog; lo intercetto per ripristinare lo
-        // scroll del body.
-        dlg.addEventListener('close', function () { document.body.style.overflow = ''; });
+        dlg.addEventListener('cancel', function () { document.body.style.overflow = ''; });
+        // Click sul backdrop → chiusura nativa.
+        dlg.addEventListener('click', function (e) {
+            if (e.target === dlg) {
+                try { if (dlg.open) dlg.close(); } catch (err) { dlg.removeAttribute('open'); }
+            }
+        });
 
         function escapeHtml(s) {
             return String(s == null ? '' : s)
