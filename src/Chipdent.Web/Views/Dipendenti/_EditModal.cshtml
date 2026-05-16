@@ -1,0 +1,429 @@
+@model Chipdent.Web.Models.DipendenteEditModalViewModel
+@using Chipdent.Web.Domain.Entities
+@using Chipdent.Web.Models
+@{
+    var d = Model.Dipendente;
+    var perc = Model.Completezza;
+    var barColor = perc >= 90 ? "#3aa15b" : perc >= 60 ? "#c47830" : "#a83a3a";
+    var clinicaNome = Model.Cliniche.FirstOrDefault(c => c.Id == d.ClinicaId)?.Nome;
+    var statoLabel = d.Stato switch
+    {
+        StatoDipendente.Attivo => "Attivo",
+        StatoDipendente.Onboarding => "Onboarding",
+        StatoDipendente.InFerie => "In ferie",
+        StatoDipendente.InMalattia => "In malattia",
+        StatoDipendente.InCongedo => "In congedo",
+        StatoDipendente.Sospeso => "Sospeso",
+        StatoDipendente.Cessato => "Cessato",
+        _ => d.Stato.ToString()
+    };
+}
+
+<div class="dotmodal fornmodal" data-dipendente-id="@d.Id">
+    <header class="dotmodal__header">
+        <div class="dotmodal__avatar">@d.Iniziali</div>
+        <div class="dotmodal__head-text">
+            <div class="dotmodal__eyebrow">Modifica scheda dipendente</div>
+            <h2 class="dotmodal__title">@d.NomeCompleto</h2>
+            <div class="dotmodal__meta">
+                <span>@d.Ruolo</span>
+                <span class="dotmodal__sep">·</span>
+                <span>@d.TipoContratto</span>
+                @if (!string.IsNullOrEmpty(clinicaNome))
+                {
+                    <span class="dotmodal__sep">·</span>
+                    <span>@clinicaNome</span>
+                }
+                <span class="dotmodal__sep">·</span>
+                <span class="muted">@statoLabel</span>
+            </div>
+        </div>
+        <button type="button" class="dotmodal__close" data-dotmodal-close aria-label="Chiudi">×</button>
+    </header>
+
+    <div class="dotmodal__body fornmodal__body">
+        @* ── Striscia verticale: criticità da gestire ──────────── *@
+        <aside class="fornmodal__strip" aria-label="Criticità dipendente">
+            <div class="fornmodal__strip-summary">
+                <div class="fornmodal__strip-perc" style="color:@barColor;">@perc%</div>
+                <div class="fornmodal__strip-bar">
+                    <div style="width:@(perc)%; background:@barColor;"></div>
+                </div>
+                <div class="fornmodal__strip-label">Completezza scheda</div>
+            </div>
+
+            @if (Model.NessunaCriticita)
+            {
+                <div class="fornmodal__strip-ok">
+                    <div class="fornmodal__strip-ok-icon">✅</div>
+                    <div class="fornmodal__strip-ok-text">Scheda completa.<br/>Nessuna criticità.</div>
+                </div>
+            }
+            else
+            {
+                if (Model.Critiche.Count > 0)
+                {
+                    <div class="fornmodal__strip-head fornmodal__strip-head--critico">
+                        🔴 Critici · @Model.Critiche.Count
+                    </div>
+                    <ul class="fornmodal__strip-list">
+                        @foreach (var c in Model.Critiche)
+                        {
+                            <li>
+                                <button type="button"
+                                        class="fornmodal__chip fornmodal__chip--critico"
+                                        data-jump-to="@c.JumpToFieldId"
+                                        data-section="@c.JumpToSectionId"
+                                        title="@(c.Tooltip ?? "Vai al campo «" + c.Etichetta + "»")">
+                                    <span class="fornmodal__chip-icon">@c.Icona</span>
+                                    <span class="fornmodal__chip-label">@c.Etichetta</span>
+                                </button>
+                            </li>
+                        }
+                    </ul>
+                }
+                if (Model.Avvisi.Count > 0)
+                {
+                    <div class="fornmodal__strip-head fornmodal__strip-head--avviso">
+                        🟡 Da completare · @Model.Avvisi.Count
+                    </div>
+                    <ul class="fornmodal__strip-list">
+                        @foreach (var c in Model.Avvisi)
+                        {
+                            <li>
+                                <button type="button"
+                                        class="fornmodal__chip fornmodal__chip--avviso"
+                                        data-jump-to="@c.JumpToFieldId"
+                                        data-section="@c.JumpToSectionId"
+                                        title="@(c.Tooltip ?? "Vai al campo «" + c.Etichetta + "»")">
+                                    <span class="fornmodal__chip-icon">@c.Icona</span>
+                                    <span class="fornmodal__chip-label">@c.Etichetta</span>
+                                </button>
+                            </li>
+                        }
+                    </ul>
+                }
+            }
+        </aside>
+
+        <form id="dipmodal-form" method="post" action="/dipendenti/@d.Id/modifica" class="dotmodal__form" novalidate>
+            @Html.AntiForgeryToken()
+            <input type="hidden" name="Id" value="@d.Id" />
+            @* Campi non editabili in modale — preservati per non azzerarli nel ReplaceOne *@
+            <input type="hidden" name="FotoUrl" value="@d.FotoUrl" />
+            <input type="hidden" name="MeseAnnoCcnl" value="@d.MeseAnnoCcnl" />
+            <input type="hidden" name="AvanzamentoCarriera" value="@d.AvanzamentoCarriera" />
+            <input type="hidden" name="DataAumentoLivelli" value="@d.DataAumentoLivelli?.ToString("yyyy-MM-dd")" />
+            <input type="hidden" name="DocumentoScadenza" value="@d.DocumentoScadenza?.ToString("yyyy-MM-dd")" />
+            <input type="hidden" name="RiconsegnaMaterialeStudio" value="@(d.RiconsegnaMaterialeStudio ? "true" : "false")" />
+            <input type="hidden" name="RiconsegnaMaterialeSede" value="@(d.RiconsegnaMaterialeSede ? "true" : "false")" />
+
+            <nav class="dotmodal__sectionnav">
+                <a href="#sec-identita" class="is-active">Identità</a>
+                <a href="#sec-contatti">Contatti</a>
+                <a href="#sec-ruolo">Ruolo</a>
+                <a href="#sec-contratto">Contratto</a>
+                <a href="#sec-studi">Studi</a>
+                <a href="#sec-documenti">Documenti</a>
+                <a href="#sec-eventi">Eventi</a>
+                <a href="#sec-note">Note</a>
+            </nav>
+
+            <div class="dotmodal__scroll">
+                <section id="sec-identita" class="dotmodal__section">
+                    <h3 class="dotmodal__sec-title">👤 Identità</h3>
+                    <div class="dotmodal__grid">
+                        <div class="form-group">
+                            <label class="form-label">Nome *</label>
+                            <input class="form-control" name="Nome" value="@d.Nome" required />
+                        </div>
+                        <div class="form-group">
+                            <label class="form-label">Cognome *</label>
+                            <input class="form-control" name="Cognome" value="@d.Cognome" required />
+                        </div>
+                        <div class="form-group">
+                            <label class="form-label">Sesso</label>
+                            <select class="form-control" name="Sesso">
+                                <option value="">— non specificato —</option>
+                                @foreach (var s in Enum.GetValues<Sesso>())
+                                {
+                                    <option value="@s" selected="@(d.Sesso == s)">@s</option>
+                                }
+                            </select>
+                        </div>
+                        <div class="form-group">
+                            <label class="form-label">Data di nascita</label>
+                            <input id="fld-DataNascita" class="form-control" type="date" name="DataNascita" value="@d.DataNascita?.ToString("yyyy-MM-dd")" />
+                        </div>
+                        <div class="form-group">
+                            <label class="form-label">Luogo di nascita</label>
+                            <input class="form-control" name="LuogoNascita" value="@d.LuogoNascita" />
+                        </div>
+                        <div class="form-group">
+                            <label class="form-label">Nazionalità</label>
+                            <input class="form-control" name="Nazionalita" value="@d.Nazionalita" placeholder="Es. Italiana" />
+                        </div>
+                        <div class="form-group dotmodal__full">
+                            <label class="form-label">Codice fiscale</label>
+                            <input id="fld-CodiceFiscale" class="form-control" name="CodiceFiscale" value="@d.CodiceFiscale" maxlength="16" style="text-transform: uppercase; font-family: monospace;" />
+                        </div>
+                    </div>
+                </section>
+
+                <section id="sec-contatti" class="dotmodal__section">
+                    <h3 class="dotmodal__sec-title">📞 Contatti &amp; residenza</h3>
+                    <div class="dotmodal__grid">
+                        <div class="form-group">
+                            <label class="form-label">Email lavoro *</label>
+                            <input id="fld-Email" class="form-control" type="email" name="Email" value="@d.Email" required />
+                        </div>
+                        <div class="form-group">
+                            <label class="form-label">Email personale</label>
+                            <input class="form-control" type="email" name="EmailPersonale" value="@d.EmailPersonale" />
+                        </div>
+                        <div class="form-group">
+                            <label class="form-label">Telefono</label>
+                            <input class="form-control" name="Telefono" value="@d.Telefono" />
+                        </div>
+                        <div class="form-group">
+                            <label class="form-label">Cellulare</label>
+                            <input id="fld-Cellulare" class="form-control" name="Cellulare" value="@d.Cellulare" />
+                        </div>
+                        <div class="form-group dotmodal__full">
+                            <label class="form-label">Indirizzo di residenza</label>
+                            <input id="fld-IndirizzoResidenza" class="form-control" name="IndirizzoResidenza" value="@d.IndirizzoResidenza" />
+                        </div>
+                        <div class="form-group">
+                            <label class="form-label">Città</label>
+                            <input class="form-control" name="CittaResidenza" value="@d.CittaResidenza" />
+                        </div>
+                        <div class="form-group">
+                            <label class="form-label">CAP</label>
+                            <input class="form-control" name="CapResidenza" value="@d.CapResidenza" maxlength="5" />
+                        </div>
+                    </div>
+                </section>
+
+                <section id="sec-ruolo" class="dotmodal__section">
+                    <h3 class="dotmodal__sec-title">🪪 Ruolo &amp; organizzazione</h3>
+                    <div class="dotmodal__grid">
+                        <div class="form-group">
+                            <label class="form-label">Ruolo</label>
+                            <select class="form-control" name="Ruolo">
+                                @foreach (var r in Enum.GetValues<RuoloDipendente>())
+                                {
+                                    <option value="@r" selected="@(d.Ruolo == r)">@r</option>
+                                }
+                            </select>
+                        </div>
+                        <div class="form-group">
+                            <label class="form-label">Mansione specifica</label>
+                            <input class="form-control" name="MansioneSpecifica" value="@d.MansioneSpecifica" placeholder="Es. ASO senior" />
+                        </div>
+                        <div class="form-group">
+                            <label class="form-label">Reparto / team</label>
+                            <input class="form-control" name="Reparto" value="@d.Reparto" placeholder="Es. Ortodonzia" />
+                        </div>
+                        <div class="form-group">
+                            <label class="form-label">Manager diretto</label>
+                            <select id="fld-ManagerId" class="form-control" name="ManagerId">
+                                <option value="">— nessuno —</option>
+                                @foreach (var m in Model.Managers)
+                                {
+                                    <option value="@m.Id" selected="@(m.Id == d.ManagerId)">@m.NomeCompleto · @m.Ruolo</option>
+                                }
+                            </select>
+                        </div>
+                    </div>
+                </section>
+
+                <section id="sec-contratto" class="dotmodal__section">
+                    <h3 class="dotmodal__sec-title">📋 Contratto &amp; sede</h3>
+                    <div class="dotmodal__grid">
+                        <div class="form-group">
+                            <label class="form-label">Sede *</label>
+                            <select id="fld-ClinicaId" class="form-control" name="ClinicaId" required>
+                                <option value="">— seleziona —</option>
+                                @foreach (var c in Model.Cliniche)
+                                {
+                                    <option value="@c.Id" selected="@(c.Id == d.ClinicaId)">@c.Nome (@c.Citta)</option>
+                                }
+                            </select>
+                        </div>
+                        <div class="form-group">
+                            <label class="form-label">Stato</label>
+                            <select class="form-control" name="Stato">
+                                @foreach (var s in Enum.GetValues<StatoDipendente>())
+                                {
+                                    <option value="@s" selected="@(d.Stato == s)">@s</option>
+                                }
+                            </select>
+                        </div>
+                        <div class="form-group">
+                            <label class="form-label">Tipo contratto</label>
+                            <select class="form-control" name="TipoContratto">
+                                @foreach (var t in Enum.GetValues<TipoContratto>())
+                                {
+                                    <option value="@t" selected="@(d.TipoContratto == t)">@t</option>
+                                }
+                            </select>
+                        </div>
+                        <div class="form-group">
+                            <label class="form-label">CCNL</label>
+                            <input class="form-control" name="Ccnl" value="@d.Ccnl" placeholder="Studi professionali" />
+                        </div>
+                        <div class="form-group">
+                            <label class="form-label">Livello CCNL</label>
+                            <input id="fld-LivelloContratto" class="form-control" name="LivelloContratto" value="@d.LivelloContratto" placeholder="Es. 4° livello" />
+                        </div>
+                        <div class="form-group">
+                            <label class="form-label">Monte ore settimanale</label>
+                            <input class="form-control" type="number" min="0" max="80" name="MonteOreSettimanale" value="@d.MonteOreSettimanale" />
+                        </div>
+                        <div class="form-group">
+                            <label class="form-label">Data assunzione *</label>
+                            <input class="form-control" type="date" name="DataAssunzione" value="@d.DataAssunzione.ToString("yyyy-MM-dd")" required />
+                        </div>
+                        <div class="form-group">
+                            <label class="form-label">Data primo rapporto</label>
+                            <input class="form-control" type="date" name="DataPrimoRapporto" value="@d.DataPrimoRapporto?.ToString("yyyy-MM-dd")" />
+                        </div>
+                        <div class="form-group">
+                            <label class="form-label">Fine periodo prova</label>
+                            <input id="fld-DataFinePeriodoProva" class="form-control" type="date" name="DataFinePeriodoProva" value="@d.DataFinePeriodoProva?.ToString("yyyy-MM-dd")" />
+                        </div>
+                        <div class="form-group">
+                            <label class="form-label">Scadenza contratto (TD)</label>
+                            <input id="fld-DataScadenzaContratto" class="form-control" type="date" name="DataScadenzaContratto" value="@d.DataScadenzaContratto?.ToString("yyyy-MM-dd")" />
+                        </div>
+                        <div class="form-group">
+                            <label class="form-label">Scadenza proroga</label>
+                            <input id="fld-DataScadenzaProroga" class="form-control" type="date" name="DataScadenzaProroga" value="@d.DataScadenzaProroga?.ToString("yyyy-MM-dd")" />
+                        </div>
+                        <div class="form-group">
+                            <label class="form-label">Trasformazione contratto</label>
+                            <input class="form-control" type="date" name="DataTrasformazioneContratto" value="@d.DataTrasformazioneContratto?.ToString("yyyy-MM-dd")" />
+                        </div>
+                        <div class="form-group">
+                            <label class="form-label">Giorni ferie residui</label>
+                            <input class="form-control" type="number" min="0" name="GiorniFerieResidui" value="@d.GiorniFerieResidui" />
+                        </div>
+                        <div class="form-group">
+                            <label class="form-label">PIN timbratura</label>
+                            <input id="fld-PinTimbratura" class="form-control" name="PinTimbratura" value="@d.PinTimbratura" maxlength="6" placeholder="4-6 cifre" style="font-family: monospace;" />
+                        </div>
+                        <div class="form-group dotmodal__full">
+                            <label class="form-label">IBAN</label>
+                            <input id="fld-IBAN" class="form-control" name="IBAN" value="@d.IBAN" maxlength="34" style="font-family: monospace;" placeholder="IT60 X054 2811 1010 0000 0123 456" />
+                        </div>
+                        <div class="form-group" id="fld-VisitaMedica" style="grid-column:1/-1; padding:10px 12px; background:rgba(196,120,48,0.06); border:1px dashed rgba(196,120,48,0.3); border-radius:8px;">
+                            <div style="font-size:.82rem; color:#6b5538;">
+                                🩺 Le <strong>visite mediche</strong> si gestiscono dalla scheda completa nel tab Compliance.
+                            </div>
+                        </div>
+                    </div>
+                </section>
+
+                <section id="sec-studi" class="dotmodal__section">
+                    <h3 class="dotmodal__sec-title">🎓 Studi</h3>
+                    <div class="dotmodal__grid">
+                        <div class="form-group dotmodal__full">
+                            <label class="form-label">Titolo di studio</label>
+                            <input id="fld-TitoloStudio" class="form-control" name="TitoloStudio" value="@d.TitoloStudio" placeholder="Es. Diploma odontotecnico" />
+                        </div>
+                        <div class="form-group">
+                            <label class="form-check">
+                                <input type="checkbox" name="AutocertificazioneTitolo" value="true" @(d.AutocertificazioneTitolo ? "checked" : "") />
+                                <input type="hidden" name="AutocertificazioneTitolo" value="false" />
+                                Autocertificazione titolo
+                            </label>
+                        </div>
+                        <div class="form-group">
+                            <label class="form-check">
+                                <input type="checkbox" name="ExTirocinante" value="true" @(d.ExTirocinante ? "checked" : "") />
+                                <input type="hidden" name="ExTirocinante" value="false" />
+                                Ex tirocinante
+                            </label>
+                        </div>
+                        <div class="form-group">
+                            <label class="form-check">
+                                <input type="checkbox" name="BeneficioTicket" value="true" @(d.BeneficioTicket ? "checked" : "") />
+                                <input type="hidden" name="BeneficioTicket" value="false" />
+                                Beneficio ticket restaurant
+                            </label>
+                        </div>
+                    </div>
+                </section>
+
+                <section id="sec-documenti" class="dotmodal__section">
+                    <h3 class="dotmodal__sec-title">🪪 Documenti d'identità</h3>
+                    <div class="dotmodal__grid">
+                        <div class="form-group">
+                            <label class="form-label">Numero documento</label>
+                            <input id="fld-DocumentoNumero" class="form-control" name="DocumentoNumero" value="@d.DocumentoNumero" />
+                        </div>
+                        <div class="form-group">
+                            <label class="form-label">Scadenza C.I.</label>
+                            <input id="fld-ScadenzaCartaIdentita" class="form-control" type="date" name="ScadenzaCartaIdentita" value="@d.ScadenzaCartaIdentita?.ToString("yyyy-MM-dd")" />
+                        </div>
+                        <div class="form-group">
+                            <label class="form-label">Scadenza tessera sanitaria</label>
+                            <input id="fld-ScadenzaTesseraSanitaria" class="form-control" type="date" name="ScadenzaTesseraSanitaria" value="@d.ScadenzaTesseraSanitaria?.ToString("yyyy-MM-dd")" />
+                        </div>
+                        <div class="form-group">
+                            <label class="form-label">Scadenza permesso di soggiorno</label>
+                            <input id="fld-ScadenzaPermessoSoggiorno" class="form-control" type="date" name="ScadenzaPermessoSoggiorno" value="@d.ScadenzaPermessoSoggiorno?.ToString("yyyy-MM-dd")" />
+                        </div>
+                    </div>
+                </section>
+
+                <section id="sec-eventi" class="dotmodal__section">
+                    <h3 class="dotmodal__sec-title">📅 Eventi &amp; cessazione</h3>
+                    <div class="dotmodal__grid">
+                        <div class="form-group">
+                            <label class="form-label">Inizio maternità</label>
+                            <input class="form-control" type="date" name="InizioMaternita" value="@d.InizioMaternita?.ToString("yyyy-MM-dd")" />
+                        </div>
+                        <div class="form-group">
+                            <label class="form-label">Scadenza documenti maternità</label>
+                            <input id="fld-ScadenzaDocumentiMaternita" class="form-control" type="date" name="ScadenzaDocumentiMaternita" value="@d.ScadenzaDocumentiMaternita?.ToString("yyyy-MM-dd")" />
+                        </div>
+                        <div class="form-group">
+                            <label class="form-label">Data dimissioni</label>
+                            <input class="form-control" type="date" name="DataDimissioni" value="@d.DataDimissioni?.ToString("yyyy-MM-dd")" />
+                        </div>
+                        <div class="form-group">
+                            <label class="form-label">Motivo dimissioni</label>
+                            <input class="form-control" name="MotivoDimissioni" value="@d.MotivoDimissioni" />
+                        </div>
+                        <div class="form-group dotmodal__full">
+                            <label class="form-label">Eventi infortunio</label>
+                            <textarea class="form-control" name="NoteInfortunio" rows="2">@d.NoteInfortunio</textarea>
+                        </div>
+                    </div>
+                </section>
+
+                <section id="sec-note" class="dotmodal__section">
+                    <h3 class="dotmodal__sec-title">📝 Note</h3>
+                    <div class="dotmodal__grid">
+                        <div class="form-group dotmodal__full">
+                            <textarea class="form-control" name="Note" rows="4">@d.Note</textarea>
+                        </div>
+                    </div>
+                </section>
+
+                <div class="dotmodal__errors" data-dotmodal-errors hidden></div>
+            </div>
+        </form>
+    </div>
+
+    <footer class="dotmodal__footer">
+        <a class="dotmodal__expand" href="/dipendenti/@d.Id/modifica" target="_top" title="Apri la versione a pagina intera">
+            ⤢ Espandi la scheda di modifica
+        </a>
+        <div class="dotmodal__footer-actions">
+            <button type="button" class="btn btn--ghost" data-dotmodal-close>Annulla</button>
+            <button type="submit" form="dipmodal-form" class="btn btn--primary" data-dotmodal-save>Salva modifiche</button>
+        </div>
+    </footer>
+</div>

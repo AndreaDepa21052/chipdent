@@ -973,14 +973,49 @@ public class DipendentiController : Controller
         return View("Form", d);
     }
 
+    /// <summary>Restituisce il partial della modale di modifica rapida con dati e criticità.</summary>
+    [HttpGet("{id}/edit-modal")]
+    [Authorize(Policy = Policies.RequireBackoffice)]
+    public async Task<IActionResult> EditModal(string id)
+    {
+        var d = await Load(id);
+        if (d is null) return NotFound();
+
+        var cliniche = await CliniceListAsync();
+        var managers = await ManagerCandidatesAsync(excludeId: id);
+        var visite = await _mongo.VisiteMediche
+            .Find(v => v.TenantId == _tenant.TenantId && v.DipendenteId == id)
+            .ToListAsync();
+        var (critiche, avvisi, completezza) = Chipdent.Web.Infrastructure.Compliance
+            .DipendenteCriticitaCalculator.Calcola(d, visite, DateTime.UtcNow);
+
+        return PartialView("_EditModal", new DipendenteEditModalViewModel
+        {
+            Dipendente = d,
+            Cliniche = cliniche,
+            Managers = managers,
+            Critiche = critiche,
+            Avvisi = avvisi,
+            Completezza = completezza
+        });
+    }
+
     [HttpPost("{id}/modifica")]
     [Authorize(Policy = Policies.RequireBackoffice)]
     [ValidateAntiForgeryToken]
-    public async Task<IActionResult> Edit(string id, Dipendente model)
+    public async Task<IActionResult> Edit(string id, Dipendente model, [FromHeader(Name = "X-Edit-Modal")] string? modal)
     {
         if (id != model.Id) return BadRequest();
+        var isModal = modal == "1";
         if (!ModelState.IsValid)
         {
+            if (isModal)
+            {
+                var errors = ModelState
+                    .Where(e => e.Value!.Errors.Count > 0)
+                    .ToDictionary(e => e.Key, e => e.Value!.Errors.Select(x => x.ErrorMessage).ToArray());
+                return BadRequest(new { errors });
+            }
             ViewData["Section"] = "dipendenti";
             ViewData["IsNew"] = false;
             ViewData["Cliniche"] = await CliniceListAsync();
@@ -1006,6 +1041,8 @@ public class DipendentiController : Controller
                 fromC?.Id, fromC?.Nome, toC?.Id ?? "", toC?.Nome ?? "",
                 MotivoTrasferimento.Riorganizzazione, "Aggiornamento sede", DateTime.Today);
         }
+
+        if (isModal) return Json(new { ok = true, name = model.NomeCompleto });
 
         TempData["flash"] = $"Dipendente «{model.NomeCompleto}» aggiornato.";
         return RedirectToAction(nameof(Details), new { id });
