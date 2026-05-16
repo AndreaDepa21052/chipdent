@@ -580,8 +580,10 @@
         max-height: 90vh; border-radius: 16px;
         background: linear-gradient(180deg, #fffaf2 0%, #fff 100%);
         box-shadow: 0 30px 80px rgba(59,30,12,0.35);
-        overflow: hidden; display: flex; flex-direction: column;
+        overflow: hidden; flex-direction: column;
     }
+    /* display:flex SOLO quando aperto (vedi nota su dlg-fullscreen). */
+    dialog.dlg-ai[open] { display: flex; }
     dialog.dlg-ai::backdrop { background: rgba(59,30,12,0.55); backdrop-filter: blur(2px); }
     .dlg-ai__bar {
         display: flex; align-items: center; gap: 12px;
@@ -1640,9 +1642,12 @@
         background: var(--c-bg, #f8f1e3);
         color: inherit;
         overflow: hidden;
-        display: flex;
         flex-direction: column;
     }
+    /* display:flex SOLO quando aperto: senza [open] il dialog deve restare
+       display:none come da default user-agent, altrimenti la testata resta
+       visibile in fondo alla pagina. */
+    dialog.dlg-fullscreen[open] { display: flex; }
     dialog.dlg-fullscreen::backdrop { background: rgba(59,30,12,0.55); }
     .dlg-fullscreen__bar {
         display: flex; align-items: center; gap: var(--s-3);
@@ -1821,33 +1826,48 @@
         var slot = document.getElementById('dlg-grid-fullscreen-body');
         var card = document.querySelector('[data-grid-card]');
         var root = document.getElementById('scadenze-grid-root');
-        var closeBtn = document.querySelector('[data-grid-fullscreen-close]');
         if (!toggle || !dlg || !slot || !card || !root) return;
 
+        // Cleanup totale: rimette la card al suo posto, toglie open in
+        // tutti i modi possibili, ripristina lo scroll del body.
+        function teardown() {
+            if (card.parentElement !== root) {
+                root.appendChild(card);
+            }
+            try { if (typeof dlg.close === 'function' && dlg.open) dlg.close(); } catch (e) {}
+            dlg.removeAttribute('open');
+            document.body.style.overflow = '';
+        }
         function open() {
-            if (!dlg.open) {
-                slot.appendChild(card);
+            // Se per qualche motivo è aperto male, ripulisco prima.
+            if (dlg.open || card.parentElement === slot) teardown();
+            slot.appendChild(card);
+            try {
                 if (typeof dlg.showModal === 'function') dlg.showModal();
                 else dlg.setAttribute('open', '');
-                document.body.style.overflow = 'hidden';
+            } catch (e) {
+                dlg.setAttribute('open', '');
             }
+            document.body.style.overflow = 'hidden';
         }
-        function close() {
-            if (dlg.open) {
-                if (typeof dlg.close === 'function') dlg.close();
-                else dlg.removeAttribute('open');
-            }
-        }
+
         toggle.addEventListener('click', open);
-        if (closeBtn) closeBtn.addEventListener('click', close);
-        dlg.addEventListener('close', function () {
-            root.appendChild(card);
-            document.body.style.overflow = '';
-        });
-        // Click sul backdrop chiude la modale (Esc è gestito nativamente).
+        // Event delegation: qualunque [data-grid-fullscreen-close] (anche
+        // ri-renderizzato) chiude la modale e ripristina la card.
         dlg.addEventListener('click', function (e) {
-            if (e.target === dlg) close();
+            if (e.target.closest('[data-grid-fullscreen-close]')) {
+                e.preventDefault();
+                e.stopPropagation();
+                teardown();
+                return;
+            }
+            // Click sul backdrop del dialog (non sul contenuto).
+            if (e.target === dlg) teardown();
         });
+        // Esc nativo del <dialog>: gestisce sia il close event sia il cancel
+        // (in alcuni casi dlg.close() non viene chiamato). Cattura entrambi.
+        dlg.addEventListener('close',  teardown);
+        dlg.addEventListener('cancel', teardown);
     })();
 
     // Colonne ridimensionabili (table-layout: fixed) — drag del bordo destro
