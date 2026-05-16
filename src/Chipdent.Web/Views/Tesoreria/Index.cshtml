@@ -104,10 +104,16 @@
         <p class="page-head__sub">Vista unificata di fatture passive e scadenze fornitori. KPI, grafici, e azioni rapide su pagamenti.</p>
     </div>
     <div class="page-head__actions">
+        <button type="button" class="btn btn--ghost btn--ai" data-ai-trigger title="Analisi AI dello scadenziario: criticità, picchi cassa, suggerimenti">
+            <span class="btn-ai__sparkle" aria-hidden="true">✦</span> AI
+        </button>
         <button type="button" class="btn btn--ghost" data-cal-open-toggle title="Mostra/nascondi il mini-calendario delle scadenze">
             📅 <span data-cal-open-label>Nascondi calendario</span>
         </button>
-        <a class="btn btn--ghost" asp-action="ExportCsv">⬇ Export CSV</a>
+        <div class="btn-group" role="group" aria-label="Esporta scadenziario" style="display:inline-flex; gap:0;">
+            <a class="btn btn--ghost" asp-action="ExportCsv" title="Scarica tutto lo scadenziario in CSV (separatore ; — Excel compatibile)" style="border-top-right-radius:0; border-bottom-right-radius:0;">⬇ CSV</a>
+            <a class="btn btn--ghost" asp-action="ExportXlsx" title="Scarica tutto lo scadenziario in Excel (.xlsx)" style="border-top-left-radius:0; border-bottom-left-radius:0; margin-left:-1px;">⬇ XLSX</a>
+        </div>
         <a class="btn btn--ghost" asp-action="GeneraScadenziario">⚙️ Genera scadenziario</a>
         <button type="button" class="btn btn--primary" data-new-fattura>＋ Nuova fattura</button>
     </div>
@@ -127,8 +133,9 @@
 }
 
 <div class="tabs" data-tesoreria-tabs style="margin-bottom: var(--s-4);">
-    <a class="tab @(activeTab == "scadenze"  ? "is-active" : "")" href="#" data-tab="scadenze">📋 Scadenze <span class="tab__count">@Model.Righe.Count</span></a>
+    <a class="tab @(activeTab == "scadenze"  ? "is-active" : "")" href="#" data-tab="scadenze">📋 Scadenze <span class="tab__count">@Model.RigheTotali</span></a>
     <a class="tab @(activeTab == "dashboard" ? "is-active" : "")" href="#" data-tab="dashboard">📊 Dashboard &amp; KPI</a>
+    <a class="tab @(activeTab == "regole"    ? "is-active" : "")" href="#" data-tab="regole">📜 Regole <span class="tab__count">@Model.RegoleCustom.Count</span></a>
 </div>
 
 <section data-tab-pane="dashboard" style="@(activeTab == "dashboard" ? "" : "display:none;")">
@@ -364,12 +371,11 @@
 
     /* Visualizzazione compatta degli IBAN: ordinante (Società che ha
        ricevuto la fattura) sopra, beneficiario (Fornitore) sotto. Il
-       valore completo è in tooltip; qui mostriamo prime/ultime 4 cifre. */
-    .iban-flow { display: flex; flex-direction: column; gap: 1px; margin-top: 4px; }
+       valore completo è in una tooltip personalizzata che si apre on hover. */
+    .iban-flow { position: relative; display: flex; flex-direction: column; gap: 1px; margin-top: 4px; cursor: help; }
     .iban-flow__row {
         display: flex; align-items: center; gap: 4px;
         font-size: .66rem; line-height: 1.1; color: var(--c-ink-soft, #7a5c3a);
-        cursor: help;
     }
     .iban-flow__label {
         display: inline-block; width: 14px; text-align: right;
@@ -382,6 +388,262 @@
         letter-spacing: .02em;
     }
     .iban-flow__val--missing { background: rgba(168,58,58,0.08); color: #a83a3a; font-style: italic; }
+
+    /* ─── Tooltip dettaglio bonifico (sexy edition) ─────────────── */
+    .iban-pop {
+        position: absolute; z-index: 950; left: 0; bottom: calc(100% + 10px);
+        min-width: 320px; max-width: 380px;
+        padding: 12px 14px 10px;
+        background: linear-gradient(180deg, #fffaf2 0%, #fff 100%);
+        border: 1px solid rgba(196,120,48,0.35);
+        border-radius: 12px;
+        box-shadow: 0 18px 48px rgba(59,30,12,0.22), 0 2px 6px rgba(59,30,12,0.08);
+        opacity: 0; transform: translateY(6px) scale(.98);
+        transform-origin: bottom left;
+        transition: opacity .14s ease-out, transform .14s ease-out;
+        pointer-events: none;
+        text-align: left;
+        font-size: .78rem; line-height: 1.35; color: var(--c-ink, #3b1e0c);
+    }
+    .iban-flow:hover .iban-pop,
+    .iban-flow:focus-within .iban-pop {
+        opacity: 1; transform: translateY(0) scale(1); pointer-events: auto;
+    }
+    .iban-pop::after {
+        content: ''; position: absolute; left: 24px; bottom: -7px;
+        width: 12px; height: 12px; transform: rotate(45deg);
+        background: #fff;
+        border-right: 1px solid rgba(196,120,48,0.35);
+        border-bottom: 1px solid rgba(196,120,48,0.35);
+    }
+    .iban-pop__title {
+        display: flex; align-items: center; gap: 6px;
+        font-size: .72rem; text-transform: uppercase; letter-spacing: .06em;
+        color: var(--c-ink-muted, #998); font-weight: 700;
+        padding-bottom: 8px; margin-bottom: 8px;
+        border-bottom: 1px dashed rgba(196,120,48,0.25);
+    }
+    .iban-pop__icon { font-size: .9rem; }
+    .iban-pop__amt {
+        margin-left: auto; color: var(--c-accent-strong, #a86010);
+        font-variant-numeric: tabular-nums; font-size: .9rem; letter-spacing: 0;
+        text-transform: none;
+    }
+    .iban-pop__leg {
+        padding: 6px 8px; border-radius: 8px; margin-bottom: 2px;
+        background: rgba(196,120,48,0.05);
+    }
+    .iban-pop__leg--from { background: rgba(36,87,164,0.06); }
+    .iban-pop__leg--to   { background: rgba(45,122,80,0.06); }
+    .iban-pop__role {
+        font-size: .65rem; font-weight: 700; text-transform: uppercase; letter-spacing: .06em;
+        color: var(--c-ink-muted, #998); margin-bottom: 2px;
+    }
+    .iban-pop__leg--from .iban-pop__role { color: #2457a4; }
+    .iban-pop__leg--to   .iban-pop__role { color: #1f6e3a; }
+    .iban-pop__entity {
+        font-weight: 700; color: var(--c-ink-strong, #3b1e0c);
+        white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+    }
+    .iban-pop__iban {
+        font-family: var(--font-mono, ui-monospace, SFMono-Regular, Menlo, monospace);
+        font-size: .78rem; letter-spacing: .04em;
+        margin-top: 2px; word-break: break-all;
+    }
+    .iban-pop__meta {
+        font-size: .68rem; color: var(--c-ink-muted, #998); margin-top: 2px;
+    }
+    .iban-pop__arrow {
+        display: flex; align-items: center; gap: 6px;
+        margin: 2px 0; padding: 0 8px;
+        font-size: .72rem; color: var(--c-ink-muted, #998);
+    }
+    .iban-pop__arrow > span:first-child {
+        display: inline-flex; align-items: center; justify-content: center;
+        width: 18px; height: 18px; border-radius: 50%;
+        background: var(--c-accent-strong, #a86010); color: #fff;
+        font-size: .68rem; line-height: 1;
+    }
+    .iban-pop__foot {
+        margin-top: 8px; padding-top: 6px; border-top: 1px dashed rgba(196,120,48,0.25);
+        font-size: .68rem; color: var(--c-ink-muted, #998); text-align: center;
+    }
+
+    /* ─── Resize colonne ────────────────────────────────────────── */
+    .scadenze-grid .table thead th { position: relative; }
+    .col-resizer {
+        position: absolute; top: 0; right: -3px; width: 7px; height: 100%;
+        cursor: col-resize; user-select: none; z-index: 5;
+        background: transparent;
+    }
+    .col-resizer::after {
+        content: ''; position: absolute; top: 18%; right: 3px;
+        width: 1px; height: 64%; background: rgba(196,120,48,0.25);
+        transition: background .12s, width .12s;
+    }
+    .col-resizer:hover::after, .col-resizer.is-active::after { background: var(--c-accent-strong, #a86010); width: 2px; }
+    .scadenze-grid .table { table-layout: fixed; }
+    .scadenze-grid .table th, .scadenze-grid .table td { overflow: hidden; text-overflow: ellipsis; }
+
+    /* ─── Tab Regole ───────────────────────────────────────────── */
+    .regole-grid { display: grid; grid-template-columns: 1fr 1fr; gap: var(--s-4); }
+    @@media (max-width: 1100px) { .regole-grid { grid-template-columns: 1fr; } }
+    .regola-block { padding: 10px 4px; border-bottom: 1px dashed var(--c-divider, #ece0cc); }
+    .regola-block:last-child { border-bottom: 0; }
+    .regola-block summary { cursor: pointer; color: var(--c-ink-strong, #3b1e0c); padding: 4px 0; font-size: .92rem; }
+    .regola-block summary:hover { color: var(--c-accent-strong, #a86010); }
+    .regola-block p { font-size: .85rem; line-height: 1.5; color: var(--c-ink-soft, #5a3f1f); margin: 6px 0 0 18px; }
+
+    .regola-list { list-style: none; padding: 0; margin: 0; display: flex; flex-direction: column; gap: 10px; }
+    .regola-item {
+        border: 1px solid var(--c-border, #ece0cc); border-radius: 10px;
+        padding: 10px 12px; background: #fffaf2; transition: border-color .12s;
+    }
+    .regola-item:hover { border-color: var(--c-accent-strong, #a86010); }
+    .regola-item.is-disabled { opacity: .55; background: #f4f0ea; }
+    .regola-item__head { display: flex; align-items: center; gap: 8px; margin-bottom: 4px; }
+    .regola-item__badge {
+        font-size: .65rem; padding: 2px 8px; border-radius: 999px; font-weight: 700;
+        text-transform: uppercase; letter-spacing: .04em;
+    }
+    .regola-item__badge--dainterpretare { background: #fff2dd; color: #a86010; }
+    .regola-item__badge--interpretata   { background: #dff5e6; color: #1f6e3a; }
+    .regola-item__badge--errore         { background: #fbe1e1; color: #a83a3a; }
+    .regola-item__badge--off            { background: #e8e8e8; color: #666; }
+    .regola-item__text { font-size: .88rem; line-height: 1.45; margin: 0 0 6px; color: var(--c-ink, #3b1e0c); white-space: pre-wrap; }
+    .regola-item__nota { font-size: .78rem; margin: 0 0 6px; padding: 6px 8px; background: rgba(36,87,164,0.06); border-left: 2px solid #2457a4; border-radius: 4px; color: #2457a4; }
+    .regola-item__foot { display: flex; align-items: center; gap: 8px; font-size: .75rem; }
+    .regola-item__foot .muted { margin-right: auto; }
+
+    /* ─── Bottone AI sparkly ───────────────────────────────────── */
+    .btn--ai {
+        position: relative;
+        background: linear-gradient(135deg, #fff7e6 0%, #fff 100%) !important;
+        border: 1px solid rgba(196,120,48,0.4) !important;
+        color: var(--c-accent-strong, #a86010) !important;
+        font-weight: 700;
+        overflow: hidden;
+    }
+    .btn--ai::before {
+        content: ''; position: absolute; inset: 0;
+        background: linear-gradient(120deg, transparent 0%, rgba(255,255,255,0.55) 50%, transparent 100%);
+        transform: translateX(-100%);
+        animation: ai-shine 3s ease-in-out infinite;
+    }
+    @@keyframes ai-shine { 0%, 70% { transform: translateX(-100%); } 100% { transform: translateX(100%); } }
+    .btn-ai__sparkle { display: inline-block; animation: ai-twinkle 1.8s ease-in-out infinite; }
+    @@keyframes ai-twinkle { 0%, 100% { transform: rotate(0deg) scale(1); opacity: 1; } 50% { transform: rotate(180deg) scale(1.3); opacity: .7; } }
+
+    /* ─── Modale AI ────────────────────────────────────────────── */
+    dialog.dlg-ai {
+        border: 0; padding: 0; margin: 5vh auto; width: min(720px, 92vw);
+        max-height: 90vh; border-radius: 16px;
+        background: linear-gradient(180deg, #fffaf2 0%, #fff 100%);
+        box-shadow: 0 30px 80px rgba(59,30,12,0.35);
+        overflow: hidden; display: flex; flex-direction: column;
+    }
+    dialog.dlg-ai::backdrop { background: rgba(59,30,12,0.55); backdrop-filter: blur(2px); }
+    .dlg-ai__bar {
+        display: flex; align-items: center; gap: 12px;
+        padding: 14px 18px; border-bottom: 1px solid var(--c-border, #ece0cc);
+        background: linear-gradient(90deg, rgba(196,120,48,0.10) 0%, transparent 60%);
+    }
+    .dlg-ai__title { display: flex; align-items: center; gap: 8px; font-weight: 700; font-size: 1.05rem; color: var(--c-ink-strong, #3b1e0c); flex: 1; }
+    .dlg-ai__sparkle {
+        display: inline-flex; align-items: center; justify-content: center;
+        width: 28px; height: 28px; border-radius: 50%;
+        background: linear-gradient(135deg, #c47830 0%, #a86010 100%); color: #fff;
+        font-size: 1rem; animation: ai-twinkle 1.8s ease-in-out infinite;
+    }
+    .dlg-ai__body { padding: 22px 24px; overflow-y: auto; }
+
+    .ai-loader { display: flex; flex-direction: column; align-items: center; padding: 30px 10px; }
+    .ai-loader__logo { margin-bottom: 22px; }
+    .ai-loader__steps { width: 100%; max-width: 460px; }
+    .ai-loader__step {
+        padding: 8px 12px; margin: 4px 0; border-radius: 8px;
+        background: rgba(196,120,48,0.04); color: var(--c-ink-muted, #998);
+        font-size: .88rem; opacity: .4; transition: opacity .25s, background .25s, color .25s;
+        position: relative; padding-left: 36px;
+    }
+    .ai-loader__step::before {
+        content: '○'; position: absolute; left: 12px; top: 8px; font-size: 1rem;
+    }
+    .ai-loader__step.is-active { opacity: 1; background: rgba(196,120,48,0.10); color: var(--c-ink, #3b1e0c); font-weight: 600; }
+    .ai-loader__step.is-active::before { content: '●'; color: var(--c-accent-strong, #a86010); animation: ai-dot 1s ease-in-out infinite; }
+    .ai-loader__step.is-done { opacity: .85; color: #2d7a50; }
+    .ai-loader__step.is-done::before { content: '✓'; color: #2d7a50; }
+    @@keyframes ai-dot { 0%, 100% { transform: scale(1); } 50% { transform: scale(1.5); } }
+
+    .ai-result__head {
+        display: flex; gap: 14px; padding: 12px 14px; margin-bottom: 16px;
+        background: rgba(36,87,164,0.06); border-radius: 10px;
+        font-size: .85rem; color: var(--c-ink-soft, #5a3f1f);
+    }
+    .ai-result__head strong { color: var(--c-ink-strong, #3b1e0c); }
+    .ai-card {
+        position: relative;
+        padding: 12px 14px 12px 50px;
+        margin: 8px 0;
+        border-radius: 10px;
+        border: 1px solid var(--c-border, #ece0cc);
+        background: #fff;
+        animation: ai-card-in .35s ease-out both;
+    }
+    @@keyframes ai-card-in { from { opacity: 0; transform: translateY(6px); } to { opacity: 1; transform: translateY(0); } }
+    .ai-card__icon {
+        position: absolute; left: 12px; top: 12px;
+        width: 28px; height: 28px; border-radius: 8px;
+        display: flex; align-items: center; justify-content: center;
+        background: rgba(196,120,48,0.10); font-size: 1.1rem;
+    }
+    .ai-card__title { font-weight: 700; color: var(--c-ink-strong, #3b1e0c); margin-bottom: 2px; }
+    .ai-card__desc { font-size: .85rem; line-height: 1.4; color: var(--c-ink-soft, #5a3f1f); margin-bottom: 4px; }
+    .ai-card__action {
+        font-size: .8rem; color: var(--c-accent-strong, #a86010);
+        padding: 6px 0 0; border-top: 1px dashed rgba(196,120,48,0.25); margin-top: 6px;
+    }
+    .ai-card__action::before { content: '→ '; font-weight: 700; }
+    .ai-card--critical { border-left: 4px solid #a83a3a; }
+    .ai-card--critical .ai-card__icon { background: #fbe1e1; }
+    .ai-card--warn { border-left: 4px solid #c47830; }
+    .ai-card--warn .ai-card__icon { background: #fff2dd; }
+    .ai-card--info { border-left: 4px solid #2457a4; }
+    .ai-card--info .ai-card__icon { background: rgba(36,87,164,0.10); }
+    .ai-card--rule { border-left: 4px solid #7a5c9a; }
+    .ai-card--rule .ai-card__icon { background: rgba(122,92,154,0.12); }
+    .ai-card--good { border-left: 4px solid #2d7a50; }
+    .ai-card--good .ai-card__icon { background: #dff5e6; }
+    .ai-disclaimer {
+        margin-top: 14px; padding: 10px 12px;
+        background: rgba(196,120,48,0.05); border-radius: 8px;
+        font-size: .72rem; color: var(--c-ink-muted, #998); text-align: center;
+    }
+
+    /* ─── Paginazione ───────────────────────────────────────────── */
+    .pager {
+        display: flex; align-items: center; gap: var(--s-2);
+        padding: 10px 14px; border-top: 1px solid var(--c-border, #ece0cc);
+        background: #fbf5e9; flex-wrap: wrap;
+    }
+    .pager__info { font-size: .78rem; color: var(--c-ink-muted, #998); }
+    .pager__nav { display: inline-flex; gap: 4px; margin-left: auto; }
+    .pager__btn {
+        display: inline-flex; align-items: center; justify-content: center;
+        min-width: 30px; height: 30px; padding: 0 8px;
+        border: 1px solid var(--c-border, #ece0cc);
+        background: #fff; color: var(--c-ink, #3b1e0c);
+        text-decoration: none; border-radius: 6px;
+        font-size: .82rem; font-weight: 600;
+    }
+    .pager__btn:hover { background: rgba(196,120,48,0.08); border-color: var(--c-accent-strong, #a86010); }
+    .pager__btn.is-active {
+        background: var(--c-accent-strong, #a86010); color: #fff;
+        border-color: var(--c-accent-strong, #a86010);
+    }
+    .pager__btn.is-disabled { pointer-events: none; opacity: .35; }
+    .pager__size { display: inline-flex; align-items: center; gap: 6px; font-size: .78rem; color: var(--c-ink-muted, #998); }
+    .pager__size select { padding: 4px 8px; border: 1px solid var(--c-border, #ece0cc); border-radius: 6px; background: #fff; font-size: .82rem; }
 </style>
 
 <div class="scadenze-split">
@@ -687,17 +949,17 @@
                     }
                 }
                 <thead>
-                    <tr>
-                        <th style="width: 24px;"><input type="checkbox" data-sepa-master title="Seleziona tutte le righe bonificabili" /></th>
-                        <th>@Html.Raw(SortLink("data", "Data", "Scadenza prevista"))</th>
-                        <th>@Html.Raw(SortLink("loc", "LOC"))</th>
-                        <th>@Html.Raw(SortLink("em", "E/M", "Tipo emissione fattura — E elettronica · M manuale"))</th>
-                        <th>@Html.Raw(SortLink("doc", "N° Doc"))</th>
-                        <th>@Html.Raw(SortLink("fornitore", "Fornitore / inserita da"))</th>
-                        <th style="text-align:right;">@Html.Raw(SortLink("totale", "Totale"))</th>
-                        <th>@Html.Raw(SortLink("metodo", "Met."))</th>
-                        <th>@Html.Raw(SortLink("stato", "Stato"))</th>
-                        <th style="width: 90px;"></th>
+                    <tr data-resizable-row>
+                        <th style="width: 28px;" data-col="sel"><input type="checkbox" data-sepa-master title="Seleziona tutte le righe bonificabili" /></th>
+                        <th data-col="data" style="width: 80px;">@Html.Raw(SortLink("data", "Data", "Scadenza prevista"))<div class="col-resizer" data-col-resizer></div></th>
+                        <th data-col="loc"  style="width: 70px;">@Html.Raw(SortLink("loc", "LOC"))<div class="col-resizer" data-col-resizer></div></th>
+                        <th data-col="em"   style="width: 50px;">@Html.Raw(SortLink("em", "E/M", "Tipo emissione fattura — E elettronica · M manuale"))<div class="col-resizer" data-col-resizer></div></th>
+                        <th data-col="doc"  style="width: 110px;">@Html.Raw(SortLink("doc", "N° Doc"))<div class="col-resizer" data-col-resizer></div></th>
+                        <th data-col="forn" style="width: 240px;">@Html.Raw(SortLink("fornitore", "Fornitore / inserita da"))<div class="col-resizer" data-col-resizer></div></th>
+                        <th data-col="tot"  style="text-align:right; width: 110px;">@Html.Raw(SortLink("totale", "Totale"))<div class="col-resizer" data-col-resizer></div></th>
+                        <th data-col="met"  style="width: 200px;">@Html.Raw(SortLink("metodo", "Met."))<div class="col-resizer" data-col-resizer></div></th>
+                        <th data-col="stato" style="width: 160px;">@Html.Raw(SortLink("stato", "Stato"))<div class="col-resizer" data-col-resizer></div></th>
+                        <th data-col="act"  style="width: 110px;"></th>
                     </tr>
                 </thead>
                 <tbody>
@@ -796,14 +1058,43 @@
                                 var ibanOrd = r.IbanOrdinante;
                                 var ibanBen = r.Iban;
                             }
-                            <div class="iban-flow" title="Da Società (ordinante) → a Fornitore (beneficiario)">
-                                <div class="iban-flow__row" title="@(ibanOrd ?? "IBAN ordinante non configurato sulla Società")">
+                            <div class="iban-flow" tabindex="0">
+                                <div class="iban-flow__row">
                                     <span class="iban-flow__label">da</span>
                                     <code class="iban-flow__val @(string.IsNullOrWhiteSpace(ibanOrd) ? "iban-flow__val--missing" : null)">@ShortIban(ibanOrd)</code>
                                 </div>
-                                <div class="iban-flow__row" title="@(ibanBen ?? "IBAN beneficiario non disponibile")">
+                                <div class="iban-flow__row">
                                     <span class="iban-flow__label">a</span>
                                     <code class="iban-flow__val @(string.IsNullOrWhiteSpace(ibanBen) ? "iban-flow__val--missing" : null)">@ShortIban(ibanBen)</code>
+                                </div>
+
+                                <div class="iban-pop" role="tooltip" aria-hidden="true">
+                                    <div class="iban-pop__title">
+                                        <span class="iban-pop__icon">🏦</span>
+                                        <span>Disposizione di pagamento</span>
+                                        <strong class="iban-pop__amt">@EurDec(r.Totale)</strong>
+                                    </div>
+                                    <div class="iban-pop__leg iban-pop__leg--from">
+                                        <div class="iban-pop__role">↑ Ordinante (paga)</div>
+                                        <div class="iban-pop__entity">@(string.IsNullOrWhiteSpace(r.SocietaNome) ? "—" : r.SocietaNome)</div>
+                                        <div class="iban-pop__iban">@(string.IsNullOrWhiteSpace(ibanOrd) ? "IBAN non configurato" : ibanOrd)</div>
+                                        @if (!string.IsNullOrWhiteSpace(r.BicOrdinante))
+                                        {
+                                            <div class="iban-pop__meta">BIC @r.BicOrdinante</div>
+                                        }
+                                    </div>
+                                    <div class="iban-pop__arrow" aria-hidden="true">
+                                        <span>↓</span>
+                                        <span class="iban-pop__arrow-meta">@r.Metodo.Label()</span>
+                                    </div>
+                                    <div class="iban-pop__leg iban-pop__leg--to">
+                                        <div class="iban-pop__role">↓ Beneficiario (riceve)</div>
+                                        <div class="iban-pop__entity">@r.FornitoreNome</div>
+                                        <div class="iban-pop__iban">@(string.IsNullOrWhiteSpace(ibanBen) ? "IBAN non disponibile" : ibanBen)</div>
+                                    </div>
+                                    <div class="iban-pop__foot">
+                                        Scadenza @r.DataScadenza.ToString("dd/MM/yyyy") · @r.Categoria.Label()
+                                    </div>
                                 </div>
                             </div>
                         </td>
@@ -854,10 +1145,323 @@
                 </tbody>
             </table>
         </div>
+
+        @{
+            // Paginazione: link che preservano i query string esistenti (filtri,
+            // sort, dir, size). Costruiamo via Url.Action mantenendo Model.Filtro
+            // serializzato come dictionary. La sintesi mostra "X–Y su N" e la
+            // dropdown del page size ricarica con l'attributo onchange.
+            int paginaCorr = Model.Pagina;
+            int pagineTot  = Model.PagineTotali;
+            int pageStart  = pagineTot == 0 ? 0 : (paginaCorr - 1) * Model.RighePerPagina + 1;
+            int pageEnd    = Math.Min(Model.RigheTotali, paginaCorr * Model.RighePerPagina);
+
+            Dictionary<string, object?> PageRoute(int page, int? size = null)
+            {
+                var d = new Dictionary<string, object?>(StringComparer.OrdinalIgnoreCase);
+                void put(string k, object? v) { if (v != null && !(v is string s && string.IsNullOrEmpty(s))) d[k] = v; }
+                put("FornitoreId", Model.Filtro.FornitoreId);
+                put("ClinicaId",   Model.Filtro.ClinicaId);
+                put("Categoria",   Model.Filtro.Categoria);
+                put("Stato",       Model.Filtro.Stato);
+                put("Metodo",      Model.Filtro.Metodo);
+                put("Dal",         Model.Filtro.Dal?.ToString("yyyy-MM-dd"));
+                put("Al",          Model.Filtro.Al?.ToString("yyyy-MM-dd"));
+                put("Q",           Model.Filtro.Q);
+                if (Model.Filtro.SoloFuoriTermini) d["SoloFuoriTermini"] = true;
+                put("Sort",        Model.Filtro.Sort);
+                put("Dir",         Model.Filtro.Dir);
+                d["Page"] = page;
+                d["Size"] = size ?? Model.RighePerPagina;
+                return d;
+            }
+            // Costruisce la "finestra" di numeri pagina mostrati: max 7 link
+            // attorno alla pagina corrente, con primo/ultimo sempre visibili.
+            var pageWindow = new List<int>();
+            if (pagineTot <= 7)
+            {
+                for (int i = 1; i <= pagineTot; i++) pageWindow.Add(i);
+            }
+            else
+            {
+                pageWindow.Add(1);
+                int start = Math.Max(2, paginaCorr - 2);
+                int end   = Math.Min(pagineTot - 1, paginaCorr + 2);
+                if (start > 2) pageWindow.Add(-1); // ellipsis
+                for (int i = start; i <= end; i++) pageWindow.Add(i);
+                if (end < pagineTot - 1) pageWindow.Add(-1);
+                pageWindow.Add(pagineTot);
+            }
+        }
+        <div class="pager">
+            <div class="pager__info">
+                @if (Model.RigheTotali == 0)
+                {
+                    <span>Nessuna scadenza</span>
+                }
+                else
+                {
+                    <span><strong>@pageStart–@pageEnd</strong> su <strong>@Model.RigheTotali</strong> scadenze</span>
+                }
+            </div>
+            <div class="pager__size">
+                Righe per pagina
+                <select onchange="window.location = this.options[this.selectedIndex].dataset.url;">
+                    @foreach (var sz in new[] { 25, 50, 100, 200 })
+                    {
+                        var url = Url.Action(null, PageRoute(1, sz));
+                        <option value="@sz" data-url="@url" selected="@(sz == Model.RighePerPagina)">@sz</option>
+                    }
+                </select>
+            </div>
+            <nav class="pager__nav" aria-label="Paginazione scadenze">
+                @{
+                    var prevUrl = Url.Action(null, PageRoute(Math.Max(1, paginaCorr - 1)));
+                    var nextUrl = Url.Action(null, PageRoute(Math.Min(pagineTot, paginaCorr + 1)));
+                    var firstUrl = Url.Action(null, PageRoute(1));
+                    var lastUrl  = Url.Action(null, PageRoute(pagineTot));
+                }
+                <a class="pager__btn @(paginaCorr <= 1 ? "is-disabled" : "")" href="@firstUrl" title="Prima pagina" aria-label="Prima pagina">«</a>
+                <a class="pager__btn @(paginaCorr <= 1 ? "is-disabled" : "")" href="@prevUrl" title="Pagina precedente" aria-label="Pagina precedente">‹</a>
+                @foreach (var p in pageWindow)
+                {
+                    if (p == -1)
+                    {
+                        <span class="pager__btn is-disabled" aria-hidden="true">…</span>
+                    }
+                    else
+                    {
+                        var url = Url.Action(null, PageRoute(p));
+                        <a class="pager__btn @(p == paginaCorr ? "is-active" : "")" href="@url" aria-label="Pagina @p" aria-current="@(p == paginaCorr ? "page" : null)">@p</a>
+                    }
+                }
+                <a class="pager__btn @(paginaCorr >= pagineTot ? "is-disabled" : "")" href="@nextUrl" title="Pagina successiva" aria-label="Pagina successiva">›</a>
+                <a class="pager__btn @(paginaCorr >= pagineTot ? "is-disabled" : "")" href="@lastUrl" title="Ultima pagina" aria-label="Ultima pagina">»</a>
+            </nav>
+        </div>
     </div>
 </div><!-- /scadenze-grid -->
 </div><!-- /scadenze-split -->
 </section><!-- /tab scadenze -->
+
+<!-- ── Tab: Regole dello scadenziario ─────────────────────────── -->
+<section data-tab-pane="regole" style="@(activeTab == "regole" ? "" : "display:none;")">
+    <div class="regole-grid">
+        <!-- Colonna 1: regole built-in (sempre attive nel motore) -->
+        <div class="card" style="padding: var(--s-4);">
+            <h3 class="card__title" style="margin-top:0;">⚙️ Regole built-in (sempre applicate dal motore)</h3>
+            <p class="muted" style="font-size:.85rem; margin-top:0;">
+                Queste regole sono codificate nel motore <code>ScadenziarioGenerator</code>
+                e vengono applicate ad ogni rigenerazione. Documento canonico:
+                <code>docs/REGOLE_SCADENZIARIO.md</code>.
+            </p>
+
+            <details class="regola-block" open>
+                <summary><strong>1. Classificazione del fornitore</strong> per tipo operativo</summary>
+                <p>Ogni fornitore viene classificato (Medico, Direzione Sanitaria, Laboratorio,
+                Invisalign, Carta di credito, Compass, Deutsche Bank, Locazione, Importo Fisso, RIBA,
+                Generico) leggendo nome e causale. La classificazione governa termini di pagamento e snap.</p>
+            </details>
+
+            <details class="regola-block">
+                <summary><strong>2. Match fornitore</strong> per P.IVA → CF → Ragione sociale</summary>
+                <p>I fornitori vengono matchati con l'anagrafica prima per P.IVA, poi per Codice Fiscale,
+                infine per nome normalizzato. Se non trovato, viene autocreato con codice F#### progressivo.</p>
+            </details>
+
+            <details class="regola-block">
+                <summary><strong>3. Risoluzione LOC</strong> (clinica destinataria)</summary>
+                <p>Priorità: (1) cessionario PDF → Società → Clinica via <code>Clinica.SocietaId</code>;
+                (2) sezione CSV "CCH" → holding; (3) sigla LOC rilevata nel testo descrittivo del PDF;
+                (4) match su <code>Clinica.NomeAbbreviato</code>; (5) tabella statica di fallback.</p>
+            </details>
+
+            <details class="regola-block">
+                <summary><strong>4. Mese di competenza</strong></summary>
+                <p>Estratto con priorità: PDF (Periodo di riferimento) → causale CSV (regex sui mesi italiani)
+                → fallback al mese della data fattura. Usato anche per calcolare la scadenza 60gg FM dei medici.</p>
+            </details>
+
+            <details class="regola-block">
+                <summary><strong>5. Termini di pagamento</strong> per tipologia</summary>
+                <p>Medici / Direzione Sanitaria / Laboratorio: 60 giorni fine mese di competenza.<br/>
+                Invisalign: 150 giorni dalla data fattura.<br/>
+                Generici: termini configurati sul fornitore (default 30gg fine mese).</p>
+            </details>
+
+            <details class="regola-block">
+                <summary><strong>6. Snap dei bonifici</strong> al 10 o al 30/31</summary>
+                <p>I bonifici sono programmati SOLO al giorno 10 o al 30/31 del mese. Le date calcolate
+                vengono "snappate" al giorno più vicino. Invisalign anticipa per difetto.</p>
+            </details>
+
+            <details class="regola-block">
+                <summary><strong>7. RID / RIBA</strong> copiano la data scadenza del documento</summary>
+                <p>Per Compass / Deutsche Bank (RID) e fornitori RIBA si copia la data scadenza letta dal PDF.
+                Se il PDF non l'ha esposta, fallback ai termini contrattuali + alert.</p>
+            </details>
+
+            <details class="regola-block">
+                <summary><strong>8. Ritenuta d'acconto</strong> separa netto + F24</summary>
+                <p>Quando la fattura ha ritenuta, si generano due scadenze: il netto (bonifico al fornitore)
+                e la ritenuta (F24 al 16 del mese successivo). La rata F24 è figlia della principale.</p>
+            </details>
+
+            <details class="regola-block">
+                <summary><strong>9. Note di credito</strong></summary>
+                <p>Importo registrato in negativo. NC Compass/DB → RID compensativa marcata pagata.
+                NC generiche → bonifico fine mese fattura con alert "verificare compensazione".</p>
+            </details>
+
+            <details class="regola-block">
+                <summary><strong>10. Carta di credito</strong> → già pagato</summary>
+                <p>Le fatture di Amex / American Express vengono registrate come Pagato alla data fattura
+                con riferimento "estratto conto".</p>
+            </details>
+
+            <details class="regola-block">
+                <summary><strong>11. «Pagamenti manuali»</strong> (override globale)</summary>
+                <p>Se <code>Fornitore.PagamentiManuali = true</code>, la fattura è registrata ma NON viene
+                generata alcuna scadenza. La posizione confluisce nell'alert "pagamenti manuali" per
+                il calcolo a mano (vince su tutte le altre regole).</p>
+            </details>
+
+            <details class="regola-block">
+                <summary><strong>12. «Fattura dopo il pagamento»</strong> → scadenza già pagata</summary>
+                <p>Se <code>Fornitore.EmissioneFattura = DopoIlPagamento</code>, tutte le scadenze generate
+                vengono marcate come Pagato alla data fattura (il bonifico è già stato disposto).</p>
+            </details>
+
+            <details class="regola-block">
+                <summary><strong>13. Note del fornitore</strong> in coda alla scadenza</summary>
+                <p>La nota primaria (<code>Fornitore.Note</code>) viene SEMPRE concatenata a <code>Scadenza.Note</code>.
+                La nota secondaria viene aggiunta solo se il flag <code>AggiungiNotaSecondariaAutomaticamente</code>
+                è true. Stessa cosa per il blocco clinica (cumulativo).</p>
+            </details>
+
+            <details class="regola-block">
+                <summary><strong>14. Duplicate detection</strong> & scostamento importo</summary>
+                <p>Cristal / Infinity / Locazioni: alert se l'importo differisce dalla fattura precedente.
+                Altri fornitori: alert se stesso importo + ≤ 60gg dalla precedente (possibile doppione).</p>
+            </details>
+
+            <details class="regola-block">
+                <summary><strong>15. Codice scadenza</strong> SC-YYYYMM-NNNN</summary>
+                <p>Ogni scadenza riceve un codice progressivo per anno+mese della data scadenza al momento
+                della generazione (es. <code>SC-202604-0017</code>). Le scadenze pre-esistenti vengono
+                backfilled al primo avvio.</p>
+            </details>
+        </div>
+
+        <!-- Colonna 2: regole custom dell'utente -->
+        <div class="card" style="padding: var(--s-4);">
+            <h3 class="card__title" style="margin-top:0;">🧠 Le tue regole personalizzate</h3>
+            <div class="alert alert--info" style="font-size:.82rem; margin: 0 0 var(--s-3);">
+                <strong>Come funziona oggi:</strong> scrivi la regola in italiano. Viene salvata e mostrata
+                come <em>promemoria all'operatore</em> nella pagina «Genera scadenziario» e nell'analisi AI.
+                <br/>
+                <strong>Roadmap:</strong> l'interpretazione automatica (LLM → modifica del motore) sarà
+                attivata in un secondo step. Per ora il motore segue solo le regole built-in qui sopra.
+            </div>
+
+            <form method="post" asp-action="NuovaRegolaCustom" style="margin-bottom: var(--s-3);">
+                @Html.AntiForgeryToken()
+                <div class="form-group">
+                    <label class="form-label">Titolo breve</label>
+                    <input class="form-control" name="titolo" required maxlength="120"
+                           placeholder="es. «Royalties pagate sempre il 15 del mese successivo»" />
+                </div>
+                <div class="form-group">
+                    <label class="form-label">Regola (linguaggio naturale)</label>
+                    <textarea class="form-control" name="testo" required rows="3"
+                              placeholder="Scrivi la regola come la racconteresti a un collega. Esempi:&#10;• Se il fornitore è AGESP, paga sempre il 30 del mese.&#10;• Per le fatture del laboratorio Romano, sposta la scadenza a 90 giorni invece di 60.&#10;• Quando l'importo supera 5000€, segnala come «da approvare» prima di pagare."></textarea>
+                </div>
+                <button type="submit" class="btn btn--primary">＋ Aggiungi regola</button>
+            </form>
+
+            @if (Model.RegoleCustom.Count == 0)
+            {
+                <div class="muted" style="text-align:center; padding: var(--s-4); border: 1px dashed var(--c-border, #ece0cc); border-radius: 8px;">
+                    Nessuna regola personalizzata. Aggiungila qui sopra.
+                </div>
+            }
+            else
+            {
+                <ul class="regola-list">
+                    @foreach (var r in Model.RegoleCustom)
+                    {
+                        <li class="regola-item @(r.Attiva ? "" : "is-disabled")">
+                            <div class="regola-item__head">
+                                <strong>@r.Titolo</strong>
+                                <span class="regola-item__badge regola-item__badge--@r.Stato.ToString().ToLowerInvariant()">
+                                    @(r.Stato == StatoRegola.Interpretata ? "✓ interpretata" :
+                                      r.Stato == StatoRegola.Errore ? "⚠ errore" : "🕓 promemoria")
+                                </span>
+                                @if (!r.Attiva)
+                                {
+                                    <span class="regola-item__badge regola-item__badge--off">disattivata</span>
+                                }
+                            </div>
+                            <p class="regola-item__text">@r.Testo</p>
+                            @if (!string.IsNullOrWhiteSpace(r.NotaInterpretazione))
+                            {
+                                <p class="regola-item__nota">🤖 @r.NotaInterpretazione</p>
+                            }
+                            <div class="regola-item__foot">
+                                <span class="muted">creata da @r.CreataDaNome · @r.CreatedAt.ToLocalTime().ToString("dd/MM/yyyy")</span>
+                                <form method="post" asp-action="ToggleRegolaCustom" asp-route-id="@r.Id" style="display:inline;">
+                                    @Html.AntiForgeryToken()
+                                    <button type="submit" class="btn btn--ghost btn--sm">@(r.Attiva ? "Disattiva" : "Riattiva")</button>
+                                </form>
+                                <form method="post" asp-action="EliminaRegolaCustom" asp-route-id="@r.Id" style="display:inline;"
+                                      onsubmit="return confirm('Eliminare la regola «@r.Titolo»?');">
+                                    @Html.AntiForgeryToken()
+                                    <button type="submit" class="btn btn--ghost btn--sm" style="color:#a83a3a;">Elimina</button>
+                                </form>
+                            </div>
+                        </li>
+                    }
+                </ul>
+            }
+        </div>
+    </div>
+</section><!-- /tab regole -->
+
+<!-- ── Modale AI: analisi euristica con UX "machine learning" ──── -->
+<dialog id="dlg-ai" class="dlg-ai" aria-label="Analisi AI dello scadenziario">
+    <div class="dlg-ai__bar">
+        <div class="dlg-ai__title">
+            <span class="dlg-ai__sparkle">✦</span>
+            <span>Analisi AI dello Scadenziario</span>
+        </div>
+        <button type="button" class="btn btn--ghost btn--sm" data-ai-close>✕ Chiudi</button>
+    </div>
+    <div class="dlg-ai__body" data-ai-body>
+        <!-- Stato 1: loading -->
+        <div class="ai-loader" data-ai-loader>
+            <div class="ai-loader__logo">
+                <svg viewBox="0 0 64 64" width="84" height="84" aria-hidden="true">
+                    <circle cx="32" cy="32" r="26" fill="none" stroke="#c47830" stroke-width="3" stroke-dasharray="40 124" stroke-linecap="round">
+                        <animateTransform attributeName="transform" type="rotate" from="0 32 32" to="360 32 32" dur="1.4s" repeatCount="indefinite"/>
+                    </circle>
+                    <circle cx="32" cy="32" r="18" fill="none" stroke="#3b1e0c" stroke-width="2" stroke-dasharray="20 80" stroke-linecap="round" opacity=".6">
+                        <animateTransform attributeName="transform" type="rotate" from="360 32 32" to="0 32 32" dur="2.1s" repeatCount="indefinite"/>
+                    </circle>
+                    <text x="32" y="38" text-anchor="middle" font-size="22" fill="#3b1e0c" font-weight="700">🧠</text>
+                </svg>
+            </div>
+            <div class="ai-loader__steps">
+                <div class="ai-loader__step is-active" data-step="1">Lettura scadenziario corrente…</div>
+                <div class="ai-loader__step" data-step="2">Analisi concentrazione fornitori…</div>
+                <div class="ai-loader__step" data-step="3">Calcolo picchi di cassa attesi…</div>
+                <div class="ai-loader__step" data-step="4">Verifica copertura anagrafica (IBAN, P.IVA)…</div>
+                <div class="ai-loader__step" data-step="5">Sintesi e raccomandazioni…</div>
+            </div>
+        </div>
+        <!-- Stato 2: risultati (popolato dal JS) -->
+        <div class="ai-result" data-ai-result hidden></div>
+    </div>
+</dialog>
 
 <!-- ── Modale griglia a tutto schermo ─────────────────────────────
      Contiene un placeholder vuoto: alla pressione del bottone
@@ -1097,6 +1701,156 @@
         // Click sul backdrop chiude la modale (Esc è gestito nativamente).
         dlg.addEventListener('click', function (e) {
             if (e.target === dlg) close();
+        });
+    })();
+
+    // Colonne ridimensionabili (table-layout: fixed) — drag del bordo destro
+    // dell'header per cambiare la larghezza. Larghezze persistite per colonna
+    // in localStorage e ripristinate al caricamento. Min 36px, max 800px.
+    (function () {
+        var table = document.querySelector('.scadenze-grid .table');
+        var row = table && table.querySelector('thead tr[data-resizable-row]');
+        if (!table || !row) return;
+
+        var STORAGE_KEY = 'chipdent.tesoreria.colWidths';
+        var widths = {};
+        try { widths = JSON.parse(localStorage.getItem(STORAGE_KEY) || '{}') || {}; } catch (e) {}
+
+        var ths = row.querySelectorAll('th[data-col]');
+        ths.forEach(function (th) {
+            var col = th.getAttribute('data-col');
+            if (widths[col]) th.style.width = widths[col] + 'px';
+        });
+
+        function persist() {
+            try { localStorage.setItem(STORAGE_KEY, JSON.stringify(widths)); } catch (e) {}
+        }
+
+        var dragging = null, startX = 0, startW = 0;
+        row.querySelectorAll('[data-col-resizer]').forEach(function (handle) {
+            handle.addEventListener('mousedown', function (e) {
+                e.preventDefault();
+                e.stopPropagation();
+                var th = handle.parentElement;
+                dragging = th;
+                startX = e.clientX;
+                startW = th.getBoundingClientRect().width;
+                handle.classList.add('is-active');
+                document.body.style.cursor = 'col-resize';
+                document.body.style.userSelect = 'none';
+            });
+        });
+        document.addEventListener('mousemove', function (e) {
+            if (!dragging) return;
+            var w = Math.min(800, Math.max(36, Math.round(startW + (e.clientX - startX))));
+            dragging.style.width = w + 'px';
+        });
+        document.addEventListener('mouseup', function () {
+            if (!dragging) return;
+            var col = dragging.getAttribute('data-col');
+            var w = Math.round(dragging.getBoundingClientRect().width);
+            if (col) { widths[col] = w; persist(); }
+            dragging.querySelectorAll('.col-resizer').forEach(function (h) { h.classList.remove('is-active'); });
+            dragging = null;
+            document.body.style.cursor = '';
+            document.body.style.userSelect = '';
+        });
+    })();
+
+    // Modale AI: simula l'avanzamento di un motore ML mostrando step in
+    // sequenza, poi fetch dei risultati euristici dal server e rendering
+    // delle "insight card". Niente LLM: la fonte dati è /tesoreria/ai/analisi
+    // che calcola statistiche server-side; la UX vende l'esperienza AI.
+    (function () {
+        var trigger = document.querySelector('[data-ai-trigger]');
+        var dlg = document.getElementById('dlg-ai');
+        var closeBtn = document.querySelector('[data-ai-close]');
+        var loader = document.querySelector('[data-ai-loader]');
+        var result = document.querySelector('[data-ai-result]');
+        if (!trigger || !dlg) return;
+
+        function escapeHtml(s) {
+            return String(s == null ? '' : s)
+                .replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
+                .replace(/"/g, '&quot;').replace(/'/g, '&#39;');
+        }
+
+        function renderInsights(data) {
+            var fmt = new Intl.NumberFormat('it-IT', { style: 'currency', currency: 'EUR' });
+            var html = '';
+            html += '<div class="ai-result__head">';
+            html += '<div>Esposto totale aperte: <strong>' + fmt.format(data.esposto || 0) + '</strong></div>';
+            html += '<div>Scadute: <strong>' + (data.scadute || 0) + '</strong></div>';
+            html += '<div>Posizioni aperte: <strong>' + (data.apertiCount || 0) + '</strong></div>';
+            html += '<div>Regole custom attive: <strong>' + (data.regoleCount || 0) + '</strong></div>';
+            html += '</div>';
+            (data.insights || []).forEach(function (ins, i) {
+                html += '<div class="ai-card ai-card--' + escapeHtml(ins.kind) + '" style="animation-delay:' + (i * 60) + 'ms;">';
+                html += '<div class="ai-card__icon">' + escapeHtml(ins.icon || '•') + '</div>';
+                html += '<div class="ai-card__title">' + escapeHtml(ins.titolo) + '</div>';
+                html += '<div class="ai-card__desc">' + escapeHtml(ins.descrizione) + '</div>';
+                if (ins.azione) html += '<div class="ai-card__action">' + escapeHtml(ins.azione) + '</div>';
+                html += '</div>';
+            });
+            html += '<div class="ai-disclaimer">Analisi euristica calcolata sul tuo scadenziario corrente. ';
+            html += 'Le raccomandazioni sono consultive: la decisione finale resta del responsabile tesoreria.</div>';
+            result.innerHTML = html;
+        }
+
+        function runLoadingSequence(onComplete) {
+            var steps = loader.querySelectorAll('.ai-loader__step');
+            steps.forEach(function (s) { s.classList.remove('is-active', 'is-done'); });
+            var i = 0;
+            steps[0].classList.add('is-active');
+            var iv = setInterval(function () {
+                steps[i].classList.remove('is-active');
+                steps[i].classList.add('is-done');
+                i++;
+                if (i >= steps.length) {
+                    clearInterval(iv);
+                    onComplete();
+                    return;
+                }
+                steps[i].classList.add('is-active');
+            }, 420);
+        }
+
+        function open() {
+            loader.hidden = false;
+            result.hidden = true;
+            result.innerHTML = '';
+            if (typeof dlg.showModal === 'function') dlg.showModal();
+            else dlg.setAttribute('open', '');
+
+            var fetchDone = false, animDone = false;
+            var data = null;
+            function maybeRender() {
+                if (fetchDone && animDone && data) {
+                    loader.hidden = true;
+                    result.hidden = false;
+                    renderInsights(data);
+                }
+            }
+            fetch('@Url.Action("AiAnalisi")', { headers: { 'Accept': 'application/json' } })
+                .then(function (r) { return r.json(); })
+                .then(function (json) { data = json; fetchDone = true; maybeRender(); })
+                .catch(function () {
+                    fetchDone = true;
+                    data = { insights: [{ kind: 'critical', icon: '⚠️',
+                        titolo: 'Analisi non disponibile',
+                        descrizione: 'Errore nel recupero dei dati dal server. Riprova tra qualche secondo.',
+                        azione: 'Se persiste, controlla la connessione o contatta il supporto.' }] };
+                    maybeRender();
+                });
+            runLoadingSequence(function () { animDone = true; maybeRender(); });
+        }
+
+        trigger.addEventListener('click', open);
+        if (closeBtn) closeBtn.addEventListener('click', function () {
+            if (typeof dlg.close === 'function') dlg.close(); else dlg.removeAttribute('open');
+        });
+        dlg.addEventListener('click', function (e) {
+            if (e.target === dlg) { if (typeof dlg.close === 'function') dlg.close(); else dlg.removeAttribute('open'); }
         });
     })();
 

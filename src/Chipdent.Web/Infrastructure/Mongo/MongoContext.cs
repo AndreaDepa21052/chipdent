@@ -79,6 +79,7 @@ public class MongoContext
     public IMongoCollection<ImportFatturePassiveBatch> ImportFattureBatches => Database.GetCollection<ImportFatturePassiveBatch>("importFattureBatches");
     public IMongoCollection<ImportFatturaRiga> ImportFattureRighe => Database.GetCollection<ImportFatturaRiga>("importFattureRighe");
     public IMongoCollection<PropostaAnagraficaFornitore> ProposteAnagraficaFornitori => Database.GetCollection<PropostaAnagraficaFornitore>("proposteAnagraficaFornitori");
+    public IMongoCollection<RegolaScadenziarioCustom> RegoleScadenziarioCustom => Database.GetCollection<RegolaScadenziarioCustom>("regoleScadenziarioCustom");
     public IMongoCollection<ProcedimentoDisciplinare> Disciplinari => Database.GetCollection<ProcedimentoDisciplinare>("disciplinari");
     public IMongoCollection<PremioDipendente> Premi => Database.GetCollection<PremioDipendente>("premiDipendenti");
     public IMongoCollection<SchedaValutazione> Valutazioni => Database.GetCollection<SchedaValutazione>("valutazioniDipendenti");
