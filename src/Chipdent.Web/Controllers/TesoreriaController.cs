@@ -1803,9 +1803,9 @@ public class TesoreriaController : Controller
                 icon = "🧠",
                 titolo = $"Regola custom: {r.Titolo}",
                 descrizione = r.Testo,
-                azione = r.Stato == StatoRegola.Interpretata
-                    ? "Regola applicata automaticamente dal motore."
-                    : "Regola in promemoria: il motore non la applica ancora in automatico, verifica manualmente."
+                azione = r.Azione == TipoAzioneRegola.SoloPromemoria
+                    ? "Regola in promemoria: il motore non modifica le scadenze, verifica manualmente."
+                    : $"Applicata dal motore alla prossima rigenerazione: {r.Azione} → {r.Parametro1}"
             });
         }
 
