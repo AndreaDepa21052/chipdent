@@ -106,11 +106,11 @@ public static class FattureImportPdfParser
                     fatture.Add(EstraiCampi(startPage.Value, i, buffer));
                 }
                 startPage = i + 1; // pagina 1-based
-                buffer = new List<string> { t };
+                buffer = new List<string> { t ?? string.Empty };
             }
             else if (startPage.HasValue)
             {
-                buffer.Add(t);
+                buffer.Add(t ?? string.Empty);
             }
             // Se non abbiamo ancora visto un header, ignoriamo (es. copertine)
         }
