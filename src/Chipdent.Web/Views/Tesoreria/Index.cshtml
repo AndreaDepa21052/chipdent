@@ -1483,7 +1483,7 @@
                             <label class="form-label">Categoria</label>
                             <select class="form-control" name="Categoria">
                                 <option value="">— qualunque —</option>
-                                @foreach (var cat in Enum.GetValues<CategoriaSpesa>())
+                                @foreach (var cat in Enum.GetValues<CategoriaSpesa>().OrderBy(x => x.Label()))
                                 {
                                     <option value="@cat">@cat.Label()</option>
                                 }
