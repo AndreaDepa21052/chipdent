@@ -389,32 +389,41 @@
     }
     .iban-flow__val--missing { background: rgba(168,58,58,0.08); color: #a83a3a; font-style: italic; }
 
-    /* ─── Tooltip dettaglio bonifico (sexy edition) ─────────────── */
+    /* ─── Tooltip dettaglio bonifico (sexy edition) ─────────────────
+       Posizionato in fixed via JS (per non venir clippato da overflow
+       di td/tbody/wrapper) e ancorato al rect della cella .iban-flow. */
     .iban-pop {
-        position: absolute; z-index: 950; left: 0; bottom: calc(100% + 10px);
-        min-width: 320px; max-width: 380px;
+        position: fixed; z-index: 9000; left: 0; top: 0;
+        width: 340px;
         padding: 12px 14px 10px;
         background: linear-gradient(180deg, #fffaf2 0%, #fff 100%);
         border: 1px solid rgba(196,120,48,0.35);
         border-radius: 12px;
-        box-shadow: 0 18px 48px rgba(59,30,12,0.22), 0 2px 6px rgba(59,30,12,0.08);
+        box-shadow: 0 18px 48px rgba(59,30,12,0.28), 0 2px 6px rgba(59,30,12,0.08);
         opacity: 0; transform: translateY(6px) scale(.98);
         transform-origin: bottom left;
         transition: opacity .14s ease-out, transform .14s ease-out;
         pointer-events: none;
         text-align: left;
         font-size: .78rem; line-height: 1.35; color: var(--c-ink, #3b1e0c);
+        visibility: hidden;
     }
-    .iban-flow:hover .iban-pop,
-    .iban-flow:focus-within .iban-pop {
-        opacity: 1; transform: translateY(0) scale(1); pointer-events: auto;
+    .iban-pop.is-open {
+        opacity: 1; transform: translateY(0) scale(1); pointer-events: auto; visibility: visible;
     }
-    .iban-pop::after {
+    .iban-pop[data-arrow="bottom"]::after {
         content: ''; position: absolute; left: 24px; bottom: -7px;
         width: 12px; height: 12px; transform: rotate(45deg);
         background: #fff;
         border-right: 1px solid rgba(196,120,48,0.35);
         border-bottom: 1px solid rgba(196,120,48,0.35);
+    }
+    .iban-pop[data-arrow="top"]::after {
+        content: ''; position: absolute; left: 24px; top: -7px;
+        width: 12px; height: 12px; transform: rotate(45deg);
+        background: linear-gradient(135deg, #fffaf2 50%, transparent 50%);
+        border-left: 1px solid rgba(196,120,48,0.35);
+        border-top: 1px solid rgba(196,120,48,0.35);
     }
     .iban-pop__title {
         display: flex; align-items: center; gap: 6px;
@@ -514,6 +523,37 @@
     .regola-item__nota { font-size: .78rem; margin: 0 0 6px; padding: 6px 8px; background: rgba(36,87,164,0.06); border-left: 2px solid #2457a4; border-radius: 4px; color: #2457a4; }
     .regola-item__foot { display: flex; align-items: center; gap: 8px; font-size: .75rem; }
     .regola-item__foot .muted { margin-right: auto; }
+    .regola-item__prio {
+        display: inline-flex; align-items: center; justify-content: center;
+        min-width: 28px; height: 22px; padding: 0 6px;
+        background: var(--c-accent-strong, #a86010); color: #fff;
+        border-radius: 999px; font-size: .68rem; font-weight: 700;
+        font-variant-numeric: tabular-nums;
+    }
+    .regola-item__rule {
+        margin: 8px 0 6px; padding: 8px 10px;
+        background: #fffaf2; border: 1px dashed rgba(196,120,48,0.35); border-radius: 6px;
+        font-size: .8rem; line-height: 1.5; color: var(--c-ink-strong, #3b1e0c);
+        font-variant: small-caps;
+    }
+    .regola-item__when, .regola-item__then {
+        display: inline-block; padding: 1px 6px; margin: 0 4px 0 0; border-radius: 4px;
+        background: var(--c-accent-strong, #a86010); color: #fff;
+        font-size: .68rem; font-weight: 700; letter-spacing: .04em;
+    }
+    .regola-item__then { background: #2d7a50; margin-left: 6px; }
+
+    /* Fieldset del form regole */
+    .regola-fieldset {
+        border: 1px solid var(--c-border, #ece0cc); border-radius: 8px;
+        padding: 10px 14px 4px; margin: 0 0 var(--s-3);
+    }
+    .regola-fieldset legend {
+        padding: 0 8px; font-size: .78rem; font-weight: 700; color: var(--c-ink-soft, #5a3f1f);
+        text-transform: uppercase; letter-spacing: .06em;
+    }
+    .regola-grid-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 0 12px; }
+    @@media (max-width: 720px) { .regola-grid-2 { grid-template-columns: 1fr; } }
 
     /* ─── Bottone AI sparkly ───────────────────────────────────── */
     .btn--ai {
@@ -1357,25 +1397,107 @@
         <div class="card" style="padding: var(--s-4);">
             <h3 class="card__title" style="margin-top:0;">🧠 Le tue regole personalizzate</h3>
             <div class="alert alert--info" style="font-size:.82rem; margin: 0 0 var(--s-3);">
-                <strong>Come funziona oggi:</strong> scrivi la regola in italiano. Viene salvata e mostrata
-                come <em>promemoria all'operatore</em> nella pagina «Genera scadenziario» e nell'analisi AI.
+                <strong>Come funzionano:</strong> ogni regola ha <em>condizioni</em> (quando si applica)
+                e una <em>azione</em> (cosa fare). Il motore di generazione le valuta automaticamente al
+                prossimo «Genera scadenziario»: se le condizioni matchano, l'azione viene applicata alla
+                scadenza generata. La «Descrizione» è solo documentazione leggibile, non viene interpretata.
                 <br/>
-                <strong>Roadmap:</strong> l'interpretazione automatica (LLM → modifica del motore) sarà
-                attivata in un secondo step. Per ora il motore segue solo le regole built-in qui sopra.
+                <strong>Ordine:</strong> le regole vengono applicate per <em>priorità crescente</em>
+                (numero più basso = applicata prima). Una regola successiva può sovrascrivere l'effetto
+                di una precedente.
             </div>
 
             <form method="post" asp-action="NuovaRegolaCustom" style="margin-bottom: var(--s-3);">
                 @Html.AntiForgeryToken()
                 <div class="form-group">
                     <label class="form-label">Titolo breve</label>
-                    <input class="form-control" name="titolo" required maxlength="120"
-                           placeholder="es. «Royalties pagate sempre il 15 del mese successivo»" />
+                    <input class="form-control" name="Titolo" required maxlength="120"
+                           placeholder="es. «Royalties pagate il 15 del mese»" />
                 </div>
                 <div class="form-group">
-                    <label class="form-label">Regola (linguaggio naturale)</label>
-                    <textarea class="form-control" name="testo" required rows="3"
-                              placeholder="Scrivi la regola come la racconteresti a un collega. Esempi:&#10;• Se il fornitore è AGESP, paga sempre il 30 del mese.&#10;• Per le fatture del laboratorio Romano, sposta la scadenza a 90 giorni invece di 60.&#10;• Quando l'importo supera 5000€, segnala come «da approvare» prima di pagare."></textarea>
+                    <label class="form-label">Descrizione (documentazione)</label>
+                    <textarea class="form-control" name="Testo" required rows="2"
+                              placeholder="Spiega in italiano cosa fa la regola e perché esiste. Es: «AGESP fattura mensilmente e vuole essere pagata il 15 per la propria rendicontazione interna.»"></textarea>
                 </div>
+
+                <fieldset class="regola-fieldset">
+                    <legend>Condizioni (a chi si applica)</legend>
+                    <div class="regola-grid-2">
+                        <div class="form-group">
+                            <label class="form-label">Nome fornitore contiene</label>
+                            <input class="form-control" name="FornitoreNomeContiene" placeholder="es. AGESP, Romano…" />
+                        </div>
+                        <div class="form-group">
+                            <label class="form-label">Fornitore specifico</label>
+                            <select class="form-control" name="FornitoreId">
+                                <option value="">— qualunque —</option>
+                                @foreach (var f in Model.FornitoriLookup)
+                                {
+                                    <option value="@f.Id">@f.Nome</option>
+                                }
+                            </select>
+                        </div>
+                        <div class="form-group">
+                            <label class="form-label">Clinica (LOC)</label>
+                            <select class="form-control" name="ClinicaId">
+                                <option value="">— tutte le sedi —</option>
+                                @foreach (var c in Model.CliniceLookup)
+                                {
+                                    <option value="@c.Id">@c.Nome</option>
+                                }
+                            </select>
+                        </div>
+                        <div class="form-group">
+                            <label class="form-label">Categoria</label>
+                            <select class="form-control" name="Categoria">
+                                <option value="">— qualunque —</option>
+                                @foreach (var cat in Enum.GetValues<CategoriaSpesa>())
+                                {
+                                    <option value="@cat">@cat.Label()</option>
+                                }
+                            </select>
+                        </div>
+                        <div class="form-group">
+                            <label class="form-label">Importo minimo (€)</label>
+                            <input class="form-control" type="number" step="0.01" name="ImportoMinimo" placeholder="es. 1000" />
+                        </div>
+                        <div class="form-group">
+                            <label class="form-label">Importo massimo (€)</label>
+                            <input class="form-control" type="number" step="0.01" name="ImportoMassimo" placeholder="es. 5000" />
+                        </div>
+                    </div>
+                </fieldset>
+
+                <fieldset class="regola-fieldset">
+                    <legend>Azione (cosa fa il motore)</legend>
+                    <div class="regola-grid-2">
+                        <div class="form-group">
+                            <label class="form-label">Tipo azione</label>
+                            <select class="form-control" name="Azione" data-azione-select>
+                                <option value="SoloPromemoria">Solo promemoria (non modifica nulla)</option>
+                                <option value="ImpostaGiornoMese">Imposta giorno del mese (1–31)</option>
+                                <option value="AnticipaGiorni">Anticipa di N giorni</option>
+                                <option value="PosticipaGiorni">Posticipa di N giorni</option>
+                                <option value="ImpostaMetodoPagamento">Forza metodo pagamento</option>
+                                <option value="AggiungiNota">Aggiungi nota alla scadenza</option>
+                                <option value="SegnalaAlert">Genera alert nel preview</option>
+                            </select>
+                        </div>
+                        <div class="form-group">
+                            <label class="form-label" data-param-label>Parametro</label>
+                            <input class="form-control" name="Parametro1" data-param-input
+                                   placeholder="Compila in base al tipo di azione" />
+                            <small class="muted" data-param-hint style="display:block; margin-top:4px; font-size:.72rem;">
+                                Es: «15» per giorno del mese, «5» per giorni, «Bonifico» per metodo, testo libero per nota/alert.
+                            </small>
+                        </div>
+                        <div class="form-group">
+                            <label class="form-label">Priorità (basso = prima)</label>
+                            <input class="form-control" type="number" name="Priorita" value="100" min="1" max="999" />
+                        </div>
+                    </div>
+                </fieldset>
+
                 <button type="submit" class="btn btn--primary">＋ Aggiungi regola</button>
             </form>
 
@@ -1388,25 +1510,49 @@
             else
             {
                 <ul class="regola-list">
-                    @foreach (var r in Model.RegoleCustom)
+                    @foreach (var r in Model.RegoleCustom.OrderBy(x => x.Priorita).ThenByDescending(x => x.CreatedAt))
                     {
+                        var condizioniLst = new List<string>();
+                        if (!string.IsNullOrWhiteSpace(r.FornitoreNomeContiene)) condizioniLst.Add($"fornitore ~ «{r.FornitoreNomeContiene}»");
+                        if (!string.IsNullOrEmpty(r.FornitoreId))                 condizioniLst.Add($"fornitore = {Model.FornitoriLookup.FirstOrDefault(x => x.Id == r.FornitoreId).Nome ?? r.FornitoreId}");
+                        if (!string.IsNullOrEmpty(r.ClinicaId))                   condizioniLst.Add($"LOC = {Model.CliniceLookup.FirstOrDefault(x => x.Id == r.ClinicaId).Nome ?? r.ClinicaId}");
+                        if (r.Categoria.HasValue)                                 condizioniLst.Add($"categoria = {r.Categoria.Value.Label()}");
+                        if (r.ImportoMinimo.HasValue)                             condizioniLst.Add($"importo ≥ {r.ImportoMinimo:N2} €");
+                        if (r.ImportoMassimo.HasValue)                            condizioniLst.Add($"importo ≤ {r.ImportoMassimo:N2} €");
+                        var condizioniTxt = condizioniLst.Count == 0 ? "tutte le scadenze" : string.Join(" · ", condizioniLst);
+
+                        string azioneTxt = r.Azione switch
+                        {
+                            TipoAzioneRegola.SoloPromemoria         => "Solo promemoria",
+                            TipoAzioneRegola.ImpostaGiornoMese      => $"Imposta giorno mese → {r.Parametro1}",
+                            TipoAzioneRegola.AnticipaGiorni         => $"Anticipa di {r.Parametro1} giorni",
+                            TipoAzioneRegola.PosticipaGiorni        => $"Posticipa di {r.Parametro1} giorni",
+                            TipoAzioneRegola.ImpostaMetodoPagamento => $"Forza metodo → {r.Parametro1}",
+                            TipoAzioneRegola.AggiungiNota           => $"Aggiungi nota → «{r.Parametro1}»",
+                            TipoAzioneRegola.SegnalaAlert           => $"Genera alert → «{r.Parametro1}»",
+                            _                                       => r.Azione.ToString()
+                        };
+                        var isPromemoria = r.Azione == TipoAzioneRegola.SoloPromemoria;
                         <li class="regola-item @(r.Attiva ? "" : "is-disabled")">
                             <div class="regola-item__head">
+                                <span class="regola-item__prio" title="Priorità (basso = prima)">#@r.Priorita</span>
                                 <strong>@r.Titolo</strong>
-                                <span class="regola-item__badge regola-item__badge--@r.Stato.ToString().ToLowerInvariant()">
-                                    @(r.Stato == StatoRegola.Interpretata ? "✓ interpretata" :
-                                      r.Stato == StatoRegola.Errore ? "⚠ errore" : "🕓 promemoria")
+                                <span class="regola-item__badge regola-item__badge--@(isPromemoria ? "dainterpretare" : "interpretata")">
+                                    @(isPromemoria ? "🕓 promemoria" : "✓ applicata dal motore")
                                 </span>
                                 @if (!r.Attiva)
                                 {
                                     <span class="regola-item__badge regola-item__badge--off">disattivata</span>
                                 }
                             </div>
-                            <p class="regola-item__text">@r.Testo</p>
-                            @if (!string.IsNullOrWhiteSpace(r.NotaInterpretazione))
+                            @if (!string.IsNullOrWhiteSpace(r.Testo))
                             {
-                                <p class="regola-item__nota">🤖 @r.NotaInterpretazione</p>
+                                <p class="regola-item__text">@r.Testo</p>
                             }
+                            <div class="regola-item__rule">
+                                <span class="regola-item__when">SE</span> @condizioniTxt
+                                <span class="regola-item__then">ALLORA</span> @azioneTxt
+                            </div>
                             <div class="regola-item__foot">
                                 <span class="muted">creata da @r.CreataDaNome · @r.CreatedAt.ToLocalTime().ToString("dd/MM/yyyy")</span>
                                 <form method="post" asp-action="ToggleRegolaCustom" asp-route-id="@r.Id" style="display:inline;">
@@ -1757,6 +1903,92 @@
         });
     })();
 
+    // Form regole custom: il placeholder/hint del campo "Parametro" cambia
+    // in base al tipo di azione scelta, così l'utente capisce subito cosa
+    // inserire (numero giorno, giorni, metodo, testo libero…).
+    (function () {
+        var sel = document.querySelector('[data-azione-select]');
+        var inp = document.querySelector('[data-param-input]');
+        var hint = document.querySelector('[data-param-hint]');
+        if (!sel || !inp) return;
+        var PROFILES = {
+            'SoloPromemoria':        { ph: '(nessun parametro richiesto)', hint: 'La regola viene solo mostrata come promemoria, non modifica le scadenze.', disabled: true },
+            'ImpostaGiornoMese':     { ph: 'es. 15',                        hint: 'Numero del giorno del mese (1–31) a cui spostare la scadenza.' },
+            'AnticipaGiorni':        { ph: 'es. 5',                         hint: 'Quanti giorni anticipare rispetto alla scadenza calcolata.' },
+            'PosticipaGiorni':       { ph: 'es. 10',                        hint: 'Quanti giorni posticipare rispetto alla scadenza calcolata.' },
+            'ImpostaMetodoPagamento':{ ph: 'es. Bonifico',                   hint: 'Uno tra: Bonifico, Rid, Riba, CartaCredito, Contanti, Assegno, Compensazione, Altro.' },
+            'AggiungiNota':          { ph: 'es. "Verificare con Mario"',     hint: 'Testo libero che verrà appeso alla nota della scadenza.' },
+            'SegnalaAlert':          { ph: 'es. "Importo anomalo"',          hint: 'Messaggio dell\'alert mostrato in preview di generazione.' }
+        };
+        function apply() {
+            var p = PROFILES[sel.value] || PROFILES['SoloPromemoria'];
+            inp.placeholder = p.ph;
+            inp.disabled = !!p.disabled;
+            if (p.disabled) inp.value = '';
+            if (hint) hint.textContent = p.hint;
+        }
+        sel.addEventListener('change', apply);
+        apply();
+    })();
+
+    // Tooltip IBAN: posizionamento dinamico in `position: fixed` per non
+    // venir clippato dai td (che hanno overflow:hidden per il resize delle
+    // colonne) e dai vari wrapper della tabella. Al mouseenter calcolo il
+    // rect della cella e piazzo il popup sopra (o sotto se non c'è spazio).
+    (function () {
+        var POP_W = 340;
+        var GAP = 10;
+
+        function position(flow, pop) {
+            var rect = flow.getBoundingClientRect();
+            var vh = window.innerHeight;
+            var vw = window.innerWidth;
+            // Prima misuro l'altezza reale del popup (è già visibile=hidden ma
+            // dimensionato grazie alle classi).
+            pop.style.visibility = 'hidden';
+            pop.classList.add('is-open');
+            var popH = pop.offsetHeight;
+            var spaceAbove = rect.top;
+            var spaceBelow = vh - rect.bottom;
+            var arrowBottom = spaceAbove >= popH + GAP || spaceAbove > spaceBelow;
+            var top = arrowBottom
+                ? Math.max(8, rect.top - popH - GAP)
+                : Math.min(vh - popH - 8, rect.bottom + GAP);
+            // Ancoraggio orizzontale al bordo sinistro della cella, ma
+            // contenuto nel viewport.
+            var left = Math.min(vw - POP_W - 8, Math.max(8, rect.left));
+            pop.style.left = left + 'px';
+            pop.style.top  = top + 'px';
+            pop.setAttribute('data-arrow', arrowBottom ? 'bottom' : 'top');
+            pop.style.visibility = '';
+        }
+
+        function bind(flow) {
+            var pop = flow.querySelector('.iban-pop');
+            if (!pop) return;
+            var hideTm = null;
+            function show() {
+                if (hideTm) { clearTimeout(hideTm); hideTm = null; }
+                position(flow, pop);
+            }
+            function hide() {
+                hideTm = setTimeout(function () { pop.classList.remove('is-open'); }, 80);
+            }
+            flow.addEventListener('mouseenter', show);
+            flow.addEventListener('mouseleave', hide);
+            flow.addEventListener('focusin', show);
+            flow.addEventListener('focusout', hide);
+            pop.addEventListener('mouseenter', function () { if (hideTm) { clearTimeout(hideTm); hideTm = null; } });
+            pop.addEventListener('mouseleave', hide);
+        }
+
+        document.querySelectorAll('.iban-flow').forEach(bind);
+        // Chiudi i tooltip aperti se l'utente scrolla (il rect cambierebbe).
+        window.addEventListener('scroll', function () {
+            document.querySelectorAll('.iban-pop.is-open').forEach(function (p) { p.classList.remove('is-open'); });
+        }, true);
+    })();
+
     // Modale AI: simula l'avanzamento di un motore ML mostrando step in
     // sequenza, poi fetch dei risultati euristici dal server e rendering
     // delle "insight card". Niente LLM: la fonte dati è /tesoreria/ai/analisi
@@ -1764,10 +1996,30 @@
     (function () {
         var trigger = document.querySelector('[data-ai-trigger]');
         var dlg = document.getElementById('dlg-ai');
-        var closeBtn = document.querySelector('[data-ai-close]');
-        var loader = document.querySelector('[data-ai-loader]');
-        var result = document.querySelector('[data-ai-result]');
+        // Cerco loader/result dentro al dialog (più robusto del global selector).
+        var loader = dlg && dlg.querySelector('[data-ai-loader]');
+        var result = dlg && dlg.querySelector('[data-ai-result]');
         if (!trigger || !dlg) return;
+
+        function closeDlg() {
+            try { if (typeof dlg.close === 'function' && dlg.open) dlg.close(); } catch (e) {}
+            dlg.removeAttribute('open');
+            document.body.style.overflow = '';
+        }
+        // Delegazione sul dialog: qualunque elemento con [data-ai-close] (o
+        // figlio di esso) chiude la modale. Resiste a re-render del contenuto.
+        dlg.addEventListener('click', function (e) {
+            if (e.target.closest('[data-ai-close]')) {
+                e.preventDefault();
+                e.stopPropagation();
+                closeDlg();
+                return;
+            }
+            if (e.target === dlg) closeDlg();
+        });
+        // Esc → chiusura nativa del dialog; lo intercetto per ripristinare lo
+        // scroll del body.
+        dlg.addEventListener('close', function () { document.body.style.overflow = ''; });
 
         function escapeHtml(s) {
             return String(s == null ? '' : s)
@@ -1819,8 +2071,15 @@
             loader.hidden = false;
             result.hidden = true;
             result.innerHTML = '';
-            if (typeof dlg.showModal === 'function') dlg.showModal();
-            else dlg.setAttribute('open', '');
+            // Se la modale era già aperta, chiudila prima (showModal tira se open).
+            if (dlg.open) closeDlg();
+            try {
+                if (typeof dlg.showModal === 'function') dlg.showModal();
+                else dlg.setAttribute('open', '');
+            } catch (e) {
+                dlg.setAttribute('open', '');
+            }
+            document.body.style.overflow = 'hidden';
 
             var fetchDone = false, animDone = false;
             var data = null;
@@ -1846,12 +2105,6 @@
         }
 
         trigger.addEventListener('click', open);
-        if (closeBtn) closeBtn.addEventListener('click', function () {
-            if (typeof dlg.close === 'function') dlg.close(); else dlg.removeAttribute('open');
-        });
-        dlg.addEventListener('click', function (e) {
-            if (e.target === dlg) { if (typeof dlg.close === 'function') dlg.close(); else dlg.removeAttribute('open'); }
-        });
     })();
 
     // Calendario fluttuante draggabile + chiudibile dal bottone in alto.
