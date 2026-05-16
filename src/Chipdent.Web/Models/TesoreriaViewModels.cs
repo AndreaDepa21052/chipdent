@@ -188,6 +188,28 @@ public class TesoreriaFilter
 public record SerieMese(string Mese, decimal Valore);
 public record SerieClinica(string Sigla, string Nome, decimal Valore);
 
+/// <summary>Form di creazione regola custom dal tab «Regole».</summary>
+public class RegolaCustomFormViewModel
+{
+    [Required, MaxLength(120)]
+    public string Titolo { get; set; } = string.Empty;
+    [Required]
+    public string Testo { get; set; } = string.Empty;
+    public int? Priorita { get; set; }
+
+    // Condizioni
+    public string? FornitoreNomeContiene { get; set; }
+    public string? FornitoreId { get; set; }
+    public string? ClinicaId { get; set; }
+    public CategoriaSpesa? Categoria { get; set; }
+    public decimal? ImportoMinimo { get; set; }
+    public decimal? ImportoMassimo { get; set; }
+
+    // Azione
+    public TipoAzioneRegola Azione { get; set; } = TipoAzioneRegola.SoloPromemoria;
+    public string? Parametro1 { get; set; }
+}
+
 // ── Form: nuova/edit fattura (back-office) ──────────────────────
 public class FatturaFormViewModel
 {
