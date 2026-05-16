@@ -337,6 +337,10 @@ public static class MongoSeeder
             // One-shot: rimuove il fornitore fantasma con ragione sociale "FORNITORI"
             // (header della colonna A del file xlsx importata per errore come riga dati).
             await PurgeHeaderFornitoreSeeder.SeedAsync(ctx, tenant, logger, ct);
+
+            // Backfill: assegna il codice umano SC-YYYYMM-NNNN a tutte le
+            // scadenze pre-esistenti prive di Codice.
+            await BackfillCodiceScadenzeSeeder.SeedAsync(ctx, tenant, logger, ct);
             if (ombraCreati > 0)
             {
                 logger.LogInformation("Sincronizzati {Count} fornitori-ombra dei dottori", ombraCreati);

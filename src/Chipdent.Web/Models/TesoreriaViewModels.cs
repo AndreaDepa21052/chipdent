@@ -17,8 +17,16 @@ public class TesoreriaIndexViewModel
     public int CountFattureInApprovazione { get; set; }
     public int CountFuoriTermini { get; set; }
 
-    // ── Tabella scadenze (filtrata) ─────────────────────────────
+    // ── Tabella scadenze (filtrata + paginata) ──────────────────
     public List<RigaTesoreria> Righe { get; set; } = new();
+    /// <summary>Numero totale di righe che soddisfano i filtri (prima della paginazione).</summary>
+    public int RigheTotali { get; set; }
+    /// <summary>Pagina corrente (1-based).</summary>
+    public int Pagina { get; set; } = 1;
+    /// <summary>Righe per pagina.</summary>
+    public int RighePerPagina { get; set; } = 50;
+    /// <summary>Numero totale di pagine, almeno 1.</summary>
+    public int PagineTotali => Math.Max(1, (int)Math.Ceiling((double)RigheTotali / Math.Max(1, RighePerPagina)));
 
     // ── Sintesi laterali ────────────────────────────────────────
     public List<TopFornitoreRow> TopFornitori { get; set; } = new();
@@ -27,6 +35,9 @@ public class TesoreriaIndexViewModel
     public TesoreriaFilter Filtro { get; set; } = new();
     public List<(string Id, string Nome)> CliniceLookup { get; set; } = new();
     public List<(string Id, string Nome)> FornitoriLookup { get; set; } = new();
+
+    // ── Regole custom dell'utente (tab "Regole") ────────────────
+    public List<RegolaScadenziarioCustom> RegoleCustom { get; set; } = new();
 
     // ── Dati per i grafici (serializzati lato view) ─────────────
     public List<SerieMese> SpesaPerCategoria12m { get; set; } = new();
@@ -65,6 +76,10 @@ public class RigaTesoreria
     /// beneficiario (fornitore), cioè VERSO CUI parte il bonifico.
     /// </summary>
     public string? IbanOrdinante { get; set; }
+    /// <summary>Nome della Società ordinante (mostrato nel tooltip IBAN della griglia).</summary>
+    public string? SocietaNome { get; set; }
+    /// <summary>BIC ordinante (per il tooltip dettagliato del bonifico).</summary>
+    public string? BicOrdinante { get; set; }
     public bool FlagBM { get; set; }
     public string? FlagEM { get; set; }
     public TipoEmissioneFattura TipoEmissione { get; set; } = TipoEmissioneFattura.NonSpecificato;
@@ -163,6 +178,11 @@ public class TesoreriaFilter
     public string? Sort { get; set; }
     /// <summary>"asc" o "desc". Default "asc" per data, "desc" per totale.</summary>
     public string? Dir { get; set; }
+
+    /// <summary>Pagina corrente (1-based). Default 1.</summary>
+    public int Page { get; set; } = 1;
+    /// <summary>Righe per pagina (25/50/100/200). Default 50.</summary>
+    public int Size { get; set; } = 50;
 }
 
 public record SerieMese(string Mese, decimal Valore);
