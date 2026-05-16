@@ -58,6 +58,13 @@ public class RigaTesoreria
     public CategoriaSpesa Categoria { get; set; }
     public string? Note { get; set; }
     public string? Iban { get; set; }
+    /// <summary>
+    /// IBAN ordinante = IBAN della Società che ha ricevuto la fattura
+    /// (risolto via <c>Clinica.SocietaId → Societa.Iban</c>). È il conto
+    /// DA CUI verrà pagato il fornitore. <see cref="Iban"/> è quello del
+    /// beneficiario (fornitore), cioè VERSO CUI parte il bonifico.
+    /// </summary>
+    public string? IbanOrdinante { get; set; }
     public bool FlagBM { get; set; }
     public string? FlagEM { get; set; }
     public TipoEmissioneFattura TipoEmissione { get; set; } = TipoEmissioneFattura.NonSpecificato;

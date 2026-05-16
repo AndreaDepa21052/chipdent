@@ -74,6 +74,16 @@
     string Eur(decimal v) => v.ToString("N0", new CultureInfo("it-IT")) + " €";
     string EurDec(decimal v) => v.ToString("N2", new CultureInfo("it-IT")) + " €";
 
+    // Abbrevia un IBAN mantenendo i primi 4 e gli ultimi 4 caratteri
+    // (es. "IT60X 03268…0089"). Utile per visualizzazione compatta in
+    // tabella; il valore completo è messo in tooltip dal template.
+    string ShortIban(string? v)
+    {
+        if (string.IsNullOrWhiteSpace(v)) return "—";
+        var c = new string(v.Where(ch => !char.IsWhiteSpace(ch)).ToArray());
+        return c.Length <= 10 ? c : $"{c[..4]}…{c[^4..]}";
+    }
+
     string StatoBadge(StatoScadenza s) => s switch
     {
         StatoScadenza.Pagato => "<span class='badge' style='background:#dff5e6; color:#1f6e3a;'>✓ pagato</span>",
@@ -94,8 +104,10 @@
         <p class="page-head__sub">Vista unificata di fatture passive e scadenze fornitori. KPI, grafici, e azioni rapide su pagamenti.</p>
     </div>
     <div class="page-head__actions">
+        <button type="button" class="btn btn--ghost" data-cal-open-toggle title="Mostra/nascondi il mini-calendario delle scadenze">
+            📅 <span data-cal-open-label>Nascondi calendario</span>
+        </button>
         <a class="btn btn--ghost" asp-action="ExportCsv">⬇ Export CSV</a>
-        <a class="btn btn--ghost" asp-action="DatiBancari">⚙ Dati bancari</a>
         <a class="btn btn--ghost" asp-action="GeneraScadenziario">⚙️ Genera scadenziario</a>
         <button type="button" class="btn btn--primary" data-new-fattura>＋ Nuova fattura</button>
     </div>
@@ -260,7 +272,6 @@
         transition: background .12s, color .12s, transform .12s;
     }
     .scadenze-cal__pin:hover { background: rgba(196,120,48,0.16); color: var(--c-accent-strong, #a86010); }
-    .scadenze-cal.is-floating .scadenze-cal__pin { color: var(--c-accent-strong, #a86010); transform: rotate(45deg); }
 
     .scadenze-cal {
         position: sticky; top: var(--s-4);
@@ -350,6 +361,27 @@
     .scadenze-grid .table .btn--sm { padding: 2px 6px; font-size: .72rem; }
     /* Cella totale: niente wrap così il numero resta su una riga */
     .scadenze-grid .table td:nth-child(8) { white-space: nowrap; }
+
+    /* Visualizzazione compatta degli IBAN: ordinante (Società che ha
+       ricevuto la fattura) sopra, beneficiario (Fornitore) sotto. Il
+       valore completo è in tooltip; qui mostriamo prime/ultime 4 cifre. */
+    .iban-flow { display: flex; flex-direction: column; gap: 1px; margin-top: 4px; }
+    .iban-flow__row {
+        display: flex; align-items: center; gap: 4px;
+        font-size: .66rem; line-height: 1.1; color: var(--c-ink-soft, #7a5c3a);
+        cursor: help;
+    }
+    .iban-flow__label {
+        display: inline-block; width: 14px; text-align: right;
+        color: var(--c-ink-muted, #998); font-weight: 600; text-transform: lowercase;
+    }
+    .iban-flow__val {
+        font-family: var(--font-mono, ui-monospace, SFMono-Regular, Menlo, monospace);
+        font-size: .68rem; padding: 0 4px; border-radius: 3px;
+        background: rgba(196,120,48,0.06); color: var(--c-ink-strong, #3b1e0c);
+        letter-spacing: .02em;
+    }
+    .iban-flow__val--missing { background: rgba(168,58,58,0.08); color: #a83a3a; font-style: italic; }
 </style>
 
 <div class="scadenze-split">
@@ -377,8 +409,8 @@
                 <div class="muted" style="font-size:.72rem; line-height:1;">@righePerGiorno.Sum(kv => kv.Value.Count) scadenze · @EurDecLocal(totMese)</div>
             </div>
             <a class="scadenze-cal__nav" href="@CalUrl(mese: next)" title="Mese successivo">›</a>
-            <button type="button" class="scadenze-cal__pin" data-cal-toggle title="Sgancia calendario" aria-label="Sgancia calendario">
-                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 17v5"/><path d="M9 10.76V6h-1a2 2 0 0 1 0-4h8a2 2 0 0 1 0 4h-1v4.76a6 6 0 0 1 3.5 5.24v1H5.5v-1a6 6 0 0 1 3.5-5.24z"/></svg>
+            <button type="button" class="scadenze-cal__pin" data-cal-toggle title="Chiudi calendario" aria-label="Chiudi calendario">
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M18 6 6 18"/><path d="m6 6 12 12"/></svg>
             </button>
         </div>
 
@@ -760,6 +792,20 @@
                             {
                                 <span class="badge" title="Bonifico Multiplo CBI: incluso in distinta multi-beneficiario, non in SEPA singola" style="margin-left:4px; background:#fff7e6; color:#c47830;">CBI</span>
                             }
+                            @{
+                                var ibanOrd = r.IbanOrdinante;
+                                var ibanBen = r.Iban;
+                            }
+                            <div class="iban-flow" title="Da Società (ordinante) → a Fornitore (beneficiario)">
+                                <div class="iban-flow__row" title="@(ibanOrd ?? "IBAN ordinante non configurato sulla Società")">
+                                    <span class="iban-flow__label">da</span>
+                                    <code class="iban-flow__val @(string.IsNullOrWhiteSpace(ibanOrd) ? "iban-flow__val--missing" : null)">@ShortIban(ibanOrd)</code>
+                                </div>
+                                <div class="iban-flow__row" title="@(ibanBen ?? "IBAN beneficiario non disponibile")">
+                                    <span class="iban-flow__label">a</span>
+                                    <code class="iban-flow__val @(string.IsNullOrWhiteSpace(ibanBen) ? "iban-flow__val--missing" : null)">@ShortIban(ibanBen)</code>
+                                </div>
+                            </div>
                         </td>
                         <td>
                             @Html.Raw(StatoBadge(r.Stato))
@@ -1054,20 +1100,28 @@
         });
     })();
 
-    // Calendario sganciabile/draggabile.
-    // Quando l'utente clicca il pin, il calendario diventa position:fixed e la
-    // griglia si espande a tutta larghezza. Stato e posizione sono persistiti.
+    // Calendario fluttuante draggabile + chiudibile dal bottone in alto.
+    // Quando aperto è SEMPRE in modalità floating (position:fixed) e quindi
+    // sempre draggabile dalla testata. Il bottone "📅 Calendario" del page
+    // header lo apre/chiude; alla pagina viene mostrato aperto al primo
+    // accesso. Stato (open, x, y) persistito in localStorage.
     (function () {
         var cal = document.querySelector('.scadenze-cal');
         var split = document.querySelector('.scadenze-split');
-        var toggle = document.querySelector('[data-cal-toggle]');
+        var pinBtn = document.querySelector('[data-cal-toggle]');
+        var openBtn = document.querySelector('[data-cal-open-toggle]');
+        var openLbl = document.querySelector('[data-cal-open-label]');
         var head = cal && cal.querySelector('.scadenze-cal__head');
-        if (!cal || !split || !toggle || !head) return;
+        if (!cal || !split || !head) return;
 
         var STORAGE_KEY = 'chipdent.tesoreria.cal';
-        var state = { floating: false, x: 80, y: 80 };
+        // Default: aperto, posizione in alto a destra. Migrazione: i record
+        // legacy avevano "floating: bool" — adesso il calendario è sempre
+        // floating quando visibile, quindi quel flag viene ignorato.
+        var state = { open: true, x: Math.max(20, window.innerWidth - 360), y: 96 };
         try { Object.assign(state, JSON.parse(localStorage.getItem(STORAGE_KEY) || '{}')); }
         catch (e) { /* state default */ }
+        if (typeof state.open !== 'boolean') state.open = true;
 
         function clampInViewport() {
             var maxX = Math.max(0, window.innerWidth  - cal.offsetWidth);
@@ -1077,21 +1131,22 @@
         }
 
         function apply() {
-            if (state.floating) {
-                split.classList.add('is-cal-floating');
+            // La griglia occupa SEMPRE tutta la larghezza: il calendario non
+            // è mai più in colonna a sinistra.
+            split.classList.add('is-cal-floating');
+            if (state.open) {
+                cal.style.display = '';
                 cal.classList.add('is-floating');
                 clampInViewport();
                 cal.style.left = state.x + 'px';
                 cal.style.top  = state.y + 'px';
-                toggle.title = 'Ancora calendario';
-                toggle.setAttribute('aria-label', 'Ancora calendario');
+                if (openLbl) openLbl.textContent = 'Nascondi calendario';
+                if (openBtn) openBtn.setAttribute('aria-pressed', 'true');
             } else {
-                split.classList.remove('is-cal-floating');
-                cal.classList.remove('is-floating');
-                cal.style.left = '';
-                cal.style.top  = '';
-                toggle.title = 'Sgancia calendario';
-                toggle.setAttribute('aria-label', 'Sgancia calendario');
+                cal.style.display = 'none';
+                cal.classList.remove('is-floating', 'is-dragging');
+                if (openLbl) openLbl.textContent = 'Mostra calendario';
+                if (openBtn) openBtn.setAttribute('aria-pressed', 'false');
             }
         }
         function persist() {
@@ -1100,19 +1155,32 @@
 
         apply();
 
-        toggle.addEventListener('click', function (e) {
-            e.preventDefault();
-            e.stopPropagation();
-            state.floating = !state.floating;
-            apply();
-            persist();
-        });
+        // Il pin sulla testata del calendario lo CHIUDE (icona già a tema).
+        if (pinBtn) {
+            pinBtn.title = 'Chiudi calendario';
+            pinBtn.setAttribute('aria-label', 'Chiudi calendario');
+            pinBtn.addEventListener('click', function (e) {
+                e.preventDefault();
+                e.stopPropagation();
+                state.open = false;
+                apply();
+                persist();
+            });
+        }
+        // Bottone in alto: apre/chiude.
+        if (openBtn) {
+            openBtn.addEventListener('click', function () {
+                state.open = !state.open;
+                apply();
+                persist();
+            });
+        }
 
         // Drag dalla testata, ma non dai bottoni interni (frecce mese, pin).
         var dragging = false, offX = 0, offY = 0;
         function pt(e) { return e.touches && e.touches[0] ? e.touches[0] : e; }
         function onDown(e) {
-            if (!state.floating) return;
+            if (!state.open) return;
             if (e.target.closest('.scadenze-cal__nav, .scadenze-cal__pin')) return;
             var p = pt(e);
             var rect = cal.getBoundingClientRect();
@@ -1149,7 +1217,7 @@
 
         // Riposiziona se la finestra si restringe oltre il calendario.
         window.addEventListener('resize', function () {
-            if (!state.floating) return;
+            if (!state.open) return;
             clampInViewport();
             cal.style.left = state.x + 'px';
             cal.style.top  = state.y + 'px';
