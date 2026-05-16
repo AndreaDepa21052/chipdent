@@ -8,7 +8,9 @@
     var oggi = DateTime.UtcNow.Date;
     var it = new CultureInfo("it-IT");
     // Pre-calcolo set degli id padre per indentare le scadenze figlie F24/ritenute.
-    var idPadri = Model.Righe.Where(r => !string.IsNullOrEmpty(r.ScadenzaPadreId))
+    // Uso RigheTutte (set completo non paginato) così l'indentazione funziona
+    // anche quando la rata padre è in un'altra pagina.
+    var idPadri = Model.RigheTutte.Where(r => !string.IsNullOrEmpty(r.ScadenzaPadreId))
                               .Select(r => r.ScadenzaPadreId!).ToHashSet();
 
     // ── Calendario "split-view": determino il mese visibile (cm = "yyyy-MM") ──
@@ -29,7 +31,9 @@
 
     // Aggrego le scadenze per giorno (solo del mese visibile). Lo statuso più "caldo" vince
     // per la dot principale; il totale euro alimenta l'heatmap.
-    var righePerGiorno = Model.Righe
+    // Uso RigheTutte: il calendario deve riflettere TUTTE le scadenze
+    // filtrate, non solo la pagina corrente della tabella.
+    var righePerGiorno = Model.RigheTutte
         .Where(r => r.DataScadenza.Year == calMese.Year && r.DataScadenza.Month == calMese.Month)
         .GroupBy(r => r.DataScadenza.Date)
         .ToDictionary(g => g.Key, g => g.ToList());
@@ -236,8 +240,9 @@
 <section data-tab-pane="scadenze" style="@(activeTab == "scadenze" ? "" : "display:none;")">
 
 @{
-    var righeConProblemi = Model.Righe.Count(r => r.HaProblemi);
-    var righeSenzaIban = Model.Righe.Count(r => r.MancaIbanFornitore);
+    // KPI banner: contatori sull'intero set filtrato (non sulla pagina).
+    var righeConProblemi = Model.RigheTutte.Count(r => r.HaProblemi);
+    var righeSenzaIban = Model.RigheTutte.Count(r => r.MancaIbanFornitore);
 }
 @if (righeConProblemi > 0)
 {
@@ -824,9 +829,10 @@
         </div>
 
         @{
-            // "Oggi" — sempre calcolato sull'intero set Model.Righe (anche fuori dal mese visibile),
-            // così il pannello rimane utile anche navigando i mesi.
-            var oggiList = Model.Righe.Where(r => r.DataScadenza.Date == oggi)
+            // "Oggi" — sempre calcolato sull'intero set RigheTutte (anche fuori
+            // dal mese visibile e ignorando la paginazione della tabella), così
+            // il pannello rimane utile anche navigando i mesi o le pagine.
+            var oggiList = Model.RigheTutte.Where(r => r.DataScadenza.Date == oggi)
                                        .OrderBy(r => r.Stato == StatoScadenza.Pagato ? 1 : 0)
                                        .ThenByDescending(r => r.Totale)
                                        .ToList();
@@ -868,7 +874,7 @@
 <div class="card" style="padding:0; margin-bottom: var(--s-4); min-width: 0;" data-grid-card>
     <div class="card__header" style="padding: var(--s-3) var(--s-3) 0; display:flex; align-items:center; gap: var(--s-2);">
         <h3 class="card__title" style="margin: 0;">Scadenze</h3>
-        <span class="muted" style="font-size:.85rem;">@Model.Righe.Count righe</span>
+        <span class="muted" style="font-size:.85rem;">@Model.RigheTotali righe</span>
         <button type="button"
                 class="btn btn--ghost btn--sm"
                 data-grid-fullscreen-toggle
@@ -1639,7 +1645,7 @@
 <dialog id="dlg-grid-fullscreen" class="dlg-fullscreen" aria-label="Scadenze a tutto schermo">
     <form method="dialog" class="dlg-fullscreen__bar">
         <strong style="font-size: .95rem;">Scadenze — vista estesa</strong>
-        <span class="muted" style="font-size:.8rem;">@Model.Righe.Count righe</span>
+        <span class="muted" style="font-size:.8rem;">@Model.RigheTotali righe</span>
         <button type="submit" class="btn btn--ghost btn--sm" data-grid-fullscreen-close style="margin-left:auto;" title="Chiudi (Esc)">
             ✕ Chiudi
         </button>

@@ -18,7 +18,14 @@ public class TesoreriaIndexViewModel
     public int CountFuoriTermini { get; set; }
 
     // ── Tabella scadenze (filtrata + paginata) ──────────────────
+    /// <summary>Solo la pagina corrente (max <see cref="RighePerPagina"/>
+    /// righe). Usata dalla tabella della griglia.</summary>
     public List<RigaTesoreria> Righe { get; set; } = new();
+    /// <summary>Set completo delle righe filtrate (NON paginate). Usato
+    /// dal mini-calendario, dal blocco "Oggi", dai contatori KPI e dagli
+    /// alert "X scadenze con dati incompleti" — tutto ciò che deve riflettere
+    /// la situazione complessiva e non solo le 50 della pagina.</summary>
+    public List<RigaTesoreria> RigheTutte { get; set; } = new();
     /// <summary>Numero totale di righe che soddisfano i filtri (prima della paginazione).</summary>
     public int RigheTotali { get; set; }
     /// <summary>Pagina corrente (1-based).</summary>

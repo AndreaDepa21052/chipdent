@@ -285,6 +285,7 @@ public class TesoreriaController : Controller
                 .Skip(Math.Max(0, (Math.Max(1, filtro.Page) - 1) * Math.Max(1, filtro.Size)))
                 .Take(Math.Max(1, filtro.Size))
                 .ToList(),
+            RigheTutte = righe,
             RigheTotali = righe.Count,
             Pagina = Math.Max(1, filtro.Page),
             RighePerPagina = Math.Max(1, filtro.Size),
