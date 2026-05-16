@@ -65,6 +65,21 @@ public class TesoreriaController : Controller
         var fatture = await _mongo.Fatture.Find(f => f.TenantId == tid).ToListAsync();
         var fatturePerId = fatture.ToDictionary(f => f.Id);
 
+        // IBAN ordinante: deriva dalla Società di appartenenza della clinica
+        // destinataria della fattura. Fallback all'IBAN ordinante della clinica
+        // stessa quando la Società non è associata o non ha IBAN configurato.
+        var societaList = await _mongo.Societa.Find(s => s.TenantId == tid).ToListAsync();
+        var societaById = societaList.ToDictionary(s => s.Id);
+        string? IbanOrdinanteForClinica(Clinica? c)
+        {
+            if (c == null) return null;
+            if (!string.IsNullOrEmpty(c.SocietaId)
+                && societaById.TryGetValue(c.SocietaId, out var soc)
+                && !string.IsNullOrWhiteSpace(soc.Iban))
+                return soc.Iban;
+            return c.IbanOrdinante;
+        }
+
         // Mappa userId -> FullName per risolvere "Caricata da" sulle fatture create dal back-office.
         var users = await _mongo.Users.Find(u => u.TenantId == tid).ToListAsync();
         var usersById = users.ToDictionary(u => u.Id, u => u.FullName);
@@ -139,7 +154,8 @@ public class TesoreriaController : Controller
                     Stato = DerivedStato(s, oggi),
                     Categoria = s.Categoria,
                     Note = s.Note ?? fa?.Note,
-                    Iban = s.Iban,
+                    Iban = string.IsNullOrWhiteSpace(s.Iban) ? f?.Iban : s.Iban,
+                    IbanOrdinante = IbanOrdinanteForClinica(c),
                     FlagBM = fa?.BonificoMultiploCbi ?? false,
                     FlagEM = fa?.FlagEM,
                     TipoEmissione = fa?.TipoEmissione ?? TipoEmissioneFattura.NonSpecificato,
