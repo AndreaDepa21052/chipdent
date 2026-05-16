@@ -1610,11 +1610,11 @@ public class TesoreriaController : Controller
 
     [HttpPost("regole/nuova")]
     [ValidateAntiForgeryToken]
-    public async Task<IActionResult> NuovaRegolaCustom(string titolo, string testo)
+    public async Task<IActionResult> NuovaRegolaCustom(RegolaCustomFormViewModel vm)
     {
-        if (string.IsNullOrWhiteSpace(titolo) || string.IsNullOrWhiteSpace(testo))
+        if (string.IsNullOrWhiteSpace(vm.Titolo) || string.IsNullOrWhiteSpace(vm.Testo))
         {
-            TempData["flash-err"] = "Titolo e testo sono obbligatori.";
+            TempData["flash-err"] = "Titolo e descrizione sono obbligatori.";
             return RedirectToAction(nameof(Index), new { tab = "regole" });
         }
         var tid = _tenant.TenantId!;
@@ -1622,15 +1622,26 @@ public class TesoreriaController : Controller
         var regola = new RegolaScadenziarioCustom
         {
             TenantId = tid,
-            Titolo = titolo.Trim(),
-            Testo = testo.Trim(),
+            Titolo = vm.Titolo.Trim(),
+            Testo = vm.Testo.Trim(),
             Attiva = true,
-            Stato = StatoRegola.DaInterpretare,
+            Priorita = vm.Priorita ?? 100,
+            FornitoreNomeContiene = string.IsNullOrWhiteSpace(vm.FornitoreNomeContiene) ? null : vm.FornitoreNomeContiene.Trim(),
+            FornitoreId = string.IsNullOrWhiteSpace(vm.FornitoreId) ? null : vm.FornitoreId,
+            ClinicaId = string.IsNullOrWhiteSpace(vm.ClinicaId) ? null : vm.ClinicaId,
+            Categoria = vm.Categoria,
+            ImportoMinimo = vm.ImportoMinimo,
+            ImportoMassimo = vm.ImportoMassimo,
+            Azione = vm.Azione,
+            Parametro1 = string.IsNullOrWhiteSpace(vm.Parametro1) ? null : vm.Parametro1.Trim(),
             CreataDaUserId = userId,
             CreataDaNome = User.Identity?.Name ?? ""
         };
         await _mongo.RegoleScadenziarioCustom.InsertOneAsync(regola);
-        TempData["flash"] = "Regola aggiunta. Verrà mostrata come promemoria all'operatore durante la generazione dello scadenziario.";
+        var msg = regola.Azione == TipoAzioneRegola.SoloPromemoria
+            ? "Regola salvata come promemoria (non modifica le scadenze)."
+            : "Regola salvata. Verrà applicata alla prossima rigenerazione dello scadenziario.";
+        TempData["flash"] = msg;
         return RedirectToAction(nameof(Index), new { tab = "regole" });
     }
 
@@ -2932,11 +2943,12 @@ public class TesoreriaController : Controller
         await _mongo.ScadenzePagamento.DeleteManyAsync(s => s.TenantId == tid);
         await _mongo.Fatture.DeleteManyAsync(f => f.TenantId == tid);
 
-        // 2) Carica fornitori, cliniche e Società (per match cessionario→Società→Clinica)
+        // 2) Carica fornitori, cliniche, Società e regole custom configurate.
         var fornitoriCorrenti = await _mongo.Fornitori.Find(f => f.TenantId == tid).ToListAsync();
         var cliniche = await _mongo.Cliniche.Find(c => c.TenantId == tid).ToListAsync();
         var dottori = await _mongo.Dottori.Find(d => d.TenantId == tid).ToListAsync();
         var societa = await _mongo.Societa.Find(s => s.TenantId == tid).ToListAsync();
+        var regoleCustom = await _mongo.RegoleScadenziarioCustom.Find(r => r.TenantId == tid).ToListAsync();
 
         // 3) Carica TUTTE le righe importate (batch storici)
         var righe = await _mongo.ImportFattureRighe.Find(r => r.TenantId == tid).ToListAsync();
@@ -2949,6 +2961,7 @@ public class TesoreriaController : Controller
             Cliniche = cliniche,
             Dottori = dottori,
             Societa = societa,
+            RegoleCustom = regoleCustom,
             UserId = userId
         });
 
@@ -3013,6 +3026,7 @@ public class TesoreriaController : Controller
         var cliniche = await _mongo.Cliniche.Find(c => c.TenantId == tid).ToListAsync();
         var dottori = await _mongo.Dottori.Find(d => d.TenantId == tid).ToListAsync();
         var societa = await _mongo.Societa.Find(s => s.TenantId == tid).ToListAsync();
+        var regoleCustomPrev = await _mongo.RegoleScadenziarioCustom.Find(r => r.TenantId == tid).ToListAsync();
         var righe = await _mongo.ImportFattureRighe.Find(r => r.TenantId == tid).ToListAsync();
         var scadenzeAttuali = await _mongo.ScadenzePagamento.CountDocumentsAsync(s => s.TenantId == tid);
         var pagateAttuali = await _mongo.ScadenzePagamento.CountDocumentsAsync(s => s.TenantId == tid && s.Stato == StatoScadenza.Pagato);
@@ -3026,6 +3040,7 @@ public class TesoreriaController : Controller
             Cliniche = cliniche,
             Dottori = dottori,
             Societa = societa,
+            RegoleCustom = regoleCustomPrev,
             UserId = null
         });
 

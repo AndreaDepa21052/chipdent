@@ -3,53 +3,112 @@ using Chipdent.Web.Domain.Common;
 namespace Chipdent.Web.Domain.Entities;
 
 /// <summary>
-/// Regola "custom" dello scadenziario, scritta dall'utente in linguaggio
-/// conversazionale (italiano). Le regole vengono salvate per tenant e
-/// mostrate in:
-///   - tab «Regole» della tesoreria (per consultazione e manutenzione);
-///   - banner della pagina «Genera scadenziario» (promemoria all'operatore).
+/// Regola "custom" dello scadenziario, configurata dall'utente. Ogni regola
+/// è composta da:
+///   - un blocco <b>condizioni</b> (campi opzionali in AND) che selezionano
+///     a quali scadenze applicarla;
+///   - un blocco <b>azione</b> tipizzata che descrive cosa fare quando le
+///     condizioni matchano (cambiare giorno scadenza, anticipare, cambiare
+///     metodo, aggiungere nota, segnalare alert);
+///   - un campo <see cref="Testo"/> in linguaggio naturale usato come
+///     <b>documentazione leggibile</b> (mostrato in UI), non come input
+///     interpretato.
 ///
 /// <para>
-/// <b>Stato dell'arte sull'auto-applicazione</b>: il parsing in linguaggio
-/// naturale → modifiche al motore <c>ScadenziarioGenerator</c> richiede un
-/// LLM (es. Claude API). Al momento le regole custom sono memorizzate e
-/// presentate all'operatore come promemoria; l'applicazione automatica
-/// arriverà in un secondo step (vedi <c>Stato</c>).
+/// Le regole vengono caricate da <see cref="Tesoreria.ScadenziarioGenerator"/>
+/// e applicate dopo le regole built-in. Vengono ordinate per
+/// <see cref="Priorita"/> crescente (numero più basso → applicata prima);
+/// regole successive possono sovrascrivere l'effetto delle precedenti.
+/// Le regole inattive vengono ignorate dal motore ma restano visibili in UI.
 /// </para>
 /// </summary>
 public class RegolaScadenziarioCustom : TenantEntity
 {
-    /// <summary>Titolo breve della regola (es. "Compenso medici: 90 gg invece di 60").</summary>
+    /// <summary>Titolo breve mostrato in elenco e negli alert generati dal motore.</summary>
     public string Titolo { get; set; } = string.Empty;
 
-    /// <summary>Testo libero, conversazionale. Es: "Se il fornitore è Mario
-    /// Rossi e la clinica è MI7, il bonifico va al 15 del mese successivo".</summary>
+    /// <summary>Descrizione in italiano della regola (documentazione per
+    /// l'operatore). Non viene interpretata: la logica esecutiva sta nei
+    /// campi strutturati.</summary>
     public string Testo { get; set; } = string.Empty;
 
-    /// <summary>True = regola attiva (mostrata e applicata). False = archiviata
-    /// (resta visibile in elenco ma marcata come disattivata, non applicata).</summary>
+    /// <summary>True = la regola viene applicata dal motore. False = archiviata.</summary>
     public bool Attiva { get; set; } = true;
 
-    /// <summary>Stato di interpretazione della regola da parte del motore.</summary>
-    public StatoRegola Stato { get; set; } = StatoRegola.DaInterpretare;
+    /// <summary>Ordine di applicazione (più basso prima). Default 100.</summary>
+    public int Priorita { get; set; } = 100;
 
-    /// <summary>Note interne / spiegazione dell'interpretazione, dopo che
-    /// il motore (LLM) avrà tradotto il testo conversazionale in azioni.</summary>
-    public string? NotaInterpretazione { get; set; }
+    // ── Condizioni (AND) ────────────────────────────────────────
+    /// <summary>Match se la ragione sociale del fornitore contiene questo testo (case-insensitive).
+    /// Vuoto = non filtra per fornitore.</summary>
+    public string? FornitoreNomeContiene { get; set; }
 
+    /// <summary>Match per id fornitore specifico (priorità sul nome).</summary>
+    public string? FornitoreId { get; set; }
+
+    /// <summary>Match per clinica destinataria (LOC). Vuoto = tutte le sedi.</summary>
+    public string? ClinicaId { get; set; }
+
+    /// <summary>Match per categoria di spesa. Null = qualunque.</summary>
+    public CategoriaSpesa? Categoria { get; set; }
+
+    /// <summary>Importo minimo (incluso) della scadenza per applicare la regola.</summary>
+    public decimal? ImportoMinimo { get; set; }
+
+    /// <summary>Importo massimo (incluso) della scadenza per applicare la regola.</summary>
+    public decimal? ImportoMassimo { get; set; }
+
+    // ── Azione ──────────────────────────────────────────────────
+    public TipoAzioneRegola Azione { get; set; } = TipoAzioneRegola.SoloPromemoria;
+
+    /// <summary>Parametro principale dell'azione. Semantica per tipo:
+    /// <list type="bullet">
+    /// <item><c>ImpostaGiornoMese</c>: numero giorno 1–31</item>
+    /// <item><c>AnticipaGiorni</c> / <c>PosticipaGiorni</c>: numero di giorni</item>
+    /// <item><c>ImpostaMetodoPagamento</c>: "Bonifico", "Rid", "Riba", "CartaCredito", "Bonifico", "Assegno", "Contanti", "Compensazione", "Altro"</item>
+    /// <item><c>AggiungiNota</c>: testo da concatenare a <c>Scadenza.Note</c></item>
+    /// <item><c>SegnalaAlert</c>: messaggio dell'alert che verrà mostrato in preview</item>
+    /// <item><c>SoloPromemoria</c>: ignorato</item>
+    /// </list>
+    /// </summary>
+    public string? Parametro1 { get; set; }
+
+    /// <summary>Parametro accessorio (riservato a future azioni — al momento non usato).</summary>
+    public string? Parametro2 { get; set; }
+
+    // ── Audit ───────────────────────────────────────────────────
     public string CreataDaUserId { get; set; } = string.Empty;
     public string CreataDaNome { get; set; } = string.Empty;
 }
 
-public enum StatoRegola
+/// <summary>
+/// Tipo di azione applicata dal motore quando le condizioni di una
+/// <see cref="RegolaScadenziarioCustom"/> matchano una scadenza.
+/// </summary>
+public enum TipoAzioneRegola
 {
-    /// <summary>La regola è stata appena inserita e non è ancora stata
-    /// interpretata: viene SOLO mostrata come promemoria all'operatore.</summary>
-    DaInterpretare = 0,
-    /// <summary>La regola è stata interpretata dal motore (LLM) e tradotta
-    /// in azioni applicabili dal generatore di scadenziario.</summary>
-    Interpretata = 10,
-    /// <summary>L'interpretazione è andata in errore (testo ambiguo,
-    /// contraddittorio con regole esistenti, …). Resta come promemoria.</summary>
-    Errore = 20
+    /// <summary>Nessuna modifica: la regola viene solo mostrata come
+    /// promemoria all'operatore (negli alert/preview).</summary>
+    SoloPromemoria = 0,
+
+    /// <summary>Sposta la data scadenza al giorno N (1-31) del mese corrente
+    /// (o successivo se il giorno è già passato rispetto alla scadenza
+    /// calcolata).</summary>
+    ImpostaGiornoMese = 10,
+
+    /// <summary>Anticipa la data scadenza di N giorni.</summary>
+    AnticipaGiorni = 20,
+
+    /// <summary>Posticipa la data scadenza di N giorni.</summary>
+    PosticipaGiorni = 21,
+
+    /// <summary>Forza il metodo di pagamento (Bonifico, Rid, Riba, …).</summary>
+    ImpostaMetodoPagamento = 30,
+
+    /// <summary>Aggiunge il parametro come nota libera alla scadenza
+    /// (concatenata con " · " alle note esistenti).</summary>
+    AggiungiNota = 40,
+
+    /// <summary>Genera un alert custom nel preview di generazione (Warn).</summary>
+    SegnalaAlert = 50
 }

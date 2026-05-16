@@ -105,6 +105,11 @@ public static class ScadenziarioGenerator
         /// <see cref="ResolveLoc"/> per matchare il cessionario letto dal PDF
         /// alla Società destinataria e risalire alla clinica (LOC).</summary>
         public IReadOnlyList<Societa> Societa { get; init; } = Array.Empty<Societa>();
+        /// <summary>Regole custom configurate dall'utente (tab «Regole»).
+        /// Vengono applicate dopo le regole built-in, in ordine di
+        /// <see cref="RegolaScadenziarioCustom.Priorita"/> crescente.
+        /// Solo le regole con <c>Attiva = true</c> vengono considerate.</summary>
+        public IReadOnlyList<RegolaScadenziarioCustom> RegoleCustom { get; init; } = Array.Empty<RegolaScadenziarioCustom>();
         /// <summary>Userid che firma le fatture generate (creator/approver).</summary>
         public string? UserId { get; init; }
     }
@@ -238,6 +243,14 @@ public static class ScadenziarioGenerator
             seqByMese[key] = n;
             return $"SC-{key}-{n:D4}";
         }
+
+        // Regole custom attive, ordinate per priorità crescente. Le filtro
+        // qui una volta sola così evito di ricreare la lista per ogni fattura.
+        var regoleCustomOrdinate = input.RegoleCustom
+            .Where(r => r.Attiva)
+            .OrderBy(r => r.Priorita)
+            .ThenBy(r => r.CreatedAt)
+            .ToList();
 
         // Ordine cronologico per applicare le regole di "fattura precedente"
         // in modo deterministico (più vecchia → più recente).
@@ -467,9 +480,21 @@ public static class ScadenziarioGenerator
                 }
             }
 
+            // ── REGOLE CUSTOM (configurate dall'utente nel tab «Regole») ─
+            // Applicate dopo le regole built-in. Ogni regola viene valutata
+            // contro ogni scadenza generata da questa fattura: se le
+            // condizioni matchano, l'azione viene applicata in-place.
+            // Le regole sono ordinate per Priorita: una successiva può
+            // sovrascrivere l'effetto di una precedente.
+            ApplicaRegoleCustom(scadenze, fattura, fornitore, regoleCustomOrdinate, output.Alerts, riga, dataDoc);
+
             // Assegnazione del codice scadenza in ordine cronologico stabile
             // sulla data scadenza (le rate F24/ritenute prendono il codice
             // successivo alla loro padre — sono già appese in fondo a `scadenze`).
+            // Importante: dopo l'applicazione delle regole custom (che potrebbero
+            // aver spostato la data scadenza), ri-ordiniamo per garantire codici
+            // progressivi coerenti col mese effettivo della scadenza.
+            scadenze = scadenze.OrderBy(s => s.DataScadenza).ToList();
             foreach (var sc in scadenze)
             {
                 sc.Codice = NextCodiceScadenza(sc.DataScadenza);
@@ -954,6 +979,132 @@ public static class ScadenziarioGenerator
         else anno = int.Parse(annoStr);
         return new DateTime(anno, mese, 1);
     }
+
+    // ─────────────────────────────────────────────────────────────────
+    //  Regole custom (configurate dall'utente)
+    // ─────────────────────────────────────────────────────────────────
+
+    /// <summary>
+    /// Valuta ogni regola custom contro ogni scadenza della fattura corrente
+    /// e applica l'azione quando le condizioni matchano. Le condizioni sono
+    /// in AND tra loro; un campo non valorizzato non filtra. Per ogni regola
+    /// applicata viene emesso un alert informativo che la cita per titolo,
+    /// così l'operatore vede in preview cosa è stato modificato.
+    /// </summary>
+    private static void ApplicaRegoleCustom(
+        List<ScadenzaPagamento> scadenze,
+        FatturaFornitore fattura,
+        Fornitore fornitore,
+        IReadOnlyList<RegolaScadenziarioCustom> regole,
+        List<AlertScadenziario> alerts,
+        ImportFatturaRiga riga,
+        DateTime dataDoc)
+    {
+        if (regole.Count == 0 || scadenze.Count == 0) return;
+
+        foreach (var regola in regole)
+        {
+            foreach (var sc in scadenze)
+            {
+                if (!CondizioniMatch(regola, sc, fattura, fornitore)) continue;
+                ApplicaAzione(regola, sc);
+                alerts.Add(new AlertScadenziario(
+                    Severita: regola.Azione == TipoAzioneRegola.SegnalaAlert ? AlertSeverita.Warn : AlertSeverita.Info,
+                    Regola: $"Regola custom: {regola.Titolo}",
+                    Messaggio: DescribeAzione(regola),
+                    FornitoreNome: fornitore.RagioneSociale,
+                    NumeroDoc: riga.Numero,
+                    DataDocumento: dataDoc,
+                    RigaSorgente: riga.NumeroRiga));
+            }
+        }
+    }
+
+    private static bool CondizioniMatch(
+        RegolaScadenziarioCustom r, ScadenzaPagamento sc,
+        FatturaFornitore fattura, Fornitore fornitore)
+    {
+        if (!string.IsNullOrEmpty(r.FornitoreId)
+            && !string.Equals(r.FornitoreId, fornitore.Id, StringComparison.Ordinal))
+            return false;
+        if (!string.IsNullOrWhiteSpace(r.FornitoreNomeContiene)
+            && fornitore.RagioneSociale.IndexOf(r.FornitoreNomeContiene.Trim(), StringComparison.OrdinalIgnoreCase) < 0)
+            return false;
+        if (!string.IsNullOrEmpty(r.ClinicaId)
+            && !string.Equals(r.ClinicaId, sc.ClinicaId, StringComparison.Ordinal))
+            return false;
+        if (r.Categoria.HasValue && sc.Categoria != r.Categoria.Value)
+            return false;
+        if (r.ImportoMinimo.HasValue && Math.Abs(sc.Importo) < r.ImportoMinimo.Value)
+            return false;
+        if (r.ImportoMassimo.HasValue && Math.Abs(sc.Importo) > r.ImportoMassimo.Value)
+            return false;
+        return true;
+    }
+
+    private static void ApplicaAzione(RegolaScadenziarioCustom r, ScadenzaPagamento sc)
+    {
+        switch (r.Azione)
+        {
+            case TipoAzioneRegola.SoloPromemoria:
+                // Nessuna modifica.
+                break;
+
+            case TipoAzioneRegola.ImpostaGiornoMese:
+                if (int.TryParse(r.Parametro1, out var giorno) && giorno is >= 1 and <= 31)
+                {
+                    var data = sc.DataScadenza;
+                    var dim = DateTime.DaysInMonth(data.Year, data.Month);
+                    var d = Math.Min(giorno, dim);
+                    var nuova = new DateTime(data.Year, data.Month, d, 0, 0, 0, DateTimeKind.Utc);
+                    // Se il giorno richiesto è già passato rispetto alla scadenza
+                    // calcolata (es. regola "paga il 5" ma scadenza calcolata al 20),
+                    // posticipiamo al mese successivo invece di anticipare.
+                    if (nuova < data) nuova = nuova.AddMonths(1);
+                    sc.DataScadenza = DateTime.SpecifyKind(nuova.Date, DateTimeKind.Utc);
+                }
+                break;
+
+            case TipoAzioneRegola.AnticipaGiorni:
+                if (int.TryParse(r.Parametro1, out var gA) && gA > 0)
+                    sc.DataScadenza = DateTime.SpecifyKind(sc.DataScadenza.AddDays(-gA).Date, DateTimeKind.Utc);
+                break;
+
+            case TipoAzioneRegola.PosticipaGiorni:
+                if (int.TryParse(r.Parametro1, out var gP) && gP > 0)
+                    sc.DataScadenza = DateTime.SpecifyKind(sc.DataScadenza.AddDays(gP).Date, DateTimeKind.Utc);
+                break;
+
+            case TipoAzioneRegola.ImpostaMetodoPagamento:
+                if (Enum.TryParse<MetodoPagamento>(r.Parametro1, ignoreCase: true, out var m))
+                    sc.Metodo = m;
+                break;
+
+            case TipoAzioneRegola.AggiungiNota:
+                if (!string.IsNullOrWhiteSpace(r.Parametro1))
+                {
+                    var nota = r.Parametro1.Trim();
+                    sc.Note = string.IsNullOrWhiteSpace(sc.Note) ? nota : $"{sc.Note} · {nota}";
+                }
+                break;
+
+            case TipoAzioneRegola.SegnalaAlert:
+                // L'alert viene generato a monte; qui non tocchiamo la scadenza.
+                break;
+        }
+    }
+
+    private static string DescribeAzione(RegolaScadenziarioCustom r) => r.Azione switch
+    {
+        TipoAzioneRegola.SoloPromemoria         => "Promemoria attivo (nessuna modifica automatica).",
+        TipoAzioneRegola.ImpostaGiornoMese      => $"Data scadenza impostata al giorno {r.Parametro1} del mese.",
+        TipoAzioneRegola.AnticipaGiorni         => $"Data scadenza anticipata di {r.Parametro1} giorni.",
+        TipoAzioneRegola.PosticipaGiorni        => $"Data scadenza posticipata di {r.Parametro1} giorni.",
+        TipoAzioneRegola.ImpostaMetodoPagamento => $"Metodo di pagamento forzato a «{r.Parametro1}».",
+        TipoAzioneRegola.AggiungiNota           => $"Nota aggiunta alla scadenza: «{r.Parametro1}».",
+        TipoAzioneRegola.SegnalaAlert           => string.IsNullOrWhiteSpace(r.Parametro1) ? "Alert custom segnalato." : r.Parametro1!,
+        _                                       => "Azione applicata."
+    };
 
     private static DateTime UltimoGiorno(DateTime d) =>
         new DateTime(d.Year, d.Month, DateTime.DaysInMonth(d.Year, d.Month));
