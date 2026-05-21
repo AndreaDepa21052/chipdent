@@ -758,6 +758,90 @@ public class TesoreriaController : Controller
         return View(new FornitoriIndexViewModel { Fornitori = rows, Cliniche = cliniche });
     }
 
+    /// <summary>
+    /// Esporta in XLSX l'anagrafica completa dei fornitori del tenant (esclusi i
+    /// soft-deleted). Le sedi di riferimento sono risolte ai nomi delle cliniche.
+    /// </summary>
+    [HttpGet("fornitori/export.xlsx")]
+    public async Task<IActionResult> ExportFornitoriXlsx()
+    {
+        var tid = _tenant.TenantId!;
+        var fornitori = await _mongo.Fornitori
+            .Find(f => f.TenantId == tid && !f.IsDeleted)
+            .SortBy(f => f.RagioneSociale)
+            .ToListAsync();
+        var clinicheById = (await _mongo.Cliniche.Find(c => c.TenantId == tid).ToListAsync())
+            .ToDictionary(c => c.Id, c => c.Nome);
+
+        var header = new[]
+        {
+            "Codice", "Ragione sociale", "Rag. soc. pagamento",
+            "Partita IVA", "Codice fiscale", "Codice SDI",
+            "PEC", "Email contatto", "Telefono",
+            "Indirizzo", "Località", "Provincia", "CAP",
+            "IBAN",
+            "Categoria primaria", "Categoria secondaria",
+            "Stato",
+            "Sedi di riferimento",
+            "Termini pagamento (giorni)", "Base pagamento", "Emissione fattura",
+            "Pagamento ricorrente", "Pagamenti manuali",
+            "Note", "Aggiungi nota secondaria", "Nota secondaria",
+            "Creato il"
+        };
+
+        string SediLabel(Fornitore f)
+        {
+            var sedi = (f.SediRiferimentoIds is { Count: > 0 })
+                ? f.SediRiferimentoIds
+                : (!string.IsNullOrEmpty(f.SedeRiferimentoId)
+                    ? new List<string> { f.SedeRiferimentoId! }
+                    : new List<string>());
+            if (sedi.Count == 0) return "";
+            if (sedi.Contains(FornitoreSedi.Tutte)) return "TUTTE";
+            return string.Join(", ", sedi.Select(id => clinicheById.TryGetValue(id, out var n) ? n : id));
+        }
+
+        var rows = new List<string[]>(fornitori.Count);
+        foreach (var f in fornitori)
+        {
+            rows.Add(new[]
+            {
+                f.Codice ?? "",
+                f.RagioneSociale ?? "",
+                string.IsNullOrWhiteSpace(f.RagioneSocialePagamento) ? (f.RagioneSociale ?? "") : f.RagioneSocialePagamento,
+                f.PartitaIva ?? "",
+                f.CodiceFiscale ?? "",
+                f.CodiceSdi ?? "",
+                f.Pec ?? "",
+                f.EmailContatto ?? "",
+                f.Telefono ?? "",
+                f.Indirizzo ?? "",
+                f.Localita ?? "",
+                f.Provincia ?? "",
+                f.CodicePostale ?? "",
+                f.Iban ?? "",
+                f.CategoriaDefault.ToString(),
+                f.CategoriaSecondaria?.ToString() ?? "",
+                f.Stato.ToString(),
+                SediLabel(f),
+                f.TerminiPagamentoGiorni.ToString(CultureInfo.InvariantCulture),
+                f.BasePagamento.ToString(),
+                f.EmissioneFattura.ToString(),
+                f.PagamentoRicorrente ? "Sì" : "No",
+                f.PagamentiManuali ? "Sì" : "No",
+                f.Note ?? "",
+                f.AggiungiNotaSecondariaAutomaticamente ? "Sì" : "No",
+                f.NotaSecondaria ?? "",
+                f.CreatedAt.ToString("dd/MM/yyyy", CultureInfo.InvariantCulture)
+            });
+        }
+
+        var bytes = XlsxWriter.Build("Fornitori", header, rows);
+        return File(bytes,
+            "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+            $"fornitori-{DateTime.UtcNow:yyyyMMdd}.xlsx");
+    }
+
     [HttpGet("fornitori/nuovo")]
     public async Task<IActionResult> NuovoFornitore()
     {
