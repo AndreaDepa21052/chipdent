@@ -1007,18 +1007,18 @@
             var combinatoSep = combinatoBaseUrl.Contains('?') ? "&" : "?";
             var combinatoOnUrl = $"{combinatoBaseUrl}{combinatoSep}Sort=combinato&Dir=asc";
         }
-        <div style="padding: 8px 16px; border-top: 1px solid #ece0cc; display:flex; align-items:center; gap:10px; flex-wrap:wrap;">
-            <span style="font-size:.78rem; color: var(--c-ink-soft, #7a5c3a);">Ordinamento:</span>
+        <div style="padding: 10px 16px; border-top: 1px solid #ece0cc; background: rgba(196,120,48,0.06); display:flex; align-items:center; gap:10px; flex-wrap:wrap;">
+            <span style="font-size:.82rem; font-weight:600; color: var(--c-ink-strong, #3b1e0c);">↕ Ordinamento rapido:</span>
             @if (combinatoAttivo)
             {
-                <span class="btn btn--primary btn--sm" style="cursor:default;" title="Ordinato per Data pagamento → Società → Competenza → Nome fornitore">↕ Combinato attivo</span>
-                <a class="btn btn--ghost btn--sm" href="@combinatoBaseUrl" title="Torna all'ordinamento predefinito (per data scadenza)">Annulla</a>
+                <span class="btn btn--primary btn--sm" style="cursor:default;" title="Ordinato per Data pagamento → Società → Competenza → Nome fornitore">✓ Combinato attivo</span>
+                <a class="btn btn--ghost btn--sm" href="@combinatoBaseUrl" title="Torna all'ordinamento predefinito (per data scadenza)">✕ Annulla</a>
             }
             else
             {
-                <a class="btn btn--ghost btn--sm" href="@combinatoOnUrl" title="Ordina per Data pagamento, poi Società, poi Competenza, poi Nome fornitore (tutti crescenti)">↕ Ordina combinato</a>
+                <a class="btn btn--primary btn--sm" href="@combinatoOnUrl" title="Ordina per Data pagamento, poi Società, poi Competenza, poi Nome fornitore (tutti crescenti)">Ordina combinato</a>
             }
-            <span style="font-size:.72rem; color: var(--c-ink-soft, #9b8568);">Data pagamento › Società › Competenza › Fornitore</span>
+            <span style="font-size:.74rem; color: var(--c-ink-soft, #9b8568);">Data pagamento › Società › Competenza › Fornitore (crescenti)</span>
         </div>
 
         <div>
