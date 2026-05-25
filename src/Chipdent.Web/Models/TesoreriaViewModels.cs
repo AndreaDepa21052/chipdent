@@ -189,6 +189,11 @@ public class TesoreriaFilter
     /// <summary>"asc" o "desc". Default "asc" per data, "desc" per totale.</summary>
     public string? Dir { get; set; }
 
+    /// <summary>Ordinamento multi-campo scelto dalla finestra "Ordina".
+    /// Formato: "campo:dir,campo:dir,..." (es. "datapag:asc,societa:asc,competenza:asc").
+    /// Quando valorizzato ha priorità su <see cref="Sort"/>/<see cref="Dir"/>.</summary>
+    public string? MultiSort { get; set; }
+
     /// <summary>Pagina corrente (1-based). Default 1.</summary>
     public int Page { get; set; } = 1;
     /// <summary>Righe per pagina (25/50/100/200). Default 50.</summary>

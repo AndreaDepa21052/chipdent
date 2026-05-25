@@ -54,6 +54,7 @@
         if (Model.Filtro.SoloFuoriTermini)                    qp["SoloFuoriTermini"] = "true";
         if (!clearSort && !string.IsNullOrEmpty(Model.Filtro.Sort)) qp["Sort"] = Model.Filtro.Sort;
         if (!clearSort && !string.IsNullOrEmpty(Model.Filtro.Dir))  qp["Dir"]  = Model.Filtro.Dir;
+        if (!clearSort && !string.IsNullOrEmpty(Model.Filtro.MultiSort)) qp["MultiSort"] = Model.Filtro.MultiSort;
         // cm: mese visibile del calendario
         if (mese.HasValue) qp["cm"] = mese.Value.ToString("yyyy-MM");
         // Dal/Al
@@ -1002,24 +1003,120 @@
         </div>
 
         @{
-            var combinatoAttivo = string.Equals(Model.Filtro.Sort, "combinato", StringComparison.OrdinalIgnoreCase);
-            var combinatoBaseUrl = CalUrl(mese: calMese, clearSort: true);
-            var combinatoSep = combinatoBaseUrl.Contains('?') ? "&" : "?";
-            var combinatoOnUrl = $"{combinatoBaseUrl}{combinatoSep}Sort=combinato&Dir=asc";
+            // Campi ordinabili: chiave (lato controller) → etichetta mostrata nella finestra.
+            var sortFields = new (string Key, string Label)[]
+            {
+                ("datapag", "Data pagamento"),
+                ("societa", "Società"),
+                ("competenza", "Competenza"),
+                ("fornitore", "Fornitore"),
+                ("data", "Data scadenza"),
+                ("totale", "Totale"),
+                ("stato", "Stato"),
+                ("metodo", "Metodo"),
+                ("loc", "LOC"),
+                ("doc", "N° Doc"),
+                ("em", "E/M"),
+                ("inserita", "Inserita il"),
+                ("chi", "Caricata da"),
+            };
+            // Livelli correnti (max 4 mostrati) dal MultiSort attivo.
+            var multiLevels = (Model.Filtro.MultiSort ?? "")
+                .Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries)
+                .Select(p => p.Split(':', 2))
+                .Select(b => (Campo: b[0].Trim().ToLowerInvariant(), Dir: b.Length > 1 && b[1].Trim().Equals("desc", StringComparison.OrdinalIgnoreCase) ? "desc" : "asc"))
+                .ToList();
+            string LevelCampo(int i) => i < multiLevels.Count ? multiLevels[i].Campo : "";
+            string LevelDir(int i) => i < multiLevels.Count ? multiLevels[i].Dir : "asc";
+            var ordineAttivo = multiLevels.Count > 0;
+            var ordineBaseUrl = CalUrl(mese: calMese, clearSort: true);
         }
-        <div style="padding: 10px 16px; border-top: 1px solid #ece0cc; background: rgba(196,120,48,0.06); display:flex; align-items:center; gap:10px; flex-wrap:wrap;">
-            <span style="font-size:.82rem; font-weight:600; color: var(--c-ink-strong, #3b1e0c);">↕ Ordinamento rapido:</span>
-            @if (combinatoAttivo)
+        <div style="padding: 8px 16px; border-top: 1px solid #ece0cc; display:flex; align-items:center; gap:10px; flex-wrap:wrap;">
+            <button type="button" class="btn @(ordineAttivo ? "btn--primary" : "btn--ghost") btn--sm" data-sort-open>↕ Ordina@(ordineAttivo ? $" ({multiLevels.Count})" : "")</button>
+            @if (ordineAttivo)
             {
-                <span class="btn btn--primary btn--sm" style="cursor:default;" title="Ordinato per Data pagamento → Società → Competenza → Nome fornitore">✓ Combinato attivo</span>
-                <a class="btn btn--ghost btn--sm" href="@combinatoBaseUrl" title="Torna all'ordinamento predefinito (per data scadenza)">✕ Annulla</a>
+                <a class="btn btn--ghost btn--sm" href="@ordineBaseUrl" title="Rimuovi l'ordinamento personalizzato">✕ Azzera</a>
+                <span style="font-size:.74rem; color: var(--c-ink-soft, #9b8568);">
+                    @string.Join(" › ", multiLevels.Select(l => (sortFields.FirstOrDefault(f => f.Key == l.Campo).Label ?? l.Campo) + (l.Dir == "desc" ? " ↓" : " ↑")))
+                </span>
             }
-            else
-            {
-                <a class="btn btn--primary btn--sm" href="@combinatoOnUrl" title="Ordina per Data pagamento, poi Società, poi Competenza, poi Nome fornitore (tutti crescenti)">Ordina combinato</a>
-            }
-            <span style="font-size:.74rem; color: var(--c-ink-soft, #9b8568);">Data pagamento › Società › Competenza › Fornitore (crescenti)</span>
         </div>
+
+        <!-- Finestra di ordinamento multi-campo -->
+        <div data-sort-modal style="display:none; position:fixed; inset:0; z-index:1000; background:rgba(59,30,12,0.45); align-items:center; justify-content:center; padding:20px;">
+            <div role="dialog" aria-modal="true" style="background:#fff; border-radius:12px; max-width:480px; width:100%; box-shadow:0 24px 60px rgba(59,30,12,0.4); overflow:hidden;">
+                <div style="padding:14px 18px; background:#3b1e0c; color:#f5e8d0; display:flex; align-items:center; justify-content:space-between;">
+                    <strong>Ordina scadenze</strong>
+                    <button type="button" class="btn btn--ghost btn--sm" data-sort-close style="color:#f5e8d0;">✕</button>
+                </div>
+                <div style="padding:18px;">
+                    <p style="margin:0 0 12px; font-size:.82rem; color:#7a5c3a;">Scegli i campi e la priorità. Il primo è il criterio principale; gli altri risolvono i pari merito.</p>
+                    @for (var i = 0; i < 4; i++)
+                    {
+                        <div style="display:flex; align-items:center; gap:8px; margin-bottom:8px;">
+                            <span style="font-size:.74rem; color:#9b8568; width:64px;">@(i == 0 ? "Ordina per" : "poi per")</span>
+                            <select class="form-control" data-sort-field style="flex:1;">
+                                <option value="">— nessuno —</option>
+                                @foreach (var f in sortFields)
+                                {
+                                    <option value="@f.Key" selected="@(LevelCampo(i) == f.Key)">@f.Label</option>
+                                }
+                            </select>
+                            <select class="form-control" data-sort-dir style="width:130px;">
+                                <option value="asc" selected="@(LevelDir(i) == "asc")">Crescente</option>
+                                <option value="desc" selected="@(LevelDir(i) == "desc")">Decrescente</option>
+                            </select>
+                        </div>
+                    }
+                    <div style="margin-top:14px; display:flex; gap:8px; justify-content:space-between; align-items:center;">
+                        <button type="button" class="btn btn--ghost btn--sm" data-sort-preset title="Data pagamento › Società › Competenza › Fornitore (crescenti)">Preset combinato</button>
+                        <div style="display:flex; gap:8px;">
+                            <button type="button" class="btn btn--ghost btn--sm" data-sort-close>Annulla</button>
+                            <button type="button" class="btn btn--primary btn--sm" data-sort-apply>Applica</button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+        <script>
+        (function () {
+            var modal = document.querySelector('[data-sort-modal]');
+            if (!modal) return;
+            var fields = modal.querySelectorAll('[data-sort-field]');
+            var dirs = modal.querySelectorAll('[data-sort-dir]');
+            function open() { modal.style.display = 'flex'; }
+            function close() { modal.style.display = 'none'; }
+            document.querySelectorAll('[data-sort-open]').forEach(function (b) { b.addEventListener('click', open); });
+            modal.querySelectorAll('[data-sort-close]').forEach(function (b) { b.addEventListener('click', close); });
+            modal.addEventListener('click', function (e) { if (e.target === modal) close(); });
+            document.addEventListener('keydown', function (e) { if (e.key === 'Escape' && modal.style.display === 'flex') close(); });
+
+            var preset = modal.querySelector('[data-sort-preset]');
+            if (preset) preset.addEventListener('click', function () {
+                var p = [['datapag', 'asc'], ['societa', 'asc'], ['competenza', 'asc'], ['fornitore', 'asc']];
+                fields.forEach(function (f, i) { f.value = p[i] ? p[i][0] : ''; });
+                dirs.forEach(function (d, i) { d.value = p[i] ? p[i][1] : 'asc'; });
+            });
+
+            var apply = modal.querySelector('[data-sort-apply]');
+            if (apply) apply.addEventListener('click', function () {
+                var parts = [], seen = {};
+                fields.forEach(function (f, i) {
+                    var c = f.value;
+                    if (!c || seen[c]) return;
+                    seen[c] = 1;
+                    var d = (dirs[i] && dirs[i].value === 'desc') ? 'desc' : 'asc';
+                    parts.push(c + ':' + d);
+                });
+                var url = new URL(window.location.href);
+                var qp = url.searchParams;
+                ['Sort', 'Dir', 'Page', 'MultiSort'].forEach(function (k) { qp.delete(k); });
+                qp.set('tab', 'scadenze');
+                if (parts.length) qp.set('MultiSort', parts.join(','));
+                window.location.href = url.pathname + '?' + qp.toString();
+            });
+        })();
+        </script>
 
         <div>
             <table class="table" style="font-size: .88rem;">
