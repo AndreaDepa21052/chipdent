@@ -145,6 +145,7 @@ public class TesoreriaController : Controller
                     DataScadenza = s.DataScadenza,
                     DataScadenzaAttesa = s.DataScadenzaAttesa,
                     MeseCompetenza = fa?.MeseCompetenza.ToString("MMM yy", new CultureInfo("it-IT")) ?? "—",
+                    MeseCompetenzaData = fa?.MeseCompetenza ?? DateTime.MinValue,
                     Loc = SiglaSede(c),
                     ClinicaId = s.ClinicaId,
                     NumeroDoc = fa?.Numero ?? "—",
@@ -198,6 +199,13 @@ public class TesoreriaController : Controller
             var asc = !string.Equals(filtro.Dir, "desc", StringComparison.OrdinalIgnoreCase);
             IOrderedEnumerable<RigaTesoreria>? ord = filtro.Sort.ToLowerInvariant() switch
             {
+                // Preset multi-chiave: Data pagamento → Società → Competenza → Nome fornitore (tutti crescenti).
+                // Le scadenze senza data pagamento (non ancora pagate) vanno in fondo.
+                "combinato" => righe
+                    .OrderBy(r => r.DataPagamento ?? DateTime.MaxValue)
+                    .ThenBy(r => r.SocietaNome ?? string.Empty, StringComparer.OrdinalIgnoreCase)
+                    .ThenBy(r => r.MeseCompetenzaData)
+                    .ThenBy(r => r.FornitoreNome, StringComparer.OrdinalIgnoreCase),
                 "data"      => asc ? righe.OrderBy(r => r.DataScadenza)        : righe.OrderByDescending(r => r.DataScadenza),
                 "loc"       => asc ? righe.OrderBy(r => r.Loc)                 : righe.OrderByDescending(r => r.Loc),
                 "em"        => asc ? righe.OrderBy(r => r.TipoEmissione)       : righe.OrderByDescending(r => r.TipoEmissione),
