@@ -1001,6 +1001,26 @@
             <button type="button" class="btn btn--ghost btn--sm" data-sepa-clear>Deseleziona tutto</button>
         </div>
 
+        @{
+            var combinatoAttivo = string.Equals(Model.Filtro.Sort, "combinato", StringComparison.OrdinalIgnoreCase);
+            var combinatoBaseUrl = CalUrl(mese: calMese, clearSort: true);
+            var combinatoSep = combinatoBaseUrl.Contains('?') ? "&" : "?";
+            var combinatoOnUrl = $"{combinatoBaseUrl}{combinatoSep}Sort=combinato&Dir=asc";
+        }
+        <div style="padding: 8px 16px; border-top: 1px solid #ece0cc; display:flex; align-items:center; gap:10px; flex-wrap:wrap;">
+            <span style="font-size:.78rem; color: var(--c-ink-soft, #7a5c3a);">Ordinamento:</span>
+            @if (combinatoAttivo)
+            {
+                <span class="btn btn--primary btn--sm" style="cursor:default;" title="Ordinato per Data pagamento → Società → Competenza → Nome fornitore">↕ Combinato attivo</span>
+                <a class="btn btn--ghost btn--sm" href="@combinatoBaseUrl" title="Torna all'ordinamento predefinito (per data scadenza)">Annulla</a>
+            }
+            else
+            {
+                <a class="btn btn--ghost btn--sm" href="@combinatoOnUrl" title="Ordina per Data pagamento, poi Società, poi Competenza, poi Nome fornitore (tutti crescenti)">↕ Ordina combinato</a>
+            }
+            <span style="font-size:.72rem; color: var(--c-ink-soft, #9b8568);">Data pagamento › Società › Competenza › Fornitore</span>
+        </div>
+
         <div>
             <table class="table" style="font-size: .88rem;">
                 @{
