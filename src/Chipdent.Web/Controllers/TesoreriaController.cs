@@ -193,19 +193,55 @@ public class TesoreriaController : Controller
             righe = righe.Where(r => r.ScadenzaFuoriTermini).ToList();
         }
 
+        // Ordinamento multi-campo dalla finestra "Ordina" (?multiSort=campo:dir,campo:dir,...).
+        // Ha priorità sull'ordinamento a colonna singola.
+        if (!string.IsNullOrWhiteSpace(filtro.MultiSort))
+        {
+            // Chiave di ordinamento per ciascun campo supportato (valori boxati: il comparer gestisce il tipo).
+            static object? KeyOf(RigaTesoreria r, string campo) => campo switch
+            {
+                "data"       => r.DataScadenza,
+                "datapag"    => r.DataPagamento ?? DateTime.MaxValue,
+                "competenza" => r.MeseCompetenzaData,
+                "societa"    => r.SocietaNome ?? string.Empty,
+                "fornitore"  => r.FornitoreNome ?? string.Empty,
+                "totale"     => r.Totale,
+                "stato"      => (int)r.Stato,
+                "metodo"     => (int)r.Metodo,
+                "em"         => r.TipoEmissione,
+                "loc"        => r.Loc ?? string.Empty,
+                "doc"        => r.NumeroDoc ?? string.Empty,
+                "inserita"   => r.CaricataIl,
+                "chi"        => r.CaricataDaNome ?? string.Empty,
+                _            => null
+            };
+            // Stringhe case-insensitive, gli altri tipi col comparer di default.
+            var cmp = Comparer<object?>.Create((a, b) =>
+                a is string sa && b is string sb
+                    ? string.Compare(sa, sb, StringComparison.OrdinalIgnoreCase)
+                    : Comparer<object?>.Default.Compare(a, b));
+
+            var campiValidi = new HashSet<string> { "data", "datapag", "competenza", "societa", "fornitore", "totale", "stato", "metodo", "em", "loc", "doc", "inserita", "chi" };
+            IOrderedEnumerable<RigaTesoreria>? ord = null;
+            foreach (var part in filtro.MultiSort.Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries))
+            {
+                var bits = part.Split(':', 2);
+                var campo = bits[0].Trim().ToLowerInvariant();
+                if (!campiValidi.Contains(campo)) continue;
+                var asc = bits.Length < 2 || !string.Equals(bits[1].Trim(), "desc", StringComparison.OrdinalIgnoreCase);
+                Func<RigaTesoreria, object?> sel = r => KeyOf(r, campo);
+                ord = ord is null
+                    ? (asc ? righe.OrderBy(sel, cmp) : righe.OrderByDescending(sel, cmp))
+                    : (asc ? ord.ThenBy(sel, cmp)   : ord.ThenByDescending(sel, cmp));
+            }
+            if (ord is not null) righe = ord.ToList();
+        }
         // Sort utente (?sort=col&dir=asc|desc). Default: data crescente, pagate in fondo (già fatto).
-        if (!string.IsNullOrEmpty(filtro.Sort))
+        else if (!string.IsNullOrEmpty(filtro.Sort))
         {
             var asc = !string.Equals(filtro.Dir, "desc", StringComparison.OrdinalIgnoreCase);
             IOrderedEnumerable<RigaTesoreria>? ord = filtro.Sort.ToLowerInvariant() switch
             {
-                // Preset multi-chiave: Data pagamento → Società → Competenza → Nome fornitore (tutti crescenti).
-                // Le scadenze senza data pagamento (non ancora pagate) vanno in fondo.
-                "combinato" => righe
-                    .OrderBy(r => r.DataPagamento ?? DateTime.MaxValue)
-                    .ThenBy(r => r.SocietaNome ?? string.Empty, StringComparer.OrdinalIgnoreCase)
-                    .ThenBy(r => r.MeseCompetenzaData)
-                    .ThenBy(r => r.FornitoreNome, StringComparer.OrdinalIgnoreCase),
                 "data"      => asc ? righe.OrderBy(r => r.DataScadenza)        : righe.OrderByDescending(r => r.DataScadenza),
                 "loc"       => asc ? righe.OrderBy(r => r.Loc)                 : righe.OrderByDescending(r => r.Loc),
                 "em"        => asc ? righe.OrderBy(r => r.TipoEmissione)       : righe.OrderByDescending(r => r.TipoEmissione),
