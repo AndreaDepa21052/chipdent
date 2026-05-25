@@ -63,6 +63,9 @@ public class RigaTesoreria
     public DateTime DataScadenza { get; set; }
     public DateTime? DataScadenzaAttesa { get; set; }
     public string MeseCompetenza { get; set; } = string.Empty;
+    /// <summary>Mese di competenza come data (primo del mese), per l'ordinamento cronologico.
+    /// La stringa <see cref="MeseCompetenza"/> ("MMM yy") serve solo alla visualizzazione.</summary>
+    public DateTime MeseCompetenzaData { get; set; }
     public string Loc { get; set; } = "—";
     public string ClinicaId { get; set; } = string.Empty;
     public string NumeroDoc { get; set; } = string.Empty;
