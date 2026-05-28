@@ -101,6 +101,12 @@ public class Fornitore : TenantEntity
     /// </summary>
     public bool PagamentiManuali { get; set; }
 
+    /// <summary>Quando true segnala che le date/importi di pagamento di questo fornitore non
+    /// sono affidabili (accordi instabili, contenzioso aperto, fornitore con storico erratico).
+    /// È un flag informativo: non altera la generazione delle scadenze, ma viene esposto in
+    /// griglia/scadenziario per richiamare l'attenzione dell'operatore.</summary>
+    public bool PagamentoIncerto { get; set; }
+
     /// <summary>Id della <see cref="Clinica"/> di riferimento del fornitore (sede a cui è
     /// principalmente associato il rapporto). Null = non assegnata. Per le anagrafiche
     /// storiche viene popolata via backfill alla sede DESIO. Mantenuto come "sede primaria"
