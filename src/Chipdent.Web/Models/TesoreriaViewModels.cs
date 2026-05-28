@@ -336,6 +336,11 @@ public class FornitoreFormViewModel
     /// </summary>
     public bool PagamentiManuali { get; set; }
 
+    /// <summary>Flag informativo: il pagamento di questo fornitore è considerato incerto
+    /// (accordi instabili, contenzioso, storico erratico). Visibile e modificabile anche
+    /// dalla griglia anagrafica.</summary>
+    public bool PagamentoIncerto { get; set; }
+
     /// <summary>Id della clinica di riferimento del fornitore (sede principale, legacy).
     /// Mantenuto in sync con il primo elemento non-TUTTE di <see cref="SediRiferimentoIds"/>.</summary>
     public string? SedeRiferimentoId { get; set; }

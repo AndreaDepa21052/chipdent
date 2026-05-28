@@ -9,19 +9,19 @@ public static class Changelog
     public static readonly IReadOnlyList<ChangelogEntry> Entries = new List<ChangelogEntry>
     {
         // ───────────────────────────────────────────────────────────────────
-        // 🌟 v1.900.0 — Tornavento Distinctive
+        // 🌟 v1.900.0 — Distinctive
         // ───────────────────────────────────────────────────────────────────
         new(
             Version: "v1.900.0",
-            Codename: "Tornavento Distinctive",
+            Codename: "Distinctive",
             Date: new DateTime(2026, 4, 29),
             Category: ChangelogCategory.Foundation,
-            Title: "🌟 v1.900.0 «Tornavento Distinctive» — sei feature distintive in un colpo solo",
+            Title: "🌟 v1.900.0 «Distinctive» — sei feature distintive in un colpo solo",
             Description: "Sei feature pensate per differenziare Chipdent dagli HR-tool generalisti: bacheca TV per sede, anti-frode timbrature, NPS pazienti, operations da retail, predizione assenze, scadenziario unificato con OCR-ready."),
 
         new(
             Version: "v1.900.0",
-            Codename: "Tornavento Distinctive",
+            Codename: "Distinctive",
             Date: new DateTime(2026, 4, 29),
             Category: ChangelogCategory.Comunicazioni,
             Title: "📺 Bacheca TV per sede",
@@ -29,7 +29,7 @@ public static class Changelog
 
         new(
             Version: "v1.900.0",
-            Codename: "Tornavento Distinctive",
+            Codename: "Distinctive",
             Date: new DateTime(2026, 4, 29),
             Category: ChangelogCategory.Turni,
             Title: "📍 Anti-frode timbrature: geofencing GPS + selfie",
@@ -37,7 +37,7 @@ public static class Changelog
 
         new(
             Version: "v1.900.0",
-            Codename: "Tornavento Distinctive",
+            Codename: "Distinctive",
             Date: new DateTime(2026, 4, 29),
             Category: ChangelogCategory.Comunicazioni,
             Title: "💬 NPS pazienti via QR a fine visita",
@@ -45,7 +45,7 @@ public static class Changelog
 
         new(
             Version: "v1.900.0",
-            Codename: "Tornavento Distinctive",
+            Codename: "Distinctive",
             Date: new DateTime(2026, 4, 29),
             Category: ChangelogCategory.Compliance,
             Title: "🔐 Operations: ronda sicurezza + inventario consumabili",
@@ -53,7 +53,7 @@ public static class Changelog
 
         new(
             Version: "v1.900.0",
-            Codename: "Tornavento Distinctive",
+            Codename: "Distinctive",
             Date: new DateTime(2026, 4, 29),
             Category: ChangelogCategory.Dashboard,
             Title: "🔮 Predizione assenze (deterministica)",
@@ -61,26 +61,26 @@ public static class Changelog
 
         new(
             Version: "v1.900.0",
-            Codename: "Tornavento Distinctive",
+            Codename: "Distinctive",
             Date: new DateTime(2026, 4, 29),
             Category: ChangelogCategory.Compliance,
             Title: "📅 Scadenziario unificato + OCR-ready",
             Description: "Vista cross-modulo con TUTTE le scadenze del tenant (visite mediche, corsi, DVR, contratti, documenti clinica, albo dottori) ordinate per score impatto×urgenza. Estrattore regex/keyword di date integrato (italiano), pronto per swap con Azure Document Intelligence quando serve OCR vero su PDF."),
 
         // ───────────────────────────────────────────────────────────────────
-        // 📞 v1.800.0 — Tornavento Live
+        // 📞 v1.800.0 — Live
         // ───────────────────────────────────────────────────────────────────
         new(
             Version: "v1.800.0",
-            Codename: "Tornavento Live",
+            Codename: "Live",
             Date: new DateTime(2026, 4, 29),
             Category: ChangelogCategory.Foundation,
-            Title: "📞 v1.800.0 «Tornavento Live» — collaborazione realtime",
+            Title: "📞 v1.800.0 «Live» — collaborazione realtime",
             Description: "Suite di funzionalità realtime per ridurre la distanza tra sede e Backoffice: presence stile Slack, videoassistenza on-demand con sala Jitsi e densità UI ottimizzata per power-user."),
 
         new(
             Version: "v1.800.0",
-            Codename: "Tornavento Live",
+            Codename: "Live",
             Date: new DateTime(2026, 4, 29),
             Category: ChangelogCategory.Comunicazioni,
             Title: "📞 Videoassistenza on-demand (Jitsi)",
@@ -88,7 +88,7 @@ public static class Changelog
 
         new(
             Version: "v1.800.0",
-            Codename: "Tornavento Live",
+            Codename: "Live",
             Date: new DateTime(2026, 4, 29),
             Category: ChangelogCategory.Notifiche,
             Title: "🟢 Presence realtime: toast «utente collegato»",
@@ -96,26 +96,26 @@ public static class Changelog
 
         new(
             Version: "v1.800.0",
-            Codename: "Tornavento Live",
+            Codename: "Live",
             Date: new DateTime(2026, 4, 29),
             Category: ChangelogCategory.Foundation,
             Title: "🔠 Densità UI globale -20%",
             Description: "Riduzione globale del font-size (html 12.8px, body 11.2-12px) per maggiore densità informativa nelle tabelle e nei pannelli direzionali. Tutti i valori in rem scalano automaticamente."),
 
         // ───────────────────────────────────────────────────────────────────
-        // ⏱ v1.700.0 — Tornavento Time Pro
+        // ⏱ v1.700.0 — Time Pro
         // ───────────────────────────────────────────────────────────────────
         new(
             Version: "v1.700.0",
-            Codename: "Tornavento Time Pro",
+            Codename: "Time Pro",
             Date: new DateTime(2026, 4, 28),
             Category: ChangelogCategory.Foundation,
-            Title: "⏱ v1.700.0 «Tornavento Time Pro» — feature time tracking stile Factorial",
+            Title: "⏱ v1.700.0 «Time Pro» — feature time tracking stile Factorial",
             Description: "Avvicinamento alle feature core di Factorial nel time tracking: self-service web, pause, banca ore, smart working, correzioni timbratura, approvazione timesheet, notifica dimenticate, export paghe."),
 
         new(
             Version: "v1.700.0",
-            Codename: "Tornavento Time Pro",
+            Codename: "Time Pro",
             Date: new DateTime(2026, 4, 28),
             Category: ChangelogCategory.Turni,
             Title: "Self-service timbrature web + pause + smart working",
@@ -123,7 +123,7 @@ public static class Changelog
 
         new(
             Version: "v1.700.0",
-            Codename: "Tornavento Time Pro",
+            Codename: "Time Pro",
             Date: new DateTime(2026, 4, 28),
             Category: ChangelogCategory.Dashboard,
             Title: "Banca ore mensile",
@@ -131,7 +131,7 @@ public static class Changelog
 
         new(
             Version: "v1.700.0",
-            Codename: "Tornavento Time Pro",
+            Codename: "Time Pro",
             Date: new DateTime(2026, 4, 28),
             Category: ChangelogCategory.Turni,
             Title: "Richieste correzione timbratura + approvazione timesheet",
@@ -139,7 +139,7 @@ public static class Changelog
 
         new(
             Version: "v1.700.0",
-            Codename: "Tornavento Time Pro",
+            Codename: "Time Pro",
             Date: new DateTime(2026, 4, 28),
             Category: ChangelogCategory.Notifiche,
             Title: "Watchdog timbrature dimenticate",
@@ -147,26 +147,26 @@ public static class Changelog
 
         new(
             Version: "v1.700.0",
-            Codename: "Tornavento Time Pro",
+            Codename: "Time Pro",
             Date: new DateTime(2026, 4, 28),
             Category: ChangelogCategory.Documenti,
             Title: "Export paghe Zucchetti / TeamSystem",
             Description: "Nuovo endpoint /presenze/export-paghe.csv produce un file con riga per (dipendente × giorno), causale paga (ORD/SMA/FER/PER/MAL/STU/ASS/ASG), ore decimali con virgola IT, flag remoto/ritardo/uscita-anticipata. Compatibile con i formati di import generici dei principali sistemi paghe italiani."),
 
         // ───────────────────────────────────────────────────────────────────
-        // 🛡️ v1.600.0 — Tornavento Compliance
+        // 🛡️ v1.600.0 — Compliance
         // ───────────────────────────────────────────────────────────────────
         new(
             Version: "v1.600.0",
-            Codename: "Tornavento Compliance",
+            Codename: "Compliance",
             Date: new DateTime(2026, 4, 28),
             Category: ChangelogCategory.Foundation,
-            Title: "🛡️ v1.600.0 «Tornavento Compliance» — chiusura completa della mappa",
+            Title: "🛡️ v1.600.0 «Compliance» — chiusura completa della mappa",
             Description: "Chiusi gli ultimi tre item della Roadmap Y2 fattibili senza dipendenze esterne: Ottimizzazione turni AI, Benchmark inter-sede KPI dedicato, Whistleblowing anonimo (D.Lgs. 24/2023). Restano fuori solo gli item con vincoli esterni (XDENT, paghe, multi-lingua, white-label, marketplace) o roadmap strategici."),
 
         new(
             Version: "v1.600.0",
-            Codename: "Tornavento Compliance",
+            Codename: "Compliance",
             Date: new DateTime(2026, 4, 28),
             Category: ChangelogCategory.Turni,
             Title: "✨ Ottimizzazione turni AI deterministica",
@@ -174,7 +174,7 @@ public static class Changelog
 
         new(
             Version: "v1.600.0",
-            Codename: "Tornavento Compliance",
+            Codename: "Compliance",
             Date: new DateTime(2026, 4, 28),
             Category: ChangelogCategory.Dashboard,
             Title: "📊 Benchmark inter-sede KPI",
@@ -182,18 +182,18 @@ public static class Changelog
 
         new(
             Version: "v1.600.0",
-            Codename: "Tornavento Compliance",
+            Codename: "Compliance",
             Date: new DateTime(2026, 4, 28),
             Category: ChangelogCategory.Compliance,
             Title: "🛡️ Whistleblowing anonimo (D.Lgs. 24/2023)",
             Description: "Canale dedicato accessibile anche senza login (link dalla pagina di accesso) per segnalare violazioni in forma anonima o firmata. Ogni segnalazione genera un codice di tracciamento WB-XXXX-XXXX-XXXX + codice di accesso scelto dal segnalante che permette il follow-up senza account. Conversazione bidirezionale segnalante↔Compliance Officer. Pannello admin /whistleblowing/admin (Management) con filtri per stato, gestione esito finale, allegato 20MB."),
 
         // ───────────────────────────────────────────────────────────────────
-        // 🪟 v1.500.0 — Tornavento Multi-Workspace
+        // 🪟 v1.500.0 — Multi-Workspace
         // ───────────────────────────────────────────────────────────────────
         new(
             Version: "v1.500.0",
-            Codename: "Tornavento Multi-Workspace",
+            Codename: "Multi-Workspace",
             Date: new DateTime(2026, 4, 28),
             Category: ChangelogCategory.Foundation,
             Title: "Impostazioni workspace + creazione nuovo workspace",
@@ -201,18 +201,18 @@ public static class Changelog
 
         new(
             Version: "v1.500.0",
-            Codename: "Tornavento Multi-Workspace",
+            Codename: "Multi-Workspace",
             Date: new DateTime(2026, 4, 28),
             Category: ChangelogCategory.Foundation,
             Title: "Switcher workspace dinamico + login multi-tenant",
             Description: "Il workspace switcher mostra il logo del tenant corrente e lista dinamicamente gli altri workspace dove la tua email è Owner attivo, con un click che fa logout e redirect al login con tenantSlug pre-selezionato. La pagina di login gestisce il caso «email presente in più tenant»: se ce n'è solo uno funziona come prima; se ce ne sono più di uno mostra un picker workspace inline."),
 
         // ───────────────────────────────────────────────────────────────────
-        // ✨ v1.400.0 — Tornavento Intelligence
+        // ✨ v1.400.0 — Intelligence
         // ───────────────────────────────────────────────────────────────────
         new(
             Version: "v1.400.0",
-            Codename: "Tornavento Intelligence",
+            Codename: "Intelligence",
             Date: new DateTime(2026, 4, 28),
             Category: ChangelogCategory.Dashboard,
             Title: "✨ AI Insights — risk turnover, forecast, anomalie, smart staffing",
@@ -220,26 +220,26 @@ public static class Changelog
 
         new(
             Version: "v1.400.0",
-            Codename: "Tornavento Intelligence",
+            Codename: "Intelligence",
             Date: new DateTime(2026, 4, 28),
             Category: ChangelogCategory.Turni,
             Title: "AI score sui candidati sostituzione",
             Description: "Quando il Direttore cerca un sostituto, ogni candidato riceve un punteggio AI 0-100 calcolato su carico ore della settimana, storico di accettazioni, affinità con l'orario tipico. I migliori candidati sono evidenziati in viola e suggeriti per primi."),
 
         // ───────────────────────────────────────────────────────────────────
-        // 🌟 v1.300.0 — Tornavento Completo  (chiusura mappa funzionale)
+        // 🌟 v1.300.0 — Completo  (chiusura mappa funzionale)
         // ───────────────────────────────────────────────────────────────────
         new(
             Version: "v1.300.0",
-            Codename: "Tornavento Completo",
+            Codename: "Completo",
             Date: new DateTime(2026, 4, 28),
             Category: ChangelogCategory.Foundation,
-            Title: "🌟 v1.300.0 «Tornavento Completo» — mappa funzionale al 100%",
+            Title: "🌟 v1.300.0 «Completo» — mappa funzionale al 100%",
             Description: "Chiusi gli ultimi tre moduli del livello Direttore di sede: sostituzioni urgenti, DPI con firma digitale, presenze con kiosk PIN. Tutta la mappa funzionale Chipdent (Management + Direttore + Staff) è ora live, salvo gli item esplicitamente etichettati come Roadmap futura (AI insights, integrazioni esterne, whistleblowing, multi-lingua, white-label)."),
 
         new(
             Version: "v1.300.0",
-            Codename: "Tornavento Completo",
+            Codename: "Completo",
             Date: new DateTime(2026, 4, 28),
             Category: ChangelogCategory.Turni,
             Title: "Sostituzioni urgenti",
@@ -247,7 +247,7 @@ public static class Changelog
 
         new(
             Version: "v1.300.0",
-            Codename: "Tornavento Completo",
+            Codename: "Completo",
             Date: new DateTime(2026, 4, 28),
             Category: ChangelogCategory.Compliance,
             Title: "DPI con firma digitale",
@@ -255,26 +255,26 @@ public static class Changelog
 
         new(
             Version: "v1.300.0",
-            Codename: "Tornavento Completo",
+            Codename: "Completo",
             Date: new DateTime(2026, 4, 28),
             Category: ChangelogCategory.Turni,
             Title: "Presenze & timbrature con kiosk PIN",
             Description: "Pagina kiosk a tutto schermo (`/presenze/kiosk`) per tablet di sede: il dipendente digita il PIN personale (4-6 cifre) e timbra entrata/uscita; il sistema decide automaticamente quale dei due in base all'ultima timbratura del giorno. Report mensile per il Direttore: ore lavorate vs pianificate, ritardi e uscite anticipate (tolleranza ±10 min), giorni effettivi vs giorni pianificati. Inserimento manuale + export CSV."),
 
         // ───────────────────────────────────────────────────────────────────
-        // 👥 v1.200.0 — Tornavento+Staff
+        // 👥 v1.200.0 — +Staff
         // ───────────────────────────────────────────────────────────────────
         new(
             Version: "v1.200.0",
-            Codename: "Tornavento+Staff",
+            Codename: "+Staff",
             Date: new DateTime(2026, 4, 28),
             Category: ChangelogCategory.Foundation,
-            Title: "👥 v1.200.0 «Tornavento+Staff» — chiusura del livello Staff",
+            Title: "👥 v1.200.0 «+Staff» — chiusura del livello Staff",
             Description: "Completati gli ultimi tre moduli Staff della mappa funzionale: cambio turno con workflow Staff↔collega↔Direttore, fascicolo personale «I miei documenti», segnalazioni operative con ticket di sede."),
 
         new(
             Version: "v1.200.0",
-            Codename: "Tornavento+Staff",
+            Codename: "+Staff",
             Date: new DateTime(2026, 4, 28),
             Category: ChangelogCategory.Turni,
             Title: "Cambio turno con scambio fra colleghi",
@@ -282,7 +282,7 @@ public static class Changelog
 
         new(
             Version: "v1.200.0",
-            Codename: "Tornavento+Staff",
+            Codename: "+Staff",
             Date: new DateTime(2026, 4, 28),
             Category: ChangelogCategory.Documenti,
             Title: "Fascicolo personale «I miei documenti»",
@@ -290,26 +290,26 @@ public static class Changelog
 
         new(
             Version: "v1.200.0",
-            Codename: "Tornavento+Staff",
+            Codename: "+Staff",
             Date: new DateTime(2026, 4, 28),
             Category: ChangelogCategory.Comunicazioni,
             Title: "Segnalazioni operative con workflow di sede",
             Description: "Ticket di sede per guasti attrezzatura, problemi sicurezza, IT, approvvigionamento, igiene. Priorità Bassa→Urgente, allegato (foto/video/doc). Workflow: Aperta → InLavorazione (Direttore prende in carico) → Risolta (con nota di chiusura). Filtri stato e tipologia, contatori urgenti in evidenza."),
 
         // ───────────────────────────────────────────────────────────────────
-        // 🏢 v1.100.0 — Tornavento+Management
+        // 🏢 v1.100.0 — +Management
         // ───────────────────────────────────────────────────────────────────
         new(
             Version: "v1.100.0",
-            Codename: "Tornavento+Management",
+            Codename: "+Management",
             Date: new DateTime(2026, 4, 28),
             Category: ChangelogCategory.Foundation,
-            Title: "🏢 v1.100.0 «Tornavento+Management» — chiusura del livello Management",
+            Title: "🏢 v1.100.0 «+Management» — chiusura del livello Management",
             Description: "Tutti i moduli Management della mappa funzionale sono ora implementati: configurazione di rete, contratti & scadenze, headcount & organico con analytics, report & analytics esportabili, formazione & ECM."),
 
         new(
             Version: "v1.100.0",
-            Codename: "Tornavento+Management",
+            Codename: "+Management",
             Date: new DateTime(2026, 4, 28),
             Category: ChangelogCategory.Dashboard,
             Title: "Report & analytics con export CSV e stampa PDF",
@@ -317,7 +317,7 @@ public static class Changelog
 
         new(
             Version: "v1.100.0",
-            Codename: "Tornavento+Management",
+            Codename: "+Management",
             Date: new DateTime(2026, 4, 28),
             Category: ChangelogCategory.Anagrafiche,
             Title: "Headcount & organico con grafici",
@@ -325,7 +325,7 @@ public static class Changelog
 
         new(
             Version: "v1.100.0",
-            Codename: "Tornavento+Management",
+            Codename: "+Management",
             Date: new DateTime(2026, 4, 28),
             Category: ChangelogCategory.Anagrafiche,
             Title: "Contratti dipendenti con alert scadenze",
@@ -333,7 +333,7 @@ public static class Changelog
 
         new(
             Version: "v1.100.0",
-            Codename: "Tornavento+Management",
+            Codename: "+Management",
             Date: new DateTime(2026, 4, 28),
             Category: ChangelogCategory.Compliance,
             Title: "Formazione & ECM dottori",
@@ -341,26 +341,26 @@ public static class Changelog
 
         new(
             Version: "v1.100.0",
-            Codename: "Tornavento+Management",
+            Codename: "+Management",
             Date: new DateTime(2026, 4, 28),
             Category: ChangelogCategory.Foundation,
             Title: "Configurazione rete centralizzata",
             Description: "Pagina Configurazione (solo Management) per definire: workflow approvazioni (escalation ferie lunghe, conferma circolari), categorie documento obbligatorie per sede (con stato caricato/mancante), soglie copertura minima per sede×ruolo×giorno. Le soglie alimentano i warning del calendario turni."),
 
         // ───────────────────────────────────────────────────────────────────
-        // 🌳 v1.000.0 — Tornavento  (MVP chiuso)
+        // 🌳 v1.000.0 — MVP chiuso
         // ───────────────────────────────────────────────────────────────────
         new(
             Version: "v1.000.0",
-            Codename: "Tornavento",
+            Codename: "MVP",
             Date: new DateTime(2026, 4, 28),
             Category: ChangelogCategory.Foundation,
-            Title: "🌳 v1.000.0 «Tornavento» — chiusura dell'MVP",
+            Title: "🌳 v1.000.0 «MVP» — chiusura dell'MVP",
             Description: "Prima release stabile di Chipdent. Tutti i moduli MVP della mappa funzionale sono implementati: anagrafiche multi-sede, turni con drag&drop e conflict detection, ferie con saldo automatico, RLS (visite/corsi/DVR), documentazione con upload, chat realtime, circolari con conferma lettura, dashboard differenziate per ruolo, notifiche live + digest email."),
 
         new(
             Version: "v1.000.0",
-            Codename: "Tornavento",
+            Codename: "MVP",
             Date: new DateTime(2026, 4, 28),
             Category: ChangelogCategory.Dashboard,
             Title: "Dashboard differenziate per ruolo",
@@ -368,7 +368,7 @@ public static class Changelog
 
         new(
             Version: "v1.000.0",
-            Codename: "Tornavento",
+            Codename: "MVP",
             Date: new DateTime(2026, 4, 28),
             Category: ChangelogCategory.Documenti,
             Title: "Upload allegati documenti (locale)",
@@ -376,18 +376,18 @@ public static class Changelog
 
         new(
             Version: "v1.000.0",
-            Codename: "Tornavento",
+            Codename: "MVP",
             Date: new DateTime(2026, 4, 28),
             Category: ChangelogCategory.Notifiche,
             Title: "Notifiche browser + digest email giornaliero",
             Description: "Le notifiche realtime SignalR ora si appoggiano alla Web Notifications API per i toast di sistema fuori dalla scheda. Background service «DigestEmailService» invia ogni mattina alle 7 un riepilogo a chi ha attivo il digest (scadenze docs, RLS, richieste in attesa)."),
 
         // ───────────────────────────────────────────────────────────────────
-        // Pre-Tornavento (work-in-progress verso v1.000.0)
+        // Pre-MVP (work-in-progress verso v1.000.0)
         // ───────────────────────────────────────────────────────────────────
         new(
             Version: "v0.900.0",
-            Codename: "pre-Tornavento",
+            Codename: "pre-MVP",
             Date: new DateTime(2026, 4, 28),
             Category: ChangelogCategory.Turni,
             Title: "Turni: drag & drop, template, conflict detection, copia settimana",
@@ -395,7 +395,7 @@ public static class Changelog
 
         new(
             Version: "v0.900.0",
-            Codename: "pre-Tornavento",
+            Codename: "pre-MVP",
             Date: new DateTime(2026, 4, 28),
             Category: ChangelogCategory.Comunicazioni,
             Title: "Conferma di lettura sulle circolari",
@@ -403,7 +403,7 @@ public static class Changelog
 
         new(
             Version: "v0.900.0",
-            Codename: "pre-Tornavento",
+            Codename: "pre-MVP",
             Date: new DateTime(2026, 4, 28),
             Category: ChangelogCategory.Comunicazioni,
             Title: "Chat realtime 1:1 e di sede",
@@ -411,7 +411,7 @@ public static class Changelog
 
         new(
             Version: "v0.900.0",
-            Codename: "pre-Tornavento",
+            Codename: "pre-MVP",
             Date: new DateTime(2026, 4, 28),
             Category: ChangelogCategory.Ferie,
             Title: "Workflow ferie completo",
@@ -419,7 +419,7 @@ public static class Changelog
 
         new(
             Version: "v0.900.0",
-            Codename: "pre-Tornavento",
+            Codename: "pre-MVP",
             Date: new DateTime(2026, 4, 28),
             Category: ChangelogCategory.Foundation,
             Title: "Refactor RBAC + mappa funzionale",
@@ -427,7 +427,7 @@ public static class Changelog
 
         new(
             Version: "v0.900.0",
-            Codename: "pre-Tornavento",
+            Codename: "pre-MVP",
             Date: new DateTime(2026, 4, 28),
             Category: ChangelogCategory.Anagrafiche,
             Title: "Mappa geografica delle cliniche",
@@ -435,7 +435,7 @@ public static class Changelog
 
         new(
             Version: "v0.900.0",
-            Codename: "pre-Tornavento",
+            Codename: "pre-MVP",
             Date: new DateTime(2026, 4, 28),
             Category: ChangelogCategory.Foundation,
             Title: "Pagina What's New",

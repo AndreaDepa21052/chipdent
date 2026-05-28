@@ -828,7 +828,7 @@ public class TesoreriaController : Controller
             "Stato",
             "Sedi di riferimento",
             "Termini pagamento (giorni)", "Base pagamento", "Emissione fattura",
-            "Pagamento ricorrente", "Pagamenti manuali",
+            "Pagamento ricorrente", "Pagamenti manuali", "Pagamento incerto",
             "Note", "Aggiungi nota secondaria", "Nota secondaria",
             "Creato il"
         };
@@ -873,6 +873,7 @@ public class TesoreriaController : Controller
                 f.EmissioneFattura.ToString(),
                 f.PagamentoRicorrente ? "Sì" : "No",
                 f.PagamentiManuali ? "Sì" : "No",
+                f.PagamentoIncerto ? "Sì" : "No",
                 f.Note ?? "",
                 f.AggiungiNotaSecondariaAutomaticamente ? "Sì" : "No",
                 f.NotaSecondaria ?? "",
@@ -944,6 +945,7 @@ public class TesoreriaController : Controller
             EmissioneFattura = vm.EmissioneFattura,
             PagamentoRicorrente = vm.PagamentoRicorrente,
             PagamentiManuali = vm.PagamentiManuali,
+            PagamentoIncerto = vm.PagamentoIncerto,
             SediRiferimentoIds = NormalizeSediRiferimentoIds(vm.SediRiferimentoIds, vm.SedeRiferimentoId),
             SedeRiferimentoId = PrimarySedeFrom(NormalizeSediRiferimentoIds(vm.SediRiferimentoIds, vm.SedeRiferimentoId))
         };
@@ -995,6 +997,7 @@ public class TesoreriaController : Controller
             EmissioneFattura = f.EmissioneFattura,
             PagamentoRicorrente = f.PagamentoRicorrente,
             PagamentiManuali = f.PagamentiManuali,
+            PagamentoIncerto = f.PagamentoIncerto,
             SedeRiferimentoId = f.SedeRiferimentoId,
             SediRiferimentoIds = EffectiveSediRiferimento(f),
             Cliniche = await GetClinicheAsync(),
@@ -1052,6 +1055,7 @@ public class TesoreriaController : Controller
             EmissioneFattura = f.EmissioneFattura,
             PagamentoRicorrente = f.PagamentoRicorrente,
             PagamentiManuali = f.PagamentiManuali,
+            PagamentoIncerto = f.PagamentoIncerto,
             SedeRiferimentoId = f.SedeRiferimentoId,
             SediRiferimentoIds = EffectiveSediRiferimento(f),
             Cliniche = await _mongo.Cliniche.Find(c => c.TenantId == tid).SortBy(c => c.Nome).ToListAsync(),
@@ -1125,6 +1129,7 @@ public class TesoreriaController : Controller
                 .Set(x => x.EmissioneFattura, vm.EmissioneFattura)
                 .Set(x => x.PagamentoRicorrente, vm.PagamentoRicorrente)
                 .Set(x => x.PagamentiManuali, vm.PagamentiManuali)
+                .Set(x => x.PagamentoIncerto, vm.PagamentoIncerto)
                 .Set(x => x.SediRiferimentoIds, NormalizeSediRiferimentoIds(vm.SediRiferimentoIds, vm.SedeRiferimentoId))
                 .Set(x => x.SedeRiferimentoId, PrimarySedeFrom(NormalizeSediRiferimentoIds(vm.SediRiferimentoIds, vm.SedeRiferimentoId)))
                 .Set(x => x.UpdatedAt, DateTime.UtcNow));
@@ -1225,6 +1230,16 @@ public class TesoreriaController : Controller
                 newValueDisplay = stato.ToString();
                 update = Builders<Fornitore>.Update.Set(x => x.Stato, stato);
                 fieldLabel = "Stato";
+                break;
+
+            case "PagamentoIncerto":
+                var incerto = string.Equals(trimmed, "true", StringComparison.OrdinalIgnoreCase)
+                    || trimmed == "1" || string.Equals(trimmed, "si", StringComparison.OrdinalIgnoreCase)
+                    || string.Equals(trimmed, "sì", StringComparison.OrdinalIgnoreCase);
+                oldValue = f.PagamentoIncerto ? "Sì" : "No";
+                newValueDisplay = incerto ? "Sì" : "No";
+                update = Builders<Fornitore>.Update.Set(x => x.PagamentoIncerto, incerto);
+                fieldLabel = "Pagamento incerto";
                 break;
 
             case "SedeRiferimentoId":
@@ -1346,6 +1361,7 @@ public class TesoreriaController : Controller
         EmissioneFattura = src.EmissioneFattura,
         PagamentoRicorrente = src.PagamentoRicorrente,
         PagamentiManuali = src.PagamentiManuali,
+        PagamentoIncerto = src.PagamentoIncerto,
         SedeRiferimentoId = src.SedeRiferimentoId,
         SediRiferimentoIds = src.SediRiferimentoIds?.ToList() ?? new List<string>(),
         DottoreId = src.DottoreId,
