@@ -455,6 +455,8 @@ public class ImportFattureIndexViewModel
     public DateTime? UltimoCaricamento { get; set; }
     /// <summary>Numero di proposte anagrafica in attesa di decisione (badge).</summary>
     public int ProposteAnagraficaInAttesa { get; set; }
+    /// <summary>Cliniche del tenant — popolate la tendina «Sede» del form di upload.</summary>
+    public List<Clinica> Cliniche { get; set; } = new();
 }
 
 public class ImportFattureBatchRow
@@ -468,12 +470,16 @@ public class ImportFattureBatchRow
     public int RigheValide { get; set; }
     public int RigheConErrore { get; set; }
     public string? Note { get; set; }
+    /// <summary>Sede destinataria dichiarata in upload (nome clinica). Null sui batch legacy.</summary>
+    public string? SedeNome { get; set; }
 }
 
 public class ImportFattureDettaglioViewModel
 {
     public Chipdent.Web.Domain.Entities.ImportFatturePassiveBatch Batch { get; set; } = null!;
     public string CaricatoDaNome { get; set; } = string.Empty;
+    /// <summary>Nome della sede destinataria dichiarata in upload. Null sui batch legacy.</summary>
+    public string? SedeNome { get; set; }
     /// <summary>Righe raggruppate per file (sheet o csv).</summary>
     public List<ImportFattureFileGroup> Files { get; set; } = new();
 }

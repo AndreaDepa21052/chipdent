@@ -219,6 +219,21 @@
             <div id="impFiles__list" class="imp-files"></div>
 
             <div style="margin-top:14px;">
+                <label for="impClinica" style="font-size:.82rem; color:#7a5c3a;">Sede destinataria *</label>
+                <select id="impClinica" name="clinicaId" required
+                        style="width:100%; margin-top:4px; padding:8px 10px; border:1px solid #e9dcc1; border-radius:8px; background:#fff;">
+                    <option value="">— Scegli la sede del caricamento —</option>
+                    @foreach (var c in Model.Cliniche)
+                    {
+                        <option value="@c.Id">@c.Nome</option>
+                    }
+                </select>
+                <div class="muted" style="font-size:.74rem; margin-top:4px;">
+                    Tutte le righe del batch verranno attribuite a questa sede, a meno che il cessionario indicato nel PDF identifichi un'altra società del gruppo (es. fatture cross-società).
+                </div>
+            </div>
+
+            <div style="margin-top:14px;">
                 <label for="impNote" style="font-size:.82rem; color:#7a5c3a;">Nota (facoltativa)</label>
                 <input id="impNote" name="note" type="text" maxlength="200"
                        placeholder="es. Marzo 2026 — chiusura mese"
@@ -268,6 +283,7 @@ else
                 <tr>
                     <th>Data caricamento</th>
                     <th>Caricato da</th>
+                    <th>Sede</th>
                     <th>Tipo</th>
                     <th>Files</th>
                     <th style="text-align:right;">Righe</th>
@@ -284,6 +300,16 @@ else
                 <tr onclick="location.href='@url'">
                     <td>@b.DataCaricamento.ToLocalTime().ToString("dd/MM/yyyy HH:mm")</td>
                     <td>@b.CaricatoDa</td>
+                    <td>
+                        @if (string.IsNullOrEmpty(b.SedeNome))
+                        {
+                            <span class="muted">—</span>
+                        }
+                        else
+                        {
+                            <span class="pill pill--ok">📍 @b.SedeNome</span>
+                        }
+                    </td>
                     <td><span class="pill pill--type">@b.Tipo</span></td>
                     <td>
                         @foreach (var f in b.Files)
@@ -315,6 +341,7 @@ else
     const list = document.getElementById('impFiles__list');
     const submit = document.getElementById('impSubmit');
     const hint = document.getElementById('impHint');
+    const clinica = document.getElementById('impClinica');
 
     function fmt(n) {
         if (n < 1024) return n + ' B';
@@ -367,14 +394,19 @@ else
             submit.disabled = true;
             hint.style.color = '#9a1c1c';
             hint.textContent = problem;
+        } else if (!clinica.value) {
+            submit.disabled = true;
+            hint.style.color = '#7a4a00';
+            hint.textContent = `Pronto: ${arr.length} file, ${fmt(total)}. Manca la sede destinataria.`;
         } else {
             submit.disabled = false;
             hint.style.color = '';
-            hint.textContent = `Pronto: ${arr.length} file, ${fmt(total)}.`;
+            hint.textContent = `Pronto: ${arr.length} file, ${fmt(total)} per ${clinica.options[clinica.selectedIndex].text}.`;
         }
     }
 
     input.addEventListener('change', () => validate(input.files));
+    clinica.addEventListener('change', () => validate(input.files));
 
     ['dragenter','dragover'].forEach(ev => drop.addEventListener(ev, e => {
         e.preventDefault(); e.stopPropagation(); drop.classList.add('is-hover');

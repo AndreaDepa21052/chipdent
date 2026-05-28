@@ -2197,6 +2197,9 @@ public class TesoreriaController : Controller
         var proposteInAttesa = await _mongo.ProposteAnagraficaFornitori
             .CountDocumentsAsync(p => p.TenantId == tid && p.Stato == StatoPropostaAnagrafica.InAttesa);
 
+        var cliniche = await GetClinicheAsync();
+        var clinicheById = cliniche.ToDictionary(c => c.Id, c => c.Nome);
+
         var vm = new ImportFattureIndexViewModel
         {
             Batches = batches.Select(b => new ImportFattureBatchRow
@@ -2209,13 +2212,15 @@ public class TesoreriaController : Controller
                 TotaleRighe = b.TotaleRighe,
                 RigheValide = b.RigheValide,
                 RigheConErrore = b.RigheConErrore,
-                Note = b.Note
+                Note = b.Note,
+                SedeNome = !string.IsNullOrEmpty(b.ClinicaDefaultId) && clinicheById.TryGetValue(b.ClinicaDefaultId, out var n) ? n : null
             }).ToList(),
             TotaleBatch = batches.Count,
             TotaleRighe = batches.Sum(b => b.TotaleRighe),
             TotaleRigheConErrore = batches.Sum(b => b.RigheConErrore),
             UltimoCaricamento = batches.Count > 0 ? batches[0].DataCaricamento : null,
-            ProposteAnagraficaInAttesa = (int)proposteInAttesa
+            ProposteAnagraficaInAttesa = (int)proposteInAttesa,
+            Cliniche = cliniche
         };
 
         ViewBag.Section = "tesoreria-import-fatture";
@@ -2254,10 +2259,19 @@ public class TesoreriaController : Controller
             caricatoDa = u?.FullName ?? "—";
         }
 
+        string? sedeNome = null;
+        if (!string.IsNullOrEmpty(batch.ClinicaDefaultId))
+        {
+            sedeNome = (await _mongo.Cliniche
+                .Find(c => c.Id == batch.ClinicaDefaultId && c.TenantId == tid)
+                .FirstOrDefaultAsync())?.Nome;
+        }
+
         var vm = new ImportFattureDettaglioViewModel
         {
             Batch = batch,
             CaricatoDaNome = string.IsNullOrEmpty(caricatoDa) ? "—" : caricatoDa,
+            SedeNome = sedeNome,
             Files = groups
         };
 
@@ -2275,7 +2289,7 @@ public class TesoreriaController : Controller
     [HttpPost("import-fatture")]
     [ValidateAntiForgeryToken]
     [RequestSizeLimit(MaxUploadBytes)]
-    public async Task<IActionResult> ImportFatturePost(List<IFormFile> files, string? note)
+    public async Task<IActionResult> ImportFatturePost(List<IFormFile> files, string? note, string? clinicaId)
     {
         if (files == null || files.Count == 0)
         {
@@ -2292,13 +2306,34 @@ public class TesoreriaController : Controller
         var userId = User.FindFirstValue(ClaimTypes.NameIdentifier) ?? string.Empty;
         var userName = User.Identity?.Name ?? "—";
 
+        // Sede destinataria del batch: l'utente deve dichiararla in upload —
+        // diventa la LOC primaria per tutte le righe del batch (a meno che il
+        // cessionario nel PDF identifichi un'altra società del gruppo).
+        string? clinicaDefaultId = null;
+        if (!string.IsNullOrWhiteSpace(clinicaId))
+        {
+            var c = await _mongo.Cliniche.Find(x => x.Id == clinicaId && x.TenantId == tid).FirstOrDefaultAsync();
+            if (c == null)
+            {
+                TempData["flash-err"] = "Sede destinataria non valida.";
+                return RedirectToAction(nameof(ImportFatture));
+            }
+            clinicaDefaultId = c.Id;
+        }
+        else
+        {
+            TempData["flash-err"] = "Seleziona la sede destinataria del caricamento.";
+            return RedirectToAction(nameof(ImportFatture));
+        }
+
         var batch = new ImportFatturePassiveBatch
         {
             TenantId = tid,
             DataCaricamento = DateTime.UtcNow,
             CaricatoDaUserId = userId,
             CaricatoDaNome = userName,
-            Note = string.IsNullOrWhiteSpace(note) ? null : note.Trim()
+            Note = string.IsNullOrWhiteSpace(note) ? null : note.Trim(),
+            ClinicaDefaultId = clinicaDefaultId
         };
 
         var righeBatch = new List<ImportFatturaRiga>();
@@ -3175,8 +3210,12 @@ public class TesoreriaController : Controller
         var societa = await _mongo.Societa.Find(s => s.TenantId == tid).ToListAsync();
         var regoleCustom = await _mongo.RegoleScadenziarioCustom.Find(r => r.TenantId == tid).ToListAsync();
 
-        // 3) Carica TUTTE le righe importate (batch storici)
+        // 3) Carica TUTTE le righe importate (batch storici) + la mappa
+        //    BatchId→ClinicaDefaultId per propagare la sede dichiarata in upload
+        //    al motore (ResolveLoc la usa come segnale primario sui nomi fornitore).
         var righe = await _mongo.ImportFattureRighe.Find(r => r.TenantId == tid).ToListAsync();
+        var batchSedi = (await _mongo.ImportFattureBatches.Find(b => b.TenantId == tid).ToListAsync())
+            .ToDictionary(b => b.Id, b => b.ClinicaDefaultId);
 
         var output = ScadenziarioGenerator.Genera(new ScadenziarioGenerator.Input
         {
@@ -3187,7 +3226,8 @@ public class TesoreriaController : Controller
             Dottori = dottori,
             Societa = societa,
             RegoleCustom = regoleCustom,
-            UserId = userId
+            UserId = userId,
+            ClinicaDefaultByBatchId = batchSedi
         });
 
         // 4) Persisti nuovi fornitori (se ce ne sono) — assegna un codice F#### progressivo
@@ -3253,6 +3293,8 @@ public class TesoreriaController : Controller
         var societa = await _mongo.Societa.Find(s => s.TenantId == tid).ToListAsync();
         var regoleCustomPrev = await _mongo.RegoleScadenziarioCustom.Find(r => r.TenantId == tid).ToListAsync();
         var righe = await _mongo.ImportFattureRighe.Find(r => r.TenantId == tid).ToListAsync();
+        var batchSediPrev = (await _mongo.ImportFattureBatches.Find(b => b.TenantId == tid).ToListAsync())
+            .ToDictionary(b => b.Id, b => b.ClinicaDefaultId);
         var scadenzeAttuali = await _mongo.ScadenzePagamento.CountDocumentsAsync(s => s.TenantId == tid);
         var pagateAttuali = await _mongo.ScadenzePagamento.CountDocumentsAsync(s => s.TenantId == tid && s.Stato == StatoScadenza.Pagato);
         var fattureAttuali = await _mongo.Fatture.CountDocumentsAsync(f => f.TenantId == tid);
@@ -3266,7 +3308,8 @@ public class TesoreriaController : Controller
             Dottori = dottori,
             Societa = societa,
             RegoleCustom = regoleCustomPrev,
-            UserId = null
+            UserId = null,
+            ClinicaDefaultByBatchId = batchSediPrev
         });
 
         var fornByIdAll = fornitoriCorrenti.Concat(output.FornitoriNuovi).ToDictionary(f => f.Id, f => f);

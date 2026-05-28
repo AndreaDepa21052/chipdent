@@ -24,6 +24,11 @@
         <p class="page-head__sub">
             Caricato da <strong>@Model.CaricatoDaNome</strong> · Tipo
             <span class="pill pill--type">@b.Tipo</span>
+            @if (!string.IsNullOrEmpty(Model.SedeNome))
+            {
+                <text>·</text>
+                <span class="pill pill--ok" title="Sede destinataria dichiarata in upload. Tutte le righe del batch sono attribuite a questa sede, salvo cessionario PDF su un'altra società del gruppo.">📍 @Model.SedeNome</span>
+            }
             @if (!string.IsNullOrEmpty(b.Note)) { <text>· <em>@b.Note</em></text> }
         </p>
     </div>
