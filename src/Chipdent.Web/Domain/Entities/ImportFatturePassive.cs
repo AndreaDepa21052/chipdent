@@ -26,6 +26,18 @@ public class ImportFatturePassiveBatch : TenantEntity
     public int RigheConErrore { get; set; }
 
     public string? Note { get; set; }
+
+    /// <summary>
+    /// Sede (Clinica) destinataria del batch. L'utente la dichiara al momento
+    /// dell'upload: «questo CSV + PDF è per DESIO». Diventa il segnale primario
+    /// per <c>ScadenziarioGenerator.ResolveLoc</c>, evitando match euristici sul
+    /// nome del fornitore (es. «LAZZARI GIUSEPPE» finiva su GIUSSANO per via
+    /// del prefisso «GIU»). Null sui batch legacy importati prima del campo.
+    /// Resta possibile che il cessionario nel PDF differisca dalla sede
+    /// dichiarata (fatture cross-società): in quel caso il PDF vince (un
+    /// fornitore può emettere fatture verso più società del gruppo).
+    /// </summary>
+    public string? ClinicaDefaultId { get; set; }
 }
 
 public enum TipoImportFatture
