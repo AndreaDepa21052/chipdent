@@ -92,24 +92,46 @@
 </div>
 
 <style>
-    .imp-grid { display:grid; grid-template-columns: 1.4fr 1fr; gap:18px; align-items:start; }
+    .imp-grid { display:grid; grid-template-columns: 1fr 1fr; gap:18px; align-items:start; }
     @@media (max-width: 1000px) { .imp-grid { grid-template-columns: 1fr; } }
+
+    /* Card collassabili: <details> con header allineato e chevron animato. */
+    .imp-card { padding: 0; overflow: hidden; }
+    .imp-card > summary {
+        list-style: none;
+        cursor: pointer;
+        display: flex; align-items: center; gap: 10px;
+        padding: 14px 18px;
+        font-size: 1.02rem; font-weight: 600; color: #3b1e0c;
+        background: linear-gradient(180deg, #fffaf0 0%, #fff6e2 100%);
+        border-bottom: 1px solid transparent;
+        transition: border-color .15s, background-color .15s;
+    }
+    .imp-card > summary::-webkit-details-marker { display: none; }
+    .imp-card > summary:hover { background: #fff1d0; }
+    .imp-card[open] > summary { border-bottom-color: #ece0cc; }
+    .imp-card > summary .chev {
+        margin-left: auto; font-size: .85rem; color: #7a5c3a;
+        transition: transform .18s ease;
+    }
+    .imp-card[open] > summary .chev { transform: rotate(90deg); }
+    .imp-card__body { padding: 18px 22px 22px; }
 
     .imp-drop {
         border: 2px dashed var(--c-accent, #c47830);
-        border-radius: 14px;
-        padding: 28px 22px;
+        border-radius: 12px;
+        padding: 14px 18px;
         text-align: center;
         background: linear-gradient(180deg, #fffaf0 0%, #fff6e2 100%);
         transition: background .15s, border-color .15s, transform .15s;
         cursor: pointer;
-        min-height: 200px;
-        display:flex; flex-direction:column; align-items:center; justify-content:center; gap:10px;
+        min-height: 110px;
+        display:flex; flex-direction:column; align-items:center; justify-content:center; gap:6px;
     }
     .imp-drop.is-hover { background:#fff1d0; border-color:#3b1e0c; transform: scale(1.005); }
     .imp-drop input[type=file] { display:none; }
-    .imp-drop__icon { font-size:36px; }
-    .imp-drop__hint { color: var(--c-ink-soft, #7a5c3a); font-size:.9rem; }
+    .imp-drop__icon { font-size: 26px; }
+    .imp-drop__hint { color: var(--c-ink-soft, #7a5c3a); font-size: .78rem; line-height: 1.4; }
     .imp-files { margin-top: 14px; }
     .imp-files__row {
         display:flex; align-items:center; gap:10px; padding:8px 12px;
@@ -201,8 +223,12 @@
 </div>
 
 <div class="imp-grid">
-    <div class="card">
-        <h3 style="margin-top:0;">Nuovo caricamento</h3>
+    <details class="card imp-card" data-persist-key="imp.upload-card" open>
+        <summary>
+            📥 <span>Nuovo caricamento</span>
+            <span class="chev">▸</span>
+        </summary>
+        <div class="imp-card__body">
         <form id="impForm" asp-action="ImportFatturePost" method="post" enctype="multipart/form-data">
             @Html.AntiForgeryToken()
             <label id="impDrop" class="imp-drop" for="impFiles">
@@ -247,27 +273,33 @@
                 <span id="impHint" class="muted" style="font-size:.85rem;">Seleziona almeno un file per procedere.</span>
             </div>
         </form>
-    </div>
+        </div>
+    </details>
 
-    <div class="card">
-        <h3 style="margin-top:0;">Come funziona</h3>
-        <div class="imp-step">
-            <div class="imp-step__n">1</div>
-            <div class="imp-step__text">Carica un <strong>XLSX</strong> a 2 fogli (CCH + Ident) <em>oppure</em> uno o due <strong>CSV</strong>.</div>
+    <details class="card imp-card" data-persist-key="imp.howto-card">
+        <summary>
+            ℹ️ <span>Come funziona</span>
+            <span class="chev">▸</span>
+        </summary>
+        <div class="imp-card__body">
+            <div class="imp-step">
+                <div class="imp-step__n">1</div>
+                <div class="imp-step__text">Carica un <strong>XLSX</strong> a 2 fogli (CCH + Ident) <em>oppure</em> uno o due <strong>CSV</strong>.</div>
+            </div>
+            <div class="imp-step">
+                <div class="imp-step__n">2</div>
+                <div class="imp-step__text">Il sistema riconosce automaticamente la sezione (CCH / Ident) leggendo l'header e il nome del file.</div>
+            </div>
+            <div class="imp-step">
+                <div class="imp-step__n">3</div>
+                <div class="imp-step__text">Vedi la sintesi del batch e il dettaglio riga-per-riga. Le righe con dati mancanti o non parsabili sono marcate <span class="pill pill--err">errore</span>.</div>
+            </div>
+            <div class="imp-step">
+                <div class="imp-step__n">4</div>
+                <div class="imp-step__text">Lo storico è <strong>immutabile</strong>: ogni caricamento resta tracciato per audit.</div>
+            </div>
         </div>
-        <div class="imp-step">
-            <div class="imp-step__n">2</div>
-            <div class="imp-step__text">Il sistema riconosce automaticamente la sezione (CCH / Ident) leggendo l'header e il nome del file.</div>
-        </div>
-        <div class="imp-step">
-            <div class="imp-step__n">3</div>
-            <div class="imp-step__text">Vedi la sintesi del batch e il dettaglio riga-per-riga. Le righe con dati mancanti o non parsabili sono marcate <span class="pill pill--err">errore</span>.</div>
-        </div>
-        <div class="imp-step">
-            <div class="imp-step__n">4</div>
-            <div class="imp-step__text">Lo storico è <strong>immutabile</strong>: ogni caricamento resta tracciato per audit.</div>
-        </div>
-    </div>
+    </details>
 </div>
 
 <h3 style="margin-top:32px;">Storico caricamenti</h3>
@@ -419,6 +451,19 @@ else
             input.files = e.dataTransfer.files;
             validate(input.files);
         }
+    });
+})();
+
+// Persistenza apertura/chiusura dei <details data-persist-key> in localStorage.
+(function () {
+    document.querySelectorAll('details[data-persist-key]').forEach(function (d) {
+        var k = 'cd:' + d.dataset.persistKey;
+        var v = localStorage.getItem(k);
+        if (v === '1') d.open = true;
+        else if (v === '0') d.open = false;
+        d.addEventListener('toggle', function () {
+            localStorage.setItem(k, d.open ? '1' : '0');
+        });
     });
 })();
 </script>
