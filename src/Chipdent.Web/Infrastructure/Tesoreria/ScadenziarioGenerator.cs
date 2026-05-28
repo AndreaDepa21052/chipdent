@@ -415,6 +415,25 @@ public static class ScadenziarioGenerator
                 continue;
             }
 
+            // ── REGOLA «Skip note di credito» ────────────────────────────
+            // Le NC vengono registrate in archivio (fattura con importo negativo)
+            // ma NON producono scadenze nello scadenziario: la compensazione si
+            // gestisce manualmente sull'estratto conto / sulla fattura originale.
+            if (isNotaCredito)
+            {
+                output.Alerts.Add(new AlertScadenziario(AlertSeverita.Info, "Nota di credito ignorata",
+                    $"Documento «{riga.Numero}» del fornitore «{fornitore.RagioneSociale}» è una nota di credito: fattura registrata senza scadenza. Verificare manualmente la compensazione con la fattura originale.",
+                    fornitore.RagioneSociale, riga.Numero, dataDoc, riga.NumeroRiga));
+
+                if (!importiByForn.TryGetValue(key, out var listaNc))
+                {
+                    listaNc = new List<(DateTime, decimal)>();
+                    importiByForn[key] = listaNc;
+                }
+                listaNc.Add((dataDoc, totale));
+                continue;
+            }
+
             // ── IBAN: priorità a quello letto dal PDF della singola fattura
             //    (più affidabile e specifico), poi anagrafica fornitore, poi
             //    cache della fattura precedente dello stesso fornitore.
