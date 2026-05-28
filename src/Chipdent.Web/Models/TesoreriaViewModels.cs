@@ -489,8 +489,18 @@ public class ImportFattureFileGroup
     public Chipdent.Web.Domain.Entities.ImportFatturaFile Header { get; set; } = null!;
     public List<Chipdent.Web.Domain.Entities.ImportFatturaRiga> Righe { get; set; } = new();
     public decimal TotaleDocumenti => Righe.Sum(r => r.TotaleDocumento ?? 0);
-    public decimal TotaleNetto => Righe.Sum(r => r.NettoAPagare ?? 0);
+    // Le note di credito non si pagano: vengono escluse dal "Netto a pagare"
+    // (la compensazione con la fattura originale è un'operazione manuale).
+    public decimal TotaleNetto => Righe.Where(r => !IsNotaCredito(r)).Sum(r => r.NettoAPagare ?? 0);
     public decimal TotaleIva => Righe.Sum(r => r.Iva ?? 0);
+
+    private static bool IsNotaCredito(Chipdent.Web.Domain.Entities.ImportFatturaRiga r)
+    {
+        var t = r.TipoDocumento ?? string.Empty;
+        return t.IndexOf("NC", StringComparison.OrdinalIgnoreCase) >= 0
+            || t.Contains("credito", StringComparison.OrdinalIgnoreCase)
+            || (r.TotaleDocumento ?? 0) < 0;
+    }
 }
 
 // ── Genera scadenziario (dry-run + apply) ────────────────────────────
