@@ -112,6 +112,14 @@ public static class ScadenziarioGenerator
         public IReadOnlyList<RegolaScadenziarioCustom> RegoleCustom { get; init; } = Array.Empty<RegolaScadenziarioCustom>();
         /// <summary>Userid che firma le fatture generate (creator/approver).</summary>
         public string? UserId { get; init; }
+
+        /// <summary>Mappa <c>BatchId → ClinicaDefaultId</c>. Per ogni riga importata,
+        /// se la batch ha dichiarato una sede destinataria <see cref="ResolveLoc"/>
+        /// la usa come segnale primario (subito dopo le sezioni CCH-holding e il
+        /// cessionario PDF, che identificano in modo esplicito un'altra società del
+        /// gruppo). Evita falsi positivi euristici sul nome fornitore.</summary>
+        public IReadOnlyDictionary<string, string?> ClinicaDefaultByBatchId { get; init; }
+            = new Dictionary<string, string?>();
     }
 
     public sealed class Output
@@ -315,8 +323,9 @@ public static class ScadenziarioGenerator
             }
 
             // ── Clinica destinataria (LOC) ───────────────────────────────
+            input.ClinicaDefaultByBatchId.TryGetValue(riga.BatchId ?? "", out var clinicaDefaultBatch);
             var clinicaId = ResolveLoc(riga, nomeForn, cch, cliniche, input.Cliniche,
-                societaByPiva, societaByCf, societaByNome, clinicaBySocietaId);
+                societaByPiva, societaByCf, societaByNome, clinicaBySocietaId, clinicaDefaultBatch);
             if (string.IsNullOrEmpty(clinicaId))
             {
                 output.Alerts.Add(new AlertScadenziario(AlertSeverita.Warn, "LOC mancante",
@@ -883,9 +892,13 @@ public static class ScadenziarioGenerator
         Dictionary<string, Societa> societaByPiva,
         Dictionary<string, Societa> societaByCf,
         Dictionary<string, Societa> societaByNome,
-        Dictionary<string, Clinica> clinicaBySocietaId)
+        Dictionary<string, Clinica> clinicaBySocietaId,
+        string? clinicaDefaultBatch)
     {
-        // 1) Cessionario PDF → Società → Clinica (segnale più affidabile)
+        // 1) Cessionario PDF → Società → Clinica (segnale più affidabile in
+        //    assoluto: lo dice la fattura stessa qual è la società destinataria).
+        //    Vince anche sulla sede dichiarata dal batch, per supportare il caso
+        //    «un fornitore emette fatture verso più società del gruppo».
         Societa? societa = null;
         var cessP = NormalizeIdFiscale(riga.PartitaIvaCessionario);
         if (!string.IsNullOrEmpty(cessP)) societaByPiva.TryGetValue(cessP, out societa);
@@ -901,9 +914,16 @@ public static class ScadenziarioGenerator
         if (societa is not null && clinicaBySocietaId.TryGetValue(societa.Id, out var cliFromSoc))
             return cliFromSoc.Id;
 
-        // 2) Sezione CCH → holding
+        // 2) Sezione CCH → holding (la sezione del CSV è esplicita).
         if (string.Equals(riga.Sezione, "CCH", StringComparison.OrdinalIgnoreCase) && cch != null)
             return cch.Id;
+
+        // 3) Sede dichiarata dal batch (utente in fase di upload):
+        //    «questo CSV+PDF è per DESIO». Quando l'utente l'ha specificata
+        //    vince su tutte le euristiche sul nome fornitore — evita falsi
+        //    positivi tipo «LAZZARI GIUSEPPE» → GIUSSANO via prefisso «GIU».
+        if (!string.IsNullOrEmpty(clinicaDefaultBatch))
+            return clinicaDefaultBatch;
 
         // 3) LOC rilevata dal testo descrittivo del PDF
         if (!string.IsNullOrWhiteSpace(riga.LocRilevataDaTesto))
