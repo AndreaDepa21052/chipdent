@@ -449,6 +449,24 @@ public static class ScadenziarioGenerator
                     fornitore.RagioneSociale, riga.Numero, dataDoc, riga.NumeroRiga));
             }
 
+            // ── REGOLA «Data scadenza in fattura → scadenza già pagata» ──
+            // Fornitori utility (Sorgenia, Vodafone, …) che riportano la data
+            // scadenza in fattura sono tipicamente pagati per addebito diretto
+            // (RID/SDD) alla data dichiarata. All'arrivo dell'import il
+            // pagamento si considera già avvenuto: marchiamo TUTTE le scadenze
+            // come Pagato con DataPagamento = data scadenza.
+            if (fornitore.BasePagamento == BasePagamento.DataScadenza && scadenze.Count > 0)
+            {
+                foreach (var s in scadenze)
+                {
+                    s.Stato = StatoScadenza.Pagato;
+                    s.DataPagamento = s.DataScadenza;
+                    s.Note = string.IsNullOrWhiteSpace(s.Note)
+                        ? "Addebito diretto alla scadenza (Data scadenza in fattura)"
+                        : $"{s.Note} · Addebito diretto alla scadenza";
+                }
+            }
+
             // ── REGOLA «Nota secondaria automatica» (CLINICA) ───────────
             // Se la clinica destinataria della fattura ha il flag attivo,
             // appendiamo la NotaSecondariaAutomatica a Scadenza.Note. Si
