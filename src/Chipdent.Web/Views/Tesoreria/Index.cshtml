@@ -93,7 +93,7 @@
     {
         StatoScadenza.Pagato => "<span class='badge' style='background:#dff5e6; color:#1f6e3a;'>✓ pagato</span>",
         StatoScadenza.Programmato => "<span class='badge' style='background:#e3edff; color:#2457a4;'>📅 programmato</span>",
-        StatoScadenza.DaPagare => "<span class='badge' style='background:#fff2dd; color:#a86010;'>● da pagare</span>",
+        StatoScadenza.DaPagare => "<span class='badge' style='background:#fff2dd; color:#a86010;'>● non pagato</span>",
         StatoScadenza.Insoluto => "<span class='badge' style='background:#fbe1e1; color:#a83a3a;'>⚠ scaduto</span>",
         StatoScadenza.MaiPagato => "<span class='badge' style='background:#444; color:#fff;'>✕ mai pagato</span>",
         StatoScadenza.Annullato => "<span class='badge' style='background:#eee; color:#666;'>annullato</span>",
@@ -128,7 +128,7 @@
 {
     <div class="alert alert--info" style="margin-bottom: var(--s-4);">
         📥 <strong>@Model.CountFattureInApprovazione</strong> fatture caricate dai fornitori sono <strong>in attesa di approvazione</strong>.
-        Filtra la tabella per <em>stato = DaPagare</em> e cerca le righe contrassegnate "Proposta dal fornitore".
+        Filtra la tabella per <em>stato = Non pagato</em> e cerca le righe contrassegnate "Proposta dal fornitore".
     </div>
 }
 
@@ -812,7 +812,7 @@
                         <span class="scadenze-cal__amt">@(totGiorno >= 1000 ? $"{Math.Round(totGiorno / 1000, 1).ToString("0.#", it)}k" : Math.Round(totGiorno, 0).ToString("0", it))</span>
                         <span class="scadenze-cal__dots">
                             @if (hasOverdue) { <span class="dot dot--red"   title="Scadute"></span> }
-                            @if (hasDaPagare){ <span class="dot dot--amber" title="Da pagare"></span> }
+                            @if (hasDaPagare){ <span class="dot dot--amber" title="Non pagato"></span> }
                             @if (hasProgr)   { <span class="dot dot--blue"  title="Programmate"></span> }
                             @if (hasPagato)  { <span class="dot dot--green" title="Pagate"></span> }
                             @if (hasMaiPag)  { <span class="dot dot--grey"  title="Mai pagate"></span> }
@@ -824,7 +824,7 @@
 
         <div class="scadenze-cal__legend">
             <span class="dot dot--red"></span>scaduta
-            <span class="dot dot--amber"></span>da pagare
+            <span class="dot dot--amber"></span>non pagato
             <span class="dot dot--blue"></span>programmata
             <span class="dot dot--green"></span>pagata
         </div>

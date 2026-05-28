@@ -769,7 +769,20 @@ public static class ScadenziarioGenerator
                 }
 
             default:
-                // Bonifici generici: 30 gg fine-mese data fattura
+                // ── Bonifici generici: termini dall'anagrafica fornitore ────────────
+                // Se il fornitore è configurato come «Data scadenza in fattura»
+                // (utility tipo Vodafone/Sorgenia), preferiamo la data stampata sul
+                // documento; ricadiamo sui termini contrattuali solo se il PDF non
+                // ha esposto la scadenza.
+                if (f.BasePagamento == BasePagamento.DataScadenza)
+                {
+                    if (riga.DataScadenzaPdf.HasValue)
+                        return DateTime.SpecifyKind(riga.DataScadenzaPdf.Value.Date, DateTimeKind.Utc);
+                    alerts.Add(new AlertScadenziario(AlertSeverita.Info, "Data scadenza non disponibile",
+                        $"Fornitore «{f.RagioneSociale}» configurato su «Data scadenza in fattura» ma il PDF non l'ha esposta: uso la data fattura come fallback.",
+                        f.RagioneSociale, riga.Numero, dataDoc, riga.NumeroRiga));
+                    return dataDoc.Date;
+                }
                 return PagamentiHelper.CalcolaScadenzaAttesa(dataDoc,
                     f.TerminiPagamentoGiorni > 0 ? f.TerminiPagamentoGiorni : 30,
                     f.BasePagamento);
