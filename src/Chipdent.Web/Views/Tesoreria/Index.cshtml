@@ -716,6 +716,36 @@
     .pager__btn.is-disabled { pointer-events: none; opacity: .35; }
     .pager__size { display: inline-flex; align-items: center; gap: 6px; font-size: .78rem; color: var(--c-ink-muted, #998); }
     .pager__size select { padding: 4px 8px; border: 1px solid var(--c-border, #ece0cc); border-radius: 6px; background: #fff; font-size: .82rem; }
+
+    /* Inline editing nella griglia scadenziario (competenza + data pagamento). */
+    .scad-inline {
+        font: inherit;
+        font-size: .72rem;
+        line-height: 1.1;
+        padding: 1px 4px;
+        border: 1px solid transparent;
+        background: transparent;
+        color: var(--c-ink-muted, #998);
+        border-radius: 4px;
+        transition: border-color .12s, background-color .12s, color .12s;
+        max-width: 100%;
+    }
+    .scad-inline:hover { border-color: #e1d3b6; color: var(--c-ink, #3b1e0c); background: #fffaf0; }
+    .scad-inline:focus { outline: none; border-color: #c47830; background: #fff; color: var(--c-ink, #3b1e0c); }
+    .scad-inline--mese { display: block; margin-top: 2px; min-width: 100px; }
+    .scad-inline--data { min-width: 110px; }
+    .scad-inline--saved { background: #e7f5ec !important; border-color: #b5dcc1 !important; }
+    .scad-inline--error { background: #fde2e2 !important; border-color: #a83a3a !important; }
+    .scad-inline-wrap {
+        display: inline-flex;
+        align-items: center;
+        gap: 4px;
+        font-size: .68rem;
+        line-height: 1.2;
+        margin-top: 2px;
+        color: var(--c-ink-muted, #998);
+    }
+    .scad-inline-wrap__label { font-size: .66rem; text-transform: uppercase; letter-spacing: .3px; }
 </style>
 
 <div class="scadenze-split">
@@ -1016,7 +1046,6 @@
                 ("metodo", "Metodo"),
                 ("loc", "LOC"),
                 ("doc", "N° Doc"),
-                ("em", "E/M"),
                 ("inserita", "Inserita il"),
                 ("chi", "Caricata da"),
             };
@@ -1142,7 +1171,6 @@
                         <th style="width: 28px;" data-col="sel"><input type="checkbox" data-sepa-master title="Seleziona tutte le righe bonificabili" /></th>
                         <th data-col="data" style="width: 80px;">@Html.Raw(SortLink("data", "Data", "Scadenza prevista"))<div class="col-resizer" data-col-resizer></div></th>
                         <th data-col="loc"  style="width: 70px;">@Html.Raw(SortLink("loc", "LOC"))<div class="col-resizer" data-col-resizer></div></th>
-                        <th data-col="em"   style="width: 50px;">@Html.Raw(SortLink("em", "E/M", "Tipo emissione fattura — E elettronica · M manuale"))<div class="col-resizer" data-col-resizer></div></th>
                         <th data-col="doc"  style="width: 110px;">@Html.Raw(SortLink("doc", "N° Doc"))<div class="col-resizer" data-col-resizer></div></th>
                         <th data-col="forn" style="width: 240px;">@Html.Raw(SortLink("fornitore", "Fornitore / inserita da"))<div class="col-resizer" data-col-resizer></div></th>
                         <th data-col="tot"  style="text-align:right; width: 110px;">@Html.Raw(SortLink("totale", "Totale"))<div class="col-resizer" data-col-resizer></div></th>
@@ -1190,14 +1218,14 @@
                                 var deltaTxt = r.GiorniDelta!.Value > 0 ? $"+{r.GiorniDelta} gg" : $"{r.GiorniDelta} gg";
                                 <span title="Scadenza dichiarata diverge dai termini contratto di @deltaTxt (atteso @r.DataScadenzaAttesa?.ToString("dd/MM/yy"))" style="color:#c47830; font-weight:600; cursor:help;">⚠️</span>
                             }
-                            <div class="muted" style="font-size: .72rem; line-height: 1;">@r.MeseCompetenza</div>
+                            <input type="month" class="scad-inline scad-inline--mese"
+                                   data-scad-inline data-id="@r.ScadenzaId" data-field="MeseCompetenza"
+                                   value="@r.MeseCompetenzaData.ToString("yyyy-MM")"
+                                   title="Mese di competenza (click per modificare)" />
                         </td>
                         <td>
                             <code>@r.Loc</code>
                             @if (r.IsHolding) { <span class="badge" title="Soggetto pagatore: holding del gruppo" style="margin-left:4px; background:#3b1e0c; color:#f5e8d0; font-size:.62rem;">HOLDING</span> }
-                        </td>
-                        <td title="@r.TipoEmissione.LabelEsteso()" style="text-align:center; font-weight:600; color: @(r.TipoEmissione == TipoEmissioneFattura.Elettronica ? "#2d7a50" : (r.TipoEmissione == TipoEmissioneFattura.Manuale ? "#c47830" : "#bbb"));">
-                            @r.TipoEmissione.Label()
                         </td>
                         <td>
                             @r.NumeroDoc
@@ -1306,12 +1334,12 @@
                                     esecuzione il @r.DataProgrammata.Value.ToString("dd/MM/yy")
                                 </div>
                             }
-                            else if (r.Stato == StatoScadenza.Pagato && r.DataPagamento.HasValue)
-                            {
-                                <div class="muted" style="font-size: .68rem; line-height: 1.2; margin-top: 2px;">
-                                    il @r.DataPagamento.Value.ToString("dd/MM/yy")
-                                </div>
-                            }
+                            <div class="scad-inline-wrap" title="Data pagamento (click per modificare)">
+                                <span class="scad-inline-wrap__label">pag.</span>
+                                <input type="date" class="scad-inline scad-inline--data"
+                                       data-scad-inline data-id="@r.ScadenzaId" data-field="DataPagamento"
+                                       value="@(r.DataPagamento?.ToString("yyyy-MM-dd") ?? "")" />
+                            </div>
                         </td>
                         <td style="white-space:nowrap;">
                             <button type="button" class="btn btn--ghost btn--sm" data-edit-trigger data-id="@r.ScadenzaId" title="Dettagli e modifica">ℹ️</button>
@@ -1329,7 +1357,7 @@
                 }
                 @if (Model.Righe.Count == 0)
                 {
-                    <tr><td colspan="10" class="muted" style="text-align:center; padding: var(--s-5);">Nessuna scadenza per i filtri impostati.</td></tr>
+                    <tr><td colspan="9" class="muted" style="text-align:center; padding: var(--s-5);">Nessuna scadenza per i filtri impostati.</td></tr>
                 }
                 </tbody>
             </table>
@@ -2588,6 +2616,60 @@
             elSumCount.textContent = sel.checked.length;
             elSumTotal.textContent = fmtEur(sel.total);
             dlgSepa.showModal();
+        });
+    })();
+</script>
+
+<script>
+    // ── Inline edit: competenza (mese) + data pagamento ──────────────
+    // Una piccola UI: click sul campo, modifica, blur → POST AJAX a
+    // /tesoreria/scadenza/{id}/inline. Lampeggio verde/rosso e refresh
+    // del data-original. Niente full reload.
+    (function () {
+        var tokenHost = document.querySelector('form input[name="__RequestVerificationToken"]');
+        function token() { return tokenHost ? tokenHost.value : ''; }
+        function flash(el, cls) {
+            el.classList.add(cls);
+            setTimeout(function () { el.classList.remove(cls); }, 1200);
+        }
+
+        async function save(el) {
+            var id = el.getAttribute('data-id');
+            var field = el.getAttribute('data-field');
+            var value = el.value || '';
+            var original = el.getAttribute('data-original') || '';
+            if (value === original) return;
+
+            var fd = new FormData();
+            fd.append('__RequestVerificationToken', token());
+            fd.append('field', field);
+            fd.append('value', value);
+            try {
+                var r = await fetch('/tesoreria/scadenza/' + encodeURIComponent(id) + '/inline', {
+                    method: 'POST', body: fd, credentials: 'same-origin'
+                });
+                if (!r.ok) {
+                    var err = await r.json().catch(function () { return null; });
+                    flash(el, 'scad-inline--error');
+                    el.value = original;
+                    if (err && err.error) alert(err.error);
+                    return;
+                }
+                el.setAttribute('data-original', value);
+                flash(el, 'scad-inline--saved');
+            } catch (e) {
+                flash(el, 'scad-inline--error');
+                el.value = original;
+            }
+        }
+
+        document.querySelectorAll('[data-scad-inline]').forEach(function (el) {
+            el.setAttribute('data-original', el.value || '');
+            el.addEventListener('change', function () { save(el); });
+            el.addEventListener('keydown', function (e) {
+                if (e.key === 'Enter') { e.preventDefault(); el.blur(); }
+                if (e.key === 'Escape') { el.value = el.getAttribute('data-original') || ''; el.blur(); }
+            });
         });
     })();
 </script>

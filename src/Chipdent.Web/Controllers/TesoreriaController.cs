@@ -755,6 +755,95 @@ public class TesoreriaController : Controller
         return RedirectToAction(nameof(Index));
     }
 
+    /// <summary>
+    /// Aggiorna un singolo campo della scadenza (o della fattura collegata) dalla griglia (AJAX).
+    /// Usato per gli inline edit di <c>DataPagamento</c> (sulla scadenza) e <c>MeseCompetenza</c>
+    /// (sulla fattura collegata). Restituisce JSON {ok, display} senza ricaricare la pagina.
+    /// </summary>
+    [HttpPost("scadenza/{id}/inline")]
+    [ValidateAntiForgeryToken]
+    public async Task<IActionResult> UpdateScadenzaInline(string id, [FromForm] string field, [FromForm] string? value)
+    {
+        var tid = _tenant.TenantId!;
+        var s = await _mongo.ScadenzePagamento.Find(x => x.Id == id && x.TenantId == tid).FirstOrDefaultAsync();
+        if (s is null) return NotFound(new { ok = false, error = "Scadenza non trovata." });
+
+        var trimmed = value?.Trim() ?? "";
+        string fieldLabel = field;
+        string oldValue = "";
+        string newValueDisplay = "";
+        string nomeForn = (await _mongo.Fornitori.Find(f => f.Id == s.FornitoreId && f.TenantId == tid).FirstOrDefaultAsync())?.RagioneSociale ?? s.FornitoreId;
+
+        switch (field)
+        {
+            case "DataPagamento":
+                {
+                    DateTime? newDate = null;
+                    if (!string.IsNullOrWhiteSpace(trimmed))
+                    {
+                        if (!DateTime.TryParse(trimmed, CultureInfo.InvariantCulture, DateTimeStyles.AssumeLocal, out var d))
+                            return BadRequest(new { ok = false, error = "Data non valida (atteso YYYY-MM-DD)." });
+                        newDate = DateTime.SpecifyKind(d.Date, DateTimeKind.Utc);
+                    }
+                    oldValue = s.DataPagamento?.ToString("dd/MM/yyyy") ?? "—";
+                    newValueDisplay = newDate?.ToString("dd/MM/yyyy") ?? "—";
+                    if (oldValue == newValueDisplay)
+                        return Json(new { ok = true, display = newValueDisplay, unchanged = true });
+
+                    var update = Builders<ScadenzaPagamento>.Update
+                        .Set(x => x.DataPagamento, newDate)
+                        .Set(x => x.UpdatedAt, DateTime.UtcNow);
+                    // Setting di DataPagamento sposta la scadenza in stato Pagato (e viceversa
+                    // azzerandola, ritorna a DaPagare); gli stati terminali Annullato/MaiPagato
+                    // restano invariati per non riattivare posizioni chiuse.
+                    if (newDate.HasValue && s.Stato != StatoScadenza.Annullato && s.Stato != StatoScadenza.MaiPagato)
+                        update = update.Set(x => x.Stato, StatoScadenza.Pagato);
+                    else if (!newDate.HasValue && s.Stato == StatoScadenza.Pagato)
+                        update = update.Set(x => x.Stato, StatoScadenza.DaPagare);
+
+                    await _mongo.ScadenzePagamento.UpdateOneAsync(x => x.Id == id && x.TenantId == tid, update);
+                    fieldLabel = "Data pagamento";
+                    break;
+                }
+
+            case "MeseCompetenza":
+                {
+                    if (string.IsNullOrEmpty(s.FatturaId))
+                        return BadRequest(new { ok = false, error = "Scadenza senza fattura collegata." });
+                    DateTime nuovoMese;
+                    if (string.IsNullOrWhiteSpace(trimmed))
+                        return BadRequest(new { ok = false, error = "Mese obbligatorio." });
+                    if (!DateTime.TryParseExact(trimmed, "yyyy-MM", CultureInfo.InvariantCulture, DateTimeStyles.AssumeLocal, out nuovoMese)
+                        && !DateTime.TryParse(trimmed, CultureInfo.InvariantCulture, DateTimeStyles.AssumeLocal, out nuovoMese))
+                        return BadRequest(new { ok = false, error = "Formato mese non valido (atteso YYYY-MM)." });
+
+                    var primoDelMese = DateTime.SpecifyKind(new DateTime(nuovoMese.Year, nuovoMese.Month, 1), DateTimeKind.Utc);
+                    var fa = await _mongo.Fatture.Find(f => f.Id == s.FatturaId && f.TenantId == tid).FirstOrDefaultAsync();
+                    var itCulture = new CultureInfo("it-IT");
+                    oldValue = fa?.MeseCompetenza.ToString("MMM yy", itCulture) ?? "—";
+                    newValueDisplay = primoDelMese.ToString("MMM yy", itCulture);
+                    if (oldValue == newValueDisplay)
+                        return Json(new { ok = true, display = newValueDisplay, unchanged = true });
+
+                    await _mongo.Fatture.UpdateOneAsync(f => f.Id == s.FatturaId && f.TenantId == tid,
+                        Builders<FatturaFornitore>.Update
+                            .Set(f => f.MeseCompetenza, primoDelMese)
+                            .Set(f => f.UpdatedAt, DateTime.UtcNow));
+                    fieldLabel = "Mese competenza";
+                    break;
+                }
+
+            default:
+                return BadRequest(new { ok = false, error = "Campo non modificabile inline." });
+        }
+
+        await _audit.LogAsync("Scadenza", id, nomeForn, AuditAction.Updated,
+            changes: new[] { new FieldChange { Field = fieldLabel, OldValue = oldValue, NewValue = newValueDisplay } },
+            actor: User);
+
+        return Json(new { ok = true, display = newValueDisplay });
+    }
+
     [HttpPost("scadenza/{id}/annulla")]
     [ValidateAntiForgeryToken]
     public async Task<IActionResult> AnnullaScadenza(string id)
