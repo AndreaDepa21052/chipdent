@@ -503,18 +503,17 @@ public static class ScadenziarioGenerator
             }
 
             // ── REGOLA «Note del fornitore» ──────────────────────────────
-            // - Note primarie (Fornitore.Note): SEMPRE appese alla scadenza.
-            // - Nota secondaria (Fornitore.NotaSecondaria): appesa SOLO se il
-            //   flag <c>AggiungiNotaSecondariaAutomaticamente</c> è true.
-            // Quando entrambe sono presenti vengono concatenate in sequenza
-            // (separatore " · "). Se la nota primaria è vuota e il flag della
-            // secondaria è attivo, viene appesa solo la secondaria.
+            // - Nota primaria   (Fornitore.Note)           → appesa se presente
+            // - Nota secondaria (Fornitore.NotaSecondaria) → appesa se presente
+            // Quando entrambe sono presenti vengono concatenate con separatore
+            // " · ". Il flag <c>AggiungiNotaSecondariaAutomaticamente</c> non
+            // condiziona più l'inclusione: la secondaria viene scritta sempre
+            // se valorizzata in anagrafica.
             {
                 var parts = new List<string>();
                 if (!string.IsNullOrWhiteSpace(fornitore.Note))
                     parts.Add(fornitore.Note.Trim());
-                if (fornitore.AggiungiNotaSecondariaAutomaticamente
-                    && !string.IsNullOrWhiteSpace(fornitore.NotaSecondaria))
+                if (!string.IsNullOrWhiteSpace(fornitore.NotaSecondaria))
                     parts.Add(fornitore.NotaSecondaria.Trim());
                 if (parts.Count > 0)
                 {
@@ -749,8 +748,9 @@ public static class ScadenziarioGenerator
                 fornitore.RagioneSociale, riga.Numero, dataDoc, riga.NumeroRiga));
         }
 
-        var principale = NuovaScadenza(fattura, fornitore, scadenza, importoBonifico, metodo, iban,
-            stato: scadenza < oggi ? StatoScadenza.Insoluto : StatoScadenza.DaPagare);
+        // Lo stato (Non pagato vs Scaduto, in base alla data) è calcolato in
+        // NuovaScadenza — qui basta passare la scadenza già snappata.
+        var principale = NuovaScadenza(fattura, fornitore, scadenza, importoBonifico, metodo, iban);
         result.Add(principale);
 
         // Ritenuta professionisti → al 16 del mese successivo al bonifico
@@ -882,10 +882,17 @@ public static class ScadenziarioGenerator
     private static ScadenzaPagamento NuovaScadenza(
         FatturaFornitore fattura, Fornitore fornitore, DateTime data, decimal importo,
         MetodoPagamento metodo, string? iban,
-        StatoScadenza stato = StatoScadenza.DaPagare,
+        StatoScadenza? stato = null,
         DateTime? dataPagamento = null,
         string? note = null)
     {
+        // Regola base sullo stato del pagamento (vale per tutte le scadenze a meno che
+        // il caller non forzi un valore esplicito — es. Pagato per CC, NC Compass,
+        // o per i fornitori «Data scadenza in fattura» applicato post-build):
+        //   • data scadenza ≥ oggi  → Non pagato (DaPagare)
+        //   • data scadenza <  oggi → Scaduto (Insoluto)
+        var oggi = DateTime.UtcNow.Date;
+        var statoFinale = stato ?? (data.Date < oggi ? StatoScadenza.Insoluto : StatoScadenza.DaPagare);
         return new ScadenzaPagamento
         {
             TenantId = fattura.TenantId,
@@ -898,7 +905,7 @@ public static class ScadenziarioGenerator
             Importo = importo,
             Metodo = metodo,
             Iban = iban,
-            Stato = stato,
+            Stato = statoFinale,
             DataPagamento = dataPagamento.HasValue
                 ? DateTime.SpecifyKind(dataPagamento.Value.Date, DateTimeKind.Utc)
                 : null,
