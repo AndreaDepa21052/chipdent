@@ -95,6 +95,9 @@ else
                     <th data-sort-key="stato" data-col="stato" style="width:74px;">
                         <span class="th-label">Stato</span><span class="th-sort"></span><span class="th-resizer"></span>
                     </th>
+                    <th data-sort-key="incerto" data-col="incerto" data-sort-type="number" title="Flag «Pagamento incerto»: data/importo non affidabili." style="width:74px;">
+                        <span class="th-label">Pag. incerto</span><span class="th-sort"></span><span class="th-resizer"></span>
+                    </th>
                     <th data-sort-key="completezza" data-col="completezza" title="Percentuale di completezza dell'anagrafica + dati SEPA. I campi SEPA pesano il doppio." style="width:88px;">
                         <span class="th-label">Compl.</span><span class="th-sort"></span><span class="th-resizer"></span>
                     </th>
@@ -198,6 +201,12 @@ else
                         <select class="inline-input" data-field="Stato" data-stato-cell>
                             <option value="@StatoFornitore.Attivo" selected="@(statoUi == StatoFornitore.Attivo)">attivo</option>
                             <option value="@StatoFornitore.Dismesso" selected="@(statoUi == StatoFornitore.Dismesso)">dismesso</option>
+                        </select>
+                    </td>
+                    <td data-col="incerto" data-sort-value="@(r.Fornitore.PagamentoIncerto ? 1 : 0)" data-sort-type="number" title="@(r.Fornitore.PagamentoIncerto ? "Pagamento contrassegnato come incerto." : "Pagamento ordinario.")">
+                        <select class="inline-input" data-field="PagamentoIncerto" data-incerto-cell>
+                            <option value="false" selected="@(!r.Fornitore.PagamentoIncerto)">No</option>
+                            <option value="true" selected="@(r.Fornitore.PagamentoIncerto)">Sì</option>
                         </select>
                     </td>
                     <td data-col="completezza" data-sort-value="@perc" data-sort-type="number" title="@tooltipMancanti">
@@ -385,6 +394,14 @@ else
     .inline-input--error { background: #fde2e2 !important; border-color: #a83a3a !important; }
     [data-forn-row].is-removing { opacity: .4; pointer-events: none; transition: opacity .2s; }
     [data-stato-cell] option[value="Dismesso"] { color: #777; }
+    /* Evidenzia la cella «Pag. incerto» quando il flag è attivo. */
+    [data-incerto-cell] { color: #6b5538; font-weight: 500; }
+    td[data-col="incerto"]:has([data-incerto-cell] option[value="true"]:checked) {
+        background: rgba(168, 58, 58, .08);
+    }
+    td[data-col="incerto"]:has([data-incerto-cell] option[value="true"]:checked) [data-incerto-cell] {
+        color: #a83a3a; font-weight: 700;
+    }
     [data-forn-row].is-page-hidden { display: none !important; }
 
     /* Controls row: search + toggle sulla stessa riga. */

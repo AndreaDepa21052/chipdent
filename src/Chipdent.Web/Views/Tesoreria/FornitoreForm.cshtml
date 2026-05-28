@@ -189,6 +189,24 @@
             </div>
         </div>
 
+        @* ── Toggle: Pagamento incerto (flag informativo) ── *@
+        <div style="margin-top: var(--s-3); padding: 14px 16px; border: 2px solid @(Model.PagamentoIncerto ? "#a83a3a" : "#e9d8b8"); border-radius: 10px; background: @(Model.PagamentoIncerto ? "linear-gradient(135deg, rgba(168,58,58,0.10), rgba(168,58,58,0.02))" : "rgba(255,247,232,0.5)"); transition: all .15s;">
+            <label style="display:flex; gap:12px; align-items:flex-start; cursor:pointer; margin:0;">
+                <input type="hidden" asp-for="PagamentoIncerto" value="false" />
+                <input type="checkbox" asp-for="PagamentoIncerto" value="true"
+                       style="width:22px; height:22px; margin-top:2px; accent-color:#a83a3a; cursor:pointer;" />
+                <div style="flex:1;">
+                    <div style="font-weight:700; font-size:1rem; color:#3b1e0c; display:flex; align-items:center; gap:8px;">
+                        <span style="font-size:1.2rem;">❓</span>
+                        Pagamento incerto
+                    </div>
+                    <div style="font-size:.85rem; color:#7a5c3a; margin-top:6px; line-height:1.45;">
+                        Segnala che data/importo del pagamento non sono affidabili (accordi instabili, contenzioso, storico erratico). Flag informativo: non blocca la generazione scadenze ma richiama l'attenzione dell'operatore in griglia e scadenziario.
+                    </div>
+                </div>
+            </label>
+        </div>
+
         @* ── Toggle BEN VISIBILE: salta generazione scadenze automatiche ── *@
         <div style="margin-top: var(--s-4); padding: 18px 20px; border: 2px solid @(Model.PagamentiManuali ? "#c47830" : "#e9d8b8"); border-radius: 10px; background: @(Model.PagamentiManuali ? "linear-gradient(135deg, rgba(196,120,48,0.12), rgba(196,120,48,0.04))" : "rgba(255,247,232,0.6)"); transition: all .15s;">
             <label style="display:flex; gap:14px; align-items:flex-start; cursor:pointer; margin:0;">
