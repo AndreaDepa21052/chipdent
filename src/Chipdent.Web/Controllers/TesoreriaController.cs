@@ -1609,7 +1609,7 @@ public class TesoreriaController : Controller
         };
         await _mongo.DistinteSepa.InsertOneAsync(distinta);
 
-        // Le scadenze incluse in distinta NON cambiano stato: restano "Da pagare"
+        // Le scadenze incluse in distinta NON cambiano stato: restano "Non pagato"
         // finché la banca non esegue il bonifico e il backoffice non clicca "✓ Pagato".
         // Lo stato "Programmato" è riservato alla programmazione manuale (promemoria).
         // Salviamo solo il riferimento alla distinta + la data esecuzione + l'IBAN ordinante.
@@ -1684,9 +1684,10 @@ public class TesoreriaController : Controller
     }
 
     /// <summary>
-    /// Costruisce header + righe per gli export. Include tutti i dati della
-    /// griglia, inclusi i nuovi campi (IBAN ordinante, Società, BIC).
-    /// L'export NON è paginato: restituisce sempre l'intero scadenziario.
+    /// Costruisce header + righe per gli export dello scadenziario.
+    /// Le colonne replicano quelle del file di riferimento <c>FileRaw/scadenziario.xlsx</c>
+    /// del cliente Confident — stesso ordine, stesse etichette — per consentire
+    /// l'import/confronto diretto col tracciato sorgente.
     /// </summary>
     private async Task<(string[] Header, List<string[]> Rows)> BuildExportRowsAsync()
     {
@@ -1695,14 +1696,15 @@ public class TesoreriaController : Controller
         var fatture = (await _mongo.Fatture.Find(f => f.TenantId == tid).ToListAsync()).ToDictionary(f => f.Id);
         var fornitori = (await _mongo.Fornitori.Find(f => f.TenantId == tid).ToListAsync()).ToDictionary(f => f.Id);
         var cliniche = (await _mongo.Cliniche.Find(c => c.TenantId == tid).ToListAsync()).ToDictionary(c => c.Id);
-        var societa = (await _mongo.Societa.Find(s => s.TenantId == tid).ToListAsync()).ToDictionary(s => s.Id);
 
+        // Tracciato file Confident (FileRaw/scadenziario.xlsx):
+        // DATA | COMPETENZA | LOC | E/M (forse rimuobile) | BM | (numero doc) |
+        // FORNITORE | IMPORTO | IVA | IMPORTO TOTALE | MET PAG | STATUS | TIPO | NOTE  | IBAN
         var header = new[]
         {
-            "Data", "Competenza", "LOC", "Sede", "Società", "EM", "BM",
-            "NumeroDoc", "Fornitore", "P.IVA fornitore",
-            "Imponibile", "IVA", "Totale", "Metodo", "Stato", "DataPagamento",
-            "Categoria", "Note", "IBAN ordinante", "BIC ordinante", "IBAN beneficiario"
+            "DATA", "COMPETENZA", "LOC", "E/M (forse rimuobile)", "BM", "",
+            "FORNITORE", "IMPORTO", "IVA", "IMPORTO TOTALE", "MET PAG", "STATUS",
+            "TIPO", "NOTE ", "IBAN"
         };
 
         var rows = new List<string[]>(scadenze.Count);
@@ -1714,11 +1716,6 @@ public class TesoreriaController : Controller
             var fa = fatture.GetValueOrDefault(s.FatturaId);
             var fr = fornitori.GetValueOrDefault(s.FornitoreId);
             var c = cliniche.GetValueOrDefault(s.ClinicaId);
-            Societa? soc = (c != null && !string.IsNullOrEmpty(c.SocietaId))
-                ? societa.GetValueOrDefault(c.SocietaId) : null;
-            var ibanOrd = !string.IsNullOrWhiteSpace(soc?.Iban) ? soc!.Iban : c?.IbanOrdinante;
-            var bicOrd  = !string.IsNullOrWhiteSpace(soc?.Bic)  ? soc!.Bic  : c?.BicOrdinante;
-            var nomeSoc = !string.IsNullOrWhiteSpace(soc?.Nome) ? soc!.Nome : soc?.RagioneSociale;
             var ibanBen = !string.IsNullOrWhiteSpace(s.Iban) ? s.Iban : fr?.Iban;
             var stato = DerivedStato(s, oggi);
             rows.Add(new[]
@@ -1726,23 +1723,17 @@ public class TesoreriaController : Controller
                 s.DataScadenza.ToString("dd/MM/yyyy"),
                 fa?.MeseCompetenza.ToString("MMM yy", itCulture) ?? "",
                 SiglaSede(c) ?? "",
-                c?.Nome ?? "",
-                nomeSoc ?? "",
                 fa?.FlagEM ?? "",
                 fa?.FlagBM == true ? "BM" : "",
                 fa?.Numero ?? "",
                 fr?.RagioneSociale ?? "",
-                fr?.PartitaIva ?? "",
                 (fa?.Imponibile ?? 0m).ToString("0.00", inv),
                 (fa?.Iva ?? 0m).ToString("0.00", inv),
                 s.Importo.ToString("0.00", inv),
-                s.Metodo.ToString(),
-                stato.ToString(),
-                s.DataPagamento?.ToString("dd/MM/yyyy") ?? "",
-                s.Categoria.ToString(),
+                s.Metodo.Label(),
+                stato.Label(),
+                s.Categoria.Label(),
                 s.Note ?? fa?.Note ?? "",
-                ibanOrd ?? "",
-                bicOrd ?? "",
                 ibanBen ?? ""
             });
         }

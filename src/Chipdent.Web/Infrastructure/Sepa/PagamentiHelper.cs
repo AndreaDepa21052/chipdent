@@ -20,6 +20,10 @@ public static class PagamentiHelper
             BasePagamento.DataFattura => dataFattura.Date.AddDays(giorniSafe),
             BasePagamento.FineMeseFattura => UltimoGiornoMese(dataFattura).AddDays(giorniSafe),
             BasePagamento.FineMeseSuccessivo => UltimoGiornoMese(dataFattura.AddMonths(1)).AddDays(giorniSafe),
+            // DataScadenza = lettura diretta dal documento: questo helper non ha accesso al PDF,
+            // perciò restituisce la data fattura come fallback. Lo ScadenziarioGenerator gestisce
+            // la priorità a riga.DataScadenzaPdf quando il PDF è disponibile.
+            BasePagamento.DataScadenza => dataFattura.Date,
             _ => dataFattura.Date.AddDays(giorniSafe)
         };
     }

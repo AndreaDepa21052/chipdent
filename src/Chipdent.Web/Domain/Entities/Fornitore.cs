@@ -148,7 +148,11 @@ public enum BasePagamento
     /// <summary>"30 gg F.M." — scadenza = ultimo giorno del mese fattura + giorni.</summary>
     FineMeseFattura,
     /// <summary>"60 gg F.M.S." — scadenza = ultimo giorno del mese SUCCESSIVO + giorni.</summary>
-    FineMeseSuccessivo
+    FineMeseSuccessivo,
+    /// <summary>"Data scadenza in fattura" — la scadenza viene letta direttamente dal documento
+    /// (tipico utility: Vodafone, Sorgenia, …). Quando la data scadenza non è disponibile dal PDF
+    /// si usa la data fattura come fallback.</summary>
+    DataScadenza
 }
 
 public enum StatoFornitore

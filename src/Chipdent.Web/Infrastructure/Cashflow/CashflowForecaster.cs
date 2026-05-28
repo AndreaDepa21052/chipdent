@@ -79,7 +79,7 @@ public class CashflowForecaster
                 Tipo: TipoMovimento.UscitaCerta,
                 Importo: s.Importo,
                 FornitoreNome: f?.RagioneSociale ?? "—",
-                Descrizione: s.Stato == StatoScadenza.Programmato ? "Programmato" : "Da pagare",
+                Descrizione: s.Stato == StatoScadenza.Programmato ? "Programmato" : "Non pagato",
                 Confidence: ConfidenceRicorrenza.Alta));
         }
 

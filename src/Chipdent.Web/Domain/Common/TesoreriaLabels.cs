@@ -57,7 +57,7 @@ public static class TesoreriaLabels
 
     public static string Label(this StatoScadenza s) => s switch
     {
-        StatoScadenza.DaPagare    => "Da pagare",
+        StatoScadenza.DaPagare    => "Non pagato",
         StatoScadenza.Programmato => "Programmato",
         StatoScadenza.Pagato      => "Pagato",
         StatoScadenza.Insoluto    => "Scaduto",
