@@ -366,7 +366,7 @@ public static class ScadenziarioGenerator
                 ClinicaId = clinicaId ?? string.Empty,
                 Numero = string.IsNullOrWhiteSpace(riga.Numero) ? $"AUTO-{riga.NumeroRiga}" : riga.Numero.Trim(),
                 DataEmissione = dataDoc,
-                MeseCompetenza = MeseCompetenza(dataDoc, riga.Causale, riga),
+                MeseCompetenza = MeseCompetenza(dataDoc, riga.Causale, riga, fornitore),
                 Categoria = MappaCategoriaDefault(tipo),
                 Imponibile = imponibile,
                 Iva = ivaAmount,
@@ -662,7 +662,10 @@ public static class ScadenziarioGenerator
 
         // Snap dei bonifici al 10 o 30/31 del mese.
         // Per RID e RIBA si "copia la data scadenza" (regola Excel) — niente snap.
-        if (metodo == MetodoPagamento.Bonifico)
+        // Anche per i fornitori «Data scadenza in fattura» (Sorgenia, Vodafone…)
+        // si copia la data del PDF senza riallinearla al 10/30.
+        if (metodo == MetodoPagamento.Bonifico
+            && fornitore.BasePagamento != BasePagamento.DataScadenza)
         {
             var snapped = SnapBonifico(scadenza, anticipa: tipo == TipoFornitoreOp.Invisalign);
             if (snapped != scadenza)
@@ -735,6 +738,21 @@ public static class ScadenziarioGenerator
         TipoFornitoreOp tipo, DateTime dataDoc, ImportFatturaRiga riga, Fornitore f,
         List<AlertScadenziario> alerts)
     {
+        // ── REGOLA «Data scadenza in fattura» ─────────────────────────────
+        // Fornitori tipo utility (Sorgenia, Vodafone…) configurati in anagrafica
+        // con BasePagamento = DataScadenza: la scadenza è quella stampata sul PDF,
+        // a prescindere dal TipoFornitoreOp. Fallback su data fattura quando il
+        // PDF non ha esposto la data scadenza (+ alert info).
+        if (f.BasePagamento == BasePagamento.DataScadenza)
+        {
+            if (riga.DataScadenzaPdf.HasValue)
+                return DateTime.SpecifyKind(riga.DataScadenzaPdf.Value.Date, DateTimeKind.Utc);
+            alerts.Add(new AlertScadenziario(AlertSeverita.Info, "Data scadenza non disponibile",
+                $"Fornitore «{f.RagioneSociale}» configurato su «Data scadenza in fattura» ma il PDF non l'ha esposta: uso la data fattura come fallback.",
+                f.RagioneSociale, riga.Numero, dataDoc, riga.NumeroRiga));
+            return dataDoc.Date;
+        }
+
         switch (tipo)
         {
             case TipoFornitoreOp.Invisalign:
@@ -769,20 +787,7 @@ public static class ScadenziarioGenerator
                 }
 
             default:
-                // ── Bonifici generici: termini dall'anagrafica fornitore ────────────
-                // Se il fornitore è configurato come «Data scadenza in fattura»
-                // (utility tipo Vodafone/Sorgenia), preferiamo la data stampata sul
-                // documento; ricadiamo sui termini contrattuali solo se il PDF non
-                // ha esposto la scadenza.
-                if (f.BasePagamento == BasePagamento.DataScadenza)
-                {
-                    if (riga.DataScadenzaPdf.HasValue)
-                        return DateTime.SpecifyKind(riga.DataScadenzaPdf.Value.Date, DateTimeKind.Utc);
-                    alerts.Add(new AlertScadenziario(AlertSeverita.Info, "Data scadenza non disponibile",
-                        $"Fornitore «{f.RagioneSociale}» configurato su «Data scadenza in fattura» ma il PDF non l'ha esposta: uso la data fattura come fallback.",
-                        f.RagioneSociale, riga.Numero, dataDoc, riga.NumeroRiga));
-                    return dataDoc.Date;
-                }
+                // Bonifici generici: termini dall'anagrafica fornitore.
                 return PagamentiHelper.CalcolaScadenzaAttesa(dataDoc,
                     f.TerminiPagamentoGiorni > 0 ? f.TerminiPagamentoGiorni : 30,
                     f.BasePagamento);
@@ -951,9 +956,19 @@ public static class ScadenziarioGenerator
         ("CMS", "COMASINA")
     };
 
-    private static DateTime MeseCompetenza(DateTime dataDoc, string? causale, ImportFatturaRiga? riga = null)
+    private static DateTime MeseCompetenza(DateTime dataDoc, string? causale, ImportFatturaRiga? riga = null, Fornitore? fornitore = null)
     {
-        // Priorità: 1) competenza estratta dal PDF, 2) parsing causale, 3) data fattura
+        // Caso speciale «Data scadenza in fattura» (Vodafone, Sorgenia, …): la scadenza
+        // letta dal PDF è anche il riferimento della competenza (mese/anno = mese/anno
+        // della scadenza). Vince sui parser standard quando entrambi disponibili.
+        if (fornitore?.BasePagamento == BasePagamento.DataScadenza
+            && riga?.DataScadenzaPdf.HasValue == true)
+        {
+            var d = riga.DataScadenzaPdf.Value;
+            return new DateTime(d.Year, d.Month, 1);
+        }
+
+        // Priorità standard: 1) competenza estratta dal PDF, 2) parsing causale, 3) data fattura
         if (riga?.MeseCompetenza is int m && riga.AnnoCompetenza is int a)
             return new DateTime(a, m, 1);
         var fromCausale = MeseDaCausale(causale);
