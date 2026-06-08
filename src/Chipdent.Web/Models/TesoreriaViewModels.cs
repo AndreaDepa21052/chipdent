@@ -341,6 +341,12 @@ public class FornitoreFormViewModel
     /// dalla griglia anagrafica.</summary>
     public bool PagamentoIncerto { get; set; }
 
+    /// <summary>Metodo di pagamento primario configurato in anagrafica.</summary>
+    public MetodoPagamento MetodoPagamentoPrimario { get; set; } = MetodoPagamento.Bonifico;
+
+    /// <summary>Metodo di pagamento aggiuntivo (opzionale).</summary>
+    public MetodoPagamento? MetodoPagamentoSecondario { get; set; }
+
     /// <summary>Id della clinica di riferimento del fornitore (sede principale, legacy).
     /// Mantenuto in sync con il primo elemento non-TUTTE di <see cref="SediRiferimentoIds"/>.</summary>
     public string? SedeRiferimentoId { get; set; }

@@ -918,6 +918,7 @@ public class TesoreriaController : Controller
             "Sedi di riferimento",
             "Termini pagamento (giorni)", "Base pagamento", "Emissione fattura",
             "Pagamento ricorrente", "Pagamenti manuali", "Pagamento incerto",
+            "Metodo pagamento primario", "Metodo pagamento aggiuntivo",
             "Note", "Aggiungi nota secondaria", "Nota secondaria",
             "Creato il"
         };
@@ -963,6 +964,8 @@ public class TesoreriaController : Controller
                 f.PagamentoRicorrente ? "Sì" : "No",
                 f.PagamentiManuali ? "Sì" : "No",
                 f.PagamentoIncerto ? "Sì" : "No",
+                f.MetodoPagamentoPrimario.Label(),
+                f.MetodoPagamentoSecondario?.Label() ?? "",
                 f.Note ?? "",
                 f.AggiungiNotaSecondariaAutomaticamente ? "Sì" : "No",
                 f.NotaSecondaria ?? "",
@@ -1035,6 +1038,8 @@ public class TesoreriaController : Controller
             PagamentoRicorrente = vm.PagamentoRicorrente,
             PagamentiManuali = vm.PagamentiManuali,
             PagamentoIncerto = vm.PagamentoIncerto,
+            MetodoPagamentoPrimario = vm.MetodoPagamentoPrimario,
+            MetodoPagamentoSecondario = vm.MetodoPagamentoSecondario,
             SediRiferimentoIds = NormalizeSediRiferimentoIds(vm.SediRiferimentoIds, vm.SedeRiferimentoId),
             SedeRiferimentoId = PrimarySedeFrom(NormalizeSediRiferimentoIds(vm.SediRiferimentoIds, vm.SedeRiferimentoId))
         };
@@ -1082,11 +1087,15 @@ public class TesoreriaController : Controller
             AggiungiNotaSecondariaAutomaticamente = f.AggiungiNotaSecondariaAutomaticamente,
             NotaSecondaria = f.NotaSecondaria,
             TerminiPagamentoGiorni = f.TerminiPagamentoGiorni,
-            BasePagamento = f.BasePagamento,
+            // FineMeseSuccessivo è una voce legacy non più esposta in UI: i record storici
+            // vengono rimappati a FineMeseFattura per non lasciare la tendina senza selezione.
+            BasePagamento = f.BasePagamento == BasePagamento.FineMeseSuccessivo ? BasePagamento.FineMeseFattura : f.BasePagamento,
             EmissioneFattura = f.EmissioneFattura,
             PagamentoRicorrente = f.PagamentoRicorrente,
             PagamentiManuali = f.PagamentiManuali,
             PagamentoIncerto = f.PagamentoIncerto,
+            MetodoPagamentoPrimario = f.MetodoPagamentoPrimario,
+            MetodoPagamentoSecondario = f.MetodoPagamentoSecondario,
             SedeRiferimentoId = f.SedeRiferimentoId,
             SediRiferimentoIds = EffectiveSediRiferimento(f),
             Cliniche = await GetClinicheAsync(),
@@ -1140,11 +1149,15 @@ public class TesoreriaController : Controller
             AggiungiNotaSecondariaAutomaticamente = f.AggiungiNotaSecondariaAutomaticamente,
             NotaSecondaria = f.NotaSecondaria,
             TerminiPagamentoGiorni = f.TerminiPagamentoGiorni,
-            BasePagamento = f.BasePagamento,
+            // FineMeseSuccessivo è una voce legacy non più esposta in UI: i record storici
+            // vengono rimappati a FineMeseFattura per non lasciare la tendina senza selezione.
+            BasePagamento = f.BasePagamento == BasePagamento.FineMeseSuccessivo ? BasePagamento.FineMeseFattura : f.BasePagamento,
             EmissioneFattura = f.EmissioneFattura,
             PagamentoRicorrente = f.PagamentoRicorrente,
             PagamentiManuali = f.PagamentiManuali,
             PagamentoIncerto = f.PagamentoIncerto,
+            MetodoPagamentoPrimario = f.MetodoPagamentoPrimario,
+            MetodoPagamentoSecondario = f.MetodoPagamentoSecondario,
             SedeRiferimentoId = f.SedeRiferimentoId,
             SediRiferimentoIds = EffectiveSediRiferimento(f),
             Cliniche = await _mongo.Cliniche.Find(c => c.TenantId == tid).SortBy(c => c.Nome).ToListAsync(),
@@ -1219,6 +1232,8 @@ public class TesoreriaController : Controller
                 .Set(x => x.PagamentoRicorrente, vm.PagamentoRicorrente)
                 .Set(x => x.PagamentiManuali, vm.PagamentiManuali)
                 .Set(x => x.PagamentoIncerto, vm.PagamentoIncerto)
+                .Set(x => x.MetodoPagamentoPrimario, vm.MetodoPagamentoPrimario)
+                .Set(x => x.MetodoPagamentoSecondario, vm.MetodoPagamentoSecondario)
                 .Set(x => x.SediRiferimentoIds, NormalizeSediRiferimentoIds(vm.SediRiferimentoIds, vm.SedeRiferimentoId))
                 .Set(x => x.SedeRiferimentoId, PrimarySedeFrom(NormalizeSediRiferimentoIds(vm.SediRiferimentoIds, vm.SedeRiferimentoId)))
                 .Set(x => x.UpdatedAt, DateTime.UtcNow));
@@ -1451,6 +1466,8 @@ public class TesoreriaController : Controller
         PagamentoRicorrente = src.PagamentoRicorrente,
         PagamentiManuali = src.PagamentiManuali,
         PagamentoIncerto = src.PagamentoIncerto,
+        MetodoPagamentoPrimario = src.MetodoPagamentoPrimario,
+        MetodoPagamentoSecondario = src.MetodoPagamentoSecondario,
         SedeRiferimentoId = src.SedeRiferimentoId,
         SediRiferimentoIds = src.SediRiferimentoIds?.ToList() ?? new List<string>(),
         DottoreId = src.DottoreId,

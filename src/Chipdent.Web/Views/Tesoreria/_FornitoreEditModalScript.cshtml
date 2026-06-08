@@ -86,6 +86,28 @@
         // Multi-select sedi di riferimento (chip + dropdown)
         if (window.SediRiferimentoSelect) window.SediRiferimentoSelect.initAll(dlg);
 
+        // Base di calcolo DataFattura / DataScadenza → giorni forzati a 0.
+        const basePag = dlg.querySelector('#fld-BasePagamento');
+        const giorni  = dlg.querySelector('#fld-TerminiPagamentoGiorni');
+        const hintG   = dlg.querySelector('#hint-giorni-forced');
+        if (basePag && giorni) {
+            const syncGiorni = () => {
+                const forced = basePag.value === 'DataFattura' || basePag.value === 'DataScadenza';
+                if (forced) {
+                    giorni.value = 0;
+                    giorni.setAttribute('readonly', 'readonly');
+                    giorni.style.opacity = '.6';
+                    if (hintG) hintG.style.display = 'block';
+                } else {
+                    giorni.removeAttribute('readonly');
+                    giorni.style.opacity = '';
+                    if (hintG) hintG.style.display = 'none';
+                }
+            };
+            basePag.addEventListener('change', syncGiorni);
+            syncGiorni();
+        }
+
         // Submit AJAX
         const form = dlg.querySelector('#fornmodal-form');
         const errorsBox = dlg.querySelector('[data-dotmodal-errors]');

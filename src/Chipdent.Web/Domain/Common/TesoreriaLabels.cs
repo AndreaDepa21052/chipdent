@@ -75,6 +75,8 @@ public static class TesoreriaLabels
         MetodoPagamento.Contanti       => "Contanti",
         MetodoPagamento.Assegno        => "Assegno",
         MetodoPagamento.Compensazione  => "Compensazione",
+        MetodoPagamento.PagoPa         => "PagoPa",
+        MetodoPagamento.F24            => "F24",
         MetodoPagamento.Altro          => "Altro",
         _ => m.ToString()
     };

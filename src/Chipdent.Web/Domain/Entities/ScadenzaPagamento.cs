@@ -79,7 +79,9 @@ public enum MetodoPagamento
     Contanti,
     Assegno,
     Compensazione,
-    Altro
+    Altro,
+    PagoPa,
+    F24
 }
 
 public enum StatoScadenza

@@ -1,5 +1,6 @@
 @model Chipdent.Web.Models.FornitoreFormViewModel
 @using Chipdent.Web.Domain.Entities
+@using Chipdent.Web.Domain.Common
 @{
     var isNew = string.IsNullOrEmpty(Model.Id);
     ViewData["Title"] = isNew ? "Nuovo fornitore" : Model.RagioneSociale;
@@ -155,18 +156,18 @@
 
     <div class="card" style="background: var(--c-bg-soft, #faf6f0); padding: var(--s-3); margin-top: var(--s-3);">
         <h4 style="margin: 0 0 8px;">📅 Termini di pagamento</h4>
-        <p class="muted" style="font-size: .85rem; margin: 0 0 8px;">Usati per calcolare la data di scadenza attesa quando il fornitore carica una fattura. Tipico: <em>30 gg D.F.</em>, <em>30 gg F.M.</em>, <em>60 gg F.M.S.</em>.</p>
+        <p class="muted" style="font-size: .85rem; margin: 0 0 8px;">Usati per calcolare la data di scadenza attesa quando il fornitore carica una fattura. Tipico: <em>30 gg D.F.</em> oppure <em>30 gg F.M.</em>.</p>
         <div class="grid" style="grid-template-columns: 1fr 2fr; gap: var(--s-3);">
             <div class="form-group" style="margin: 0;">
                 <label class="form-label" asp-for="TerminiPagamentoGiorni">Giorni</label>
-                <input class="form-control" type="number" min="0" max="365" asp-for="TerminiPagamentoGiorni" />
+                <input id="fld-TerminiPagamentoGiorni" class="form-control" type="number" min="0" max="365" asp-for="TerminiPagamentoGiorni" />
+                <span class="hint" id="hint-giorni-forced" style="display:none; color:#a86010;">Per la base selezionata i giorni non sono usati (forzati a 0).</span>
             </div>
             <div class="form-group" style="margin: 0;">
                 <label class="form-label" asp-for="BasePagamento">Base di calcolo</label>
-                <select class="form-control" asp-for="BasePagamento">
-                    <option value="@BasePagamento.DataFattura" selected="@(Model.BasePagamento == BasePagamento.DataFattura)">Data fattura (D.F.)</option>
-                    <option value="@BasePagamento.FineMeseFattura" selected="@(Model.BasePagamento == BasePagamento.FineMeseFattura)">Fine mese fattura (F.M.)</option>
-                    <option value="@BasePagamento.FineMeseSuccessivo" selected="@(Model.BasePagamento == BasePagamento.FineMeseSuccessivo)">Fine mese successivo (F.M.S.)</option>
+                <select id="fld-BasePagamento" class="form-control" asp-for="BasePagamento">
+                    <option value="@BasePagamento.DataFattura" selected="@(Model.BasePagamento == BasePagamento.DataFattura)">Data fattura (CC, contanti, …)</option>
+                    <option value="@BasePagamento.FineMeseFattura" selected="@(Model.BasePagamento == BasePagamento.FineMeseFattura)">Fine mese fattura (data fattura + giorni → fine mese)</option>
                     <option value="@BasePagamento.DataScadenza" selected="@(Model.BasePagamento == BasePagamento.DataScadenza)">Data scadenza in fattura (es. Vodafone, Sorgenia)</option>
                 </select>
             </div>
@@ -187,6 +188,44 @@
                     <option value="true" selected="@(Model.PagamentoRicorrente)">Sì</option>
                 </select>
                 <span class="hint">Canoni, abbonamenti, rate periodiche.</span>
+            </div>
+        </div>
+
+        @{
+            // Metodi esposti in anagrafica: lista chiusa allineata alle voci richieste
+            // dal cliente. L'enum MetodoPagamento contiene anche valori legacy
+            // (Assegno, Compensazione, Altro) che restano supportati a livello dato
+            // ma non sono selezionabili da qui.
+            var metodiAmmessi = new[]
+            {
+                MetodoPagamento.CartaCredito,
+                MetodoPagamento.Contanti,
+                MetodoPagamento.Bonifico,
+                MetodoPagamento.PagoPa,
+                MetodoPagamento.Rid,
+                MetodoPagamento.Riba,
+                MetodoPagamento.F24
+            };
+        }
+        <div class="grid" style="grid-template-columns: 1fr 1fr; gap: var(--s-3); margin-top: var(--s-3);">
+            <div class="form-group" style="margin: 0;">
+                <label class="form-label" asp-for="MetodoPagamentoPrimario">Metodo di pagamento primario</label>
+                <select class="form-control" asp-for="MetodoPagamentoPrimario">
+                    @foreach (var m in metodiAmmessi)
+                    {
+                        <option value="@m" selected="@(Model.MetodoPagamentoPrimario == m)">@m.Label()</option>
+                    }
+                </select>
+            </div>
+            <div class="form-group" style="margin: 0;">
+                <label class="form-label" asp-for="MetodoPagamentoSecondario">Metodo di pagamento aggiuntivo</label>
+                <select class="form-control" asp-for="MetodoPagamentoSecondario">
+                    <option value="">— nessuno —</option>
+                    @foreach (var m in metodiAmmessi)
+                    {
+                        <option value="@m" selected="@(Model.MetodoPagamentoSecondario == m)">@m.Label()</option>
+                    }
+                </select>
             </div>
         </div>
 
@@ -296,6 +335,29 @@
         fiscale.addEventListener('input', function () {
             if (!pagamentoToccato) pagamento.value = fiscale.value;
         });
+    })();
+
+    // Base di calcolo DataFattura / DataScadenza → giorni forzati a 0 e disabilitati.
+    (function () {
+        var basePag = document.getElementById('fld-BasePagamento');
+        var giorni  = document.getElementById('fld-TerminiPagamentoGiorni');
+        var hint    = document.getElementById('hint-giorni-forced');
+        if (!basePag || !giorni) return;
+        function sync() {
+            var forced = basePag.value === 'DataFattura' || basePag.value === 'DataScadenza';
+            if (forced) {
+                giorni.value = 0;
+                giorni.setAttribute('readonly', 'readonly');
+                giorni.style.opacity = '.6';
+                if (hint) hint.style.display = 'block';
+            } else {
+                giorni.removeAttribute('readonly');
+                giorni.style.opacity = '';
+                if (hint) hint.style.display = 'none';
+            }
+        }
+        basePag.addEventListener('change', sync);
+        sync();
     })();
 </script>
 }

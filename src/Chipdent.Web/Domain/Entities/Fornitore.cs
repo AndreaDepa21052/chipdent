@@ -107,6 +107,15 @@ public class Fornitore : TenantEntity
     /// griglia/scadenziario per richiamare l'attenzione dell'operatore.</summary>
     public bool PagamentoIncerto { get; set; }
 
+    /// <summary>Metodo di pagamento primario configurato in anagrafica. È il metodo
+    /// che viene proposto/usato sulle scadenze generate per questo fornitore — sostituisce
+    /// l'inferenza dal TipoFornitoreOp dove esplicitamente valorizzato.</summary>
+    public MetodoPagamento MetodoPagamentoPrimario { get; set; } = MetodoPagamento.Bonifico;
+
+    /// <summary>Metodo di pagamento aggiuntivo (opzionale). Informativo, usato quando
+    /// il fornitore accetta più canali di pagamento e l'operatore vuole tenerne traccia.</summary>
+    public MetodoPagamento? MetodoPagamentoSecondario { get; set; }
+
     /// <summary>Id della <see cref="Clinica"/> di riferimento del fornitore (sede a cui è
     /// principalmente associato il rapporto). Null = non assegnata. Per le anagrafiche
     /// storiche viene popolata via backfill alla sede DESIO. Mantenuto come "sede primaria"
