@@ -15,12 +15,11 @@ public static class MenuCatalog
 
     /// <summary>
     /// Ruoli per cui il PlatformAdmin può configurare i menu.
-    /// PlatformAdmin non è incluso: vede sempre tutto.
+    /// PlatformAdmin e Owner non sono inclusi: vedono sempre tutto.
     /// Fornitore non è incluso: ha un portale dedicato.
     /// </summary>
     public static readonly IReadOnlyList<string> ConfigurableRoles = new[]
     {
-        Policies.Names.Owner,
         Policies.Names.Management,
         Policies.Names.Direttore,
         Policies.Names.Backoffice,

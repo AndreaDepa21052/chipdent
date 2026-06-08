@@ -11,10 +11,11 @@
                                 .Select(p => char.ToUpper(p[0])));
     var role = User.FindFirst(System.Security.Claims.ClaimTypes.Role)?.Value ?? "";
     var isPlatformAdmin = User.IsPlatformAdmin();
+    var isOwner = User.IsOwner();
 
-    // PlatformAdmin vede sempre tutto; per gli altri ruoli applichiamo la matrice
-    // di visibilità configurata dal pannello "Permessi menu".
-    var hiddenSections = isPlatformAdmin
+    // PlatformAdmin e Owner vedono sempre tutto; per gli altri ruoli applichiamo
+    // la matrice di visibilità configurata dal pannello "Permessi menu".
+    var hiddenSections = (isPlatformAdmin || isOwner)
         ? new HashSet<string>(StringComparer.OrdinalIgnoreCase)
         : await MenuVisibility.GetHiddenForRoleAsync(role);
     bool ShowSection(string slug) => !hiddenSections.Contains(slug);
