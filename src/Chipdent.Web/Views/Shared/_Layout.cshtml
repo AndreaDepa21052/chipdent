@@ -14,10 +14,12 @@
     var isOwner = User.IsOwner();
 
     // PlatformAdmin e Owner vedono sempre tutto; per gli altri ruoli applichiamo
-    // la matrice di visibilità configurata dal pannello "Permessi menu".
+    // la visibilità del ruolo, eventualmente ristretta da un override per-utente
+    // configurato in "Utenti › Accessi".
+    var currentUserId = User.FindFirst(System.Security.Claims.ClaimTypes.NameIdentifier)?.Value;
     var hiddenSections = (isPlatformAdmin || isOwner)
         ? new HashSet<string>(StringComparer.OrdinalIgnoreCase)
-        : await MenuVisibility.GetHiddenForRoleAsync(role);
+        : await MenuVisibility.GetHiddenForUserAsync(currentUserId, role);
     bool ShowSection(string slug) => !hiddenSections.Contains(slug);
 
     var canSeeAnagrafiche = User.IsManagement() || User.IsDirettore() || User.IsBackoffice();

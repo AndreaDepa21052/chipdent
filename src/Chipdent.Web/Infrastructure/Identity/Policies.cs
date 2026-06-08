@@ -1,4 +1,6 @@
 using System.Security.Claims;
+using Chipdent.Web.Domain.Entities;
+using Chipdent.Web.Infrastructure.Tenancy;
 using Microsoft.AspNetCore.Authorization;
 
 namespace Chipdent.Web.Infrastructure.Identity;
@@ -94,6 +96,27 @@ public static class UserAccess
     public static bool HasFullTenantAccess(this ClaimsPrincipal? user) => user.IsManagement();
 
     public static bool CanManageUsers(this ClaimsPrincipal? user) => user.IsManagement();
+
+    /// <summary>
+    /// Livello di accesso dell'utente (sola lettura / lettura e scrittura), letto dal claim.
+    /// In assenza del claim si assume LetturaScrittura per retrocompatibilità.
+    /// </summary>
+    public static AccessLevel AccessLevel(this ClaimsPrincipal? user)
+    {
+        var v = user?.FindFirst(TenantResolverMiddleware.AccessLevelClaim)?.Value;
+        return Enum.TryParse<AccessLevel>(v, out var lvl) ? lvl : Domain.Entities.AccessLevel.LetturaScrittura;
+    }
+
+    /// <summary>Vero se l'utente è limitato alla sola consultazione.</summary>
+    public static bool IsReadOnly(this ClaimsPrincipal? user) =>
+        user.AccessLevel() == Domain.Entities.AccessLevel.SolaLettura;
+
+    /// <summary>
+    /// Vero se l'utente può eseguire azioni di scrittura. Combina il livello di accesso
+    /// con il ruolo: un PlatformAdmin/Owner non viene mai bloccato per evitare lockout.
+    /// </summary>
+    public static bool CanWrite(this ClaimsPrincipal? user) =>
+        !user.IsReadOnly() || user.IsOwner();
 
     /// <summary>
     /// Può approvare richieste operative (ferie, sostituzioni). Direttore + Management.

@@ -27,7 +27,7 @@
     <div class="page-head__actions">
         <a class="btn btn--ghost" asp-action="Permissions">
             <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg>
-            Matrice permessi
+            Gestisci accessi
         </a>
         <a class="btn btn--primary" asp-action="Invite">+ Invita utente</a>
     </div>
@@ -58,6 +58,16 @@
                     <tr>
                         <td>
                             <div class="strong">@u.FullName @(isCurrent ? "(tu)" : "")</div>
+                            <div style="display:flex; gap:6px; margin-top:3px;">
+                                @if (u.AccessLevel == Chipdent.Web.Domain.Entities.AccessLevel.SolaLettura)
+                                {
+                                    <span class="badge" style="background:#eef2f7; color:#42566e; font-size:.7rem;">sola lettura</span>
+                                }
+                                @if (u.HasSectionOverride)
+                                {
+                                    <span class="badge" style="background:#fbe9d5; color:#8a4b16; font-size:.7rem;">accessi personalizzati</span>
+                                }
+                            </div>
                         </td>
                         <td>@u.Email</td>
                         <td>
@@ -97,6 +107,9 @@
                         <td class="actions">
                             <a class="ibtn" asp-action="Edit" asp-route-id="@u.Id" title="Modifica">
                                 <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>
+                            </a>
+                            <a class="ibtn" asp-action="Permissions" asp-route-userId="@u.Id" title="Gestisci accessi alle sezioni">
+                                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/><path d="M9 12l2 2 4-4"/></svg>
                             </a>
                             <form asp-action="Toggle" asp-route-id="@u.Id" method="post" style="display:inline;"
                                   onsubmit="return confirm('Cambiare lo stato di questo utente?');">

@@ -8,6 +8,12 @@
         UserRole.Direttore => "Direttore di sede",
         _ => r.ToString()
     };
+
+    string AccessLabel(AccessLevel a) => a switch
+    {
+        AccessLevel.SolaLettura => "Sola lettura",
+        _ => "Lettura e scrittura"
+    };
 }
 
 <partial name="_Flash" />
@@ -56,6 +62,20 @@
                     }
                 </select>
                 <span class="text-danger" asp-validation-for="Role"></span>
+            </div>
+            <div class="form-group">
+                <label class="form-label" asp-for="AccessLevel">Livello di accesso</label>
+                <select class="form-control" asp-for="AccessLevel">
+                    @foreach (var a in Enum.GetValues<AccessLevel>())
+                    {
+                        <option value="@a" selected="@(a == Model.AccessLevel)">@AccessLabel(a)</option>
+                    }
+                </select>
+                <span class="text-danger" asp-validation-for="AccessLevel"></span>
+                <p style="color: var(--c-ink-soft); font-size:.82rem; margin-top: 4px;">
+                    <strong>Sola lettura</strong>: l'utente consulta i dati ma non può creare o modificare.
+                    <strong>Lettura e scrittura</strong>: abilita le azioni consentite dal ruolo.
+                </p>
             </div>
             <div class="form-group">
                 <label class="form-check" style="margin-top: var(--s-6);">

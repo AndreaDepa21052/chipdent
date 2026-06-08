@@ -94,7 +94,8 @@ public class AccountController : Controller
             new(TenantResolverMiddleware.TenantSlugClaim, tenant.Slug),
             new(TenantResolverMiddleware.ClinicaIdsClaim, string.Join(",", user.ClinicaIds ?? new())),
             new(TenantResolverMiddleware.LinkedPersonTypeClaim, user.LinkedPersonType.ToString()),
-            new(TenantResolverMiddleware.LinkedPersonIdClaim, user.LinkedPersonId ?? string.Empty)
+            new(TenantResolverMiddleware.LinkedPersonIdClaim, user.LinkedPersonId ?? string.Empty),
+            new(TenantResolverMiddleware.AccessLevelClaim, user.AccessLevel.ToString())
         };
 
         var identity = new ClaimsIdentity(claims, CookieAuthenticationDefaults.AuthenticationScheme);
@@ -318,6 +319,7 @@ public class AccountController : Controller
             FullName = invito.FullName,
             PasswordHash = _hasher.Hash(vm.Password),
             Role = invito.Ruolo,
+            AccessLevel = invito.AccessLevel,
             ClinicaIds = invito.ClinicaIds?.ToList() ?? new(),
             IsActive = true
         };

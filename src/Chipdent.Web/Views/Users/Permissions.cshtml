@@ -1,6 +1,6 @@
-@model Chipdent.Web.Models.PermissionsMatrixViewModel
+@model Chipdent.Web.Models.UserSectionAccessViewModel
 @{
-    ViewData["Title"] = "Matrice permessi";
+    ViewData["Title"] = "Accessi utenti";
     ViewData["Crumb"] = "Utenti";
 
     string RoleClass(UserRole r) => r switch
@@ -13,87 +13,218 @@
     };
     string RoleLabel(UserRole r) => r switch
     {
-        UserRole.Direttore => "Direttore",
+        UserRole.Direttore     => "Direttore di sede",
+        UserRole.PlatformAdmin => "Platform Admin",
         _ => r.ToString()
     };
+    var ed = Model.Editor;
 }
 
 <partial name="_Flash" />
 
 <div class="page-head">
     <div>
-        <h2>Matrice permessi</h2>
-        <p class="page-head__sub">Cosa può fare ciascun ruolo all'interno del workspace.</p>
+        <h2>Accessi utenti</h2>
+        <p class="page-head__sub">Scegli, per ogni utente, a quali sezioni può accedere nel menu laterale.</p>
     </div>
     <div class="page-head__actions">
         <a class="btn btn--ghost" asp-action="Index">← Utenti</a>
     </div>
 </div>
 
-<div class="card">
-    <div class="table-wrap" style="border:0; box-shadow:none; background:transparent;">
-        <table class="table perm-matrix">
-            <thead>
-                <tr>
-                    <th style="width: 30%;">Modulo</th>
-                    <th style="width: 22%;">Azione</th>
-                    @foreach (var r in Model.Roles)
-                    {
-                        <th style="text-align:center;"><span class="role-badge @RoleClass(r)">@RoleLabel(r)</span></th>
-                    }
-                </tr>
-            </thead>
-            <tbody>
-                @{ string? lastModule = null; }
-                @foreach (var row in Model.Rows)
-                {
-                    var newGroup = row.Modulo != lastModule;
-                    lastModule = row.Modulo;
-                    <tr class="@(newGroup ? "perm-matrix__group" : "")">
-                        <td>@(newGroup ? row.Modulo : "")</td>
-                        <td class="muted">@row.Azione</td>
-                        @foreach (var r in Model.Roles)
+<div class="access-layout">
+    <!-- Colonna sinistra: elenco utenti -->
+    <div class="card access-users">
+        <div class="card__header">
+            <h3 class="card__title">Utenti</h3>
+        </div>
+        <div class="access-users__list">
+            @foreach (var u in Model.Users)
+            {
+                var isSel = ed is not null && ed.UserId == u.Id;
+                <a class="access-user @(isSel ? "is-active" : "")"
+                   asp-action="Permissions" asp-route-userId="@u.Id">
+                    <div class="access-user__main">
+                        <span class="access-user__name">
+                            @u.FullName @(u.IsCurrent ? "(tu)" : "")
+                        </span>
+                        <span class="access-user__email">@u.Email</span>
+                    </div>
+                    <div class="access-user__meta">
+                        <span class="role-badge @RoleClass(u.Role)">@RoleLabel(u.Role)</span>
+                        @if (u.HasOverride)
                         {
-                            var allowed = row.Allowed.TryGetValue(r, out var v) && v;
-                            <td style="text-align:center;">
-                                @if (allowed)
-                                {
-                                    <span class="perm-yes" title="consentito">
-                                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3"><polyline points="20 6 9 17 4 12"/></svg>
-                                    </span>
-                                }
-                                else
-                                {
-                                    <span class="perm-no" title="non consentito">—</span>
-                                }
-                            </td>
+                            <span class="badge badge--warning" title="Accessi personalizzati">personalizzato</span>
                         }
-                    </tr>
-                }
-            </tbody>
-        </table>
+                        else
+                        {
+                            <span class="muted" style="font-size:.72rem;">da ruolo</span>
+                        }
+                    </div>
+                </a>
+            }
+        </div>
+    </div>
+
+    <!-- Colonna destra: editor sezioni -->
+    <div class="card access-editor">
+        @if (ed is null)
+        {
+            <div class="access-empty">
+                <svg width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" style="color: var(--c-ink-soft); margin-bottom: 10px;"><path d="M9 17H7A5 5 0 0 1 7 7h2"/><path d="M15 7h2a5 5 0 0 1 0 10h-2"/><line x1="8" y1="12" x2="16" y2="12"/></svg>
+                <p><strong>Seleziona un utente</strong> dall'elenco per configurare i suoi accessi alle sezioni.</p>
+            </div>
+        }
+        else if (ed.IsCurrent)
+        {
+            <div class="card__header">
+                <h3 class="card__title">@ed.FullName</h3>
+                <span class="role-badge @RoleClass(ed.Role)">@RoleLabel(ed.Role)</span>
+            </div>
+            <div class="alert alert--info" style="margin: var(--s-4);">
+                Stai guardando il <strong>tuo</strong> account. Per sicurezza non puoi modificare i tuoi stessi accessi:
+                chiedi a un altro amministratore.
+            </div>
+        }
+        else
+        {
+            <form asp-action="SaveSections" method="post" id="accessForm">
+                @Html.AntiForgeryToken()
+                <input type="hidden" name="userId" value="@ed.UserId" />
+
+                <div class="card__header">
+                    <div>
+                        <h3 class="card__title">@ed.FullName</h3>
+                        <span class="role-badge @RoleClass(ed.Role)">@RoleLabel(ed.Role)</span>
+                    </div>
+                    <button type="submit" class="btn btn--primary">Salva accessi</button>
+                </div>
+
+                <div class="access-editor__body">
+                    <label class="access-toggle">
+                        <input type="checkbox" name="personalizza" value="true" id="personalizza"
+                               checked="@ed.HasOverride" />
+                        <span>
+                            <strong>Personalizza accessi per questo utente</strong>
+                            <span class="muted">Se disattivato, l'utente eredita le sezioni del suo ruolo.</span>
+                        </span>
+                    </label>
+
+                    <p class="access-note">
+                        Puoi abilitare solo le sezioni già consentite al ruolo <strong>@RoleLabel(ed.Role)</strong>.
+                        Le sezioni non disponibili per il ruolo sono disabilitate.
+                    </p>
+
+                    <div class="access-groups" id="accessGroups">
+                        @foreach (var g in ed.Groups)
+                        {
+                            <fieldset class="access-group">
+                                <legend>
+                                    @g.Label
+                                    <button type="button" class="access-group__all" data-group="@g.Key">tutte / nessuna</button>
+                                </legend>
+                                <div class="access-group__items">
+                                    @foreach (var s in g.Sections)
+                                    {
+                                        var configurable = ed.IsConfigurable(s.Slug);
+                                        <label class="access-chk @(configurable ? "" : "is-disabled")"
+                                               title="@(configurable ? "" : "Non disponibile per il ruolo " + RoleLabel(ed.Role))">
+                                            <input type="checkbox" name="sezioni" value="@s.Slug"
+                                                   data-group="@g.Key"
+                                                   checked="@ed.IsAllowed(s.Slug)"
+                                                   disabled="@(!configurable)" />
+                                            <span>@s.Label</span>
+                                        </label>
+                                    }
+                                </div>
+                            </fieldset>
+                        }
+                    </div>
+                </div>
+            </form>
+        }
     </div>
 </div>
 
-<div class="grid grid--stats" style="margin-top: var(--s-6);">
-    <div class="stat">
-        <div class="stat__label">Owner</div>
-        <div class="stat__value" style="font-size: 1rem; color: var(--c-ink); margin-top: var(--s-2);">Ruolo tecnico · garante del workspace (last-owner-guard)</div>
-    </div>
-    <div class="stat">
-        <div class="stat__label">Management</div>
-        <div class="stat__value" style="font-size: 1rem; color: var(--c-ink); margin-top: var(--s-2);">Vista direzionale · tutta la catena · gestione utenti</div>
-    </div>
-    <div class="stat">
-        <div class="stat__label">Direttore di sede</div>
-        <div class="stat__value" style="font-size: 1rem; color: var(--c-ink); margin-top: var(--s-2);">Operatività della propria sede · turni · approvazioni</div>
-    </div>
-    <div class="stat">
-        <div class="stat__label">Backoffice</div>
-        <div class="stat__value" style="font-size: 1rem; color: var(--c-ink); margin-top: var(--s-2);">Anagrafiche cross-sede · RLS · documentazione</div>
-    </div>
-    <div class="stat">
-        <div class="stat__label">Staff</div>
-        <div class="stat__value" style="font-size: 1rem; color: var(--c-ink); margin-top: var(--s-2);">App personale · turni propri · comunicazioni</div>
-    </div>
-</div>
+<style>
+    .access-layout { display: grid; grid-template-columns: 320px 1fr; gap: var(--s-5); align-items: start; }
+    @@media (max-width: 900px) { .access-layout { grid-template-columns: 1fr; } }
+
+    .access-users__list { display: flex; flex-direction: column; }
+    .access-user { display: flex; justify-content: space-between; align-items: center; gap: 10px;
+        padding: 10px 14px; border-top: 1px solid var(--c-border, #e9e1d3); text-decoration: none; color: inherit; }
+    .access-user:first-child { border-top: 0; }
+    .access-user:hover { background: var(--c-bg-soft, #faf6f0); }
+    .access-user.is-active { background: var(--c-accent-soft, #fbe9d5); }
+    .access-user__main { display: flex; flex-direction: column; min-width: 0; }
+    .access-user__name { font-weight: 600; color: var(--c-ink, #3b1e0c); }
+    .access-user__email { font-size: .76rem; color: var(--c-ink-soft, #7a5c3a); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+    .access-user__meta { display: flex; flex-direction: column; align-items: flex-end; gap: 4px; flex-shrink: 0; }
+
+    .access-empty { text-align: center; padding: 48px 24px; color: var(--c-ink-soft, #7a5c3a); }
+    .access-editor__body { padding: var(--s-4); }
+
+    .access-toggle { display: flex; gap: 10px; align-items: flex-start; padding: 12px 14px;
+        background: var(--c-bg-soft, #faf6f0); border: 1px solid var(--c-border, #e9e1d3); border-radius: 10px; cursor: pointer; }
+    .access-toggle input { margin-top: 3px; }
+    .access-toggle span { display: flex; flex-direction: column; }
+    .access-toggle .muted { font-size: .78rem; }
+
+    .access-note { font-size: .82rem; color: var(--c-ink-soft, #7a5c3a); margin: 12px 2px; }
+
+    .access-groups { display: grid; grid-template-columns: repeat(2, 1fr); gap: var(--s-4); }
+    @@media (max-width: 700px) { .access-groups { grid-template-columns: 1fr; } }
+    .access-group { border: 1px solid var(--c-border, #e9e1d3); border-radius: 10px; padding: 10px 12px 12px; }
+    .access-group legend { font-size: .72rem; text-transform: uppercase; letter-spacing: 1px; font-weight: 600;
+        color: var(--c-ink-soft, #7a5c3a); padding: 0 6px; display: flex; align-items: center; gap: 8px; }
+    .access-group__all { background: none; border: 0; color: var(--c-accent, #c47830); font-size: .68rem;
+        cursor: pointer; text-transform: none; letter-spacing: 0; }
+    .access-group__items { display: flex; flex-direction: column; gap: 4px; margin-top: 6px; }
+    .access-chk { display: flex; align-items: center; gap: 8px; padding: 4px 6px; border-radius: 6px; cursor: pointer; }
+    .access-chk:hover { background: var(--c-bg-soft, #faf6f0); }
+    .access-chk.is-disabled { opacity: .45; cursor: not-allowed; }
+    .badge--warning { background: #fbe9d5; color: #8a4b16; }
+</style>
+
+@section Scripts {
+<script>
+    (function () {
+        var form = document.getElementById('accessForm');
+        if (!form) return;
+        var master = document.getElementById('personalizza');
+        var groups = document.getElementById('accessGroups');
+
+        function configurableBoxes() {
+            // Solo i checkbox abilitati dal ruolo (non quelli disattivati dal markup).
+            return Array.prototype.filter.call(
+                groups.querySelectorAll('input[name="sezioni"]'),
+                function (b) { return !b.hasAttribute('data-locked'); });
+        }
+
+        // Marca come "locked" i checkbox non configurabili dal ruolo, così restano sempre off.
+        Array.prototype.forEach.call(groups.querySelectorAll('input[name="sezioni"]'), function (b) {
+            if (b.disabled) b.setAttribute('data-locked', '1');
+        });
+
+        function applyMaster() {
+            var on = master.checked;
+            configurableBoxes().forEach(function (b) { b.disabled = !on; });
+            groups.style.opacity = on ? '1' : '.55';
+        }
+
+        master.addEventListener('change', applyMaster);
+        applyMaster();
+
+        // "tutte / nessuna" per gruppo
+        Array.prototype.forEach.call(document.querySelectorAll('.access-group__all'), function (btn) {
+            btn.addEventListener('click', function () {
+                if (!master.checked) return;
+                var key = btn.getAttribute('data-group');
+                var boxes = configurableBoxes().filter(function (b) { return b.getAttribute('data-group') === key; });
+                var anyOff = boxes.some(function (b) { return !b.checked; });
+                boxes.forEach(function (b) { b.checked = anyOff; });
+            });
+        });
+    })();
+</script>
+}

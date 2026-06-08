@@ -5,6 +5,7 @@ using Chipdent.Web.Infrastructure.Identity;
 using Chipdent.Web.Infrastructure.Mongo;
 using Chipdent.Web.Infrastructure.Tenancy;
 using Chipdent.Web.Models;
+using Chipdent.Web.Services;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using MongoDB.Driver;
@@ -18,12 +19,14 @@ public class UsersController : Controller
     private readonly MongoContext _mongo;
     private readonly ITenantContext _tenant;
     private readonly INotificationPublisher _publisher;
+    private readonly IMenuVisibilityService _menu;
 
-    public UsersController(MongoContext mongo, ITenantContext tenant, INotificationPublisher publisher)
+    public UsersController(MongoContext mongo, ITenantContext tenant, INotificationPublisher publisher, IMenuVisibilityService menu)
     {
         _mongo = mongo;
         _tenant = tenant;
         _publisher = publisher;
+        _menu = menu;
     }
 
     [HttpGet("")]
@@ -71,6 +74,7 @@ public class UsersController : Controller
             Email = u.Email,
             FullName = u.FullName,
             Role = u.Role,
+            AccessLevel = u.AccessLevel,
             ClinicaIds = u.ClinicaIds?.ToList() ?? new(),
             LinkedPersonType = u.LinkedPersonType,
             LinkedPersonId = u.LinkedPersonId,
@@ -96,6 +100,11 @@ public class UsersController : Controller
         if (isCurrent && existing.Role == UserRole.Owner && vm.Role != UserRole.Owner)
         {
             ModelState.AddModelError(nameof(vm.Role), "Non puoi declassare te stesso da Owner.");
+        }
+
+        if (isCurrent && vm.AccessLevel == AccessLevel.SolaLettura)
+        {
+            ModelState.AddModelError(nameof(vm.AccessLevel), "Non puoi limitare te stesso alla sola lettura.");
         }
 
         if (existing.Role == UserRole.Owner && vm.Role != UserRole.Owner)
@@ -157,6 +166,7 @@ public class UsersController : Controller
             Builders<User>.Update
                 .Set(x => x.FullName, vm.FullName)
                 .Set(x => x.Role, vm.Role)
+                .Set(x => x.AccessLevel, vm.AccessLevel)
                 .Set(x => x.ClinicaIds, clinicaIds)
                 .Set(x => x.LinkedPersonType, vm.LinkedPersonType)
                 .Set(x => x.LinkedPersonId, vm.LinkedPersonId)
@@ -200,53 +210,149 @@ public class UsersController : Controller
         return RedirectToAction(nameof(Index));
     }
 
+    // ── Accessi per-utente ────────────────────────────────────────────────
+    // Sostituisce la vecchia matrice statica per-ruolo: per ogni utente si
+    // configurano le sezioni della sidebar a cui può accedere. L'override può
+    // solo restringere le sezioni già consentite dal ruolo dell'utente.
+
     [HttpGet("permessi")]
-    public IActionResult Permissions()
+    public async Task<IActionResult> Permissions(string? userId = null)
     {
+        var tid = _tenant.TenantId!;
+        var currentId = User.FindFirst(System.Security.Claims.ClaimTypes.NameIdentifier)?.Value ?? string.Empty;
+
+        var users = await _mongo.Users
+            .Find(u => u.TenantId == tid)
+            .SortBy(u => u.FullName).ToListAsync();
+
+        var rows = users
+            .Select(u => new UserAccessRow(u.Id, u.FullName, u.Email, u.Role, u.HasSectionOverride, u.Id == currentId, u.IsActive))
+            .ToList();
+
+        UserSectionEditorViewModel? editor = null;
+        var selected = users.FirstOrDefault(u => u.Id == userId);
+        if (selected is not null)
+        {
+            editor = await BuildEditorAsync(selected, currentId);
+        }
+
         ViewData["Section"] = "users";
-        return View(BuildMatrix());
+        return View(new UserSectionAccessViewModel { Users = rows, Editor = editor });
     }
 
-    private static PermissionsMatrixViewModel BuildMatrix()
+    [HttpPost("permessi")]
+    [ValidateAntiForgeryToken]
+    public async Task<IActionResult> SaveSections(string userId, bool personalizza, List<string>? sezioni)
     {
-        var roles = new[] { UserRole.Staff, UserRole.Backoffice, UserRole.Direttore, UserRole.Management, UserRole.Owner };
+        var user = await _mongo.Users.Find(x => x.Id == userId && x.TenantId == _tenant.TenantId).FirstOrDefaultAsync();
+        if (user is null) return NotFound();
 
-        bool All(UserRole r) => true;
-        bool Backoffice(UserRole r) => r == UserRole.Backoffice || r == UserRole.Direttore || r == UserRole.Management || r == UserRole.Owner;
-        bool Direttore(UserRole r) => r == UserRole.Direttore || r == UserRole.Management || r == UserRole.Owner;
-        bool Management(UserRole r) => r == UserRole.Management || r == UserRole.Owner;
-        bool Owner(UserRole r) => r == UserRole.Owner;
-
-        PermissionRow Row(string mod, string action, Func<UserRole, bool> rule) =>
-            new(mod, action, roles.ToDictionary(r => r, rule));
-
-        var rows = new List<PermissionRow>
+        var currentId = User.FindFirst(System.Security.Claims.ClaimTypes.NameIdentifier)?.Value ?? string.Empty;
+        if (user.Id == currentId)
         {
-            Row("Dashboard", "Visualizza", All),
-            Row("Turni", "Visualizza calendario", All),
-            Row("Turni", "Crea / modifica turni", Direttore),
-            Row("Comunicazioni", "Visualizza inbox", All),
-            Row("Comunicazioni", "Invia comunicazione", All),
-            Row("Comunicazioni", "Approva richieste", Direttore),
-            Row("Cliniche", "Visualizza", Backoffice),
-            Row("Cliniche", "Crea / modifica", Management),
-            Row("Cliniche", "Elimina", Management),
-            Row("Dottori", "Visualizza", Backoffice),
-            Row("Dottori", "Crea / modifica", Backoffice),
-            Row("Dipendenti", "Visualizza", Backoffice),
-            Row("Dipendenti", "Crea / modifica", Backoffice),
-            Row("RLS / Sicurezza", "Visualizza", Backoffice),
-            Row("RLS / Sicurezza", "Crea visite / corsi", Backoffice),
-            Row("RLS / Sicurezza", "Gestisci DVR", Direttore),
-            Row("Documentazione", "Visualizza", Backoffice),
-            Row("Documentazione", "Crea / modifica", Direttore),
-            Row("Documentazione", "Elimina", Management),
-            Row("Utenti", "Gestisci utenti e inviti", Management),
-            Row("Utenti", "Cambia ruoli", Management),
-            Row("Workspace", "Impostazioni workspace", Owner)
-        };
+            TempData["flash"] = "Non puoi modificare i tuoi stessi accessi: chiedi a un altro amministratore.";
+            return RedirectToAction(nameof(Permissions), new { userId });
+        }
 
-        return new PermissionsMatrixViewModel { Roles = roles, Rows = rows };
+        bool hasOverride;
+        List<string> visible;
+        if (!personalizza)
+        {
+            // Torna a ereditare dal ruolo.
+            hasOverride = false;
+            visible = new();
+        }
+        else
+        {
+            // Si possono abilitare solo le sezioni consentite dal ruolo.
+            var roleAvailable = await GetRoleAvailableAsync(user.Role);
+            visible = (sezioni ?? new())
+                .Where(s => roleAvailable.Contains(s))
+                .Distinct(StringComparer.OrdinalIgnoreCase)
+                .ToList();
+            hasOverride = true;
+        }
+
+        await _mongo.Users.UpdateOneAsync(
+            x => x.Id == userId && x.TenantId == _tenant.TenantId,
+            Builders<User>.Update
+                .Set(x => x.HasSectionOverride, hasOverride)
+                .Set(x => x.VisibleSections, visible)
+                .Set(x => x.UpdatedAt, DateTime.UtcNow));
+
+        TempData["flash"] = personalizza
+            ? $"Accessi personalizzati salvati per «{user.FullName}» ({visible.Count} sezioni)."
+            : $"«{user.FullName}» eredita di nuovo gli accessi del ruolo.";
+        return RedirectToAction(nameof(Permissions), new { userId });
+    }
+
+    /// <summary>
+    /// Slug delle sezioni realmente raggiungibili dal ruolo: rispecchia i gate di gruppo
+    /// della sidebar (_Layout) e sottrae le sezioni nascoste al ruolo dal pannello menu.
+    /// Sono le uniche sezioni configurabili nell'editor per-utente.
+    /// </summary>
+    private async Task<HashSet<string>> GetRoleAvailableAsync(UserRole role)
+    {
+        if (role is UserRole.Owner or UserRole.PlatformAdmin)
+            return MenuCatalog.AllSections.Select(s => s.Slug).ToHashSet(StringComparer.OrdinalIgnoreCase);
+
+        var hidden = await _menu.GetHiddenForRoleAsync(role.ToString());
+        var result = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+        var canTesoreriaFornitori = role is UserRole.Management or UserRole.Backoffice;
+        foreach (var g in MenuCatalog.Groups)
+        {
+            if (!GroupReachable(role, g.Key)) continue;
+            foreach (var s in g.Sections)
+            {
+                // "Fornitori" nel gruppo Anagrafiche ha un gate extra (no Direttore).
+                if (s.Slug == "fornitori" && !canTesoreriaFornitori) continue;
+                if (hidden.Contains(s.Slug)) continue;
+                result.Add(s.Slug);
+            }
+        }
+        return result;
+    }
+
+    /// <summary>
+    /// Replica i gate di gruppo della sidebar: quali gruppi della navigazione sono
+    /// strutturalmente visibili a un ruolo (a prescindere dal pannello menu).
+    /// </summary>
+    private static bool GroupReachable(UserRole role, string groupKey)
+    {
+        var mgmt = role is UserRole.Management or UserRole.Owner or UserRole.PlatformAdmin;
+        var anagrafiche = mgmt || role is UserRole.Direttore or UserRole.Backoffice; // canSeeAnagrafiche
+        return groupKey switch
+        {
+            "operativita"     => true,
+            "anagrafiche"     => anagrafiche,
+            "direzionale"     => mgmt,
+            "tesoreria"       => mgmt || role == UserRole.Backoffice,
+            "compliance"      => anagrafiche,
+            "amministrazione" => mgmt,
+            _ => false
+        };
+    }
+
+    private async Task<UserSectionEditorViewModel> BuildEditorAsync(User user, string currentId)
+    {
+        var roleAvailable = await GetRoleAvailableAsync(user.Role);
+        // Checkbox spuntati: se c'è override usa la sua allow-list, altrimenti
+        // mostra tutto ciò che il ruolo consente (stato ereditato).
+        var allowed = user.HasSectionOverride
+            ? new HashSet<string>(user.VisibleSections ?? new(), StringComparer.OrdinalIgnoreCase)
+            : new HashSet<string>(roleAvailable, StringComparer.OrdinalIgnoreCase);
+
+        return new UserSectionEditorViewModel
+        {
+            UserId = user.Id,
+            FullName = user.FullName,
+            Role = user.Role,
+            IsCurrent = user.Id == currentId,
+            HasOverride = user.HasSectionOverride,
+            Groups = MenuCatalog.Groups,
+            Allowed = allowed,
+            RoleAvailable = roleAvailable
+        };
     }
 
     [HttpGet("invita")]
@@ -294,6 +400,7 @@ public class UsersController : Controller
             Email = vm.Email.Trim().ToLowerInvariant(),
             FullName = vm.FullName.Trim(),
             Ruolo = vm.Ruolo,
+            AccessLevel = vm.AccessLevel,
             ClinicaIds = clinicaIds,
             Token = GenerateToken(),
             ScadeIl = DateTime.UtcNow.AddDays(7),

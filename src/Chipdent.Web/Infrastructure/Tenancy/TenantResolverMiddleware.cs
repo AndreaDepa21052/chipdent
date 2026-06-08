@@ -11,6 +11,7 @@ public class TenantResolverMiddleware
     public const string ClinicaIdsClaim       = "clinica_ids";
     public const string LinkedPersonTypeClaim = "linked_person_type";
     public const string LinkedPersonIdClaim   = "linked_person_id";
+    public const string AccessLevelClaim      = "access_level";
 
     private readonly RequestDelegate _next;
 

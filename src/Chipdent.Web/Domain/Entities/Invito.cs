@@ -7,6 +7,7 @@ public class Invito : TenantEntity
     public string Email { get; set; } = string.Empty;
     public string FullName { get; set; } = string.Empty;
     public UserRole Ruolo { get; set; } = UserRole.Staff;
+    public AccessLevel AccessLevel { get; set; } = AccessLevel.LetturaScrittura;
     public List<string> ClinicaIds { get; set; } = new();
     public string Token { get; set; } = string.Empty;
     public DateTime ScadeIl { get; set; } = DateTime.UtcNow.AddDays(7);

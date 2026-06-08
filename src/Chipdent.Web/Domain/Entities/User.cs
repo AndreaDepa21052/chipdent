@@ -11,10 +11,30 @@ public class User : TenantEntity
     public UserRole Role { get; set; } = UserRole.Staff;
 
     /// <summary>
+    /// Livello di accesso trasversale al ruolo: «sola lettura» limita l'utente alla
+    /// consultazione, «lettura e scrittura» abilita le azioni di modifica consentite
+    /// dal suo ruolo. Default = LetturaScrittura (comportamento storico).
+    /// </summary>
+    public AccessLevel AccessLevel { get; set; } = AccessLevel.LetturaScrittura;
+
+    /// <summary>
     /// Cliniche assegnate all'utente. Vuoto = visibilità su tutte le sedi del tenant
     /// (tipico di Management/Owner). Per i Direttori contiene 1+ cliniche.
     /// </summary>
     public List<string> ClinicaIds { get; set; } = new();
+
+    /// <summary>
+    /// Quando true, l'utente usa un set personalizzato di sezioni visibili
+    /// (<see cref="VisibleSections"/>) invece di ereditare la visibilità del ruolo.
+    /// L'override può solo restringere le sezioni già consentite dal ruolo.
+    /// </summary>
+    public bool HasSectionOverride { get; set; } = false;
+
+    /// <summary>
+    /// Slug delle sezioni a cui l'utente può accedere quando
+    /// <see cref="HasSectionOverride"/> è attivo. Ignorato altrimenti.
+    /// </summary>
+    public List<string> VisibleSections { get; set; } = new();
 
     public bool IsActive { get; set; } = true;
     public DateTime? LastLoginAt { get; set; }
@@ -59,4 +79,17 @@ public enum LinkedPersonType
     Dottore,
     Dipendente,
     Fornitore
+}
+
+/// <summary>
+/// Livello di accesso assegnabile a un utente, indipendente dal ruolo.
+/// I valori numerici sono stabili per la persistenza Mongo.
+/// </summary>
+public enum AccessLevel
+{
+    /// <summary>L'utente può solo consultare i dati: nessuna azione di scrittura.</summary>
+    SolaLettura = 0,
+
+    /// <summary>L'utente può creare/modificare secondo quanto consentito dal suo ruolo.</summary>
+    LetturaScrittura = 10
 }
