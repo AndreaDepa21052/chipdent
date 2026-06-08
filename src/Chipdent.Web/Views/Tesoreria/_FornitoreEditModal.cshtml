@@ -1,5 +1,6 @@
 @model Chipdent.Web.Models.FornitoreEditModalViewModel
 @using Chipdent.Web.Domain.Entities
+@using Chipdent.Web.Domain.Common
 @using System.Globalization
 @{
     var f = Model.Fornitore;
@@ -264,18 +265,30 @@
 
                 <section id="sec-termini" class="dotmodal__section">
                     <h3 class="dotmodal__sec-title">📅 Termini di pagamento</h3>
-                    <p class="muted" style="font-size:.82rem; margin:0 0 10px;">Tipico: 30 gg D.F., 30 gg F.M., 60 gg F.M.S.</p>
+                    <p class="muted" style="font-size:.82rem; margin:0 0 10px;">Tipico: 30 gg D.F. oppure 30 gg F.M.</p>
+                    @{
+                        var modalMetodi = new[]
+                        {
+                            MetodoPagamento.CartaCredito,
+                            MetodoPagamento.Contanti,
+                            MetodoPagamento.Bonifico,
+                            MetodoPagamento.PagoPa,
+                            MetodoPagamento.Rid,
+                            MetodoPagamento.Riba,
+                            MetodoPagamento.F24
+                        };
+                    }
                     <div class="dotmodal__grid">
                         <div class="form-group">
                             <label class="form-label">Giorni</label>
-                            <input class="form-control" type="number" min="0" max="365" name="TerminiPagamentoGiorni" value="@vm.TerminiPagamentoGiorni" />
+                            <input id="fld-TerminiPagamentoGiorni" class="form-control" type="number" min="0" max="365" name="TerminiPagamentoGiorni" value="@vm.TerminiPagamentoGiorni" />
+                            <span class="hint" id="hint-giorni-forced" style="display:none; color:#a86010;">Per la base selezionata i giorni non sono usati (forzati a 0).</span>
                         </div>
                         <div class="form-group">
                             <label class="form-label">Base di calcolo</label>
-                            <select class="form-control" name="BasePagamento">
-                                <option value="@BasePagamento.DataFattura" selected="@(vm.BasePagamento == BasePagamento.DataFattura)">Data fattura (D.F.)</option>
-                                <option value="@BasePagamento.FineMeseFattura" selected="@(vm.BasePagamento == BasePagamento.FineMeseFattura)">Fine mese fattura (F.M.)</option>
-                                <option value="@BasePagamento.FineMeseSuccessivo" selected="@(vm.BasePagamento == BasePagamento.FineMeseSuccessivo)">Fine mese successivo (F.M.S.)</option>
+                            <select id="fld-BasePagamento" class="form-control" name="BasePagamento">
+                                <option value="@BasePagamento.DataFattura" selected="@(vm.BasePagamento == BasePagamento.DataFattura)">Data fattura (CC, contanti, …)</option>
+                                <option value="@BasePagamento.FineMeseFattura" selected="@(vm.BasePagamento == BasePagamento.FineMeseFattura)">Fine mese fattura</option>
                                 <option value="@BasePagamento.DataScadenza" selected="@(vm.BasePagamento == BasePagamento.DataScadenza)">Data scadenza in fattura</option>
                             </select>
                         </div>
@@ -292,6 +305,25 @@
                             <select class="form-control" name="PagamentoRicorrente">
                                 <option value="false" selected="@(!vm.PagamentoRicorrente)">No</option>
                                 <option value="true" selected="@(vm.PagamentoRicorrente)">Sì</option>
+                            </select>
+                        </div>
+                        <div class="form-group">
+                            <label class="form-label">Metodo di pagamento primario</label>
+                            <select class="form-control" name="MetodoPagamentoPrimario">
+                                @foreach (var m in modalMetodi)
+                                {
+                                    <option value="@m" selected="@(vm.MetodoPagamentoPrimario == m)">@m.Label()</option>
+                                }
+                            </select>
+                        </div>
+                        <div class="form-group">
+                            <label class="form-label">Metodo di pagamento aggiuntivo</label>
+                            <select class="form-control" name="MetodoPagamentoSecondario">
+                                <option value="">— nessuno —</option>
+                                @foreach (var m in modalMetodi)
+                                {
+                                    <option value="@m" selected="@(vm.MetodoPagamentoSecondario == m)">@m.Label()</option>
+                                }
                             </select>
                         </div>
                     </div>
