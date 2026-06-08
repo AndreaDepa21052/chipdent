@@ -12,6 +12,8 @@ public class TenantResolverMiddleware
     public const string LinkedPersonTypeClaim = "linked_person_type";
     public const string LinkedPersonIdClaim   = "linked_person_id";
     public const string AccessLevelClaim      = "access_level";
+    public const string SectionOverrideClaim  = "section_override";
+    public const string SectionGrantsClaim    = "section_grants";
 
     private readonly RequestDelegate _next;
 

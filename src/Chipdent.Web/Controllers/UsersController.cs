@@ -253,6 +253,11 @@ public class UsersController : Controller
             TempData["flash"] = "Non puoi modificare i tuoi stessi accessi: chiedi a un altro amministratore.";
             return RedirectToAction(nameof(Permissions), new { userId });
         }
+        if (user.Role is UserRole.Owner or UserRole.PlatformAdmin)
+        {
+            TempData["flash"] = "Owner e Platform Admin vedono sempre tutto: non è possibile limitarne gli accessi.";
+            return RedirectToAction(nameof(Permissions), new { userId });
+        }
 
         bool hasOverride;
         List<string> visible;
@@ -264,10 +269,11 @@ public class UsersController : Controller
         }
         else
         {
-            // Si possono abilitare solo le sezioni consentite dal ruolo.
-            var roleAvailable = await GetRoleAvailableAsync(user.Role);
+            // Allow-list autoritativa: si può abilitare qualunque sezione del catalogo,
+            // anche oltre il ruolo (la concessione sblocca davvero il relativo controller).
+            var catalog = MenuCatalog.AllSections.Select(s => s.Slug).ToHashSet(StringComparer.OrdinalIgnoreCase);
             visible = (sezioni ?? new())
-                .Where(s => roleAvailable.Contains(s))
+                .Where(s => catalog.Contains(s))
                 .Distinct(StringComparer.OrdinalIgnoreCase)
                 .ToList();
             hasOverride = true;
@@ -281,8 +287,8 @@ public class UsersController : Controller
                 .Set(x => x.UpdatedAt, DateTime.UtcNow));
 
         TempData["flash"] = personalizza
-            ? $"Accessi personalizzati salvati per «{user.FullName}» ({visible.Count} sezioni)."
-            : $"«{user.FullName}» eredita di nuovo gli accessi del ruolo.";
+            ? $"Accessi personalizzati salvati per «{user.FullName}» ({visible.Count} sezioni). Effettivi al suo prossimo accesso."
+            : $"«{user.FullName}» eredita di nuovo gli accessi del ruolo. Effettivo al suo prossimo accesso.";
         return RedirectToAction(nameof(Permissions), new { userId });
     }
 
@@ -335,12 +341,12 @@ public class UsersController : Controller
 
     private async Task<UserSectionEditorViewModel> BuildEditorAsync(User user, string currentId)
     {
-        var roleAvailable = await GetRoleAvailableAsync(user.Role);
+        var roleBaseline = await GetRoleAvailableAsync(user.Role);
         // Checkbox spuntati: se c'è override usa la sua allow-list, altrimenti
-        // mostra tutto ciò che il ruolo consente (stato ereditato).
+        // mostra tutto ciò che il ruolo concede di base (stato ereditato).
         var allowed = user.HasSectionOverride
             ? new HashSet<string>(user.VisibleSections ?? new(), StringComparer.OrdinalIgnoreCase)
-            : new HashSet<string>(roleAvailable, StringComparer.OrdinalIgnoreCase);
+            : new HashSet<string>(roleBaseline, StringComparer.OrdinalIgnoreCase);
 
         return new UserSectionEditorViewModel
         {
@@ -348,10 +354,11 @@ public class UsersController : Controller
             FullName = user.FullName,
             Role = user.Role,
             IsCurrent = user.Id == currentId,
+            IsOwnerLike = user.Role is UserRole.Owner or UserRole.PlatformAdmin,
             HasOverride = user.HasSectionOverride,
             Groups = MenuCatalog.Groups,
             Allowed = allowed,
-            RoleAvailable = roleAvailable
+            RoleBaseline = roleBaseline
         };
     }
 

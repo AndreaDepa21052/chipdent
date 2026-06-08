@@ -13,13 +13,6 @@ public interface IMenuVisibilityService
     Task<HashSet<string>> GetHiddenForRoleAsync(string role, CancellationToken ct = default);
     Task<IReadOnlyDictionary<string, HashSet<string>>> GetAllAsync(CancellationToken ct = default);
     Task SetHiddenForRoleAsync(string role, IEnumerable<string> hiddenSections, CancellationToken ct = default);
-
-    /// <summary>
-    /// Set delle sezioni nascoste per uno specifico utente. Parte dalla visibilità del
-    /// ruolo e, se l'utente ha un override personalizzato, restringe ulteriormente
-    /// nascondendo tutte le sezioni non incluse nella sua allow-list.
-    /// </summary>
-    Task<HashSet<string>> GetHiddenForUserAsync(string? userId, string role, CancellationToken ct = default);
 }
 
 public class MongoMenuVisibilityService : IMenuVisibilityService
@@ -35,25 +28,6 @@ public class MongoMenuVisibilityService : IMenuVisibilityService
         return doc is null
             ? new HashSet<string>(StringComparer.OrdinalIgnoreCase)
             : new HashSet<string>(doc.HiddenSections, StringComparer.OrdinalIgnoreCase);
-    }
-
-    public async Task<HashSet<string>> GetHiddenForUserAsync(string? userId, string role, CancellationToken ct = default)
-    {
-        var roleHidden = await GetHiddenForRoleAsync(role, ct);
-        if (string.IsNullOrEmpty(userId)) return roleHidden;
-
-        var user = await _ctx.Users.Find(u => u.Id == userId).FirstOrDefaultAsync(ct);
-        if (user is null || !user.HasSectionOverride) return roleHidden;
-
-        var allowed = new HashSet<string>(user.VisibleSections ?? new(), StringComparer.OrdinalIgnoreCase);
-        // L'override restringe soltanto: parte dal nascosto del ruolo e aggiunge
-        // tutte le sezioni che l'utente non ha esplicitamente abilitato.
-        var hidden = new HashSet<string>(roleHidden, StringComparer.OrdinalIgnoreCase);
-        foreach (var section in MenuCatalog.AllSections)
-        {
-            if (!allowed.Contains(section.Slug)) hidden.Add(section.Slug);
-        }
-        return hidden;
     }
 
     public async Task<IReadOnlyDictionary<string, HashSet<string>>> GetAllAsync(CancellationToken ct = default)

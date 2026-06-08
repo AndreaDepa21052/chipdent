@@ -95,7 +95,10 @@ public class AccountController : Controller
             new(TenantResolverMiddleware.ClinicaIdsClaim, string.Join(",", user.ClinicaIds ?? new())),
             new(TenantResolverMiddleware.LinkedPersonTypeClaim, user.LinkedPersonType.ToString()),
             new(TenantResolverMiddleware.LinkedPersonIdClaim, user.LinkedPersonId ?? string.Empty),
-            new(TenantResolverMiddleware.AccessLevelClaim, user.AccessLevel.ToString())
+            new(TenantResolverMiddleware.AccessLevelClaim, user.AccessLevel.ToString()),
+            new(TenantResolverMiddleware.SectionOverrideClaim, user.HasSectionOverride ? "true" : "false"),
+            new(TenantResolverMiddleware.SectionGrantsClaim,
+                user.HasSectionOverride ? string.Join(",", user.VisibleSections ?? new()) : string.Empty)
         };
 
         var identity = new ClaimsIdentity(claims, CookieAuthenticationDefaults.AuthenticationScheme);

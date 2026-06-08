@@ -80,11 +80,19 @@ public class UserSectionEditorViewModel
     /// <summary>Slug effettivamente accessibili (checkbox spuntati).</summary>
     public HashSet<string> Allowed { get; set; } = new(StringComparer.OrdinalIgnoreCase);
 
-    /// <summary>Slug consentiti dal ruolo: gli unici configurabili (gli altri sono disabilitati).</summary>
-    public HashSet<string> RoleAvailable { get; set; } = new(StringComparer.OrdinalIgnoreCase);
+    /// <summary>Slug che il ruolo concede di base: serve a evidenziare le concessioni extra.</summary>
+    public HashSet<string> RoleBaseline { get; set; } = new(StringComparer.OrdinalIgnoreCase);
 
-    public bool IsConfigurable(string slug) => RoleAvailable.Contains(slug);
+    /// <summary>True se l'utente non vede questa sezione, mentre il target sì (solo informativo).</summary>
+    public bool IsOwnerLike { get; set; }
+
+    /// <summary>Sezioni che danno accesso a funzioni amministrative sensibili.</summary>
+    private static readonly HashSet<string> Sensitive =
+        new(new[] { "users", "configurazione", "audit", "whistleblowing" }, StringComparer.OrdinalIgnoreCase);
+
     public bool IsAllowed(string slug) => Allowed.Contains(slug);
+    public bool IsBeyondRole(string slug) => !RoleBaseline.Contains(slug);
+    public bool IsSensitive(string slug) => Sensitive.Contains(slug);
 }
 
 public class InviteUserViewModel

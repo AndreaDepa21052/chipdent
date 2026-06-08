@@ -86,6 +86,17 @@
                 chiedi a un altro amministratore.
             </div>
         }
+        else if (ed.IsOwnerLike)
+        {
+            <div class="card__header">
+                <h3 class="card__title">@ed.FullName</h3>
+                <span class="role-badge @RoleClass(ed.Role)">@RoleLabel(ed.Role)</span>
+            </div>
+            <div class="alert alert--info" style="margin: var(--s-4);">
+                <strong>@RoleLabel(ed.Role)</strong> ha sempre accesso a tutte le sezioni: non è possibile
+                limitarne o personalizzarne gli accessi.
+            </div>
+        }
         else
         {
             <form asp-action="SaveSections" method="post" id="accessForm">
@@ -111,8 +122,10 @@
                     </label>
 
                     <p class="access-note">
-                        Puoi abilitare solo le sezioni già consentite al ruolo <strong>@RoleLabel(ed.Role)</strong>.
-                        Le sezioni non disponibili per il ruolo sono disabilitate.
+                        Spunta le sezioni a cui <strong>@ed.FullName</strong> può accedere. Puoi anche concedere
+                        sezioni <em>oltre</em> il ruolo <strong>@RoleLabel(ed.Role)</strong>
+                        (<span class="access-tag access-tag--extra">extra</span>): la concessione sblocca davvero
+                        la relativa area. Le modifiche diventano effettive al prossimo accesso dell'utente.
                     </p>
 
                     <div class="access-groups" id="accessGroups">
@@ -126,14 +139,19 @@
                                 <div class="access-group__items">
                                     @foreach (var s in g.Sections)
                                     {
-                                        var configurable = ed.IsConfigurable(s.Slug);
-                                        <label class="access-chk @(configurable ? "" : "is-disabled")"
-                                               title="@(configurable ? "" : "Non disponibile per il ruolo " + RoleLabel(ed.Role))">
+                                        <label class="access-chk">
                                             <input type="checkbox" name="sezioni" value="@s.Slug"
                                                    data-group="@g.Key"
-                                                   checked="@ed.IsAllowed(s.Slug)"
-                                                   disabled="@(!configurable)" />
+                                                   checked="@ed.IsAllowed(s.Slug)" />
                                             <span>@s.Label</span>
+                                            @if (ed.IsBeyondRole(s.Slug))
+                                            {
+                                                <span class="access-tag access-tag--extra" title="Oltre il ruolo">extra</span>
+                                            }
+                                            @if (ed.IsSensitive(s.Slug))
+                                            {
+                                                <span class="access-tag access-tag--warn" title="Area amministrativa sensibile">sensibile</span>
+                                            }
                                         </label>
                                     }
                                 </div>
@@ -182,7 +200,11 @@
     .access-group__items { display: flex; flex-direction: column; gap: 4px; margin-top: 6px; }
     .access-chk { display: flex; align-items: center; gap: 8px; padding: 4px 6px; border-radius: 6px; cursor: pointer; }
     .access-chk:hover { background: var(--c-bg-soft, #faf6f0); }
-    .access-chk.is-disabled { opacity: .45; cursor: not-allowed; }
+    .access-chk > span:first-of-type { flex: 1; }
+    .access-tag { font-size: .62rem; text-transform: uppercase; letter-spacing: .5px; font-weight: 700;
+        padding: 1px 6px; border-radius: 999px; }
+    .access-tag--extra { background: #e7f0e7; color: #2f6b35; }
+    .access-tag--warn { background: #fbe3e3; color: #9a2e2e; }
     .badge--warning { background: #fbe9d5; color: #8a4b16; }
 </style>
 
@@ -194,21 +216,13 @@
         var master = document.getElementById('personalizza');
         var groups = document.getElementById('accessGroups');
 
-        function configurableBoxes() {
-            // Solo i checkbox abilitati dal ruolo (non quelli disattivati dal markup).
-            return Array.prototype.filter.call(
-                groups.querySelectorAll('input[name="sezioni"]'),
-                function (b) { return !b.hasAttribute('data-locked'); });
+        function allBoxes() {
+            return Array.prototype.slice.call(groups.querySelectorAll('input[name="sezioni"]'));
         }
-
-        // Marca come "locked" i checkbox non configurabili dal ruolo, così restano sempre off.
-        Array.prototype.forEach.call(groups.querySelectorAll('input[name="sezioni"]'), function (b) {
-            if (b.disabled) b.setAttribute('data-locked', '1');
-        });
 
         function applyMaster() {
             var on = master.checked;
-            configurableBoxes().forEach(function (b) { b.disabled = !on; });
+            allBoxes().forEach(function (b) { b.disabled = !on; });
             groups.style.opacity = on ? '1' : '.55';
         }
 
@@ -220,7 +234,7 @@
             btn.addEventListener('click', function () {
                 if (!master.checked) return;
                 var key = btn.getAttribute('data-group');
-                var boxes = configurableBoxes().filter(function (b) { return b.getAttribute('data-group') === key; });
+                var boxes = allBoxes().filter(function (b) { return b.getAttribute('data-group') === key; });
                 var anyOff = boxes.some(function (b) { return !b.checked; });
                 boxes.forEach(function (b) { b.checked = anyOff; });
             });

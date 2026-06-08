@@ -14,13 +14,28 @@
     var isOwner = User.IsOwner();
 
     // PlatformAdmin e Owner vedono sempre tutto; per gli altri ruoli applichiamo
-    // la visibilità del ruolo, eventualmente ristretta da un override per-utente
-    // configurato in "Utenti › Accessi".
-    var currentUserId = User.FindFirst(System.Security.Claims.ClaimTypes.NameIdentifier)?.Value;
+    // la visibilità del ruolo. Se l'utente ha un override per-utente (claim impostato
+    // al login da "Utenti › Accessi"), l'allow-list è autoritativa e può anche
+    // concedere sezioni oltre al ruolo.
     var hiddenSections = (isPlatformAdmin || isOwner)
         ? new HashSet<string>(StringComparer.OrdinalIgnoreCase)
-        : await MenuVisibility.GetHiddenForUserAsync(currentUserId, role);
-    bool ShowSection(string slug) => !hiddenSections.Contains(slug);
+        : await MenuVisibility.GetHiddenForRoleAsync(role);
+
+    var overrideActive = !isPlatformAdmin && !isOwner
+        && string.Equals(User.FindFirst("section_override")?.Value, "true", StringComparison.OrdinalIgnoreCase);
+    var overrideSet = overrideActive
+        ? new HashSet<string>((User.FindFirst("section_grants")?.Value ?? "")
+            .Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries),
+            StringComparer.OrdinalIgnoreCase)
+        : null;
+
+    // Con override: la sezione si mostra se è nell'allow-list. Senza: comportamento per-ruolo.
+    bool ShowSection(string slug) => overrideSet != null ? overrideSet.Contains(slug) : !hiddenSections.Contains(slug);
+    // Con override: il gruppo si mostra se contiene almeno una sezione concessa.
+    bool GroupVisible(string groupKey, bool roleGate) => overrideSet != null
+        ? Chipdent.Web.Services.MenuCatalog.Groups.FirstOrDefault(g => g.Key == groupKey)?.Sections
+            .Any(s => overrideSet.Contains(s.Slug)) == true
+        : roleGate;
 
     var canSeeAnagrafiche = User.IsManagement() || User.IsDirettore() || User.IsBackoffice();
     var canSeeUsers = User.IsManagement();
@@ -251,6 +266,8 @@
             </button>
 
             <nav class="nav" data-tour="sidebar-nav">
+                @if (GroupVisible("operativita", true))
+                {
                 <details class="nav__group" data-group-key="operativita" open>
                     <summary class="nav__group-title">
                         <span>Operatività</span>
@@ -341,9 +358,15 @@
                     </a>
                     }
                 </details>
+                }
 
-                @if (canSeeAnagrafiche)
+                @if (GroupVisible("anagrafiche", canSeeAnagrafiche)
+                    || GroupVisible("direzionale", User.IsManagement())
+                    || GroupVisible("tesoreria", User.IsOwner() || User.IsManagement() || User.IsBackoffice())
+                    || GroupVisible("compliance", canSeeAnagrafiche))
                 {
+                    @if (GroupVisible("anagrafiche", canSeeAnagrafiche))
+                    {
                     <details class="nav__group" data-group-key="anagrafiche" open>
                         <summary class="nav__group-title">
                             <span>Anagrafiche</span>
@@ -373,7 +396,7 @@
                             Dipendenti
                         </a>
                         }
-                        @if ((User.IsOwner() || User.IsManagement() || User.IsBackoffice()) && ShowSection("fornitori"))
+                        @if (ShowSection("fornitori") && (overrideSet != null || User.IsOwner() || User.IsManagement() || User.IsBackoffice()))
                         {
                             <a class="nav__item @(section == "fornitori" ? "is-active" : "")" asp-controller="Tesoreria" asp-action="Fornitori">
                                 <svg class="nav__icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 21V8l9-5 9 5v13"/><path d="M9 21v-7h6v7"/><path d="M3 21h18"/></svg>
@@ -393,8 +416,9 @@
                         </a>
                         }
                     </details>
+                    }
 
-                    @if (User.IsManagement())
+                    @if (GroupVisible("direzionale", User.IsManagement()))
                     {
                         <details class="nav__group" data-group-key="direzionale" open>
                             <summary class="nav__group-title">
@@ -446,7 +470,7 @@
                         </details>
                     }
 
-                    @if (User.IsOwner() || User.IsManagement() || User.IsBackoffice())
+                    @if (GroupVisible("tesoreria", User.IsOwner() || User.IsManagement() || User.IsBackoffice()))
                     {
                         <details class="nav__group" data-group-key="tesoreria" open>
                             <summary class="nav__group-title">
@@ -480,6 +504,8 @@
                         </details>
                     }
 
+                    @if (GroupVisible("compliance", canSeeAnagrafiche))
+                    {
                     <details class="nav__group" data-group-key="compliance" open>
                         <summary class="nav__group-title">
                             <span>Compliance</span>
@@ -522,9 +548,10 @@
                         </a>
                         }
                     </details>
+                    }
                 }
 
-                @if (canSeeUsers)
+                @if (GroupVisible("amministrazione", canSeeUsers))
                 {
                     <details class="nav__group" data-group-key="amministrazione" open>
                         <summary class="nav__group-title">

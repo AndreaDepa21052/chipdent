@@ -42,6 +42,9 @@ builder.Services
     });
 
 builder.Services.AddAuthorization(Chipdent.Web.Infrastructure.Identity.Policies.Configure);
+// Concede l'accesso ai controller quando l'utente ha un grant di sezione per-utente.
+builder.Services.AddSingleton<Microsoft.AspNetCore.Authorization.IAuthorizationHandler,
+    Chipdent.Web.Infrastructure.Identity.SectionGrantAuthorizationHandler>();
 builder.Services.AddControllersWithViews();
 builder.Services.AddSignalR();
 builder.Services.AddHttpContextAccessor();
