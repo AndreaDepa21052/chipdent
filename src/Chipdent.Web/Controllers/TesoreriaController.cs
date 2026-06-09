@@ -973,10 +973,29 @@ public class TesoreriaController : Controller
             });
         }
 
-        var bytes = XlsxWriter.Build("Fornitori", header, rows);
+        var bytes = XlsxWriter.Build("Fornitori", header, rows, BuildFornitoriValidations());
         return File(bytes,
             "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
             $"fornitori-{DateTime.UtcNow:yyyyMMdd}.xlsx");
+    }
+
+    /// <summary>Mappa colonne dell'export fornitori → valori ammessi (per le tendine in Excel).
+    /// Gli indici devono restare allineati all'array <c>header</c> usato in <see cref="ExportFornitoriXlsx"/>.</summary>
+    private static Dictionary<int, IReadOnlyList<string>> BuildFornitoriValidations()
+    {
+        IReadOnlyList<string> SiNo = new[] { "Sì", "No" };
+        IReadOnlyList<string> Categorie = Enum.GetNames<CategoriaSpesa>();
+        return new Dictionary<int, IReadOnlyList<string>>
+        {
+            [14] = Categorie,                            // Categoria primaria
+            [15] = Categorie,                            // Categoria secondaria
+            [16] = Enum.GetNames<StatoFornitore>(),      // Stato
+            [19] = Enum.GetNames<BasePagamento>(),       // Base pagamento
+            [20] = Enum.GetNames<EmissioneFattura>(),    // Emissione fattura
+            [21] = SiNo,                                 // Pagamento ricorrente
+            [22] = SiNo,                                 // Pagamenti manuali
+            [24] = SiNo,                                 // Aggiungi nota secondaria
+        };
     }
 
     [HttpGet("fornitori/nuovo")]
